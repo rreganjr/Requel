@@ -1,0 +1,71 @@
+/*
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+package com.rreganjr.requel.service.api.dto;
+
+import com.rreganjr.requel.service.api.CommandDescription;
+import com.rreganjr.requel.service.api.CommandDescriptions;
+import jakarta.validation.constraints.NotBlank;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
+
+/**
+ * Input DTO for creating or editing a story.
+ *
+ * <p>
+ * On update, a null (or absent) {@code text} or {@code storyTypeName} leaves it as it is;
+ * an empty {@code text} clears it (issue #316). The same goes for {@code primaryActorName}: null
+ * leaves the actor, an empty string clears it, and a name that names no actor is refused
+ * (issue #325).
+ *
+ * @param projectName      project the story belongs to
+ * @param storyId          ID of the story to edit (null for create)
+ * @param name             story name (the new name to set)
+ * @param text             story body text
+ * @param storyTypeName    "Success" or "Exception"
+ * @param primaryActorName name of the primary actor ("" to clear, null to leave it)
+ * @param version          optimistic lock version (null for create)
+ */
+@CommandDescription("Creates or edits a story. Leave storyId null to create one, or pass it to"
+        + " edit an existing story. name is required on every call, so send the current name to"
+        + " keep it, and story names are unique within the project, ignoring case. storyTypeName is"
+        + " exactly Success or Exception and is required when creating; an empty string is refused"
+        + " rather than clearing it. primaryActorName names an actor in the project and an empty"
+        + " string clears it; a name that matches no actor is refused. Saving asks the assistant to"
+        + " analyze the story."
+        + CommandDescriptions.PARTIAL_UPDATE
+        + CommandDescriptions.VERSION_CHECKED)
+public record EditStoryInput(
+        @NotBlank String projectName,
+        Long storyId,
+        @NotBlank
+        @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
+        String name,
+        String text,
+        String storyTypeName,
+        // Deliberately unconstrained: a story's primary actor is optional, and passing "" is how
+        // the SPA clears it (null leaves it as it is since #325; StoryPrimaryActorMappingTest
+        // asserts the clear). A @NotBlank here made every story edit fail with 422 -- including
+        // stories that never had a primary actor. Enforcing it was dormant and therefore
+        // invisible until #171 turned DTO validation on.
+        String primaryActorName,
+        Integer version
+) {
+}

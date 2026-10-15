@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.rreganjr.requel</groupId>
         <artifactId>Requel-parent</artifactId>
-        <version>1.2.0</version>
+        <version>2.0.0</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -48,6 +48,16 @@
             <groupId>com.rreganjr.requel</groupId>
             <artifactId>utils-jaxb</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>project-domain</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

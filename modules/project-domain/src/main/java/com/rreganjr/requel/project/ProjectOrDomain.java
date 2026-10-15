@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,8 +34,18 @@ public interface ProjectOrDomain extends CreatedEntity, NamedEntity, Describable
 		ActorContainer, ScenarioContainer {
 
 	/**
+	 * @return the persistent identity of this project or domain.
+	 */
+	public Long getId();
+
+	/**
+	 * @return the optimistic-lock version; incremented on each user-initiated modification.
+	 */
+	public int getVersion();
+
+	/**
 	 * Change the name of the domain or project.
-	 * 
+	 *
 	 * @param name
 	 */
 	public void setName(String name);

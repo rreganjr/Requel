@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -58,12 +58,16 @@ public class ProjectUserRole extends AbstractUserRole {
 	@Transient
 	public static final UserRolePermission inviteUsers = new JpaUserRolePermission(
 			ProjectUserRole.class, "inviteUsers");
+	@Transient
+	public static final UserRolePermission manageApiTokens = new JpaUserRolePermission(
+			ProjectUserRole.class, "manageApiTokens");
 
 	static {
 		AbstractUserRole.userRoleTypes.add(ProjectUserRole.class);
 		AbstractUserRole.userRoleTypePermissions.put(ProjectUserRole.class,
 				new HashSet<UserRolePermission>());
 		AbstractUserRole.userRoleTypePermissions.get(ProjectUserRole.class).add(createProjects);
+		AbstractUserRole.userRoleTypePermissions.get(ProjectUserRole.class).add(manageApiTokens);
 		// AbstractUserRole.userRoleTypePermissions.get(ProjectUserRole.class).add(inviteUsers);
 	}
 
@@ -86,7 +90,9 @@ public class ProjectUserRole extends AbstractUserRole {
 	/**
 	 * @return the user this role is assigned to
 	 */
-	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.PERSIST, CascadeType.REFRESH })
+	// #323: no REFRESH cascade up to the user - a refresh reloads the entity and what it owns,
+	// nothing above it (the user's roles reach every project the user is on).
+	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.PERSIST })
 	protected User getUser() {
 		return user;
 	}
@@ -104,8 +110,14 @@ public class ProjectUserRole extends AbstractUserRole {
 	/**
 	 * @return
 	 */
-	@ManyToMany(targetEntity = ProjectImpl.class, cascade = { CascadeType.PERSIST,
-			CascadeType.REFRESH }, fetch = FetchType.EAGER)
+	// #247: no REFRESH cascade - refreshing a role must not reload every active project and
+	// everything under them (see AbstractProjectOrDomainEntity.getProjectOrDomain).
+	// #323: LAZY. Users are loaded eagerly with their roles everywhere (every entity's createdBy),
+	// and an EAGER set here was left-joined into each of those loads - one user chain per
+	// createdBy, multiplying to ~N^6 rows for a user on N projects. To list the projects use
+	// ProjectRepository.findActiveProjects(User); add/remove only on a managed user.
+	@ManyToMany(targetEntity = ProjectImpl.class, cascade = { CascadeType.PERSIST },
+			fetch = FetchType.LAZY)
 	@SortNatural
 	public Set<Project> getActiveProjects() {
 		return activeProjects;
@@ -128,6 +140,15 @@ public class ProjectUserRole extends AbstractUserRole {
 	 */
 	public boolean canInviteUsers() {
 		return hasUserRolePermission(inviteUsers);
+	}
+
+	/**
+	 * @return true if this user is authorized to manage (create, list, revoke,
+	 *         and delete) their own personal access tokens. Granted per-user
+	 *         (issue #85); holding the role alone does not confer it.
+	 */
+	public boolean canManageApiTokens() {
+		return hasUserRolePermission(manageApiTokens);
 	}
 
 	@Override

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +26,18 @@ import java.util.Set;
  * @author ron
  */
 public interface Story extends TextEntity, GoalContainer, ActorContainer, Comparable<Story> {
+
+	/**
+	 * @return the primary actor for this story, or null if none is set
+	 */
+	Actor getPrimaryActor();
+
+	/**
+	 * Set the primary actor for this story.
+	 *
+	 * @param actor the actor to set as primary, or null to clear
+	 */
+	void setPrimaryActor(Actor actor);
 
 	/**
 	 * Return the project entities that have a direct reference to this story.

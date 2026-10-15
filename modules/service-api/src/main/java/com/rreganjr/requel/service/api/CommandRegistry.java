@@ -1,0 +1,136 @@
+/*
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+package com.rreganjr.requel.service.api;
+
+import com.rreganjr.command.Command;
+
+import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
+/**
+ * Registry for API command types. Per-domain registrars register their command
+ * types at startup via {@link #register}. The composite CommandFactory facade
+ * queries this registry to look up input types and create commands.
+ */
+public interface CommandRegistry {
+
+    /**
+     * Full registration: all fields including the optional secondary result extractor and
+     * commandBuilder. When commandBuilder is non-null it is used in place of factoryMethod +
+     * inputApplicator — it receives the raw deserialized input and returns a fully-configured
+     * command. When secondaryResultExtractor is non-null the controller/gateway also publishes a
+     * targeted SSE event for that second entity (e.g. an association command's child); that second
+     * entity is publish-only and never enters the response body.
+     */
+    <T> void register(String commandType, Class<T> inputClass,
+                      Supplier<Command> factoryMethod,
+                      BiConsumer<Command, T> inputApplicator,
+                      BiConsumer<Command, Object> fileApplicator,
+                      Function<Command, Object> resultExtractor,
+                      Function<Command, Object> secondaryResultExtractor,
+                      Function<Object, Command> commandBuilder);
+
+    /**
+     * Registration with a commandBuilder but no secondary result extractor. Delegates to the full
+     * signature with a null secondaryResultExtractor. This is the signature every other overload
+     * below funnels through, so they all get a null secondary extractor for free.
+     */
+    default <T> void register(String commandType, Class<T> inputClass,
+                              Supplier<Command> factoryMethod,
+                              BiConsumer<Command, T> inputApplicator,
+                              BiConsumer<Command, Object> fileApplicator,
+                              Function<Command, Object> resultExtractor,
+                              Function<Object, Command> commandBuilder) {
+        register(commandType, inputClass, factoryMethod, inputApplicator, fileApplicator,
+                resultExtractor, null, commandBuilder);
+    }
+
+    /**
+     * Standard registration: input class, factory, input applicator, file applicator, result extractor.
+     */
+    default <T> void register(String commandType, Class<T> inputClass,
+                              Supplier<Command> factoryMethod,
+                              BiConsumer<Command, T> inputApplicator,
+                              BiConsumer<Command, Object> fileApplicator,
+                              Function<Command, Object> resultExtractor) {
+        register(commandType, inputClass, factoryMethod, inputApplicator, fileApplicator, resultExtractor, null);
+    }
+
+    /**
+     * Register with input + file applicators, no result extractor.
+     */
+    default <T> void register(String commandType, Class<T> inputClass,
+                              Supplier<Command> factoryMethod,
+                              BiConsumer<Command, T> inputApplicator,
+                              BiConsumer<Command, Object> fileApplicator) {
+        register(commandType, inputClass, factoryMethod, inputApplicator, fileApplicator, null, null);
+    }
+
+    /**
+     * Register with input applicator only (no file, no result extractor).
+     */
+    default <T> void register(String commandType, Class<T> inputClass,
+                              Supplier<Command> factoryMethod,
+                              BiConsumer<Command, T> inputApplicator) {
+        register(commandType, inputClass, factoryMethod, inputApplicator, null, null, null);
+    }
+
+    /**
+     * Register with no input mapping (placeholder for future DTO wiring).
+     */
+    default void register(String commandType, Supplier<Command> factoryMethod) {
+        register(commandType, Void.class, factoryMethod, null, null, null, null);
+    }
+
+    /**
+     * Register a command whose type depends on the input (polymorphic factory).
+     * The commandBuilder function receives the deserialized input and must return
+     * a fully-configured command ready for the handler chain.
+     */
+    default <T> void registerWithBuilder(String commandType, Class<T> inputClass,
+                                         Function<T, Command> commandBuilder,
+                                         Function<Command, Object> resultExtractor) {
+        @SuppressWarnings("unchecked")
+        Function<Object, Command> erased = input -> commandBuilder.apply((T) input);
+        register(commandType, inputClass, null, null, null, resultExtractor, erased);
+    }
+
+    /**
+     * Look up a registration by command type string.
+     *
+     * @throws IllegalArgumentException if the command type is not registered
+     */
+    CommandRegistration<?> lookup(String commandType);
+
+    /**
+     * @return true if a command type is registered
+     */
+    boolean isRegistered(String commandType);
+
+    /**
+     * @return an immutable snapshot of every registered command type. The gateway uses this to
+     *         build its allowlist (registered types minus the denylist) and the command catalog,
+     *         so the exposed surface stays in lockstep with what is actually registered.
+     */
+    Set<String> registeredTypes();
+}

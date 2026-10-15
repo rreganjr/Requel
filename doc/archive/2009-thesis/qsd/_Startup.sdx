@@ -1,0 +1,16 @@
+#![Requel Web Application Startup]
+
+tomcat:Tomcat[a]
+/dcl:DatabaseCreationListener[a]
+/cll:RequestContextListener[a]
+/dil:DatabaseInitializationListener[a]
+/ui:UIFrameworkServlet[a]
+
+tomcat:dcl.new
+tomcat:dcl.contextInitialized()
+tomcat:cll.new
+tomcat:cll.contextInitialized()
+tomcat:dil.new
+tomcat:dil.contextInitialized()
+tomcat:ui.new
+tomcat:ui.init

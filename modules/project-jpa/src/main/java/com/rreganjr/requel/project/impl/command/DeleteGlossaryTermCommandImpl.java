@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -34,7 +35,13 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.DeletePositionCommand;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.command.DeleteGlossaryTermCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.AddGlossaryTermPosition;
@@ -51,7 +58,12 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("deleteGlossaryTermCommand")
 @Scope("prototype")
 public class DeleteGlossaryTermCommandImpl extends AbstractEditProjectCommand implements
-		DeleteGlossaryTermCommand {
+		DeleteGlossaryTermCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.GlossaryTerm.class, "Delete");
+	}
 
 	private GlossaryTerm glossaryTerm;
 
@@ -86,14 +98,22 @@ public class DeleteGlossaryTermCommandImpl extends AbstractEditProjectCommand im
 		GlossaryTerm glossaryTerm = getRepository().get(getGlossaryTerm());
 		Set<Annotation> annotations = new HashSet<Annotation>(glossaryTerm.getAnnotations());
 		for (Annotation annotation : annotations) {
-			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = getAnnotationCommandFactory()
-					.newRemoveAnnotationFromAnnotatableCommand();
+			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = CascadeAuthorizable.cascade(this,
+					getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand());
 			removeAnnotationFromAnnotatableCommand.setEditedBy(getEditedBy());
 			removeAnnotationFromAnnotatableCommand.setAnnotatable(glossaryTerm);
 			removeAnnotationFromAnnotatableCommand.setAnnotation(annotation);
 			getCommandHandler().execute(removeAnnotationFromAnnotatableCommand);
 		}
-		glossaryTerm.getReferers().clear();
+		// The referers' side (goals_glossary_terms and the like) references the term by key.
+		for (ProjectOrDomainEntity referer : new java.util.ArrayList<ProjectOrDomainEntity>(
+				glossaryTerm.getReferers())) {
+			if (referer != null) {
+				referer.getGlossaryTerms().remove(glossaryTerm);
+			}
+		}
+		// #386: by native delete; clearing the @ManyToAny referers set fails in Hibernate.
+		getProjectRepository().removeAllGlossaryTermReferers(glossaryTerm);
 		// if this is the canonical term for other glossary terms, the
 		// other terms must be updated to set the canonical term to null.
 		for (GlossaryTerm alternateTerm : glossaryTerm.getAlternateTerms()) {
@@ -107,12 +127,22 @@ public class DeleteGlossaryTermCommandImpl extends AbstractEditProjectCommand im
 					.newDeletePositionCommand();
 			deletePositionCommand.setEditedBy(getEditedBy());
 			deletePositionCommand.setPosition(addGlossaryTermPosition);
+			// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+			CascadeAuthorizable.cascade(this, deletePositionCommand);
 			getCommandHandler().execute(deletePositionCommand);
 		} catch (NoSuchEntityException e) {
 
 		}
 		glossaryTerm.getProjectOrDomain().getGlossaryTerms().remove(glossaryTerm);
+		// #247: clear any annotation link committed since this entity was loaded.
+		removeAllAnnotationsBeforeDelete(glossaryTerm, getEditedBy());
 		getRepository().delete(glossaryTerm);
+	}
+
+	@Override
+	public Project getProject() {
+		if (glossaryTerm != null && glossaryTerm.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 
 }

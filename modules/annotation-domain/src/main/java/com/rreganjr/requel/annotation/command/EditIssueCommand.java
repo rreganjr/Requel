@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 package com.rreganjr.requel.annotation.command;
 
 import com.rreganjr.requel.annotation.Issue;
+import com.rreganjr.requel.annotation.IssueSeverity;
 
 /**
  * @author ron
@@ -46,4 +47,25 @@ public interface EditIssueCommand extends EditAnnotationCommand {
 	 *            set to true if this issue must be resolved.
 	 */
 	public void setMustBeResolved(boolean mustBeResolved);
+
+	/**
+	 * Partial-update form (issue #271, following #316's contract): {@code null} means
+	 * {@code false} when the command creates an issue and "leave it unchanged" when it updates
+	 * one.
+	 *
+	 * @param mustBeResolved -
+	 *            true if this issue must be resolved, or null
+	 */
+	public void setMustBeResolved(Boolean mustBeResolved);
+
+	/**
+	 * {@code null} means the issue kind's default when the command creates an issue, and "leave
+	 * it unchanged" when it updates one. A supplied value is also applied to an existing issue the
+	 * command reuses because it has the same text (or, for a lexical issue, the same word).
+	 * Issue #271.
+	 *
+	 * @param severity -
+	 *            the severity, or null
+	 */
+	public void setSeverity(IssueSeverity severity);
 }

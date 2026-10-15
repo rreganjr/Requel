@@ -1,0 +1,202 @@
+import { Download, Page, expect } from '@playwright/test';
+import { BaseListPage } from './BaseListPage';
+import { completeCreateWizard } from './wizard';
+
+export class ProjectsPage extends BaseListPage {
+  constructor(page: Page) {
+    super(page);
+  }
+
+  async goto(): Promise<void> {
+    await this.gotoList('/projects', '/api/projects');
+  }
+
+  /** Filter the table so only rows matching name are visible — handles pagination. */
+  async searchFor(name: string): Promise<void> {
+    await this.searchWithPlaceholder('Search projects...', name);
+  }
+
+  async expectProjectInTable(name: string): Promise<void> {
+    await this.searchFor(name);
+    await this.expectTableRowVisible(name);
+  }
+
+  async expectProjectNotInTable(name: string): Promise<void> {
+    await this.searchFor(name);
+    await this.expectTableRowNotVisible(name);
+  }
+
+  async clickNewProject(): Promise<void> {
+    await this.page.getByTestId('project-list-new-project').click();
+    await this.page.waitForURL('**/projects/new');
+  }
+
+  async clickProject(name: string): Promise<void> {
+    // Clicking a project now lands on the workspace OVERVIEW (#154), not the
+    // editor — so we can't use BaseListPage.clickTableRow (it asserts an editor
+    // #name field). Click the row and wait for the workspace to render.
+    await this.searchFor(name);
+    const row = this.tableRowsWithText(name).first();
+    await expect(row).toBeVisible();
+    await row.click();
+    await this.page.waitForURL(`**/projects/${encodeURIComponent(name)}`);
+    await expect(this.page.getByTestId('project-workspace')).toBeVisible();
+  }
+
+  /**
+   * Open a project's editor: click the row → workspace overview (#154), then the
+   * overview's Edit action → /projects/:name/edit. Editing tests use this; a plain
+   * clickProject now lands on the overview, not the editor.
+   */
+  async openEditor(name: string): Promise<void> {
+    await this.clickProject(name);
+    await this.page.getByTestId('workspace-edit').click();
+    await this.page.waitForURL(`**/projects/${encodeURIComponent(name)}/edit`);
+  }
+
+  async expectCreateActionsVisible(): Promise<void> {
+    await expect(this.page.getByTestId('project-list-new-project')).toBeVisible();
+    await expect(this.page.getByTestId('project-list-import-button')).toBeVisible();
+  }
+
+  async expectCreateActionsHidden(): Promise<void> {
+    await expect(this.page.getByTestId('project-list-new-project')).toHaveCount(0);
+    await expect(this.page.getByTestId('project-list-import-button')).toHaveCount(0);
+  }
+
+  async importProjectFromFile(filePath: string): Promise<void> {
+    await this.page.getByTestId('project-list-import-input').setInputFiles(filePath);
+  }
+
+  async clearImportSelection(): Promise<void> {
+    await this.page.getByTestId('project-list-import-input').dispatchEvent('change');
+  }
+
+  async expectImportSuccess(message = 'Project imported successfully.'): Promise<void> {
+    await expect(this.page.getByTestId('project-list-success')).toContainText(message);
+  }
+
+  async expectImportError(message: string): Promise<void> {
+    await expect(this.page.getByTestId('project-list-error')).toContainText(message);
+  }
+
+  async expectNoImportMessages(): Promise<void> {
+    await expect(this.page.getByTestId('project-list-success')).toHaveCount(0);
+    await expect(this.page.getByTestId('project-list-error')).toHaveCount(0);
+  }
+
+  async expectNoProjectsMessage(): Promise<void> {
+    await expect(this.page.getByTestId('project-list-empty')).toContainText('No projects yet');
+  }
+
+  // --- Delete project flow (#241) ---
+
+  /** Open the row `...` menu for a project and click Delete, opening the dialog. */
+  async openRowDeleteDialog(name: string): Promise<void> {
+    await this.searchFor(name);
+    const row = this.tableRowsWithText(name).first();
+    await expect(row).toBeVisible();
+    await row.getByTestId('data-table-row-actions').click();
+    await this.page.getByRole('menuitem', { name: 'Delete' }).click();
+    await expect(this.page.getByTestId('delete-project-warning')).toBeVisible();
+  }
+
+  /** Open a project's workspace overview, then its header Delete action. */
+  async openWorkspaceDeleteDialog(name: string): Promise<void> {
+    await this.clickProject(name);
+    await this.page.getByTestId('workspace-delete').click();
+    await expect(this.page.getByTestId('delete-project-warning')).toBeVisible();
+  }
+
+  /**
+   * In the open dialog: confirm the delete via the no-backup path. We turn the
+   * backup toggle OFF so "Delete permanently" enables immediately, then confirm.
+   *
+   * The export-first backup path (download the XML, gate delete until it
+   * resolves) is exercised by the dialog unit tests. We deliberately do NOT
+   * drive it here: the export is an authenticated in-memory blob download
+   * (HttpClient + JWT interceptor — a plain navigation would 401), which
+   * Chromium routes through memory in a way Playwright cannot reliably observe
+   * (see the api-helper export notes). This keeps the e2e focused on the real
+   * end-to-end value: the delete dispatches and the UI updates.
+   */
+  async confirmDelete(): Promise<void> {
+    await this.page.getByTestId('delete-project-export-first').click(); // uncheck backup
+    await expect(this.page.getByTestId('delete-project-confirm')).toBeEnabled();
+    await this.page.getByTestId('delete-project-confirm').click();
+  }
+
+  async cancelDeleteDialog(): Promise<void> {
+    await this.page.getByTestId('delete-project-cancel').click();
+    await expect(this.page.getByTestId('delete-project-warning')).toHaveCount(0);
+  }
+}
+
+export class ProjectEditorPage {
+  constructor(private page: Page) {}
+
+  async waitForLoad(expectedName: string): Promise<void> {
+    await expect(this.page.locator('#name')).toHaveValue(expectedName);
+    // drain the setTimeout(markAsPristine) that fires after populateForm
+    await this.page.evaluate(() => new Promise<void>(resolve => setTimeout(resolve, 0)));
+  }
+
+  async fillName(name: string): Promise<void> {
+    const input = this.page.locator('#name');
+    await input.clear();
+    await input.fill(name);
+  }
+
+  async fillDescription(text: string): Promise<void> {
+    const ta = this.page.locator('#description');
+    await ta.clear();
+    await ta.fill(text);
+  }
+
+  async save(): Promise<void> {
+    // Create is a wizard since #173; edit still has a Save button.
+    if (await completeCreateWizard(this.page, /\/api\/commands\/EditProject/)) {
+      return;
+    }
+    await this.page.getByTestId('project-save').click();
+    // wait for navigation away from /new or for save to complete
+    await this.page.waitForLoadState('domcontentloaded');
+  }
+
+  async expectError(message: string): Promise<void> {
+    await expect(this.page.getByTestId('project-error'))
+      .toContainText(message);
+  }
+
+  async expectAnyError(): Promise<void> {
+    await expect(this.page.getByTestId('project-error'))
+      .toBeVisible({ timeout: 5000 });
+  }
+
+  async cancel(): Promise<void> {
+    await this.page.getByTestId('project-cancel').click();
+  }
+
+  /**
+   * Click the Export button and return the resulting browser download.
+   * The Angular UI calls window.open(exportUrl, '_blank'), and the export
+   * endpoint sends Content-Disposition: attachment, so the browser fires a
+   * download event we can capture.
+   */
+  async clickExportAndCaptureDownload(): Promise<Download> {
+    const downloadPromise = this.page.waitForEvent('download');
+    await this.page.getByTestId('project-export').click();
+    return await downloadPromise;
+  }
+
+  async expectHeaderContains(text: string): Promise<void> {
+    await expect(this.page.locator('h2, .page-title, .editor-title')).toContainText(text);
+  }
+
+  async delete(): Promise<void> {
+    await this.page.getByRole('button', { name: 'Delete' }).click();
+    // PrimeNG confirmation dialog — click Accept
+    await this.page.getByRole('button', { name: 'Yes' }).click();
+    await this.page.waitForURL('**/projects');
+  }
+}

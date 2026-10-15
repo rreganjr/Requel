@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Reports &mdash; Requel 2.0 user guide</title>
+<meta name="description" content="Turn a Requel 2.0 project into a document, such as an HTML requirements specification or a Markdown ticket, with XSLT report templates." />
+<link rel="icon" type="image/png" href="../images/logo_robot.png" />
+<link rel="stylesheet" href="../site.css" />
+</head>
+<body class="guide">
+
+<header class="brand">
+  <div class="brand-inner">
+    <img src="../images/logo_robot.png" alt="" />
+    <div>
+      <h1><a href="../index.html">Requel</a></h1>
+      <p>User guide for Requel 2.0</p>
+    </div>
+  </div>
+</header>
+
+<nav class="guide-nav" aria-label="User guide">
+  <ul>
+    <li><a href="index.html">Contents</a></li>
+    <li><a href="getting-started.html">Getting started</a></li>
+    <li><a href="projects.html">Projects</a></li>
+    <li><a href="requirements.html">Requirements</a></li>
+    <li><a href="stakeholders.html">Stakeholders</a></li>
+    <li><a href="issues.html">Issues and discussion</a></li>
+    <li><a href="ai-review.html">AI review</a></li>
+    <li><a href="reports.html" aria-current="page">Reports</a></li>
+    <li><a href="integrations.html">API, MCP and CLI</a></li>
+  </ul>
+</nav>
+
+<main>
+  <h1>Reports</h1>
+  <p class="lead">Turn a project into a document: a requirements specification, a ticket, or your own format.</p>
+  <section id="run">
+    <h2>Run a report</h2>
+    <p>A project&rsquo;s <strong>Reports</strong> page lists its report templates. <strong>Run</strong>
+      builds the document from the project as it is now and downloads it.</p>
+    <figure class="shot">
+      <img src="../images/guide/reports.png" alt="The project's reports page listing HTML Specification, HTML Specification (bundled) and Ticket (Markdown), each with Edit and Run." loading="lazy" />
+    </figure>
+    <p>Every new project gets two:</p>
+    <dl>
+      <dt>HTML Specification</dt>
+      <dd>The whole project as one web page: stakeholders, actors, goals, stories, use cases,
+        scenarios and the glossary. <a href="../spec.html">See an example.</a></dd>
+      <dt>Ticket (Markdown)</dt>
+      <dd>The project as Markdown, to paste into an issue tracker.</dd>
+    </dl>
+    <p>A project imported from an older export may also have its own copies, like the sample&rsquo;s
+      <em>HTML Specification</em>; the bundled one is then named <em>(bundled)</em>.</p>
+  </section>
+
+  <section id="templates">
+    <h2>Write your own</h2>
+    <p>A report template is an XSLT stylesheet applied to the project&rsquo;s
+      <a href="projects.html#import-and-export">XML export</a>, so it can produce any text format:
+      HTML, Markdown, CSV, another XML.</p>
+    <ul>
+      <li><strong>New Document</strong> creates one: give it a name and paste the stylesheet, or
+        <strong>Upload XSLT</strong> to load a <code>.xsl</code>/<code>.xslt</code> file.</li>
+      <li><strong>Edit</strong> opens an existing one. A bundled template renders the latest version
+        that ships with Requel; saving your own text in it detaches it, and from then on your text
+        is used.</li>
+    </ul>
+    <p>Start from a bundled template, or from the
+      <a href="../integration/2.0/project.xsd">project schema</a>, to see the elements you can
+      select. If a run fails, the message names the cause.</p>
+  </section>
+
+  <nav class="pager" aria-label="Previous and next page">
+    <a class="prev" href="ai-review.html">&larr; AI review</a>
+    <a class="next" href="integrations.html">API, MCP and CLI &rarr;</a>
+  </nav>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <p>The screenshots show the sample project
+      (<a href="https://github.com/rreganjr/Requel/blob/master/doc/samples/Requel.xml">Requel.xml</a>)
+      and are retaken for each release by <code>scripts/guide-screenshots.mjs</code>.</p>
+    <p>Requel is free software, released under the
+      <a href="https://github.com/rreganjr/Requel/blob/master/LICENSE">GNU General Public License v3</a>.
+      Found a mistake in this guide? <a href="https://github.com/rreganjr/Requel/issues">Open an issue</a>.</p>
+  </div>
+</footer>
+
+</body>
+</html>

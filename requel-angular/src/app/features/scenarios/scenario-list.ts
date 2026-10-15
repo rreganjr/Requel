@@ -1,0 +1,116 @@
+/*
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ButtonModule } from 'primeng/button';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
+import { ScenarioDto } from '../../models/scenario';
+import { ScenarioService } from '../../core/scenario.service';
+import { PermissionService } from '../../core/permission.service';
+import { ListPageComponent } from '../../shared/list-page';
+import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/app-data-table';
+
+@Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  selector: 'app-scenario-list',
+  standalone: true,
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, SubmitErrorComponent],
+  template: `
+    <app-list-page title="Scenarios" [fill]="true" [showSearch]="false">
+      <app-submit-error [message]="errorMessage()" testid="scenario-list-error" />
+
+      <app-data-table scrollHeight="flex" [value]="scenarios()" [columns]="columns" [loading]="loading()"
+                      [rowActions]="rowActions" [rows]="15" searchPlaceholder="Search scenarios..."
+                      [globalFilterFields]="['name', 'scenarioType', 'createdBy']"
+                      testid="scenario-list" (rowClick)="onSelect({ data: $event })"
+                      emptyTitle="No scenarios yet"
+                      emptyMessage="Describe the flows this project needs to support."
+                      emptyIcon="pi-sitemap" emptyActionLabel="New Scenario"
+                      [showEmptyAction]="canEdit()" (emptyAction)="onNew()">
+        <div toolbarActions>
+          @if (canEdit()) {
+            <p-button label="New Scenario" icon="pi pi-plus" (onClick)="onNew()" />
+          }
+        </div>
+      </app-data-table>
+    </app-list-page>
+  `,
+  styles: [`
+    /* Fill mode (#221): claim main-content's height so the data-table body
+       scrolls between a pinned header and the paginator. */
+    :host { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  `]
+})
+export class ScenarioListComponent implements OnInit {
+  scenarios = signal<ScenarioDto[]>([]);
+  loading = signal(false);
+  errorMessage = signal<string | null>(null);
+  // #276: derived from the service signal rather than snapshotted after the load.
+  canEdit = computed(() => this.permissionService.canEdit('Scenario'));
+
+  columns: DataTableColumn<ScenarioDto>[] = [
+    { field: 'name', header: 'Name', sortable: true, link: s => ['/projects', this.projectName, 'scenarios', s.id] },
+    { field: 'scenarioType', header: 'Type', sortable: true },
+    { field: 'createdBy', header: 'Created By', sortable: true }
+  ];
+  rowActions: RowAction<ScenarioDto>[] = [
+    { label: 'Open', icon: 'pi pi-eye', command: s => this.onSelect({ data: s }) }
+  ];
+
+  projectName = '';
+  private readonly destroyRef = inject(DestroyRef);
+
+  constructor(
+    private route: ActivatedRoute,
+    private router: Router,
+    private scenarioService: ScenarioService,
+    private permissionService: PermissionService
+  ) {}
+
+  ngOnInit(): void {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
+      this.projectName = params.get('name') ?? '';
+      await this.permissionService.loadForProject(this.projectName);
+      this.loadScenarios();
+    });
+  }
+
+  private async loadScenarios(): Promise<void> {
+    this.loading.set(true);
+    try {
+      this.scenarios.set(await this.scenarioService.listScenarios(this.projectName));
+    } catch {
+      this.errorMessage.set('Failed to load scenarios.');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  onNew(): void {
+    this.router.navigate(['/projects', this.projectName, 'scenarios', 'new']);
+  }
+
+  onSelect(event: { data?: ScenarioDto | ScenarioDto[] }): void {
+    const s = Array.isArray(event.data) ? event.data[0] : event.data;
+    if (s) this.router.navigate(['/projects', this.projectName, 'scenarios', s.id]);
+  }
+}

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,6 +45,41 @@ public interface ProjectRepository extends Repository {
 	 *             if a project with the given name does not exist.
 	 */
 	public Project findProjectByName(String name) throws NoSuchProjectException;
+
+	/**
+	 * @return every project, ordered by name. Intended for administrative operations
+	 *         that must consider the whole estate (issue #256); ordinary reads should
+	 *         go through a user's active projects instead.
+	 */
+	public java.util.List<Project> findAllProjects();
+
+	/**
+	 * @param user -
+	 *            the user whose active projects to read
+	 * @return the projects on the user's {@link ProjectUserRole}, in natural order; empty if the
+	 *         user has no project role. This is the way to read the set:
+	 *         {@link ProjectUserRole#getActiveProjects()} is lazy (#323), so reading it on a user
+	 *         loaded outside the current persistence context throws.
+	 */
+	public Set<Project> findActiveProjects(User user);
+
+	/**
+	 * Find a project-scoped entity by its persistent id. {@code entityType} is the
+	 * domain interface (e.g. {@link Goal}, {@link Story}, {@link Project}). Ids are
+	 * stable across renames, so this is the preferred lookup for tooling that holds
+	 * an id reference (assistant analysis, MCP, etc.) rather than a name.
+	 *
+	 * @param <T>
+	 *            the entity type
+	 * @param entityType -
+	 *            the domain interface class of the entity to load.
+	 * @param id -
+	 *            the persistent id.
+	 * @return the entity of the requested type with the supplied id.
+	 * @throws NoSuchEntityException -
+	 *             if no entity of {@code entityType} has the supplied id.
+	 */
+	public <T> T findById(Class<T> entityType, Long id) throws NoSuchEntityException;
 
 	/**
 	 * @param projectOrDomain -
@@ -95,10 +130,41 @@ public interface ProjectRepository extends Repository {
 			String name) throws NoSuchEntityException;
 
 	/**
+	 * @param projectOrDomain -
+	 *            the project or domain that contains the step.
+	 * @param name -
+	 *            the name of the step or scenario.
+	 * @return the step with the supplied name for the supplied project.
+	 * @throws NoSuchEntityException -
+	 *             if a step does not exist for the project or domain and name.
+	 */
+	public Step findStepByProjectOrDomainAndName(ProjectOrDomain projectOrDomain,
+			String name) throws NoSuchEntityException;
+
+	/**
 	 * @param usecase
 	 * @return THe scenarios used by the supplied usecase
 	 */
 	public Set<Scenario> findScenariosUsedByUseCase(UseCase usecase);
+
+	/**
+	 * Every step and scenario row that belongs to the project or domain, including ones no
+	 * scenario reaches any more (issue #325), which walking the scenarios would miss.
+	 *
+	 * @param projectOrDomain
+	 * @return the steps and scenarios whose projectOrDomain is the supplied one
+	 */
+	public Set<Step> findStepsByProjectOrDomain(ProjectOrDomain projectOrDomain);
+
+	/**
+	 * Whether any scenario other than {@code except} still has {@code step} in its step list
+	 * (issue #325), so a step dropped from one scenario is only deleted when nothing else uses it.
+	 *
+	 * @param step
+	 * @param except the scenario the step was just removed from
+	 * @return true if another scenario uses the step
+	 */
+	public boolean isStepUsedByAnotherScenario(Step step, Scenario except);
 
 	/**
 	 * Find a non-user stakeholder by name.
@@ -147,6 +213,40 @@ public interface ProjectRepository extends Repository {
 	public Set<StakeholderPermission> findAvailableStakeholderPermissions();
 
 	/**
+	 * The permissions the background assistant holds on every project, however that project
+	 * was created - exactly {@code Annotation[Edit]} and {@code Annotation[Delete]} (issue
+	 * #302).
+	 *
+	 * <p>
+	 * Three callers must agree on this set or it drifts the way creation and import drifted
+	 * from each other: {@code EditProjectCommandImpl.createProject()},
+	 * {@code ImportProjectStreamingCommandImpl.addUserAsStakeholder()} and
+	 * {@code RepairProjectStakeholdersCommand}. It is defined here so there is one answer.
+	 *
+	 * <p>
+	 * Edit covers every annotation the assistants write - notes, issues, positions, arguments
+	 * and the lexical subclasses that inherit the requirement. Delete is not optional: the
+	 * assistant retracts its own stale findings on each re-run
+	 * ({@code CommandBackedAssistantResultApplicator.reconcileStaleFindings}). Nothing the
+	 * assistant runs requires {@code Annotation[Grant]}, so it is excluded.
+	 *
+	 * @return the assistant's permission set.
+	 * @throws com.rreganjr.EntityException
+	 *             if either permission row is missing, rather than silently returning a
+	 *             shorter set - an under-grant here is issue #302 in a new shape.
+	 */
+	public Set<StakeholderPermission> findAssistantStakeholderPermissions();
+
+	/**
+	 * @param permission
+	 *            a stakeholder permission definition.
+	 * @return every {@link UserStakeholder} that has been granted the supplied
+	 *         permission (used to backfill {@code Project[Delete]} to existing
+	 *         project owners, issue #240).
+	 */
+	public Set<UserStakeholder> findUserStakeholdersWithPermission(StakeholderPermission permission);
+
+	/**
 	 * TODO: is this needed because the project or domain already holds its
 	 * terms. Get a glossary term for the given project or domain.
 	 * 
@@ -166,6 +266,22 @@ public interface ProjectRepository extends Repository {
 	 */
 	public Set<GlossaryTerm> findGlossaryTermsForProjectOrDomainEntity(
 			ProjectOrDomainEntity projectOrDomainEntity);
+
+	/**
+	 * #386: remove {@code referer} from {@code term}'s referers, or from every term's when
+	 * {@code term} is null. A term's referers are a {@code @ManyToAny} set, and Hibernate fails
+	 * to remove an element from one ("Unable to locate parameter terms_referers.referer_id"), so
+	 * never call {@code getReferers().remove(..)} or {@code clear()}: this deletes the
+	 * {@code terms_referers} rows directly and refreshes the affected terms. The referer's own
+	 * {@code getGlossaryTerms()} side is the caller's to update.
+	 */
+	public void removeGlossaryTermReferer(GlossaryTerm term, ProjectOrDomainEntity referer);
+
+	/**
+	 * #386: remove every referer of {@code term}; see
+	 * {@link #removeGlossaryTermReferer(GlossaryTerm, ProjectOrDomainEntity)}.
+	 */
+	public void removeAllGlossaryTermReferers(GlossaryTerm term);
 
 	/**
 	 * @param projectOrDomain -
@@ -206,4 +322,53 @@ public interface ProjectRepository extends Repository {
 	 */
 	public ReportGenerator findReportGeneratorByProjectOrDomainAndName(
 			ProjectOrDomain projectOrDomain, String name) throws EntityException;
+
+	/**
+	 * Remove a single row from the goals_goalcontainers join table using a
+	 * native query. Required to work around a Hibernate 6.5 bug where
+	 * {@code @ManyToAny} collection removal generates invalid parameterized SQL.
+	 *
+	 * @param goalId            the id of the goal
+	 * @param goalContainerId   the id of the goal container to unlink
+	 * @param goalContainerType its discriminator; the id column is shared across types (#386)
+	 */
+	void removeGoalContainerFromGoalJoinTable(Long goalId, Long goalContainerId,
+			String goalContainerType);
+
+	/**
+	 * Insert a single row into the goals_goalcontainers join table using a
+	 * native query. Required to work around a Hibernate 6.5 bug where
+	 * {@code @ManyToAny} collection insertion generates invalid parameterized SQL.
+	 *
+	 * @param goalId              the id of the goal
+	 * @param goalContainerId     the id of the goal container to link
+	 * @param goalContainerType   the discriminator string for the container type
+	 */
+	void addGoalContainerToGoalJoinTable(Long goalId, Long goalContainerId, String goalContainerType);
+
+	/**
+	 * Remove a single row from the actor_actorcontainers join table using a native query.
+	 * Workaround for the Hibernate 6.5 {@code @ManyToAny} bug.
+	 */
+	void removeActorContainerFromActorJoinTable(Long actorId, Long actorContainerId,
+			String actorContainerType);
+
+	/**
+	 * Insert a single row into the actor_actorcontainers join table using a native query.
+	 * Workaround for the Hibernate 6.5 {@code @ManyToAny} bug.
+	 */
+	void addActorContainerToActorJoinTable(Long actorId, Long actorContainerId, String actorContainerType);
+
+	/**
+	 * Remove a single row from the story_storycontainers join table using a native query.
+	 * Workaround for the Hibernate 6.5 {@code @ManyToAny} bug.
+	 */
+	void removeStoryContainerFromStoryJoinTable(Long storyId, Long storyContainerId,
+			String storyContainerType);
+
+	/**
+	 * Insert a single row into the story_storycontainers join table using a native query.
+	 * Workaround for the Hibernate 6.5 {@code @ManyToAny} bug.
+	 */
+	void addStoryContainerToStoryJoinTable(Long storyId, Long storyContainerId, String storyContainerType);
 }

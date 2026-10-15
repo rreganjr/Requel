@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -104,6 +104,12 @@ public class EntityValidationException extends EntityException {
 		super(entityType, entity, entityPropertyName, entityValue, actionType, format, messageArgs);
 	}
 
+	public EntityValidationException(Class<?> entityType, Object entity, String[] entityPropertyNames,
+			Object[] entityPropertyValues, EntityExceptionActionType actionType, String format,
+			Object... messageArgs) {
+		super(entityType, entity, entityPropertyNames, entityPropertyValues, actionType, format, messageArgs);
+	}
+
 	/**
 	 * @param cause
 	 * @param entityType
@@ -123,6 +129,7 @@ public class EntityValidationException extends EntityException {
 
 	@Override
 	public InvalidStateException getCause() {
-		return (InvalidStateException) super.getCause();
+		Throwable cause = super.getCause();
+		return (cause instanceof InvalidStateException) ? (InvalidStateException) cause : null;
 	}
 }

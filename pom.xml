@@ -7,18 +7,42 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.4</version>
+        <version>3.5.14</version>
         <relativePath/>
     </parent>
 
     <groupId>com.rreganjr.requel</groupId>
     <artifactId>Requel-parent</artifactId>
-    <version>1.2.0</version>
+    <version>2.0.0</version>
     <packaging>pom</packaging>
 
     <properties>
         <java.version>17</java.version>
+        <!-- Spring AI baseline for the AI/MCP work (issues #69, #spring-ai port). -->
+        <spring-ai.version>1.1.7</spring-ai.version>
+        <!--
+          Issue #193: the NLP data (OpenNLP models, WordNet glosses, dictionary dumps, jazzy,
+          VerbNet) is not in the source tree. modules/nlp-data downloads it from the
+          nlp-data-<version> GitHub Release, checks it against the sha256 below and installs it
+          as com.rreganjr.requel:requel-nlp-data:<version>. A change to the data is a new release
+          and a bump of both values; a published asset is never replaced. See
+          doc/guides/NLP_DATA.md and scripts/build-nlp-data.sh.
+        -->
+        <requel.nlp-data.version>1</requel.nlp-data.version>
+        <requel.nlp-data.sha256>629f47f8f426c2cfe3a58149df815539cba876945b5a9fc62811f9d647b6dd7e</requel.nlp-data.sha256>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <build>
         <pluginManagement>
@@ -29,6 +53,17 @@
                     <version>3.13.0</version>
                     <configuration>
                         <release>${java.version}</release>
+                        <!--
+                          Disable incremental compilation. When a compile fails mid-way (e.g. a
+                          transitive dependency is missing from ~/.m2), the compiler writes stub
+                          class files with "Unresolved compilation problem" embedded in their
+                          bytecode. On the next run, Maven sees those files, considers the source
+                          up-to-date, and skips recompilation — leaving the bad bytecode in place.
+                          With incremental compilation off, every mvn compile/test-compile does a
+                          full pass over the module's sources, so stale class files from a prior
+                          failed compile can never hide a real error.
+                        -->
+                        <useIncrementalCompilation>false</useIncrementalCompilation>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -41,9 +76,115 @@
                         <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                     </configuration>
                 </plugin>
+                <plugin>
+                    <!--
+                      Integration tests live in *IT.java files (e.g. AuthorizationIT,
+                      ProjectXmlRoundTripIT). Surefire's default patterns don't match
+                      *IT.java, so without failsafe these classes would only run when
+                      invoked explicitly via -Dtest=…. Binding failsafe to the standard
+                      integration-test/verify goals makes `mvn verify` run the full
+                      suite — surefire (unit) then failsafe (integration) — which is
+                      what CI and the release plan assume.
+                    -->
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>3.2.5</version>
+                    <configuration>
+                        <includes>
+                            <include>**/*IT.java</include>
+                        </includes>
+                        <failIfNoTests>false</failIfNoTests>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>integration-tests</id>
+                            <goals>
+                                <goal>integration-test</goal>
+                                <goal>verify</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>0.8.12</version>
+                    <executions>
+                        <execution>
+                            <id>jacoco-prepare-agent</id>
+                            <goals>
+                                <goal>prepare-agent</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>jacoco-report</id>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>report</goal>
+                            </goals>
+                            <configuration>
+                                <includes>
+                                    <include>com/rreganjr/**</include>
+                                </includes>
+                                <formats>
+                                    <format>HTML</format>
+                                    <format>XML</format>
+                                </formats>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <!-- Fetches the NLP data jar in modules/nlp-data (#193). -->
+                    <groupId>io.github.download-maven-plugin</groupId>
+                    <artifactId>download-maven-plugin</artifactId>
+                    <version>2.1.0</version>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>3.3.2</version>
+                <executions>
+                    <execution>
+                        <id>clean-compiled-output</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                        <configuration>
+                            <!--
+                              IDE auto-builds can leave Eclipse compiler stubs in target/classes
+                              that throw "Unresolved compilation problem" at runtime. Purge the
+                              compiled output dirs at the start of every module build so mvn
+                              test/verify always recompiles from source instead of trusting any
+                              externally generated bytecode already sitting in target/.
+                            -->
+                            <excludeDefaultDirectories>true</excludeDefaultDirectories>
+                            <filesets>
+                                <fileset>
+                                    <directory>${project.build.outputDirectory}</directory>
+                                </fileset>
+                                <fileset>
+                                    <directory>${project.build.testOutputDirectory}</directory>
+                                </fileset>
+                            </filesets>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+            </plugin>
+            <!-- Activate the failsafe plugin (configured in pluginManagement above)
+                 so `mvn verify` runs integration tests in every module. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+            </plugin>
             <!-- Enforce Java 17 for the build to fail fast if an older JDK is used -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -97,18 +238,25 @@
         <module>modules/platform-identity</module>
         <module>modules/user-domain</module>
         <module>modules/user-jpa</module>
+        <module>modules/nlp-data</module>
         <module>modules/dictionary-jpa</module>
         <module>modules/annotation-domain</module>
         <module>modules/annotation-jpa</module>
+        <module>modules/tagging-domain</module>
+        <module>modules/tagging-jpa</module>
         <module>modules/project-domain</module>
         <module>modules/project-jpa</module>
         <module>modules/nlp-jpa</module>
-        <module>modules/ui-core</module>
-        <module>modules/annotation-ui</module>
-        <module>modules/project-ui</module>
-        <module>modules/user-ui</module>
-        <module>modules/nlp-ui</module>
-        <module>modules/ui-assets</module>
+        <module>modules/service-api</module>
+        <module>modules/gateway-api</module>
+        <module>modules/gateway-rest-client</module>
+        <module>modules/requel-cli</module>
+        <module>modules/assistant-api</module>
+        <module>modules/assistant-core</module>
+        <module>modules/assistant-ai</module>
+        <module>modules/assistant-legacy-nlp</module>
+        <module>modules/mcp-server</module>
+        <module>modules/service-impl</module>
         <module>modules/requel-app</module>
   </modules>
 </project>

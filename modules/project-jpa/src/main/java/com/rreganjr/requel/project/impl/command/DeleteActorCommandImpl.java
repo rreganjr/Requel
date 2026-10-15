@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -28,6 +29,9 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.NoSuchPositionException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
@@ -35,11 +39,14 @@ import com.rreganjr.requel.annotation.command.DeletePositionCommand;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.ActorContainer;
-import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.DeleteActorCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
+import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.command.RemoveGoalFromGoalContainerCommand;
 import com.rreganjr.requel.project.command.RemoveActorFromActorContainerCommand;
 import com.rreganjr.requel.project.impl.AddActorPosition;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
@@ -54,8 +61,8 @@ import com.rreganjr.requel.user.UserRepository;
  */
 @Controller("deleteActorCommand")
 @Scope("prototype")
-public class DeleteActorCommandImpl extends AbstractEditProjectCommand implements
-		DeleteActorCommand {
+public class DeleteActorCommandImpl extends AbstractDeleteProjectEntityCommand implements
+		DeleteActorCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	private Actor actor;
 
@@ -87,49 +94,49 @@ public class DeleteActorCommandImpl extends AbstractEditProjectCommand implement
 	@Override
 	public void execute() throws Exception {
 		Actor actor = getRepository().get(getActor());
+		// #296: refuse before touching anything if the caller read an older version.
+		refuseStaleDelete(Actor.class, actor, actor.getVersion());
 		User editedBy = getRepository().get(getEditedBy());
 
-		// Proactively clear annotation join rows for this actor to avoid FK RESTRICT errors.
-		try {
-			if (getRepository() instanceof com.rreganjr.repository.jpa.AbstractJpaRepository jpaRepo) {
-				Object actorId = jpaRepo.getEntityManager().getEntityManagerFactory()
-						.getPersistenceUnitUtil().getIdentifier(actor);
-				if (actorId != null) {
-					// Some rows were written with short discriminators (e.g. "Actor") and others with
-					// the FQN. Use a broad delete by id to guarantee cleanup regardless of the stored
-					// discriminator value.
-					jpaRepo.getEntityManager()
-							.createNativeQuery(
-									"delete from annotation_annotatable where annotatable_id = :id")
-							.setParameter("id", actorId)
-							.executeUpdate();
-					jpaRepo.getEntityManager().flush();
-				}
-			}
-		} catch (Exception ex) {
-			log.warn("Failed early cleanup of annotation_annotatable rows for actor", ex);
-		}
+		// #247: the former "proactive" native DELETE FROM annotation_annotatable WHERE
+		// annotatable_id = ? that lived here was removed. It full-scanned and X-locked the
+		// whole join table (no index on annotatable_id; two concurrent actor deletes
+		// deadlocked each other in the e2e suite) and, lacking annotatable_type, also unlinked
+		// every other entity type sharing the actor's numeric id. The typed, index-backed
+		// sweep now runs in removeAllAnnotationsBeforeDelete() right before delete(actor).
 
 		Set<Annotation> annotations = new HashSet<Annotation>(actor.getAnnotations());
 		for (Annotation annotation : annotations) {
-			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = getAnnotationCommandFactory()
-					.newRemoveAnnotationFromAnnotatableCommand();
+			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = CascadeAuthorizable.cascade(this,
+					getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand());
 			removeAnnotationFromAnnotatableCommand.setEditedBy(editedBy);
 			removeAnnotationFromAnnotatableCommand.setAnnotatable(actor);
 			removeAnnotationFromAnnotatableCommand.setAnnotation(annotation);
 			getCommandHandler().execute(removeAnnotationFromAnnotatableCommand);
 		}
 		// remove this entity as a referer to any terms
-		for (GlossaryTerm term : actor.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(actor)) {
-				term.getReferers().remove(actor);
-			}
+		// #386: by native delete; removing from the @ManyToAny referers set fails in Hibernate.
+		getProjectRepository().removeGlossaryTermReferer(null, actor);
+		// #247: an actor is a GoalContainer (actor_goals). Detach its goals first, or each goal's
+		// @ManyToAny referers (goals_goalcontainers, no DB FK) keeps pointing at the deleted
+		// actor and a later DeleteGoal merge()s a removed container.
+		Set<Goal> heldGoals = new HashSet<Goal>(actor.getGoals());
+		for (Goal goal : heldGoals) {
+			RemoveGoalFromGoalContainerCommand removeGoalFromGoalContainerCommand = getProjectCommandFactory()
+					.newRemoveGoalFromGoalContainerCommand();
+			removeGoalFromGoalContainerCommand.setEditedBy(editedBy);
+			CascadeAuthorizable.cascade(this, removeGoalFromGoalContainerCommand);
+			removeGoalFromGoalContainerCommand.setGoal(goal);
+			removeGoalFromGoalContainerCommand.setGoalContainer(actor);
+			getCommandHandler().execute(removeGoalFromGoalContainerCommand);
 		}
 		Set<ActorContainer> actorReferers = new HashSet<ActorContainer>(actor.getReferers());
 		for (ActorContainer actorContainer : actorReferers) {
 			RemoveActorFromActorContainerCommand removeActorFromActorContainerCommand = getProjectCommandFactory()
 					.newRemoveActorFromActorContainerCommand();
 			removeActorFromActorContainerCommand.setEditedBy(editedBy);
+			// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+			CascadeAuthorizable.cascade(this, removeActorFromActorContainerCommand);
 			removeActorFromActorContainerCommand.setActor(actor);
 			removeActorFromActorContainerCommand.setActorContainer(actorContainer);
 			getCommandHandler().execute(removeActorFromActorContainerCommand);
@@ -149,6 +156,8 @@ public class DeleteActorCommandImpl extends AbstractEditProjectCommand implement
 					.newDeletePositionCommand();
 			deletePositionCommand.setEditedBy(getEditedBy());
 			deletePositionCommand.setPosition(actorPosition);
+			// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+			CascadeAuthorizable.cascade(this, deletePositionCommand);
 			getCommandHandler().execute(deletePositionCommand);
 		} catch (NoSuchPositionException e) {
 		}
@@ -158,7 +167,19 @@ public class DeleteActorCommandImpl extends AbstractEditProjectCommand implement
 		getRepository().flush();
 
 		actor.getProjectOrDomain().getActors().remove(actor);
+		// #247: clear any annotation link committed since this entity was loaded.
+		removeAllAnnotationsBeforeDelete(actor, editedBy);
 		getRepository().delete(actor);
 	}
 
+	@Override
+	public Project getProject() {
+		if (actor != null && actor.getProjectOrDomain() instanceof Project project) return project;
+		return null;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(Actor.class, "Delete");
+	}
 }

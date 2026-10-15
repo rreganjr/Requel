@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI review &mdash; Requel 2.0 user guide</title>
+<meta name="description" content="Use an AI model to review Requel 2.0 requirements: per-item reviews, project-wide policies, corpus analysis, the definitions behind them, and what leaves your server." />
+<link rel="icon" type="image/png" href="../images/logo_robot.png" />
+<link rel="stylesheet" href="../site.css" />
+</head>
+<body class="guide">
+
+<header class="brand">
+  <div class="brand-inner">
+    <img src="../images/logo_robot.png" alt="" />
+    <div>
+      <h1><a href="../index.html">Requel</a></h1>
+      <p>User guide for Requel 2.0</p>
+    </div>
+  </div>
+</header>
+
+<nav class="guide-nav" aria-label="User guide">
+  <ul>
+    <li><a href="index.html">Contents</a></li>
+    <li><a href="getting-started.html">Getting started</a></li>
+    <li><a href="projects.html">Projects</a></li>
+    <li><a href="requirements.html">Requirements</a></li>
+    <li><a href="stakeholders.html">Stakeholders</a></li>
+    <li><a href="issues.html">Issues and discussion</a></li>
+    <li><a href="ai-review.html" aria-current="page">AI review</a></li>
+    <li><a href="reports.html">Reports</a></li>
+    <li><a href="integrations.html">API, MCP and CLI</a></li>
+  </ul>
+</nav>
+
+<main>
+  <h1>AI review</h1>
+  <p class="lead">An AI model of your choice reviews requirements and raises its findings as issues, next to the built-in checks.</p>
+  <section id="setup">
+    <h2>Turning it on</h2>
+    <p>AI review is off until an administrator configures a provider on the server: OpenAI,
+      Anthropic, Google Gemini, or a local model (Ollama or another OpenAI-compatible server) so no
+      text leaves your network. See
+      <a href="https://github.com/rreganjr/Requel/blob/master/doc/guides/AI_ASSISTANT_SETUP.md">AI
+      assistant setup</a>.</p>
+    <p>Once it is on, the <strong>Assistants</strong> panel on each project&rsquo;s overview gains
+      <em>AI review</em> and <em>Policies</em> switches, so a project can turn each one off.</p>
+  </section>
+
+  <section id="what">
+    <h2>What it does</h2>
+    <dl>
+      <dt>Reviews</dt>
+      <dd>Read one goal, story, actor, use case, scenario, step or glossary term, with the items
+        around it, and report problems: ambiguity, missing detail, wording that can&rsquo;t be
+        tested, a mechanism where an outcome should be.</dd>
+      <dt>Policies</dt>
+      <dd>One rule checked across every kind of item. The bundled terminology policy flags an
+        alternate glossary name used where the canonical term belongs, and a term used against its
+        definition. Policy findings are tagged <em>Policy: &lt;name&gt;</em>.</dd>
+      <dt>Corpus analysis</dt>
+      <dd>Looks across a set of items for problems between them (below).</dd>
+    </dl>
+    <p>Findings arrive as ordinary <a href="issues.html">issues</a>, discussed and resolved the same
+      way.</p>
+  </section>
+
+  <section id="request">
+    <h2>Requesting a review</h2>
+    <p>A review runs only when someone asks for one; editing a requirement never sends it to the
+      model. In Requel 2.0 a review is requested through the API, as the person you are logged in
+      as (a <a href="integrations.html#tokens">personal access token</a> works):</p>
+<pre><code>curl -X POST "http://localhost:8080/api/ai/reviews?entityType=Goal&amp;entityId=2" \
+  -H "Authorization: Bearer $REQUEL_TOKEN"</code></pre>
+    <p>It runs in the background. Its issues appear on the item when it finishes, and
+      <code>GET</code> on the same URL reports the run&rsquo;s status. You need to be a stakeholder on
+      the project (or a system administrator).</p>
+  </section>
+
+  <section id="corpus">
+    <h2>Corpus analysis</h2>
+    <p>The <strong>Corpus analysis</strong> panel on the project overview looks for requirements
+      that conflict with or repeat each other. Pick what to analyse (the whole project, or one goal
+      or use case and what hangs off it), then:</p>
+    <ul>
+      <li><strong>Find overlaps</strong> compares wording, with no AI: similar items that differ in
+        a number, take opposite sides (<em>must</em> / <em>must not</em>), or say the same
+        thing.</li>
+      <li><strong>Analyse with AI</strong> sends an index of the set to the model, in one call, to
+        judge those pairs and find others.</li>
+    </ul>
+    <p>Each finding is one issue shown on every item it involves, with <em>Also on</em> links
+      between them.</p>
+  </section>
+
+  <section id="definitions">
+    <h2>AI definitions</h2>
+    <p>Every review, policy and corpus analysis follows a <em>definition</em>: the instructions to
+      the model, which kinds of item it covers, what context it reads and which findings it may
+      report. Requel ships a set; <strong>Manage AI definitions</strong> on the overview lists the
+      ones in effect.</p>
+    <figure class="shot">
+      <img src="../images/guide/definitions.png" alt="The AI definitions page listing the bundled reviews, the terminology policy and the corpus analysis, each with Customize." loading="lazy" />
+    </figure>
+    <ul>
+      <li><strong>Customize</strong> copies a bundled definition into the project to edit. When a
+        newer bundled version ships, the copy says so.</li>
+      <li><strong>Revert</strong> drops the copy and goes back to the bundled one.</li>
+      <li><strong>New definition</strong> writes the project&rsquo;s own review, policy or corpus
+        analysis.</li>
+      <li><em>Local AI provider only</em> keeps a definition&rsquo;s work on the server.</li>
+    </ul>
+    <figure class="shot tall">
+      <img src="../images/guide/definition-editor.png" alt="The AI goal review definition: entity types, context it reads, instructions and finding types." loading="lazy" />
+    </figure>
+    <p>Changing definitions needs the <em>AI definitions</em> stakeholder permission
+      (<a href="stakeholders.html#permissions">Stakeholders</a>). Requel still checks what the model
+      returns, but a badly written definition can raise misleading issues.</p>
+  </section>
+
+  <section id="data">
+    <h2>What leaves your server</h2>
+    <p><strong>AI data handling</strong>, in the overview&rsquo;s Assistants panel, sets it per
+      project:</p>
+    <ul>
+      <li><strong>Allow external AI providers.</strong> Off, the project&rsquo;s reviews fail rather
+        than send its text to a hosted provider. A local model is always allowed.</li>
+      <li><strong>Masking</strong> of credentials, email addresses, phone numbers, US social
+        security numbers and payment card numbers. Masked text is replaced with a placeholder
+        before any provider sees it.</li>
+    </ul>
+    <p>Usernames are never sent; the people in a discussion appear as <code>user-1</code>,
+      <code>user-2</code> and so on.</p>
+  </section>
+
+  <nav class="pager" aria-label="Previous and next page">
+    <a class="prev" href="issues.html">&larr; Issues and discussion</a>
+    <a class="next" href="reports.html">Reports &rarr;</a>
+  </nav>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <p>The screenshots show the sample project
+      (<a href="https://github.com/rreganjr/Requel/blob/master/doc/samples/Requel.xml">Requel.xml</a>)
+      and are retaken for each release by <code>scripts/guide-screenshots.mjs</code>.</p>
+    <p>Requel is free software, released under the
+      <a href="https://github.com/rreganjr/Requel/blob/master/LICENSE">GNU General Public License v3</a>.
+      Found a mistake in this guide? <a href="https://github.com/rreganjr/Requel/issues">Open an issue</a>.</p>
+  </div>
+</footer>
+
+</body>
+</html>

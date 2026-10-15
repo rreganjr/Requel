@@ -1,10 +1,8 @@
 /*
- * $Id: $
- *
- * Copyright 2025 Ron Regan Jr. All Rights Reserved.
- *
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -135,6 +133,9 @@ class ProjectXmlRoundTripIT {
 	@Autowired
 	private AnnotationCommandFactory annotationCommandFactory;
 
+	@Autowired
+	private com.rreganjr.nlp.dictionary.DictionaryRepository dictionaryRepository;
+
 	@Test
 	@Transactional
 	void importExportRoundTripKeepsProjectRoundTrippable() throws Exception {
@@ -152,6 +153,11 @@ class ProjectXmlRoundTripIT {
 				.iterator()
 				.next()
 				.getName();
+		// Issue #313: the project's own dictionary is part of the project file. Added before the
+		// snapshot so the exported XML carries the <dictionary> block and the schema check below
+		// covers it.
+		dictionaryRepository.addToDictionary(originalProject.getId(), "requelspeak");
+
 		ProjectSnapshot originalSnapshot = snapshotProject(originalProject);
 		System.out.println("Original project annotations: " + originalSnapshot.annotationCount());
 
@@ -171,7 +177,9 @@ class ProjectXmlRoundTripIT {
 				.contains("<password>")
 				.contains("<passwordSalt>")
 				.contains("<passwordEncryptingAlgorithm>")
-				.contains("<passwordEncryptingIterations>");
+				.contains("<passwordEncryptingIterations>")
+				.contains("<dictionary>")
+				.contains("requelspeak");
 		assertXmlMatchesProjectSchema(exportedBytes);
 
 		String reimportedProjectName = originalProject.getName() + " Reimport " + Instant.now().toEpochMilli();
@@ -179,6 +187,12 @@ class ProjectXmlRoundTripIT {
 		ProjectSnapshot reimportedSnapshot = snapshotProject(reimportedProject);
 		System.out.println("Re-imported project annotations: " + reimportedSnapshot.annotationCount());
 		assertSnapshotsEquivalent(originalSnapshot, reimportedSnapshot);
+
+		// The dictionary word survived the round trip and belongs to the re-imported project.
+		assertThat(dictionaryRepository.findProjectWords(reimportedProject.getId()))
+				.as("dictionary words on the reimported project")
+				.extracting(com.rreganjr.nlp.dictionary.ProjectDictionaryWord::getLemma)
+				.containsExactly("requelspeak");
 	}
 
 	private User ensureProjectUserExists() throws NoSuchUserException {

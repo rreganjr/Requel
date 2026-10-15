@@ -1,0 +1,24 @@
+#![Dictionary Initialization]
+
+dbInitializer:DatabaseInitializer[a]
+dicInit:DictionaryInitializer[a]
+dicIcmd:ImportDictionaryCommand[a]
+cmdHndlr:CommandHandler[a]
+jaxb:JAXBContext[a]
+unmarshaller:Unmarshaller[a]
+dictionaryRepository:DictionaryRepository[a]
+dictionary:Dictionary[a]
+
+dbInitializer:dicInit.initialize()
+dicInit:dictionaryRepository.getCategories()
+[c:if no categories]
+dicInit:dicIcmd.setInputStream("dictionary.xml")
+dicInit:cmdHndlr.execute(inputDictionaryCommand)
+cmdHndlr:dicIcmd.execute()
+dicIcmd:jaxb.createUnmarshaller()
+dicIcmd:unmarshaller.unmarshal("dictionary.xml")
+dicIcmd:dictionary.getWords()
+[c:for each word]
+dicIcmd:dictionaryRepository.persist(word)
+[/c]
+[/c]

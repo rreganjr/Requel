@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.annotation.impl.command;
 
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
@@ -34,6 +35,7 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.DeleteIssueCommand;
 import com.rreganjr.requel.annotation.command.DeleteNoteCommand;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
+import com.rreganjr.requel.annotation.impl.JpaAnnotationRepository;
 import com.rreganjr.platform.identity.User;
 
 /**
@@ -80,7 +82,7 @@ public class RemoveAnnotationFromAnnotatableCommandImpl extends AbstractEditComm
 	}
 
 	@Override
-	protected User getEditedBy() {
+	public User getEditedBy() {
 		return editedBy;
 	}
 
@@ -96,7 +98,23 @@ public class RemoveAnnotationFromAnnotatableCommandImpl extends AbstractEditComm
 		Annotatable annotatable = getRepository().get(getAnnotatable());
 
 		annotatable.getAnnotations().remove(annotation);
-		annotation.getAnnotatables().remove(annotatable);
+
+		// Hibernate 6.5 bug: @ManyToAny collection removal generates invalid SQL for the
+		// annotation_annotatable join table.  Work around by deleting the join-table row via
+		// a native query (below) and never mutating the @ManyToAny collection in Java.
+		JpaAnnotationRepository jpaRepo = (JpaAnnotationRepository) getAnnotationRepository();
+		jakarta.persistence.PersistenceUnitUtil puu = jpaRepo.getEntityManager()
+				.getEntityManagerFactory().getPersistenceUnitUtil();
+		Long annotationId = (Long) puu.getIdentifier(annotation);
+		jpaRepo.removeAnnotatableFromAnnotationJoinTable(annotationId, annotatable);
+		// #247: keep the annotation MANAGED after the native join-table delete instead of
+		// detaching it. Detaching left a detached IssueImpl/NoteImpl still reachable through
+		// other managed cascade-PERSIST collections during a multi-entity delete (e.g.
+		// DeleteProject/DeleteUseCase), so the next auto-flush threw "detached entity passed
+		// to persist: IssueImpl". refresh() reloads the annotation's @ManyToAny state from the
+		// DB (join row now gone) while keeping it attached, mirroring the working
+		// RemoveActorFromActorContainerCommandImpl.
+		jpaRepo.getEntityManager().refresh(annotation);
 
 		// if an annotation has no annotatables it is deleted
 		if (annotation.getAnnotatables().isEmpty()) {
@@ -105,12 +123,16 @@ public class RemoveAnnotationFromAnnotatableCommandImpl extends AbstractEditComm
 						.newDeleteIssueCommand();
 				deleteIssueCommand.setIssue((Issue) annotation);
 				deleteIssueCommand.setEditedBy(getEditedBy());
+				// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+				CascadeAuthorizable.cascade(this, deleteIssueCommand);
 				getCommandHandler().execute(deleteIssueCommand);
 			} else if (annotation instanceof Note) {
 				DeleteNoteCommand deleteNoteCommand = getAnnotationCommandFactory()
 						.newDeleteNoteCommand();
 				deleteNoteCommand.setNote((Note) annotation);
 				deleteNoteCommand.setEditedBy(getEditedBy());
+				// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+				CascadeAuthorizable.cascade(this, deleteNoteCommand);
 				getCommandHandler().execute(deleteNoteCommand);
 			}
 		}

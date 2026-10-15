@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,4 +25,10 @@ package com.rreganjr.requel.project;
  */
 public interface ReportGenerator extends TextEntity, Comparable<ReportGenerator> {
 
+	/**
+	 * Issue #275: the key of the bundled generator this one renders ("project-html",
+	 * "ticket-markdown"), or null for a generator whose own text is the template. A keyed generator
+	 * always renders the current bundled template; editing its text detaches it (clears the key).
+	 */
+	String getBuiltinKey();
 }

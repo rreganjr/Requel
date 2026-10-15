@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -31,7 +32,6 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
-import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.Stakeholder;
@@ -48,8 +48,18 @@ import com.rreganjr.requel.user.UserRepository;
  */
 @Controller("deleteStakeholderCommand")
 @Scope("prototype")
-public class DeleteStakeholderCommandImpl extends AbstractEditProjectCommand implements
-		DeleteStakeholderCommand {
+public class DeleteStakeholderCommandImpl extends AbstractDeleteProjectEntityCommand implements
+		DeleteStakeholderCommand, com.rreganjr.requel.project.ProjectScopedCommand, com.rreganjr.platform.command.AuthorizableCommand {
+
+	@Override
+	public com.rreganjr.requel.project.Project getProject() {
+		return (stakeholder != null && stakeholder.getProjectOrDomain() instanceof com.rreganjr.requel.project.Project p) ? p : null;
+	}
+
+	@Override
+	public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+		return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission(com.rreganjr.requel.project.Stakeholder.class, "Delete");
+	}
 
 	private Stakeholder stakeholder;
 
@@ -82,28 +92,30 @@ public class DeleteStakeholderCommandImpl extends AbstractEditProjectCommand imp
 	@Override
 	public void execute() throws Exception {
 		Stakeholder stakeholder = getRepository().get(getStakeholder());
+		// #296: refuse before touching anything if the caller read an older version.
+		refuseStaleDelete(Stakeholder.class, stakeholder, stakeholder.getVersion());
 		Set<Annotation> annotations = new HashSet<Annotation>(stakeholder.getAnnotations());
 		for (Annotation annotation : annotations) {
-			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = getAnnotationCommandFactory()
-					.newRemoveAnnotationFromAnnotatableCommand();
+			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = CascadeAuthorizable.cascade(this,
+					getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand());
 			removeAnnotationFromAnnotatableCommand.setEditedBy(getEditedBy());
 			removeAnnotationFromAnnotatableCommand.setAnnotatable(stakeholder);
 			removeAnnotationFromAnnotatableCommand.setAnnotation(annotation);
 			getCommandHandler().execute(removeAnnotationFromAnnotatableCommand);
 		}
 		// remove this entity as a referer to any terms
-		for (GlossaryTerm term : stakeholder.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(stakeholder)) {
-				term.getReferers().remove(stakeholder);
-			}
-		}
+		// #386: by native delete; removing from the @ManyToAny referers set fails in Hibernate.
+		getProjectRepository().removeGlossaryTermReferer(null, stakeholder);
 		stakeholder.removeFromProject();
-		for (GlossaryTerm term : stakeholder.getProjectOrDomain().getGlossaryTerms()) {
-			term.getReferers().remove(stakeholder);
-		}
+		// #386: by native delete; removing from the @ManyToAny referers set fails in Hibernate.
+		String stakeholderType = AddGoalToGoalContainerCommandImpl.goalContainerDiscriminator(
+				stakeholder);
 		for (Goal goal : stakeholder.getGoals()) {
-			goal.getReferers().remove(stakeholder);
+			getProjectRepository().removeGoalContainerFromGoalJoinTable(goal.getId(),
+					stakeholder.getId(), stakeholderType);
 		}
+		// #247: clear any annotation link committed since this entity was loaded.
+		removeAllAnnotationsBeforeDelete(stakeholder, getEditedBy());
 		getRepository().delete(stakeholder);
 	}
 }

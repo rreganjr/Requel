@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,8 @@ import com.rreganjr.requel.user.exception.NoSuchUserException;
  */
 public interface UserRepository extends com.rreganjr.repository.Repository {
 
+    Organization findOrganizationById(Long id) throws NoSuchOrganizationException;
+
     Organization findOrganizationByName(String name) throws NoSuchOrganizationException;
 
     Set<Organization> findOrganizations();
@@ -37,6 +39,14 @@ public interface UserRepository extends com.rreganjr.repository.Repository {
     Set<String> getOrganizationNames();
 
     User findUserByUsername(String username) throws NoSuchUserException;
+
+    /**
+     * Look up a user by id. Returns {@code null} if no such user exists (unlike
+     * {@link #findUserByUsername}, which throws) so callers that resolve a stored owner id — e.g.
+     * the personal-access-token auth path (#73) — can treat absence as "not authenticated" without
+     * exception handling.
+     */
+    User findUserById(Long id);
 
     UserSet findUsers();
 

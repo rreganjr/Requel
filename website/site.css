@@ -1,0 +1,296 @@
+/* Shared styles for the Requel site (index.html and guide/*.html).
+
+   Design tokens mirrored from the Requel Angular app
+   (requel-angular/src/styles.scss and src/app/theme/requel-preset.ts):
+   Tailwind Blue primary ramp, Tailwind Slate surface ramp, 6px content
+   radius, Figtree at a 14px base. This is a static site with no build step,
+   so the values are copied here: keep them in sync with the preset.
+   spec.html is a generated report and keeps its own inline copy. */
+:root {
+  --rq-font-family: 'Figtree Variable', 'Figtree', system-ui, -apple-system,
+    'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --rq-font-size-base: 14px;
+
+  --rq-space-1: 0.25rem;
+  --rq-space-2: 0.5rem;
+  --rq-space-3: 0.75rem;
+  --rq-space-4: 1rem;
+  --rq-space-6: 1.5rem;
+  --rq-space-8: 2rem;
+
+  --rq-radius-sm: 4px;
+  --rq-radius-md: 6px;
+
+  /* Tailwind Blue — primary ramp */
+  --rq-primary-100: #dbeafe;
+  --rq-primary-500: #3b82f6;
+  --rq-primary-600: #2563eb;
+  --rq-primary-700: #1d4ed8;
+  --rq-primary-900: #1e3a8a;
+
+  /* Tailwind Slate — surface ramp */
+  --rq-surface-0: #ffffff;
+  --rq-surface-50: #f8fafc;
+  --rq-surface-100: #f1f5f9;
+  --rq-surface-200: #e2e8f0;
+  --rq-surface-500: #64748b;
+  --rq-surface-600: #475569;
+  --rq-surface-700: #334155;
+  --rq-surface-800: #1e293b;
+
+  --rq-header-bg: var(--rq-primary-900);
+  --rq-header-fg: var(--rq-surface-0);
+
+  --rq-card-bg: var(--rq-surface-0);
+  --rq-card-border: var(--rq-surface-200);
+  --rq-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.06),
+    0 1px 3px rgba(15, 23, 42, 0.04);
+
+  --rq-content-max: 52rem;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { font-size: var(--rq-font-size-base); }
+
+body {
+  margin: 0;
+  font-family: var(--rq-font-family);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--rq-surface-700);
+  background: var(--rq-surface-50);
+}
+
+a { color: var(--rq-primary-600); text-decoration: none; }
+a:hover { color: var(--rq-primary-700); text-decoration: underline; }
+a:focus-visible {
+  outline: 2px solid var(--rq-primary-500);
+  outline-offset: 2px;
+  border-radius: var(--rq-radius-sm);
+}
+
+/* Header brand bar — mirrors --rq-header-bg / --rq-header-fg in the app. */
+header.brand {
+  background: var(--rq-header-bg);
+  color: var(--rq-header-fg);
+  padding: var(--rq-space-6) var(--rq-space-4);
+}
+.brand-inner {
+  max-width: var(--rq-content-max);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--rq-space-4);
+  flex-wrap: wrap;
+}
+.brand img { width: 48px; height: auto; flex: none; }
+.brand h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.brand h1 a { color: inherit; }
+.brand p {
+  margin: var(--rq-space-1) 0 0;
+  font-size: 1rem;
+  color: #bfdbfe;
+}
+
+main {
+  max-width: var(--rq-content-max);
+  margin: 0 auto;
+  padding: var(--rq-space-8) var(--rq-space-4) var(--rq-space-6);
+}
+
+section + section { margin-top: var(--rq-space-8); }
+
+h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--rq-surface-800);
+  margin: 0 0 var(--rq-space-3);
+}
+
+h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--rq-surface-800);
+  margin: 0 0 var(--rq-space-4);
+}
+
+p { margin: 0 0 var(--rq-space-4); }
+p:last-child { margin-bottom: 0; }
+
+/* Status banner — the soft-tinted "primary" tag tone from the app. */
+.status {
+  display: flex;
+  align-items: baseline;
+  gap: var(--rq-space-3);
+  flex-wrap: wrap;
+  background: var(--rq-primary-100);
+  color: var(--rq-primary-700);
+  border: 1px solid #bfdbfe;
+  border-radius: var(--rq-radius-md);
+  padding: var(--rq-space-3) var(--rq-space-4);
+  margin-bottom: var(--rq-space-8);
+}
+.status .tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--rq-primary-700);
+  color: var(--rq-surface-0);
+  border-radius: var(--rq-radius-sm);
+  padding: 2px var(--rq-space-2);
+  flex: none;
+}
+.status span.msg { font-size: 0.875rem; }
+.status a { color: var(--rq-primary-700); text-decoration: underline; }
+
+/* Card surface — mirrors --rq-card-* in the app. */
+.card {
+  background: var(--rq-card-bg);
+  border: 1px solid var(--rq-card-border);
+  border-radius: var(--rq-radius-md);
+  box-shadow: var(--rq-card-shadow);
+  padding: var(--rq-space-6);
+}
+
+ul.features { list-style: none; margin: 0; padding: 0; }
+ul.features li { padding: var(--rq-space-3) 0; border-top: 1px solid var(--rq-card-border); }
+ul.features li:first-child { border-top: 0; padding-top: 0; }
+ul.features li:last-child { padding-bottom: 0; }
+ul.features strong { color: var(--rq-surface-800); font-weight: 600; }
+
+.links { display: grid; gap: var(--rq-space-3); grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); }
+.links a.tile {
+  display: block;
+  background: var(--rq-card-bg);
+  border: 1px solid var(--rq-card-border);
+  border-radius: var(--rq-radius-md);
+  box-shadow: var(--rq-card-shadow);
+  padding: var(--rq-space-4);
+  color: inherit;
+  text-decoration: none;
+}
+.links a.tile:hover { border-color: var(--rq-primary-500); text-decoration: none; }
+.links a.tile .title { font-weight: 600; color: var(--rq-primary-600); display: block; }
+.links a.tile .desc {
+  display: block;
+  margin-top: var(--rq-space-1);
+  font-size: 0.875rem;
+  color: var(--rq-surface-500);
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+  background: var(--rq-surface-100);
+  border-radius: var(--rq-radius-sm);
+  padding: 1px 4px;
+}
+pre {
+  background: var(--rq-surface-800);
+  color: var(--rq-surface-100);
+  border-radius: var(--rq-radius-md);
+  padding: var(--rq-space-3) var(--rq-space-4);
+  overflow-x: auto;
+  margin: 0 0 var(--rq-space-4);
+}
+pre code { background: none; color: inherit; padding: 0; }
+
+.muted { color: var(--rq-surface-500); font-size: 0.875rem; }
+
+footer {
+  border-top: 1px solid var(--rq-card-border);
+  margin-top: var(--rq-space-8);
+  padding: var(--rq-space-6) var(--rq-space-4);
+  color: var(--rq-surface-500);
+  font-size: 0.875rem;
+}
+.footer-inner { max-width: var(--rq-content-max); margin: 0 auto; }
+.footer-inner p { margin: 0 0 var(--rq-space-2); }
+.footer-inner p:last-child { margin-bottom: 0; }
+
+/* ---- User guide (guide/*.html) ---- */
+
+/* Guide pages are wider so screenshots stay legible. */
+body.guide { --rq-content-max: 64rem; }
+
+nav.guide-nav {
+  background: var(--rq-surface-0);
+  border-bottom: 1px solid var(--rq-card-border);
+  padding: var(--rq-space-2) var(--rq-space-4);
+  font-size: 0.875rem;
+}
+nav.guide-nav ul {
+  max-width: var(--rq-content-max);
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rq-space-1) var(--rq-space-4);
+}
+nav.guide-nav a[aria-current="page"] {
+  color: var(--rq-surface-800);
+  font-weight: 600;
+}
+
+.guide main h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--rq-surface-800);
+  margin: 0 0 var(--rq-space-2);
+}
+.guide main .lead { font-size: 1.0625rem; color: var(--rq-surface-600); margin-bottom: var(--rq-space-6); }
+.guide main section h2 { margin-top: 0; }
+.guide main ul, .guide main ol { margin: 0 0 var(--rq-space-4); padding-left: 1.5rem; }
+.guide main li { margin-bottom: var(--rq-space-1); }
+.guide main dl { margin: 0 0 var(--rq-space-4); }
+.guide main dt { font-weight: 600; color: var(--rq-surface-800); }
+.guide main dd { margin: 0 0 var(--rq-space-3) var(--rq-space-4); }
+
+figure.shot { margin: 0 0 var(--rq-space-6); }
+figure.shot img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--rq-card-border);
+  border-radius: var(--rq-radius-md);
+  box-shadow: var(--rq-card-shadow);
+}
+figure.shot.tall img { max-height: 48rem; object-fit: cover; object-position: top; }
+figure.shot figcaption { margin-top: var(--rq-space-2); font-size: 0.875rem; color: var(--rq-surface-500); }
+
+.note {
+  border-left: 3px solid var(--rq-primary-500);
+  background: var(--rq-primary-100);
+  color: var(--rq-surface-800);
+  border-radius: 0 var(--rq-radius-sm) var(--rq-radius-sm) 0;
+  padding: var(--rq-space-3) var(--rq-space-4);
+  margin: 0 0 var(--rq-space-4);
+}
+
+table.ref { width: 100%; border-collapse: collapse; margin: 0 0 var(--rq-space-4); font-size: 0.9375rem; }
+table.ref th, table.ref td {
+  text-align: left;
+  vertical-align: top;
+  padding: var(--rq-space-2) var(--rq-space-3);
+  border-top: 1px solid var(--rq-card-border);
+}
+table.ref th { color: var(--rq-surface-800); font-weight: 600; border-top: 0; }
+
+.pager {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--rq-space-4);
+  margin-top: var(--rq-space-8);
+  font-size: 0.9375rem;
+}
+.pager .next { margin-left: auto; text-align: right; }

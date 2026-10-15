@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@ import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
+import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
@@ -123,7 +124,7 @@ public class PositionImpl implements Position, Serializable {
 	@XmlID
 	@XmlAttribute(name = "id")
 	@XmlJavaTypeAdapter(IdAdapter.class)
-	protected Long getId() {
+	public Long getId() {
 		return id;
 	}
 
@@ -141,7 +142,8 @@ public class PositionImpl implements Position, Serializable {
 	}
 
 	@Version
-	protected int getVersion() {
+	@Override
+	public int getVersion() {
 		return version;
 	}
 
@@ -161,6 +163,7 @@ public class PositionImpl implements Position, Serializable {
 		this.issues = issues;
 	}
 
+	@Lob
 	@XmlElement(name = "text", namespace = "http://www.rreganjr.com/requel")
 	public String getText() {
 		return text;
@@ -193,7 +196,9 @@ public class PositionImpl implements Position, Serializable {
 		}
 	}
 
-    @ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.REFRESH }, optional = false)
+    // #323: no REFRESH cascade up to the user - a refresh reloads the entity and what it owns,
+    // nothing above it (the user's roles reach every project the user is on).
+    @ManyToOne(targetEntity = UserImpl.class, optional = false)
     @XmlIDREF()
     @XmlAttribute(name = "createdBy")
     public User getCreatedBy() {

@@ -1,10 +1,8 @@
 /*
- * $Id: $
- *
- * Copyright 2025 Ron Regan Jr. All Rights Reserved.
- *
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,9 +52,11 @@ public class ProjectPositionAssembler extends PositionAssembler {
 			case "addGlossaryTermPosition":
 				return new AddGlossaryTermPosition(draft.getText(), createdBy);
 			case "changeSpellingPosition":
-				return new ChangeSpellingPosition(draft.getText(), createdBy, draft.getText());
+				return new ChangeSpellingPosition(draft.getText(), createdBy, draft.getProposedWord());
 			case "addWordToDictionaryPosition":
 				return new AddWordToDictionaryPosition(draft.getText(), createdBy);
+			case "ignorePosition":
+				return new com.rreganjr.requel.annotation.impl.IgnorePosition(draft.getText(), createdBy);
 			default:
 				// fall through to base below
 			}

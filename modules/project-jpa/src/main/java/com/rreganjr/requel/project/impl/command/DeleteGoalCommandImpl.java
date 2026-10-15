@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -28,14 +29,18 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
-import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalContainer;
 import com.rreganjr.requel.project.GoalRelation;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.command.DeleteGoalCommand;
 import com.rreganjr.requel.project.command.DeleteGoalRelationCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -52,7 +57,8 @@ import com.rreganjr.requel.user.UserRepository;
  */
 @Controller("deleteGoalCommand")
 @Scope("prototype")
-public class DeleteGoalCommandImpl extends AbstractEditProjectCommand implements DeleteGoalCommand {
+public class DeleteGoalCommandImpl extends AbstractDeleteProjectEntityCommand implements
+		DeleteGoalCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	private Goal goal;
 
@@ -84,27 +90,28 @@ public class DeleteGoalCommandImpl extends AbstractEditProjectCommand implements
 	@Override
 	public void execute() throws Exception {
 		Goal goal = getRepository().get(getGoal());
+		// #296: refuse before touching anything if the caller read an older version.
+		refuseStaleDelete(Goal.class, goal, goal.getVersion());
 		User editedBy = getRepository().get(getEditedBy());
 		Set<Annotation> annotations = new HashSet<Annotation>(goal.getAnnotations());
 		for (Annotation annotation : annotations) {
-			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = getAnnotationCommandFactory()
-					.newRemoveAnnotationFromAnnotatableCommand();
+			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = CascadeAuthorizable.cascade(this,
+					getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand());
 			removeAnnotationFromAnnotatableCommand.setEditedBy(editedBy);
 			removeAnnotationFromAnnotatableCommand.setAnnotatable(goal);
 			removeAnnotationFromAnnotatableCommand.setAnnotation(annotation);
 			getCommandHandler().execute(removeAnnotationFromAnnotatableCommand);
 		}
 		// remove this entity as a referer to any terms
-		for (GlossaryTerm term : goal.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(goal)) {
-				term.getReferers().remove(goal);
-			}
-		}
+		// #386: by native delete; removing from the @ManyToAny referers set fails in Hibernate.
+		getProjectRepository().removeGlossaryTermReferer(null, goal);
 		Set<GoalContainer> goalReferers = new HashSet<GoalContainer>(goal.getReferers());
 		for (GoalContainer goalContainer : goalReferers) {
 			RemoveGoalFromGoalContainerCommand removeGoalFromGoalContainerCommand = getProjectCommandFactory()
 					.newRemoveGoalFromGoalContainerCommand();
 			removeGoalFromGoalContainerCommand.setEditedBy(editedBy);
+			// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+			CascadeAuthorizable.cascade(this, removeGoalFromGoalContainerCommand);
 			removeGoalFromGoalContainerCommand.setGoal(goal);
 			removeGoalFromGoalContainerCommand.setGoalContainer(goalContainer);
 			getCommandHandler().execute(removeGoalFromGoalContainerCommand);
@@ -116,10 +123,24 @@ public class DeleteGoalCommandImpl extends AbstractEditProjectCommand implements
 			DeleteGoalRelationCommand deleteGoalRelationCommand = getProjectCommandFactory()
 					.newDeleteGoalRelationCommand();
 			deleteGoalRelationCommand.setEditedBy(editedBy);
+			// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+			CascadeAuthorizable.cascade(this, deleteGoalRelationCommand);
 			deleteGoalRelationCommand.setGoalRelation(goalRelation);
 			getCommandHandler().execute(deleteGoalRelationCommand);
 		}
+		// #247: clear any annotation link committed since this entity was loaded.
+		removeAllAnnotationsBeforeDelete(goal, editedBy);
 		getRepository().delete(goal);
 	}
 
+	@Override
+	public Project getProject() {
+		if (goal != null && goal.getProjectOrDomain() instanceof Project project) return project;
+		return null;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(Goal.class, "Delete");
+	}
 }

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stakeholders &mdash; Requel 2.0 user guide</title>
+<meta name="description" content="Add the people and groups with a stake in a Requel 2.0 project, and set what each user may change." />
+<link rel="icon" type="image/png" href="../images/logo_robot.png" />
+<link rel="stylesheet" href="../site.css" />
+</head>
+<body class="guide">
+
+<header class="brand">
+  <div class="brand-inner">
+    <img src="../images/logo_robot.png" alt="" />
+    <div>
+      <h1><a href="../index.html">Requel</a></h1>
+      <p>User guide for Requel 2.0</p>
+    </div>
+  </div>
+</header>
+
+<nav class="guide-nav" aria-label="User guide">
+  <ul>
+    <li><a href="index.html">Contents</a></li>
+    <li><a href="getting-started.html">Getting started</a></li>
+    <li><a href="projects.html">Projects</a></li>
+    <li><a href="requirements.html">Requirements</a></li>
+    <li><a href="stakeholders.html" aria-current="page">Stakeholders</a></li>
+    <li><a href="issues.html">Issues and discussion</a></li>
+    <li><a href="ai-review.html">AI review</a></li>
+    <li><a href="reports.html">Reports</a></li>
+    <li><a href="integrations.html">API, MCP and CLI</a></li>
+  </ul>
+</nav>
+
+<main>
+  <h1>Stakeholders</h1>
+  <p class="lead">Who has a say in the requirements, and what each person may change.</p>
+  <section id="kinds">
+    <h2>Users and non-users</h2>
+    <p>A project&rsquo;s <strong>Stakeholders</strong> page lists everyone with a stake in it.</p>
+    <ul>
+      <li><strong>Add User</strong> adds a Requel user. They can then open the project, and their
+        permissions decide what they can change.</li>
+      <li><strong>Add Non-User</strong> records a person or group who doesn&rsquo;t log in, such as
+        a customer or a regulator, with a name and description, so goals can be tied to them.</li>
+    </ul>
+    <p>Either kind can be linked to the goals they care about, from the stakeholder&rsquo;s
+      <strong>Goals</strong> section. The automated assistants appear here as users too, because
+      the issues they raise are recorded as theirs.</p>
+    <figure class="shot">
+      <img src="../images/guide/stakeholders.png" alt="The stakeholders list: user stakeholders, including the assistants, and one non-user stakeholder." loading="lazy" />
+    </figure>
+  </section>
+
+  <section id="permissions">
+    <h2>Permissions</h2>
+    <p>Open a user stakeholder to set their team and permissions. Each row is a kind of item; the
+      columns are:</p>
+    <dl>
+      <dt>Edit</dt>
+      <dd>Create and change items of that kind.</dd>
+      <dt>Delete</dt>
+      <dd>Remove them.</dd>
+      <dt>Grant</dt>
+      <dd>Give or take away that row&rsquo;s permissions for other stakeholders, but only the ones
+        the granter holds.</dd>
+    </dl>
+    <p>Some permissions come with others, and the editor shows it as you tick:</p>
+    <ul>
+      <li>A permission that is <strong>included</strong> with one you ticked is shown ticked and
+        greyed, with a line saying why. Editing a use case creates its primary scenario and
+        actor, so <em>UseCase Edit</em> brings <em>Scenario Edit</em> and <em>Actor Edit</em>.</li>
+      <li>A <strong>delete marked *</strong> happens as part of another one. Deleting a use case
+        deletes the scenarios, steps, notes and issues that only it owns; the notes under the grid
+        say exactly what.</li>
+    </ul>
+    <figure class="shot">
+      <img src="../images/guide/stakeholder-permissions.png" alt="The permissions grid with UseCase Edit and Delete ticked: Actor and Scenario Edit shown as included, Scenario and Annotation Delete marked with an asterisk, and the explanations below." loading="lazy" />
+      <figcaption>UseCase Edit and Delete ticked: what comes with them is greyed or starred and
+        explained below the grid.</figcaption>
+    </figure>
+    <p><strong>AI definitions</strong> lets the person change the instructions the
+      <a href="ai-review.html#definitions">AI review</a> follows in this project.</p>
+    <div class="note">The person who creates or imports a project gets every permission. Give
+      others only what they need; with Grant they can pass on what they hold.</div>
+  </section>
+
+  <nav class="pager" aria-label="Previous and next page">
+    <a class="prev" href="requirements.html">&larr; Requirements</a>
+    <a class="next" href="issues.html">Issues and discussion &rarr;</a>
+  </nav>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <p>The screenshots show the sample project
+      (<a href="https://github.com/rreganjr/Requel/blob/master/doc/samples/Requel.xml">Requel.xml</a>)
+      and are retaken for each release by <code>scripts/guide-screenshots.mjs</code>.</p>
+    <p>Requel is free software, released under the
+      <a href="https://github.com/rreganjr/Requel/blob/master/LICENSE">GNU General Public License v3</a>.
+      Found a mistake in this guide? <a href="https://github.com/rreganjr/Requel/issues">Open an issue</a>.</p>
+  </div>
+</footer>
+
+</body>
+</html>

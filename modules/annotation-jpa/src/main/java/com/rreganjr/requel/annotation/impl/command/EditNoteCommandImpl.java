@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,7 +43,8 @@ import com.rreganjr.platform.identity.User;
  */
 @Controller("editNoteCommand")
 @Scope("prototype")
-public class EditNoteCommandImpl extends AbstractAnnotationCommand implements EditNoteCommand {
+public class EditNoteCommandImpl extends AbstractAnnotationCommand implements EditNoteCommand, com.rreganjr.requel.project.ProjectScopedCommand,
+		com.rreganjr.platform.command.AuthorizableCommand {
 
 	private Note note;
 
@@ -94,8 +95,15 @@ public class EditNoteCommandImpl extends AbstractAnnotationCommand implements Ed
 		// add the note to the annotatable after it has been merged so that if
 		// it is a proxy it will be unwrapped by the framework.
 		if (annotatable != null) {
-			annotatable.getAnnotations().add(noteImpl);
-			setAnnotatable(annotatable);
+			try {
+				annotatable.getAnnotations().add(noteImpl);
+				setAnnotatable(annotatable);
+			} catch (Exception e) {
+				// The annotatable may have been deleted concurrently (e.g. by async NLP
+				// analysis running after an E2E test cleanup removed the entity).
+				log.warn("could not attach note to annotatable (entity may have been deleted): "
+						+ annotatable + " — " + e.getMessage());
+			}
 		}
 	}
 
@@ -104,5 +112,22 @@ public class EditNoteCommandImpl extends AbstractAnnotationCommand implements Ed
 			throw EntityValidationException.emptyRequiredProperty(Note.class, getNote(), "text",
 					EntityExceptionActionType.Updating);
 		}
+	}
+
+	@Override
+	public com.rreganjr.requel.project.Project getProject() {
+		if (getGroupingObject() instanceof com.rreganjr.requel.project.Project gp) {
+			return gp;
+		}
+		com.rreganjr.requel.project.Project p = AnnotationCommandProjectResolver.ofAnnotatable(getAnnotatable());
+		if (p != null) {
+			return p;
+		}
+		return AnnotationCommandProjectResolver.of(note);
+	}
+
+	@Override
+	public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+		return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission(com.rreganjr.requel.annotation.Annotation.class, "Edit");
 	}
 }

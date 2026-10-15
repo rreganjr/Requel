@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Issue #275: an export-shaped project for Project2TicketXsltTest. Elements are deliberately
+     out of id order: the generator must sort, not follow export order. -->
+<project xmlns="http://www.rreganjr.com/requel" revision="7" id="PRJ_1">
+    <name>Fixture Room</name>
+    <text>The fixture project.</text>
+    <glossary>
+        <term id="TRM_12" canonicalTerm="TRM_11">
+            <name>livestream</name>
+            <text>The viewer relay.</text>
+        </term>
+        <term id="TRM_11">
+            <name>webinar</name>
+            <text>A Zoom
+                webinar.</text>
+        </term>
+    </glossary>
+    <actors>
+        <actor id="ACT_4">
+            <name>Viewer</name>
+            <text>Watches the relay.</text>
+        </actor>
+        <actor id="ACT_3">
+            <name>Operator</name>
+            <text>Runs a live room.</text>
+            <annotations><annotationRef>ANN_22</annotationRef></annotations>
+        </actor>
+    </actors>
+    <goals>
+        <goal id="GOL_10">
+            <name>Viewers stay invisible</name>
+            <text>Viewers are never shown to the panel.</text>
+            <annotations>
+                <annotationRef>ANN_21</annotationRef>
+                <annotationRef>ANN_22</annotationRef>
+            </annotations>
+        </goal>
+        <goal id="GOL_9">
+            <name>Operators are replaceable</name>
+            <text>More than one person can fill the Operator role.</text>
+            <annotations>
+                <annotationRef>ANN_20</annotationRef>
+                <annotationRef>ANN_23</annotationRef>
+                <annotationRef>ANN_24</annotationRef>
+                <annotationRef>ANN_25</annotationRef>
+            </annotations>
+        </goal>
+    </goals>
+    <stories>
+        <story id="STR_2" storyType="Success">
+            <name>Hand-over</name>
+            <text>The owner hands the service over.</text>
+        </story>
+    </stories>
+    <usecases>
+        <usecase id="UC_5">
+            <name>End a room</name>
+            <text>An operator ends a room.</text>
+            <actors><actorRef>ACT_4</actorRef></actors>
+            <additionalScenarios><scenarioRef>SCN_8</scenarioRef></additionalScenarios>
+            <goals><goalRef>GOL_10</goalRef><goalRef>GOL_9</goalRef></goals>
+            <primaryActorRef>ACT_3</primaryActorRef>
+            <scenarioRef>SCN_6</scenarioRef>
+        </usecase>
+    </usecases>
+    <scenarios>
+        <scenario id="SCN_8" scenarioType="Primary">
+            <name>End from the room list</name>
+            <steps><stepRef>STP_2</stepRef><stepRef>SCN_7</stepRef></steps>
+        </scenario>
+        <step id="STP_3" scenarioType="Primary"><name>Confirm in the dialog</name></step>
+        <scenario id="SCN_6" scenarioType="Primary">
+            <name>End a room</name>
+            <steps><stepRef>STP_1</stepRef><stepRef>STP_2</stepRef></steps>
+        </scenario>
+        <step id="STP_2" scenarioType="Primary"><name>Press End</name></step>
+        <scenario id="SCN_7" scenarioType="Primary">
+            <name>Confirm the end</name>
+            <steps><stepRef>STP_3</stepRef></steps>
+        </scenario>
+        <step id="STP_1" scenarioType="Primary"><name>Open the admin console</name></step>
+        <scenario id="SCN_14" scenarioType="Primary">
+            <name>Archive a room</name>
+        </scenario>
+        <scenario id="SCN_13" scenarioType="Primary">
+            <name>Rehearse in test</name>
+            <steps><stepRef>STP_1</stepRef></steps>
+        </scenario>
+    </scenarios>
+    <annotations>
+        <issue id="ANN_23" mustBeResolved="true" severity="HIGH" staleOn="GOL_9">
+            <text>Stale high on the replaceable goal.</text>
+        </issue>
+        <issue id="ANN_21" mustBeResolved="true" severity="LOW">
+            <text>Low, fresh.</text>
+        </issue>
+        <issue id="ANN_22" mustBeResolved="true" severity="HIGH" staleOn="GOL_10">
+            <text>Shared high, stale only on the goal.</text>
+        </issue>
+        <issue id="ANN_20" mustBeResolved="true" severity="HIGH">
+            <text>Who holds the second seat?</text>
+        </issue>
+        <issue id="ANN_24" mustBeResolved="true" severity="MEDIUM" resolvedByPosition="POS_1">
+            <text>Resolved, not listed.</text>
+        </issue>
+        <lexicalIssue id="ANN_25" mustBeResolved="false" severity="LOW">
+            <text>The word "webinar" may be spelled incorrectly.</text>
+        </lexicalIssue>
+        <note id="ANN_26"><text>A note.</text></note>
+    </annotations>
+    <externalSources>
+        <externalSource system="jira" externalId="CON-3686" title="CON-3686" kind="ticket"
+                locatorType="URL" locator="https://example.com/browse/CON-3686">
+            <defersTo system="doc" externalId="guide" note="the guide wins on behaviour" />
+            <sourceLink relation="DERIVED_FROM" entityType="Goal" entityRef="GOL_10" fragment="AC2" />
+            <sourceLink relation="DERIVED_FROM" entityType="Goal" entityRef="GOL_9" fragment="AC1" />
+        </externalSource>
+        <externalSource system="doc" externalId="guide" title="Production Guide v1.1" kind="guide"
+                locatorType="PATH" locator="docs/guide.pdf" note="Authoritative for behaviour.">
+            <sourceLink relation="CITES" entityType="UseCase" entityRef="UC_5" />
+        </externalSource>
+    </externalSources>
+</project>

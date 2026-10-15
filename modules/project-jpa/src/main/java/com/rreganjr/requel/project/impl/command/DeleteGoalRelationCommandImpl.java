@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -32,7 +33,12 @@ import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.project.GoalRelation;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.command.DeleteGoalRelationCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
@@ -44,8 +50,13 @@ import com.rreganjr.requel.user.UserRepository;
  */
 @Controller("deleteGoalRelationCommand")
 @Scope("prototype")
-public class DeleteGoalRelationCommandImpl extends AbstractEditProjectCommand implements
-		DeleteGoalRelationCommand {
+public class DeleteGoalRelationCommandImpl extends AbstractDeleteProjectEntityCommand implements
+		DeleteGoalRelationCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.Goal.class, "Edit");
+	}
 
 	private GoalRelation goalRelation;
 
@@ -70,11 +81,13 @@ public class DeleteGoalRelationCommandImpl extends AbstractEditProjectCommand im
 	@Override
 	public void execute() throws Exception {
 		GoalRelation goalRelation = getRepository().get(getGoalRelation());
+		// #296: refuse before touching anything if the caller read an older version.
+		refuseStaleDelete(GoalRelation.class, goalRelation, goalRelation.getVersion());
 		User editedBy = getRepository().get(getEditedBy());
 		Set<Annotation> annotations = new HashSet<Annotation>(goalRelation.getAnnotations());
 		for (Annotation annotation : annotations) {
-			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = getAnnotationCommandFactory()
-					.newRemoveAnnotationFromAnnotatableCommand();
+			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = CascadeAuthorizable.cascade(this,
+					getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand());
 			removeAnnotationFromAnnotatableCommand.setEditedBy(editedBy);
 			removeAnnotationFromAnnotatableCommand.setAnnotatable(goalRelation);
 			removeAnnotationFromAnnotatableCommand.setAnnotation(annotation);
@@ -82,7 +95,23 @@ public class DeleteGoalRelationCommandImpl extends AbstractEditProjectCommand im
 		}
 		goalRelation.getFromGoal().getRelationsFromThisGoal().remove(goalRelation);
 		goalRelation.getToGoal().getRelationsToThisGoal().remove(goalRelation);
+		// #247: clear any annotation link committed since this entity was loaded.
+		removeAllAnnotationsBeforeDelete(goalRelation, editedBy);
 		getRepository().delete(goalRelation);
+	}
+
+	@Override
+	public Project getProject() {
+		// GoalRelation lives in the same Project as its endpoints; both fromGoal
+		// and toGoal must belong to the same Project, so either side resolves
+		// to the right one.
+		if (goalRelation != null) {
+			if (goalRelation.getFromGoal() != null
+					&& goalRelation.getFromGoal().getProjectOrDomain() instanceof Project project) return project;
+			if (goalRelation.getToGoal() != null
+					&& goalRelation.getToGoal().getProjectOrDomain() instanceof Project project) return project;
+		}
+		return null;
 	}
 
 }

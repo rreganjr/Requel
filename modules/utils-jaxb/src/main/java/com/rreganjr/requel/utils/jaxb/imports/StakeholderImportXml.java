@@ -1,10 +1,8 @@
 /*
- * $Id: $
- *
- * Copyright 2025 Ron Regan Jr. All Rights Reserved.
- *
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,8 +46,28 @@ public class StakeholderImportXml {
     @XmlElement(name = "annotationRef", namespace = "http://www.rreganjr.com/requel")
     private List<String> annotationRefs = new ArrayList<>();
 
+    /** #398: the stakeholder's project permissions, which the import used to drop. */
+    @XmlElementWrapper(name = "projectPermissions", namespace = "http://www.rreganjr.com/requel")
+    @XmlElement(name = "projectPermission", namespace = "http://www.rreganjr.com/requel")
+    private List<PermissionXml> permissions = new ArrayList<>();
+
     public String getId() { return id; }
     public String getCreatedBy() { return createdBy; }
     public UserImportXml getUser() { return user; }
     public List<String> getAnnotationRefs() { return annotationRefs; }
+    public List<PermissionXml> getPermissions() { return permissions; }
+
+    /** {@code <projectPermission entityType="com.….Goal" permissionType="Edit"/>}. */
+    @XmlAccessorType(XmlAccessType.FIELD)
+    public static class PermissionXml {
+
+        @XmlAttribute(name = "entityType")
+        private String entityType;
+
+        @XmlAttribute(name = "permissionType")
+        private String permissionType;
+
+        public String getEntityType() { return entityType; }
+        public String getPermissionType() { return permissionType; }
+    }
 }

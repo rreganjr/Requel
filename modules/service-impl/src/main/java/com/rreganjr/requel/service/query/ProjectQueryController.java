@@ -1,0 +1,1487 @@
+/*
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+package com.rreganjr.requel.service.query;
+
+import com.rreganjr.nlp.dictionary.DictionaryRepository;
+import com.rreganjr.requel.service.api.dto.DictionaryWordDto;
+import com.rreganjr.requel.service.api.dto.StakeholderCandidateDto;
+import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizationException;
+import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.ReportGenerator;
+import com.rreganjr.requel.project.command.GenerateReportCommand;
+import com.rreganjr.requel.project.Scenario;
+import com.rreganjr.requel.project.Step;
+import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.GoalContainer;
+import com.rreganjr.requel.project.GoalRelation;
+import com.rreganjr.requel.project.GoalRelationType;
+import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectOrDomain;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
+import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectUserRole;
+import com.rreganjr.requel.project.Stakeholder;
+import com.rreganjr.requel.project.StakeholderPermission;
+import com.rreganjr.requel.project.StakeholderPermissionType;
+import com.rreganjr.requel.project.Story;
+import com.rreganjr.requel.project.StoryContainer;
+import com.rreganjr.requel.project.UseCase;
+import com.rreganjr.requel.project.UserStakeholder;
+import com.rreganjr.requel.project.command.ExportProjectCommand;
+import com.rreganjr.requel.project.command.ProjectCommandFactory;
+import com.rreganjr.requel.project.exception.NoSuchProjectException;
+import com.rreganjr.requel.project.exception.ReportGenerationException;
+import com.rreganjr.requel.project.NonUserStakeholder;
+import com.rreganjr.requel.service.api.dto.ActorDto;
+import com.rreganjr.requel.service.api.dto.ScenarioDto;
+import com.rreganjr.requel.service.api.dto.StepDto;
+import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
+import com.rreganjr.requel.annotation.Annotation;
+import com.rreganjr.requel.annotation.Issue;
+import com.rreganjr.requel.annotation.impl.IssueImpl;
+import com.rreganjr.requel.annotation.spi.AnnotationFreshness;
+import com.rreganjr.requel.service.command.AnnotationCommandRegistrar;
+import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
+import com.rreganjr.requel.service.api.dto.OpenIssueDto;
+import com.rreganjr.requel.service.api.dto.ReportGeneratorDto;
+import com.rreganjr.requel.service.api.dto.GoalDto;
+import com.rreganjr.requel.service.api.dto.GoalRelationDto;
+import com.rreganjr.requel.service.api.dto.GoalRelationTypeDto;
+import com.rreganjr.requel.service.api.dto.NonUserStakeholderDetails;
+import com.rreganjr.requel.service.api.dto.ProjectDto;
+import com.rreganjr.requel.service.api.dto.UseCaseDto;
+import com.rreganjr.requel.service.api.dto.ProjectPermissionsDto;
+import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
+import com.rreganjr.requel.service.api.dto.StakeholderDto;
+import com.rreganjr.requel.service.api.dto.StakeholderPermissionDto;
+import com.rreganjr.requel.service.api.dto.StakeholderPermissionRulesDto;
+import com.rreganjr.requel.project.StakeholderPermissionRules;
+import com.rreganjr.requel.service.api.dto.StoryDto;
+import com.rreganjr.requel.service.api.dto.UserStakeholderDetails;
+import com.rreganjr.requel.service.auth.CurrentUserResolver;
+import com.rreganjr.requel.user.User;
+import com.rreganjr.requel.user.UserRepository;
+import com.rreganjr.requel.user.impl.AssistantUserRole;
+import com.rreganjr.requel.user.impl.SystemAdminUserRole;
+
+import jakarta.persistence.EntityManager;
+import jakarta.servlet.http.HttpServletResponse;
+
+/**
+ * Read endpoints for project users.
+ */
+@RestController
+@RequestMapping("/api/projects")
+public class ProjectQueryController {
+
+    private static final Logger log = LoggerFactory.getLogger(ProjectQueryController.class);
+
+    private final ProjectRepository projectRepository;
+    private final ProjectCommandFactory projectCommandFactory;
+    private final CommandHandler commandHandler;
+    private final CurrentUserResolver currentUserResolver;
+    private final EntityManager entityManager;
+    private final DictionaryRepository dictionaryRepository;
+
+    private com.rreganjr.requel.project.IgnoredFindingStore ignoredFindingStore;
+
+    /** Issue #320: setter-injected so the constructor used by the standalone MockMvc test is unchanged. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setIgnoredFindingStore(com.rreganjr.requel.project.IgnoredFindingStore store) {
+        this.ignoredFindingStore = store;
+    }
+
+    private com.rreganjr.requel.project.ProjectAssistantSettingsStore assistantSettingsStore;
+    private com.rreganjr.requel.project.SwitchableAssistantCatalog assistantCatalog;
+
+    /** Issue #268: setter-injected, as the ignored-finding store is. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setAssistantSettingsStore(
+            com.rreganjr.requel.project.ProjectAssistantSettingsStore store) {
+        this.assistantSettingsStore = store;
+    }
+
+    /** Issue #268: the assistants a project can switch; the assistant registry. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setAssistantCatalog(com.rreganjr.requel.project.SwitchableAssistantCatalog catalog) {
+        this.assistantCatalog = catalog;
+    }
+
+    public ProjectQueryController(ProjectRepository projectRepository,
+                                  ProjectCommandFactory projectCommandFactory,
+                                  CommandHandler commandHandler,
+                                  CurrentUserResolver currentUserResolver,
+                                  EntityManager entityManager,
+                                  DictionaryRepository dictionaryRepository) {
+        this.projectRepository = projectRepository;
+        this.projectCommandFactory = projectCommandFactory;
+        this.commandHandler = commandHandler;
+        this.currentUserResolver = currentUserResolver;
+        this.entityManager = entityManager;
+        this.dictionaryRepository = dictionaryRepository;
+    }
+
+    /** #270: which issues may no longer apply; none are, without the assistant module. */
+    private AnnotationFreshness annotationFreshness = AnnotationFreshness.NONE;
+
+    /** #390: the user list behind {@code /stakeholder-candidates}. */
+    private UserRepository userRepository;
+
+    @Autowired
+    public void setUserRepository(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
+    @Autowired(required = false)
+    public void setAnnotationFreshness(AnnotationFreshness annotationFreshness) {
+        this.annotationFreshness = annotationFreshness != null ? annotationFreshness
+                : AnnotationFreshness.NONE;
+    }
+
+    /**
+     * GET /api/projects — list projects visible to the current user.
+     * Admins see all projects; regular users see their active projects.
+     */
+    @GetMapping
+    public List<ProjectDto> listProjects() {
+        User user = currentUserResolver.resolve();
+        Collection<? extends Project> projects;
+        if (user.hasRole(SystemAdminUserRole.class)) {
+            projects = findAllProjects();
+        } else if (user.hasRole(ProjectUserRole.class)) {
+            // #323: activeProjects is lazy; query it rather than relying on open-in-view.
+            projects = projectRepository.findActiveProjects(user);
+        } else {
+            projects = Collections.emptySet();
+        }
+        return projects.stream()
+                .map(p -> toDto(p, user))
+                .sorted(Comparator.comparing(ProjectDto::name))
+                .toList();
+    }
+
+    /**
+     * GET /api/projects/stakeholder-permissions — catalog of all available stakeholder permissions.
+     * Returns the full permission matrix (entity type × permission type) so the
+     * stakeholder editor can render checkboxes.
+     * NOTE: This must be declared before /{name} to avoid the path variable matching "stakeholder-permissions".
+     */
+    @GetMapping("/stakeholder-permissions")
+    public List<StakeholderPermissionDto> listAvailablePermissions() {
+        return projectRepository.findAvailableStakeholderPermissions().stream()
+                .map(p -> new StakeholderPermissionDto(
+                        p.getPermissionKey(),
+                        p.getEntityType().getSimpleName(),
+                        p.getPermissionType().name()))
+                .toList();
+    }
+
+    /**
+     * GET /api/projects/stakeholder-permission-rules — issue #75: the permissions each permission
+     * implies, the owned deletes it covers, and the Grant that governs it, so the stakeholder page
+     * can disable, flag and explain. The same for every project, so no project access check.
+     * Declared before /{name} like /stakeholder-permissions.
+     */
+    @GetMapping("/stakeholder-permission-rules")
+    public StakeholderPermissionRulesDto getStakeholderPermissionRules() {
+        java.util.List<String> catalog = projectRepository.findAvailableStakeholderPermissions()
+                .stream().map(p -> p.getPermissionKey()).toList();
+        java.util.Map<String, String> grantKeys = new java.util.LinkedHashMap<>();
+        for (String key : catalog) {
+            grantKeys.put(key, StakeholderPermissionRules.grantKeyFor(key, catalog));
+        }
+        return new StakeholderPermissionRulesDto(
+                StakeholderPermissionRules.IMPLIED.stream()
+                        .map(r -> new StakeholderPermissionRulesDto.Implied(r.granted(),
+                                r.implied(), r.reason()))
+                        .toList(),
+                StakeholderPermissionRules.OWNED_DELETES.stream()
+                        .map(r -> new StakeholderPermissionRulesDto.OwnedDelete(r.granted(),
+                                r.flagged(), r.note()))
+                        .toList(),
+                grantKeys);
+    }
+
+    /**
+     * GET /api/projects/goal-relation-types — the goal relation vocabulary, in declaration order,
+     * so the goal editor renders the picker and both relation lists from the server instead of
+     * keeping its own copy (issue #257). The same for every project, so no project access check.
+     * Declared before /{name} like /stakeholder-permissions.
+     */
+    @GetMapping("/goal-relation-types")
+    public List<GoalRelationTypeDto> listGoalRelationTypes() {
+        return Arrays.stream(GoalRelationType.values())
+                .map(t -> new GoalRelationTypeDto(t.name(), t.getLabel(), t.getDescription(),
+                        t.isSymmetric(), t.getInverseLabel()))
+                .toList();
+    }
+
+    /**
+     * GET /api/projects/{name} — single project by name.
+     */
+    @GetMapping("/{name}")
+    public ResponseEntity<ProjectDto> getProject(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            User user = requireProjectAccess(project);
+            return ResponseEntity.ok(toDto(project, user));
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/my-permissions — stakeholder permissions for the current user.
+     */
+    @GetMapping("/{name}/my-permissions")
+    public ResponseEntity<ProjectPermissionsDto> getMyPermissions(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            User user = requireProjectAccess(project);
+
+            boolean canCreate = user.hasRole(ProjectUserRole.class)
+                    && user.getRoleForType(ProjectUserRole.class).canCreateProjects();
+
+            // Find the current user's stakeholder in this project
+            UserStakeholder stakeholder = findUserStakeholder(project, user);
+            if (stakeholder == null) {
+                // Not a stakeholder: no permissions at all, except that an administrator may
+                // still delete the project (#256). isStakeholder stays false - this grants the
+                // one affordance, not membership.
+                Map<String, Set<String>> adminOnly = new HashMap<>();
+                addAdminProjectDelete(adminOnly, user);
+                return ResponseEntity.ok(new ProjectPermissionsDto(false, canCreate, adminOnly));
+            }
+
+            // Build permission map: entitySimpleName -> set of permission type names
+            Map<String, Set<String>> permMap = new HashMap<>();
+            for (StakeholderPermission perm : stakeholder.getStakeholderPermissions()) {
+                String entityName = perm.getEntityType().getSimpleName();
+                permMap.computeIfAbsent(entityName, k -> new HashSet<>())
+                        .add(perm.getPermissionType().name());
+            }
+            addAdminProjectDelete(permMap, user);
+
+            return ResponseEntity.ok(new ProjectPermissionsDto(true, canCreate, permMap));
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/tree — project content tree for sidebar navigation.
+     */
+    @GetMapping("/{name}/tree")
+    public ResponseEntity<List<ProjectTreeNodeDto>> getProjectTree(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<ProjectTreeNodeDto> tree = new ArrayList<>();
+
+            tree.add(treeGroup("Stakeholders", project.getStakeholders(), s -> s.getDisplayName()));
+            tree.add(treeGroup("Goals", project.getGoals(), Goal::getName));
+            tree.add(treeGroup("Stories", project.getStories(), Story::getName));
+            tree.add(treeGroup("Actors", project.getActors(), Actor::getName));
+            tree.add(treeGroup("Use Cases", project.getUseCases(), UseCase::getName));
+            tree.add(treeGroup("Glossary", project.getGlossaryTerms(), GlossaryTerm::getName));
+            tree.add(treeGroup("Reports", project.getReportGenerators(), ReportGenerator::getName));
+
+            return ResponseEntity.ok(tree);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/export — download project as XML.
+     */
+    @GetMapping("/{name}/export")
+    public void exportProject(@PathVariable String name, HttpServletResponse response) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            response.setContentType("application/xml");
+            response.setHeader("Content-Disposition",
+                    "attachment; filename=\"" + project.getName().replaceAll("[^a-zA-Z0-9._-]", "_") + ".xml\"");
+
+            ExportProjectCommand cmd = projectCommandFactory.newExportProjectCommand();
+            cmd.setProject(project);
+            cmd.setOutputStream(response.getOutputStream());
+            commandHandler.execute(cmd);
+        } catch (NoSuchProjectException e) {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+        } catch (AuthorizationException e) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        } catch (Exception e) {
+            log.error("Could not export project '{}': {}", name, e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/stakeholders — list all stakeholders for a project.
+     */
+    @GetMapping("/{name}/stakeholders")
+    public ResponseEntity<?> listStakeholders(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<StakeholderDto> dtos = project.getStakeholders().stream()
+                    .map(ProjectQueryController::toStakeholderDto)
+                    .sorted(Comparator.comparing(StakeholderDto::name))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/stakeholder-candidates — users who could be added as user
+     * stakeholders (#390): project users who aren't stakeholders yet, minus assistant identities.
+     *
+     * <p>
+     * Gated like {@code EditUserStakeholder} ({@code Stakeholder[Edit]} on the project), so a
+     * non-admin who manages stakeholders can pick a user; {@code /api/users} stays admin-only.
+     * Returns username and name only.
+     */
+    @GetMapping("/{name}/stakeholder-candidates")
+    public ResponseEntity<List<StakeholderCandidateDto>> listStakeholderCandidates(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            User user = requireProjectAccess(project);
+            UserStakeholder caller = findUserStakeholder(project, user);
+            if (caller == null || !caller.hasPermission(Stakeholder.class, StakeholderPermissionType.Edit)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            Set<String> taken = new HashSet<>();
+            for (Stakeholder s : project.getStakeholders()) {
+                if (s instanceof UserStakeholder us && us.getUser() != null) {
+                    taken.add(us.getUser().getUsername());
+                }
+            }
+            List<StakeholderCandidateDto> candidates = userRepository.findUsers().stream()
+                    .filter(u -> u.hasRole(ProjectUserRole.class))
+                    .filter(u -> !u.hasRole(AssistantUserRole.class)
+                            && !User.ASSISTANT_USERNAME.equals(u.getUsername()))
+                    .filter(u -> !taken.contains(u.getUsername()))
+                    .map(u -> new StakeholderCandidateDto(u.getUsername(), u.getName()))
+                    .sorted(Comparator.comparing(StakeholderCandidateDto::username))
+                    .toList();
+            return ResponseEntity.ok(candidates);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/stakeholders/{id} — single stakeholder detail.
+     */
+    @GetMapping("/{name}/stakeholders/{stakeholderId}")
+    public ResponseEntity<?> getStakeholder(@PathVariable String name,
+                                            @PathVariable Long stakeholderId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            for (Stakeholder s : project.getStakeholders()) {
+                if (s.getId().equals(stakeholderId)) {
+                    return ResponseEntity.ok(toStakeholderDetailDto(s));
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    // ── Goals ──────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/projects/{name}/goals — list all goals (summary, no relations/referers).
+     */
+    @GetMapping("/{name}/goals")
+    public ResponseEntity<?> listGoals(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<GoalDto> dtos = project.getGoals().stream()
+                    .map(ProjectQueryController::toGoalSummaryDto)
+                    .sorted(Comparator.comparing(GoalDto::name))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/goals/{goalId} — single goal with relations and referencedBy.
+     */
+    @GetMapping("/{name}/goals/{goalId}")
+    public ResponseEntity<?> getGoal(@PathVariable String name, @PathVariable Long goalId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            for (Goal g : project.getGoals()) {
+                if (g.getId().equals(goalId)) {
+                    return ResponseEntity.ok(toGoalDetailDto(g));
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    // ── Stories ────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/projects/{name}/stories — list all stories (summary).
+     */
+    @GetMapping("/{name}/stories")
+    public ResponseEntity<?> listStories(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<StoryDto> dtos = project.getStories().stream()
+                    .map(ProjectQueryController::toStorySummaryDto)
+                    .sorted(Comparator.comparing(StoryDto::name))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/stories/{storyId} — single story with goals and actors.
+     */
+    @GetMapping("/{name}/stories/{storyId}")
+    public ResponseEntity<?> getStory(@PathVariable String name, @PathVariable Long storyId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            for (Story s : project.getStories()) {
+                if (s.getId().equals(storyId)) {
+                    return ResponseEntity.ok(toStoryDetailDto(s));
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    // ── Actors ─────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/projects/{name}/actors — list all actors (summary).
+     */
+    @GetMapping("/{name}/actors")
+    public ResponseEntity<?> listActors(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<ActorDto> dtos = project.getActors().stream()
+                    .map(ProjectQueryController::toActorSummaryDto)
+                    .sorted(Comparator.comparing(ActorDto::name))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/actors/{actorId} — single actor with goals.
+     */
+    @GetMapping("/{name}/actors/{actorId}")
+    public ResponseEntity<?> getActor(@PathVariable String name, @PathVariable Long actorId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            for (Actor a : project.getActors()) {
+                if (a.getId().equals(actorId)) {
+                    return ResponseEntity.ok(toActorDetailDto(a));
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/scenarios — list of scenarios (no steps).
+     */
+    @GetMapping("/{name}/scenarios")
+    public ResponseEntity<?> listScenarios(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<ScenarioDto> dtos = project.getScenarios().stream()
+                    .map(ProjectQueryController::toScenarioSummaryDto)
+                    .sorted(Comparator.comparing(ScenarioDto::name))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/scenarios/{scenarioId} — single scenario with step list.
+     */
+    @GetMapping("/{name}/scenarios/{scenarioId}")
+    public ResponseEntity<?> getScenario(@PathVariable String name, @PathVariable Long scenarioId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            for (Scenario s : project.getScenarios()) {
+                if (s.getId().equals(scenarioId)) {
+                    return ResponseEntity.ok(toScenarioDetailDto(s));
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/use-cases — list of use cases (summary, no sub-tables).
+     */
+    @GetMapping("/{name}/use-cases")
+    public ResponseEntity<?> listUseCases(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<UseCaseDto> dtos = project.getUseCases().stream()
+                    .map(ProjectQueryController::toUseCaseSummaryDto)
+                    .sorted(Comparator.comparing(UseCaseDto::name))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/use-cases/{useCaseId} — single use case with sub-tables.
+     */
+    @GetMapping("/{name}/use-cases/{useCaseId}")
+    public ResponseEntity<?> getUseCase(@PathVariable String name, @PathVariable Long useCaseId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            for (UseCase uc : project.getUseCases()) {
+                if (uc.getId().equals(useCaseId)) {
+                    return ResponseEntity.ok(toUseCaseDetailDto(uc));
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────
+
+    /**
+     * Verify the current user is an admin or a stakeholder on the project.
+     * Throws AuthorizationException if access is denied.
+     */
+    private User requireProjectAccess(Project project) {
+        User user = currentUserResolver.resolve();
+        if (ProjectReadAccess.canRead(project, user)) {
+            return user;
+        }
+        throw new AuthorizationException("You do not have access to this project.");
+    }
+
+    private UserStakeholder findUserStakeholder(Project project, User user) {
+        for (Stakeholder s : project.getStakeholders()) {
+            if (s.matchesUser(user) && s instanceof UserStakeholder us) {
+                return us;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * True iff the given user may delete this project. Mirrors the gate enforced by the
+     * DeleteProject command (#240, #256) so the UI never offers a Delete action the
+     * backend would reject with 403 - and never hides one it would accept.
+     *
+     * <p>
+     * Two ways to satisfy it, matching
+     * {@code RequiresStakeholderPermissionOrSystemAdminRole} on the command: the
+     * {@code Project[Delete]} stakeholder permission, or the system-administrator role
+     * with no stakeholder row at all. Change this and the command's requirement together.
+     */
+    private boolean callerHoldsProjectDelete(Project project, User user) {
+        if (user.hasRole(SystemAdminUserRole.class)) {
+            return true;
+        }
+        UserStakeholder stakeholder = findUserStakeholder(project, user);
+        if (stakeholder == null) {
+            return false;
+        }
+        for (StakeholderPermission perm : stakeholder.getStakeholderPermissions()) {
+            if (Project.class.equals(perm.getEntityType())
+                    && perm.getPermissionType() == StakeholderPermissionType.Delete) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Add {@code Project[Delete]} for a system administrator, and for nobody else (#256).
+     * Keeps the workspace's Delete control in step with
+     * {@link #callerHoldsProjectDelete(Project, User)} and with the DeleteProject command's
+     * own requirement. Deliberately the only permission an administrator gains this way:
+     * they are not granted editing rights inside a project they are not a stakeholder of.
+     */
+    private void addAdminProjectDelete(Map<String, Set<String>> permMap, User user) {
+        if (user.hasRole(SystemAdminUserRole.class)) {
+            permMap.computeIfAbsent(Project.class.getSimpleName(), k -> new HashSet<>())
+                    .add(StakeholderPermissionType.Delete.name());
+        }
+    }
+
+    private <T extends ProjectOrDomainEntity> ProjectTreeNodeDto treeGroup(String groupName,
+                                             Collection<? extends T> items,
+                                             java.util.function.Function<T, String> nameExtractor) {
+        List<ProjectTreeNodeDto> children = items.stream()
+                .map(item -> new ProjectTreeNodeDto(item.getId(), groupName, nameExtractor.apply(item)))
+                .sorted(Comparator.comparing(ProjectTreeNodeDto::name))
+                .toList();
+        return new ProjectTreeNodeDto(groupName, groupName, children);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Project> findAllProjects() {
+        return entityManager
+                .createQuery("select p from ProjectImpl p order by p.name")
+                .getResultList();
+    }
+
+    public static StakeholderDto toStakeholderDto(Stakeholder stakeholder) {
+        UserStakeholderDetails userDetails = null;
+        NonUserStakeholderDetails nonUserDetails = null;
+
+        if (stakeholder instanceof UserStakeholder us) {
+            List<String> permissionKeys = us.getStakeholderPermissions().stream()
+                    .map(StakeholderPermission::getPermissionKey)
+                    .sorted()
+                    .toList();
+            userDetails = new UserStakeholderDetails(
+                    us.getDisplayUsername(),
+                    us.getDisplayEmailAddress(),
+                    us.getDisplayPhoneNumber(),
+                    us.getTeam() != null ? us.getTeam().getName() : null,
+                    permissionKeys
+            );
+        } else if (stakeholder instanceof NonUserStakeholder nus) {
+            nonUserDetails = new NonUserStakeholderDetails(nus.getText());
+        }
+
+        return new StakeholderDto(
+                stakeholder.getId(),
+                stakeholder.getVersion(),
+                stakeholder.getDisplayName(),
+                stakeholder.isUserStakeholder() ? "user" : "non-user",
+                stakeholder.getCreatedBy() != null ? stakeholder.getCreatedBy().getDisplayName() : null,
+                userDetails,
+                nonUserDetails,
+                null
+        );
+    }
+
+    public static StakeholderDto toStakeholderDetailDto(Stakeholder stakeholder) {
+        StakeholderDto summary = toStakeholderDto(stakeholder);
+        List<EntityReferenceDto> goals = stakeholder.getGoals().stream()
+                .map(g -> new EntityReferenceDto("Goal", g.getId(), g.getName()))
+                .sorted(Comparator.comparing(EntityReferenceDto::name))
+                .toList();
+        return new StakeholderDto(
+                summary.id(), summary.version(), summary.name(), summary.type(),
+                summary.createdBy(), summary.userDetails(), summary.nonUserDetails(),
+                goals
+        );
+    }
+
+    /**
+     * #274: the project summary for a read that has already checked access, as
+     * {@code GET /api/projects/{name}} returns it to the current user.
+     */
+    public ProjectDto toProjectDto(Project project) {
+        return toDto(project, currentUserResolver.resolve());
+    }
+
+    private ProjectDto toDto(Project project, User user) {
+        return new ProjectDto(
+                project.getId(),
+                project.getVersion(),
+                project.getName(),
+                project.getText(),
+                project.getOrganization() != null ? project.getOrganization().getName() : null,
+                project.getCreatedBy() != null ? project.getCreatedBy().getDisplayName() : null,
+                project.getStatus(),
+                project.getStakeholders().size(),
+                project.getGoals().size(),
+                project.getStories().size(),
+                project.getActors().size(),
+                project.getUseCases().size(),
+                project.getScenarios().size(),
+                project.getGlossaryTerms().size(),
+                project.getReportGenerators().size(),
+                dictionaryRepository.countProjectWords(project.getId()),
+                callerHoldsProjectDelete(project, user)
+        );
+    }
+
+    // ── Goal/Story DTO mappers ────────────────────────────────────────
+
+    static GoalDto toGoalSummaryDto(Goal goal) {
+        return new GoalDto(
+                goal.getId(), goal.getVersion(), goal.getName(), goal.getText(),
+                goal.getCreatedBy() != null ? goal.getCreatedBy().getDisplayName() : null,
+                null, null, null);
+    }
+
+    public static GoalDto toGoalDetailDto(Goal goal) {
+        List<GoalRelationDto> fromRelations = goal.getRelationsFromThisGoal().stream()
+                .map(r -> new GoalRelationDto(r.getId(), r.getVersion(),
+                        r.getToGoal().getId(), r.getToGoal().getName(),
+                        r.getRelationType().name()))
+                .sorted(Comparator.comparing(GoalRelationDto::goalName))
+                .toList();
+
+        List<GoalRelationDto> toRelations = goal.getRelationsToThisGoal().stream()
+                .map(r -> new GoalRelationDto(r.getId(), r.getVersion(),
+                        r.getFromGoal().getId(), r.getFromGoal().getName(),
+                        r.getRelationType().name()))
+                .sorted(Comparator.comparing(GoalRelationDto::goalName))
+                .toList();
+
+        List<EntityReferenceDto> referers = goal.getReferers().stream()
+                .map(ProjectQueryController::toEntityReference)
+                .sorted(Comparator.comparing(EntityReferenceDto::entityType)
+                        .thenComparing(EntityReferenceDto::name))
+                .toList();
+
+        return new GoalDto(
+                goal.getId(), goal.getVersion(), goal.getName(), goal.getText(),
+                goal.getCreatedBy() != null ? goal.getCreatedBy().getDisplayName() : null,
+                fromRelations, toRelations, referers);
+    }
+
+    static StoryDto toStorySummaryDto(Story story) {
+        return new StoryDto(
+                story.getId(), story.getVersion(), story.getName(), story.getText(),
+                story.getStoryType().name(),
+                story.getCreatedBy() != null ? story.getCreatedBy().getDisplayName() : null,
+                story.getPrimaryActor() != null ? story.getPrimaryActor().getName() : null,
+                null, null, null);
+    }
+
+    public static StoryDto toStoryDetailDto(Story story) {
+        List<EntityReferenceDto> goals = story.getGoals().stream()
+                .map(g -> new EntityReferenceDto("Goal", g.getId(), g.getName()))
+                .sorted(Comparator.comparing(EntityReferenceDto::name))
+                .toList();
+
+        List<EntityReferenceDto> actors = story.getActors().stream()
+                .map(a -> new EntityReferenceDto("Actor", a.getId(), a.getName()))
+                .sorted(Comparator.comparing(EntityReferenceDto::name))
+                .toList();
+
+        List<EntityReferenceDto> referencedBy = story.getReferers().stream()
+                .map(ProjectQueryController::toEntityReference)
+                .sorted(Comparator.comparing(EntityReferenceDto::entityType)
+                        .thenComparing(EntityReferenceDto::name))
+                .toList();
+
+        return new StoryDto(
+                story.getId(), story.getVersion(), story.getName(), story.getText(),
+                story.getStoryType().name(),
+                story.getCreatedBy() != null ? story.getCreatedBy().getDisplayName() : null,
+                story.getPrimaryActor() != null ? story.getPrimaryActor().getName() : null,
+                goals, actors, referencedBy);
+    }
+
+    // ── Actor DTO mappers ─────────────────────────────────────────────
+
+    static ActorDto toActorSummaryDto(Actor actor) {
+        return new ActorDto(
+                actor.getId(), actor.getVersion(), actor.getName(), actor.getText(),
+                actor.getCreatedBy() != null ? actor.getCreatedBy().getDisplayName() : null,
+                null, null, null);
+    }
+
+    public static ActorDto toActorDetailDto(Actor actor) {
+        List<EntityReferenceDto> goals = actor.getGoals().stream()
+                .map(g -> new EntityReferenceDto("Goal", g.getId(), g.getName()))
+                .sorted(Comparator.comparing(EntityReferenceDto::name))
+                .toList();
+        List<EntityReferenceDto> referencedByUseCases = actor.getReferers().stream()
+                .filter(r -> r instanceof UseCase)
+                .map(r -> new EntityReferenceDto("UseCase", ((UseCase) r).getId(), ((UseCase) r).getName()))
+                .sorted(Comparator.comparing(EntityReferenceDto::name))
+                .toList();
+        List<EntityReferenceDto> referencedByStories = actor.getReferers().stream()
+                .filter(r -> r instanceof Story)
+                .map(r -> new EntityReferenceDto("Story", ((Story) r).getId(), ((Story) r).getName()))
+                .sorted(Comparator.comparing(EntityReferenceDto::name))
+                .toList();
+        return new ActorDto(
+                actor.getId(), actor.getVersion(), actor.getName(), actor.getText(),
+                actor.getCreatedBy() != null ? actor.getCreatedBy().getDisplayName() : null,
+                goals, referencedByUseCases, referencedByStories);
+    }
+
+    static ScenarioDto toScenarioSummaryDto(Scenario scenario) {
+        return new ScenarioDto(
+                scenario.getId(), scenario.getVersion(), scenario.getName(), scenario.getText(),
+                scenario.getType() != null ? scenario.getType().name() : null,
+                scenario.getCreatedBy() != null ? scenario.getCreatedBy().getDisplayName() : null,
+                null, null);
+    }
+
+    public static ScenarioDto toScenarioDetailDto(Scenario scenario) {
+        List<StepDto> steps = new ArrayList<>();
+        for (Step step : scenario.getSteps()) {
+            boolean isScenario = step instanceof Scenario;
+            steps.add(new StepDto(
+                    step.getId(),
+                    step.getVersion(),
+                    step.getName(),
+                    step.getText(),
+                    step.getType() != null ? step.getType().name() : null,
+                    isScenario,
+                    isScenario ? step.getId() : null));
+        }
+        List<EntityReferenceDto> referencedBy = List.of();
+        if (scenario.getProjectOrDomain() instanceof Project project) {
+            referencedBy = project.getUseCases().stream()
+                    .filter(uc -> uc.getAdditionalScenarios().stream()
+                            .anyMatch(s -> s.getId().equals(scenario.getId())))
+                    .map(uc -> new EntityReferenceDto("UseCase", uc.getId(), uc.getName()))
+                    .sorted(Comparator.comparing(EntityReferenceDto::name))
+                    .toList();
+        }
+        return new ScenarioDto(
+                scenario.getId(), scenario.getVersion(), scenario.getName(), scenario.getText(),
+                scenario.getType() != null ? scenario.getType().name() : null,
+                scenario.getCreatedBy() != null ? scenario.getCreatedBy().getDisplayName() : null,
+                steps, referencedBy);
+    }
+
+    public static UseCaseDto toUseCaseSummaryDto(UseCase uc) {
+        return new UseCaseDto(
+                uc.getId(), uc.getVersion(), uc.getName(), uc.getText(),
+                uc.getPrimaryActor() != null ? uc.getPrimaryActor().getName() : null,
+                uc.getCreatedBy() != null ? uc.getCreatedBy().getDisplayName() : null,
+                uc.getScenario() != null ? uc.getScenario().getId() : null,
+                uc.getScenario() != null ? uc.getScenario().getName() : null,
+                uc.getScenario() != null ? uc.getScenario().getSteps().size() : null,
+                null, null, null, null);
+    }
+
+    public static UseCaseDto toUseCaseDetailDto(UseCase uc) {
+        List<GoalDto> goals = uc.getGoals().stream()
+                .map(g -> new GoalDto(g.getId(), g.getVersion(), g.getName(), g.getText(),
+                        g.getCreatedBy() != null ? g.getCreatedBy().getDisplayName() : null,
+                        null, null, null))
+                .sorted(Comparator.comparing(GoalDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+        List<ActorDto> actors = uc.getActors().stream()
+                .map(a -> new ActorDto(a.getId(), a.getVersion(), a.getName(), a.getText(),
+                        a.getCreatedBy() != null ? a.getCreatedBy().getDisplayName() : null,
+                        null, null, null))
+                .sorted(Comparator.comparing(ActorDto::name))
+                .toList();
+        List<StoryDto> stories = uc.getStories().stream()
+                .map(s -> new StoryDto(s.getId(), s.getVersion(), s.getName(), s.getText(),
+                        s.getStoryType() != null ? s.getStoryType().name() : null,
+                        s.getCreatedBy() != null ? s.getCreatedBy().getDisplayName() : null,
+                        s.getPrimaryActor() != null ? s.getPrimaryActor().getName() : null,
+                        null, null, null))
+                .sorted(Comparator.comparing(StoryDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+        List<ScenarioDto> additionalScenarios = uc.getAdditionalScenarios().stream()
+                .map(s -> new ScenarioDto(s.getId(), s.getVersion(), s.getName(), s.getText(),
+                        s.getType() != null ? s.getType().name() : null,
+                        s.getCreatedBy() != null ? s.getCreatedBy().getDisplayName() : null,
+                        null, null))
+                .sorted(Comparator.comparing(ScenarioDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+        return new UseCaseDto(
+                uc.getId(), uc.getVersion(), uc.getName(), uc.getText(),
+                uc.getPrimaryActor() != null ? uc.getPrimaryActor().getName() : null,
+                uc.getCreatedBy() != null ? uc.getCreatedBy().getDisplayName() : null,
+                uc.getScenario() != null ? uc.getScenario().getId() : null,
+                uc.getScenario() != null ? uc.getScenario().getName() : null,
+                uc.getScenario() != null ? uc.getScenario().getSteps().size() : null,
+                goals, actors, stories, additionalScenarios);
+    }
+
+    /**
+     * GET /api/projects/{name}/terms — list of glossary terms (no alternates/referers).
+     */
+    @GetMapping("/{name}/terms")
+    public ResponseEntity<?> listTerms(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<GlossaryTermDto> dtos = project.getGlossaryTerms().stream()
+                    .map(ProjectQueryController::toGlossaryTermSummaryDto)
+                    .sorted(Comparator.comparing(GlossaryTermDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/dictionary — the project's own dictionary words, ordered by lemma
+     * (issue #319). Installation-wide words and the WordNet corpus are not included.
+     */
+    @GetMapping("/{name}/dictionary")
+    public ResponseEntity<?> listDictionaryWords(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<DictionaryWordDto> dtos = dictionaryRepository.findProjectWords(project.getId())
+                    .stream()
+                    .map(w -> new DictionaryWordDto(w.getId(), w.getLemma()))
+                    .sorted(Comparator.comparing(DictionaryWordDto::lemma,
+                            String.CASE_INSENSITIVE_ORDER))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/ignored-findings — the assistant findings ignored in the project
+     * (issue #320), ordered by entity then subject.
+     */
+    @GetMapping("/{name}/ignored-findings")
+    public ResponseEntity<?> listIgnoredFindings(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            if (ignoredFindingStore == null) {
+                return ResponseEntity.ok(List.of());
+            }
+            List<com.rreganjr.requel.service.api.dto.IgnoredFindingDto> dtos = ignoredFindingStore
+                    .list(project.getId()).stream()
+                    .map(f -> new com.rreganjr.requel.service.api.dto.IgnoredFindingDto(f.getId(),
+                            f.getSubject(), f.getFindingType(), f.getTargetType(), f.getTargetId(),
+                            entityName(f.getTargetType(), f.getTargetId()), f.getPropertyName(),
+                            f.getCreatedBy() == null ? null : f.getCreatedBy().getUsername(),
+                            f.getDateCreated()))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    private ProvenanceQueryService provenanceQueryService;
+
+    /** Issue #272: setter-injected, as the ignored-finding store is. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setProvenanceQueryService(ProvenanceQueryService provenanceQueryService) {
+        this.provenanceQueryService = provenanceQueryService;
+    }
+
+    /**
+     * GET /api/projects/{name}/entities/{type}/{id}/sources — which external sources, and which
+     * fragments of them, an entity came from (issue #272), for the read-only Sources card.
+     */
+    @GetMapping("/{name}/entities/{type}/{id}/sources")
+    public ResponseEntity<?> getEntitySources(@PathVariable String name, @PathVariable String type,
+            @PathVariable Long id) {
+        if (provenanceQueryService == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        try {
+            return ResponseEntity.ok(provenanceQueryService.getEntitySources(name, type, id));
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/sources — the project's sources and references, with link counts
+     * and the precedence between them (issue #273), for the read-only References card.
+     */
+    @GetMapping("/{name}/sources")
+    public ResponseEntity<?> listSources(@PathVariable String name) {
+        if (provenanceQueryService == null) {
+            return ResponseEntity.ok(new com.rreganjr.requel.service.api.dto.ProjectSourcesDto(
+                    List.of(), List.of()));
+        }
+        try {
+            return ResponseEntity.ok(provenanceQueryService.listSources(name));
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/assistants — the assistants the project can switch on and off,
+     * and whether each runs there (issue #268). No row means it runs.
+     */
+    @GetMapping("/{name}/assistants")
+    public ResponseEntity<?> listProjectAssistants(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            if (assistantCatalog == null) {
+                return ResponseEntity.ok(List.of());
+            }
+            java.util.Set<String> disabled = assistantSettingsStore == null ? java.util.Set.of()
+                    : assistantSettingsStore.disabledAssistants(project.getId());
+            List<com.rreganjr.requel.service.api.dto.ProjectAssistantDto> dtos = assistantCatalog
+                    .switchableAssistants(project.getId()).stream()
+                    .map(a -> new com.rreganjr.requel.service.api.dto.ProjectAssistantDto(
+                            a.assistantId(), a.displayName(), !disabled.contains(a.assistantId()),
+                            a.group()))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/data-handling — the project's AI data-handling settings (issue
+     * #262): whether remote providers are allowed and which redaction categories are masked.
+     * Every setting is on until switched off.
+     */
+    @GetMapping("/{name}/data-handling")
+    public ResponseEntity<?> getProjectDataHandling(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            com.rreganjr.requel.project.DataHandlingSettings settings =
+                    com.rreganjr.requel.project.DataHandlingSettings.forProject(project.getId(),
+                            assistantSettingsStore);
+            return ResponseEntity.ok(new com.rreganjr.requel.service.api.dto.ProjectDataHandlingDto(
+                    settings.externalProviderAllowed(), settings.redactionSwitches()));
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    private String entityName(String entityType, Long entityId) {
+        Class<?> type = com.rreganjr.requel.project.impl.IgnorableEntityTypes.BY_NAME.get(entityType);
+        if (type == null || entityId == null) {
+            return null;
+        }
+        try {
+            Object entity = projectRepository.findById(type, entityId);
+            return (entity instanceof com.rreganjr.requel.project.TextEntity text) ? text.getName()
+                    : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/terms/{termId} — single term with alternates and referers.
+     */
+    @GetMapping("/{name}/terms/{termId}")
+    public ResponseEntity<?> getTerm(@PathVariable String name, @PathVariable Long termId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            for (GlossaryTerm t : project.getGlossaryTerms()) {
+                if (t.getId().equals(termId)) {
+                    return ResponseEntity.ok(toGlossaryTermDetailDto(t));
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    public static GlossaryTermDto toGlossaryTermSummaryDto(GlossaryTerm t) {
+        return new GlossaryTermDto(
+                t.getId(), t.getVersion(), t.getName(), t.getText(),
+                t.getCreatedBy() != null ? t.getCreatedBy().getDisplayName() : null,
+                t.getCanonicalTerm() != null ? t.getCanonicalTerm().getId() : null,
+                t.getCanonicalTerm() != null ? t.getCanonicalTerm().getName() : null,
+                null, null);
+    }
+
+    public static GlossaryTermDto toGlossaryTermDetailDto(GlossaryTerm t) {
+        List<EntityReferenceDto> alternates = t.getAlternateTerms().stream()
+                .map(a -> new EntityReferenceDto("GlossaryTerm", a.getId(), a.getName()))
+                .sorted(Comparator.comparing(EntityReferenceDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+        List<EntityReferenceDto> referers = t.getReferers().stream()
+                .map(e -> new EntityReferenceDto(
+                        e.getProjectOrDomainEntityInterface().getSimpleName(), e.getId(), e.getName()))
+                .sorted(Comparator.comparing(EntityReferenceDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+        return new GlossaryTermDto(
+                t.getId(), t.getVersion(), t.getName(), t.getText(),
+                t.getCreatedBy() != null ? t.getCreatedBy().getDisplayName() : null,
+                t.getCanonicalTerm() != null ? t.getCanonicalTerm().getId() : null,
+                t.getCanonicalTerm() != null ? t.getCanonicalTerm().getName() : null,
+                alternates, referers);
+    }
+
+    /**
+     * GET /api/projects/{name}/reports — list of report generators (no XSLT text).
+     */
+    @GetMapping("/{name}/reports")
+    public ResponseEntity<?> listReports(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<ReportGeneratorDto> dtos = project.getReportGenerators().stream()
+                    .map(ProjectQueryController::toReportGeneratorSummaryDto)
+                    .sorted(Comparator.comparing(ReportGeneratorDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/reports/{reportId} — single report generator with XSLT text.
+     */
+    @GetMapping("/{name}/reports/{reportId}")
+    public ResponseEntity<?> getReport(@PathVariable String name, @PathVariable Long reportId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            for (ReportGenerator r : project.getReportGenerators()) {
+                if (r.getId().equals(reportId)) {
+                    return ResponseEntity.ok(toReportGeneratorDetailDto(r));
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    private ProjectFingerprint projectFingerprint;
+
+    /**
+     * Issue #275: setter-injected and lazy — the fingerprint reads through
+     * ProjectContentQueryService, which itself depends on this controller.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @org.springframework.context.annotation.Lazy
+    public void setProjectFingerprint(ProjectFingerprint projectFingerprint) {
+        this.projectFingerprint = projectFingerprint;
+    }
+
+    /**
+     * GET /api/projects/{name}/reports/{reportId}/run — run the generator and return the document.
+     *
+     * <p>Issue #275: the document is produced in full before anything is sent, so a failure is a
+     * 422 {@code REPORT_FAILED} naming the cause rather than an empty 200. The content type and
+     * file extension come from the generator's {@code xsl:output}. The generator is passed the
+     * project version as the {@code projectVersion} parameter.
+     */
+    @GetMapping("/{name}/reports/{reportId}/run")
+    public ResponseEntity<?> runReport(@PathVariable String name, @PathVariable Long reportId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            ReportGenerator rg = null;
+            for (ReportGenerator r : project.getReportGenerators()) {
+                if (r.getId().equals(reportId)) {
+                    rg = r;
+                    break;
+                }
+            }
+            if (rg == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+            ByteArrayOutputStream document = new ByteArrayOutputStream();
+            GenerateReportCommand cmd = projectCommandFactory.newGenerateReportCommand();
+            cmd.setReportGenerator(rg);
+            cmd.setOutputStream(document);
+            if (projectFingerprint != null) {
+                cmd.setParameter("projectVersion", projectFingerprint.of(project));
+            }
+            GenerateReportCommand ran = commandHandler.execute(cmd);
+            if (ran != null) {
+                cmd = ran;
+            }
+            String mediaType = cmd.getMediaType() != null ? cmd.getMediaType() : "text/html";
+            String extension = cmd.getFileExtension() != null ? cmd.getFileExtension() : ".html";
+            String filename = rg.getName().replaceAll("[^a-zA-Z0-9._-]", "_") + extension;
+            return ResponseEntity.ok()
+                    .contentType(org.springframework.http.MediaType.parseMediaType(
+                            mediaType + ";charset=UTF-8"))
+                    .header("Content-Disposition", "attachment; filename=\"" + filename + "\"")
+                    .header("Access-Control-Expose-Headers", "Content-Disposition")
+                    .body(document.toByteArray());
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (Exception e) {
+            ReportGenerationException failure = findCause(e, ReportGenerationException.class);
+            if (failure != null) {
+                return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                        .body(com.rreganjr.requel.service.api.dto.ErrorResponse.of(
+                                ReportGenerationException.CODE, failure.getMessage()));
+            }
+            log.error("Failed to generate report {}/{}: {}", name, reportId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    private static <T extends Throwable> T findCause(Throwable e, Class<T> type) {
+        for (Throwable t = e; t != null; t = t.getCause() == t ? null : t.getCause()) {
+            if (type.isInstance(t)) {
+                return type.cast(t);
+            }
+        }
+        return null;
+    }
+
+    public static ReportGeneratorDto toReportGeneratorSummaryDto(ReportGenerator r) {
+        return new ReportGeneratorDto(
+                r.getId(), r.getVersion(), r.getName(), null,
+                r.getCreatedBy() != null ? r.getCreatedBy().getDisplayName() : null,
+                r.getBuiltinKey());
+    }
+
+    public static ReportGeneratorDto toReportGeneratorDetailDto(ReportGenerator r) {
+        return new ReportGeneratorDto(
+                r.getId(), r.getVersion(), r.getName(), r.getText(),
+                r.getCreatedBy() != null ? r.getCreatedBy().getDisplayName() : null,
+                r.getBuiltinKey());
+    }
+
+    /**
+     * GET /api/projects/{name}/open-issues — all unresolved issues across every project entity.
+     * Used by the project-wide Open Issues view.
+     */
+    @GetMapping("/{name}/open-issues")
+    public ResponseEntity<?> getOpenIssues(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+
+            List<OpenIssueDto> issues = new ArrayList<>();
+            // #270: one staleness lookup for every entity in the project.
+            AnnotationFreshness.StaleAnnotations stale = annotationFreshness
+                    .staleAnnotations(project.getProjectEntities());
+            for (ProjectOrDomainEntity entity : project.getProjectEntities()) {
+                String entityType = entity.getProjectOrDomainEntityInterface().getSimpleName();
+                for (Annotation annotation : entity.getAnnotations()) {
+                    if (annotation instanceof IssueImpl issue && issue.getResolvedByPosition() == null) {
+                        issues.add(new OpenIssueDto(
+                                issue.getId(),
+                                issue.getText(),
+                                issue.isMustBeResolved(),
+                                issue.getSeverity().name(),
+                                entityType,
+                                entity.getId(),
+                                entity.getName(),
+                                issue.getSource(),
+                                stale.isStale(entity, issue)));
+                    }
+                }
+            }
+            // #271: highest severity first; #270: then fresh before stale; within those, the
+            // pre-#271 order.
+            issues.sort(Comparator.comparingInt(
+                    (OpenIssueDto i) -> -AnnotationCommandRegistrar.severityRank(i.severity()))
+                    .thenComparing(OpenIssueDto::stale)
+                    .thenComparing(OpenIssueDto::entityType)
+                    .thenComparing(OpenIssueDto::entityName)
+                    .thenComparing(OpenIssueDto::issueText));
+            return ResponseEntity.ok(issues);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * Resolve a container to the detail DTO the client re-reads after an association changes.
+     * Arms are ordered most-specific first: {@link UseCase} and {@link Story} implement several
+     * of the container interfaces, so they must be matched before the single-interface types.
+     * Returns {@code null} when the container is the project itself — no component subscribes to a
+     * targeted {@code Project:<id>} channel (the sidebar uses the fixed {@code Project:0}
+     * broadcast), so there is nothing to target. An unrecognized container type also returns
+     * {@code null} but is logged, so a future container type surfaces in the logs instead of
+     * silently going quiet. See {@code doc/work/2.0/178-association-result-extractors-plan.md} §Decisions.
+     */
+    public static Object toContainerDetailDto(Object container) {
+        if (container instanceof UseCase useCase) {
+            return toUseCaseDetailDto(useCase);
+        }
+        if (container instanceof Story story) {
+            return toStoryDetailDto(story);
+        }
+        if (container instanceof Actor actor) {
+            return toActorDetailDto(actor);
+        }
+        if (container instanceof Stakeholder stakeholder) {
+            return toStakeholderDetailDto(stakeholder);
+        }
+        if (container instanceof ProjectOrDomain) {
+            return null;
+        }
+        log.warn("toContainerDetailDto: unrecognized container type {}",
+                container == null ? "null" : container.getClass().getName());
+        return null;
+    }
+
+    /**
+     * Convert a GoalContainer referer to an EntityReferenceDto.
+     * GoalContainer doesn't expose getId() — we check concrete types.
+     */
+    private static EntityReferenceDto toEntityReference(GoalContainer container) {
+        // A UserStakeholder has no entered name — its label comes from getDisplayName()
+        // (which falls back to the linked user's display name), so getName() alone is blank.
+        if (container instanceof Stakeholder stakeholder) {
+            return new EntityReferenceDto(
+                    stakeholder.getProjectOrDomainEntityInterface().getSimpleName(),
+                    stakeholder.getId(), stakeholder.getDisplayName());
+        }
+        if (container instanceof ProjectOrDomainEntity entity) {
+            String typeName = entity.getProjectOrDomainEntityInterface().getSimpleName();
+            return new EntityReferenceDto(typeName, entity.getId(), entity.getName());
+        }
+        if (container instanceof ProjectOrDomain pod) {
+            return new EntityReferenceDto("Project", pod.getId(), pod.getName());
+        }
+        // Fallback for unknown container types
+        return new EntityReferenceDto("Unknown", null, container.getDescription());
+    }
+
+    /**
+     * Convert a StoryContainer referer to an EntityReferenceDto.
+     * StoryContainer doesn't expose getId() — we check concrete types.
+     */
+    private static EntityReferenceDto toEntityReference(StoryContainer container) {
+        if (container instanceof ProjectOrDomainEntity entity) {
+            String typeName = entity.getProjectOrDomainEntityInterface().getSimpleName();
+            return new EntityReferenceDto(typeName, entity.getId(), entity.getName());
+        }
+        if (container instanceof ProjectOrDomain pod) {
+            return new EntityReferenceDto("Project", pod.getId(), pod.getName());
+        }
+        // Fallback for unknown container types
+        return new EntityReferenceDto("Unknown", null, container.getDescription());
+    }
+}

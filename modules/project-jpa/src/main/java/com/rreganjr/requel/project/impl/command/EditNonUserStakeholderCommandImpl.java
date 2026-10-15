@@ -1,8 +1,8 @@
 /*
- * $Id: EditStakeholderCommandImpl.java 124 2009-05-21 23:46:02Z rreganjr $
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,7 +48,17 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editNonUserStakeholderCommand")
 @Scope("prototype")
 public class EditNonUserStakeholderCommandImpl extends AbstractEditProjectOrDomainEntityCommand
-		implements EditNonUserStakeholderCommand {
+		implements EditNonUserStakeholderCommand, com.rreganjr.requel.project.ProjectScopedCommand, com.rreganjr.platform.command.AuthorizableCommand {
+
+	@Override
+	public com.rreganjr.requel.project.Project getProject() {
+		return (getProjectOrDomain() instanceof com.rreganjr.requel.project.Project p) ? p : null;
+	}
+
+	@Override
+	public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+		return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission(com.rreganjr.requel.project.Stakeholder.class, "Edit");
+	}
 
 	private NonUserStakeholder stakeholder;
 	private String text;
@@ -94,28 +104,39 @@ public class EditNonUserStakeholderCommandImpl extends AbstractEditProjectOrDoma
 
 		NonUserStakeholderImpl stakeholderImpl = (NonUserStakeholderImpl) getStakeholder();
 
-		// check for uniqueness
-		try {
-			NonUserStakeholder existing = getProjectRepository()
-					.findStakeholderByProjectOrDomainAndName(projectOrDomain, getName());
-			if (stakeholderImpl == null) {
-				throw EntityException.uniquenessConflict(Stakeholder.class, existing, FIELD_NAME,
-						EntityExceptionActionType.Creating);
-			} else if (!existing.equals(stakeholderImpl)) {
-				throw EntityException.uniquenessConflict(Stakeholder.class, existing, FIELD_NAME,
-						EntityExceptionActionType.Updating);
+		// Check for uniqueness. Skipped when no name was supplied: a null name means "leave it
+		// as it is", and the finder trims the name, so it would NPE (issue #316).
+		if (getName() != null) {
+			try {
+				NonUserStakeholder existing = getProjectRepository()
+						.findStakeholderByProjectOrDomainAndName(projectOrDomain, getName());
+				if (stakeholderImpl == null) {
+					throw EntityException.uniquenessConflict(Stakeholder.class, existing,
+							FIELD_NAME, EntityExceptionActionType.Creating);
+				} else if (!existing.equals(stakeholderImpl)) {
+					throw EntityException.uniquenessConflict(Stakeholder.class, existing,
+							FIELD_NAME, EntityExceptionActionType.Updating);
+				}
+			} catch (NoSuchEntityException e) {
 			}
-		} catch (NoSuchEntityException e) {
 		}
 
+		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
+		stakeholderImpl = checkExpectedVersion(stakeholderImpl);
 
 		if (stakeholderImpl == null) {
 			stakeholderImpl = getProjectRepository().persist(
 					new NonUserStakeholderImpl(projectOrDomain, editedBy, getName()));
+			stakeholderImpl.setText(getText());
 		} else {
-			stakeholderImpl.setName(getName());
+			// Null leaves a property as it is; "" clears the text (issue #316).
+			if (getName() != null) {
+				stakeholderImpl.setName(getName());
+			}
+			if (getText() != null) {
+				stakeholderImpl.setText(getText());
+			}
 		}
-		stakeholderImpl.setText(getText());
 		stakeholderImpl = getProjectRepository().merge(stakeholderImpl);
 		setStakeholder(stakeholderImpl);
 	}

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,17 +21,36 @@
 package com.rreganjr.requel.project.impl.command;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.identity.User;
+import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
+import com.rreganjr.requel.annotation.command.RemoveAllAnnotationsFromAnnotatableCommand;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.command.AbstractUserCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.CascadeAuthorizable;
 
 /**
  * @author ron
  */
-public abstract class AbstractProjectCommand extends AbstractUserCommand {
+public abstract class AbstractProjectCommand extends AbstractUserCommand
+		implements CascadeAuthorizable {
+
+	private AuthorizableCommand authorizingCommand;
+
+	/** #75: the command this one is a step of, or null when it runs on its own. */
+	@Override
+	public AuthorizableCommand getAuthorizingCommand() {
+		return authorizingCommand;
+	}
+
+	@Override
+	public void setAuthorizingCommand(AuthorizableCommand authorizingCommand) {
+		this.authorizingCommand = authorizingCommand;
+	}
 
 	private final CommandHandler commandHandler;
 	private final ProjectCommandFactory projectCommandFactory;
@@ -69,5 +88,77 @@ public abstract class AbstractProjectCommand extends AbstractUserCommand {
 
 	protected CommandHandler getCommandHandler() {
 		return commandHandler;
+	}
+
+	private com.rreganjr.requel.project.IgnoredFindingStore ignoredFindingStore;
+
+	/**
+	 * Issue #320: setter-injected so the many subclass constructors don't change; commands are
+	 * created through the application context, so every project command gets it. Null in unit
+	 * tests that construct a command directly.
+	 */
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setIgnoredFindingStore(
+			com.rreganjr.requel.project.IgnoredFindingStore ignoredFindingStore) {
+		this.ignoredFindingStore = ignoredFindingStore;
+	}
+
+	protected com.rreganjr.requel.project.IgnoredFindingStore getIgnoredFindingStore() {
+		return ignoredFindingStore;
+	}
+
+	private com.rreganjr.requel.project.ProvenanceStore provenanceStore;
+
+	/**
+	 * Issue #272: setter-injected for the same reason as the ignored-finding store. Null in unit
+	 * tests that construct a command directly.
+	 */
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setProvenanceStore(com.rreganjr.requel.project.ProvenanceStore provenanceStore) {
+		this.provenanceStore = provenanceStore;
+	}
+
+	protected com.rreganjr.requel.project.ProvenanceStore getProvenanceStore() {
+		return provenanceStore;
+	}
+
+	/**
+	 * #247: the last step before {@code getRepository().delete(entity)} in every
+	 * project-entity delete. Unlinks the entity from every annotation using the
+	 * database's current state (index-backed native deletes) and deletes the
+	 * annotations left orphaned, so an annotation a background assistant linked to
+	 * the entity after this command loaded it cannot fail the delete with a
+	 * {@code <table>_annotations} foreign-key violation. Runs as a step of the delete,
+	 * authorized by the delete's own permission (#75).
+	 *
+	 * @param entity
+	 *            the managed entity about to be deleted.
+	 * @param editedBy
+	 *            the acting user.
+	 * @throws Exception
+	 */
+	protected void removeAllAnnotationsBeforeDelete(Annotatable entity, User editedBy)
+			throws Exception {
+		// Issue #320: the entity's ignored findings go with it. They are keyed by entity type and
+		// id, like the assistant findings, so nothing else would ever remove them.
+		if (ignoredFindingStore != null
+				&& entity instanceof com.rreganjr.requel.project.ProjectOrDomainEntity projectEntity) {
+			ignoredFindingStore.deleteForTarget(
+					projectEntity.getProjectOrDomainEntityInterface().getSimpleName(),
+					projectEntity.getId());
+		}
+		// Issue #272: so do its source links, keyed the same way.
+		if (provenanceStore != null
+				&& entity instanceof com.rreganjr.requel.project.ProjectOrDomainEntity projectEntity) {
+			provenanceStore.deleteForTarget(
+					projectEntity.getProjectOrDomainEntityInterface().getSimpleName(),
+					projectEntity.getId());
+		}
+		RemoveAllAnnotationsFromAnnotatableCommand command = getAnnotationCommandFactory()
+				.newRemoveAllAnnotationsFromAnnotatableCommand();
+		command.setAnnotatable(entity);
+		command.setEditedBy(editedBy);
+		CascadeAuthorizable.cascade(this, command);
+		getCommandHandler().execute(command);
 	}
 }

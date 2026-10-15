@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,10 +28,17 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalContainer;
+import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.command.RemoveGoalFromGoalContainerCommand;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
+import com.rreganjr.requel.project.impl.repository.jpa.JpaProjectRepository;
 import com.rreganjr.requel.user.UserRepository;
 
 /**
@@ -40,7 +47,12 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("removeGoalFromGoalContainerCommand")
 @Scope("prototype")
 public class RemoveGoalFromGoalContainerCommandImpl extends AbstractEditProjectCommand implements
-		RemoveGoalFromGoalContainerCommand {
+		RemoveGoalFromGoalContainerCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.Goal.class, "Edit");
+	}
 
 	/**
 	 * @param assistantManager
@@ -83,13 +95,41 @@ public class RemoveGoalFromGoalContainerCommandImpl extends AbstractEditProjectC
 	public void execute() {
 		Goal removedGoal = getProjectRepository().get(getGoal());
 		GoalContainer removingContainer = getProjectRepository().get(getGoalContainer());
-		removedGoal.getReferers().remove(removingContainer);
-		removingContainer.getGoals().remove(removedGoal);
 
-		// replaced the supplied objects with the updated objects for retrieval.
-		removedGoal = getRepository().merge(removedGoal);
-		removingContainer = getRepository().merge(removingContainer);
+		// Hibernate 6.5 bug: @ManyToAny collection removal generates invalid SQL for the
+		// goals_goalcontainers join table. Use a native query instead of
+		// removedGoal.getReferers().remove(removingContainer).
+		// Then refresh (not detach+reload) so the referers collection is reloaded while
+		// the same managed instance remains in removingContainer.getGoals().
+		JpaProjectRepository jpaRepo = (JpaProjectRepository) getProjectRepository();
+		jakarta.persistence.PersistenceUnitUtil puu = jpaRepo.getEntityManager()
+				.getEntityManagerFactory().getPersistenceUnitUtil();
+		Long goalId = (Long) puu.getIdentifier(removedGoal);
+		Long containerId = (Long) puu.getIdentifier(removingContainer);
+		jpaRepo.removeGoalContainerFromGoalJoinTable(goalId, containerId,
+				AddGoalToGoalContainerCommandImpl.goalContainerDiscriminator(removingContainer));
+		jpaRepo.getEntityManager().refresh(removedGoal);
+
+		// #247: inside a cascade the container may already have been removed in this
+		// transaction (its @ManyToAny referer row was left behind by an earlier native detach),
+		// in which case get() handed back the removed instance. Mutating and merge()-ing a removed
+		// entity makes Hibernate re-persist it, and the commit then fails with
+		// "persistent instance references an unsaved transient instance". The join row is gone
+		// either way, so leave the removed container alone.
+		if (jpaRepo.getEntityManager().contains(removingContainer)) {
+			removingContainer.getGoals().remove(removedGoal);
+			removingContainer = getRepository().merge(removingContainer);
+		}
 		setGoal(removedGoal);
 		setGoalContainer(removingContainer);
+	}
+
+	@Override
+	public Project getProject() {
+		if (goalContainer instanceof Project project) return project;
+		if (goalContainer instanceof ProjectOrDomainEntity pode
+				&& pode.getProjectOrDomain() instanceof Project project) return project;
+		if (goal != null && goal.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 }

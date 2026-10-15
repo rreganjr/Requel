@@ -1,9 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
- * 
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -65,6 +64,7 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 import org.hibernate.annotations.SortNatural;
 import org.hibernate.annotations.Where;
 
+import com.rreganjr.nlp.dictionary.ProjectDictionaryWord;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
@@ -81,6 +81,8 @@ import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.user.impl.UserImpl;
 import com.rreganjr.requel.utils.jaxb.DateAdapter;import jakarta.validation.constraints.NotEmpty;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 
 /**
  * @author ron
@@ -106,6 +108,7 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 	private Set<Stakeholder> stakeholders = new TreeSet<Stakeholder>();
 	private Set<ProjectTeam> teams = new TreeSet<ProjectTeam>();
 	private SortedSet<GlossaryTerm> terms = new TreeSet<GlossaryTerm>();
+	private SortedSet<ProjectDictionaryWord> dictionaryWords = new TreeSet<ProjectDictionaryWord>();
 	private Set<ReportGenerator> reportGenerators = new TreeSet<ReportGenerator>();
 
 	private String type;
@@ -127,7 +130,8 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 	@XmlID
 	@XmlAttribute(name = "id")
 	@XmlJavaTypeAdapter(IdAdapter.class)
-	protected Long getId() {
+	@Override
+	public Long getId() {
 		return id;
 	}
 
@@ -137,7 +141,8 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 
 	@Version
 	@XmlAttribute(name = "revision", required = false)
-	protected int getVersion() {
+	@Override
+	public int getVersion() {
 		return version;
 	}
 
@@ -157,7 +162,9 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 	@XmlIDREF()
 	@XmlAttribute(name = "createdBy")
 	@XmlJavaTypeAdapter(User2UserImplAdapter.class)
-	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.REFRESH }, fetch = FetchType.LAZY)
+	// #323: no REFRESH cascade up to the user - a refresh reloads the entity and what it owns,
+	// nothing above it (the user's roles reach every project the user is on).
+	@ManyToOne(targetEntity = UserImpl.class, fetch = FetchType.LAZY)
 	public User getCreatedBy() {
 		return createdBy;
 	}
@@ -172,6 +179,7 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 	@Column(nullable = false)
 	@NotEmpty(message = "a name is required.")
 	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
+	@Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
 	public String getName() {
 		return name;
 	}
@@ -214,6 +222,34 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 
 	protected void setGlossaryTerms(SortedSet<GlossaryTerm> terms) {
 		this.terms = terms;
+	}
+
+	/**
+	 * Export carrier for this project's own spell-check dictionary (issue #313).
+	 * <p>
+	 * <strong>Not persistent</strong>, in the same way and for the same reason as
+	 * {@code ProjectImpl.getExportTagAssignments()}: the rows live in
+	 * {@code project_dictionary_words} and are written and read through
+	 * {@code DictionaryRepository}, so the export command populates this from the repository
+	 * immediately before marshalling, and the StAX importer reads the XML directly.
+	 * <p>
+	 * It was briefly a mapped, read-only {@code @OneToMany} over the same rows. That is wrong:
+	 * because the words are written through the repository rather than through the collection,
+	 * Hibernate's copy is only correct when the export happens to run in a session that loads the
+	 * project fresh. For a project created or imported in the same transaction the collection is
+	 * the empty set from the field initializer, and the export silently contains no dictionary —
+	 * which is exactly what {@code ProjectXmlStreamingRoundTripIT.projectDictionaryWordsRoundTrip}
+	 * caught. A transient carrier cannot go stale, because nothing reads it but the marshaller.
+	 */
+	@Transient
+	@XmlElementWrapper(name = "dictionary", namespace = "http://www.rreganjr.com/requel")
+	@XmlElementRef(type = ProjectDictionaryWord.class)
+	public SortedSet<ProjectDictionaryWord> getDictionaryWords() {
+		return dictionaryWords;
+	}
+
+	public void setDictionaryWords(SortedSet<ProjectDictionaryWord> dictionaryWords) {
+		this.dictionaryWords = dictionaryWords;
 	}
 
 	@XmlElementWrapper(name = "actors", namespace = "http://www.rreganjr.com/requel")

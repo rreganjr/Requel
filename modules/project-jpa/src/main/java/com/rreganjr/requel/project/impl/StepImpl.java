@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,6 +59,8 @@ import com.rreganjr.requel.project.ScenarioType;
 import com.rreganjr.requel.project.Step;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 
 /**
  * @author ron
@@ -105,6 +107,7 @@ public class StepImpl extends AbstractTextEntity implements Step {
 	@Column(nullable = false, unique = false)
 	@NotEmpty(message = "a unique name is required.")
 	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
+	@Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
 	public String getName() {
 		return super.getName();
 	}

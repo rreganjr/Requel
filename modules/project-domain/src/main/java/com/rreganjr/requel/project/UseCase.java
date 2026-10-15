@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,4 +35,9 @@ public interface UseCase extends TextEntity, GoalContainer, ActorContainer, Stor
 	 * @return
 	 */
 	public Scenario getScenario();
+
+	/**
+	 * @return Additional (non-primary) scenarios for this use case, e.g. Alternative and Exception flows.
+	 */
+	public java.util.Set<Scenario> getAdditionalScenarios();
 }

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,27 +26,31 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
-import org.springframework.util.ClassUtils;
-import org.hibernate.proxy.HibernateProxy;
 
 import com.rreganjr.command.AbstractCommandFactory;
 import com.rreganjr.command.CommandFactoryStrategy;
+import com.rreganjr.repository.jpa.ProxyTypes;
 import com.rreganjr.requel.annotation.Position;
+import com.rreganjr.requel.annotation.impl.PositionTypes;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.DeleteArgumentCommand;
 import com.rreganjr.requel.annotation.command.DeleteIssueCommand;
 import com.rreganjr.requel.annotation.command.DeleteNoteCommand;
 import com.rreganjr.requel.annotation.command.DeletePositionCommand;
 import com.rreganjr.requel.annotation.command.EditAddWordToDictionaryPositionCommand;
+import com.rreganjr.requel.annotation.command.EditIgnorePositionCommand;
 import com.rreganjr.requel.annotation.command.EditArgumentCommand;
 import com.rreganjr.requel.annotation.command.EditChangeSpellingPositionCommand;
 import com.rreganjr.requel.annotation.command.EditIssueCommand;
 import com.rreganjr.requel.annotation.command.EditLexicalIssueCommand;
 import com.rreganjr.requel.annotation.command.EditNoteCommand;
 import com.rreganjr.requel.annotation.command.EditPositionCommand;
+import com.rreganjr.requel.annotation.command.DeleteAnnotationGroupCommand;
+import com.rreganjr.requel.annotation.command.RemoveAllAnnotationsFromAnnotatableCommand;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.annotation.command.ResolveIssueCommand;
 import com.rreganjr.requel.annotation.impl.AddWordToDictionaryPosition;
+import com.rreganjr.requel.annotation.impl.IgnorePosition;
 import com.rreganjr.requel.annotation.impl.ChangeSpellingPosition;
 import com.rreganjr.requel.annotation.impl.PositionImpl;
 
@@ -66,6 +70,9 @@ public class AnnotationCommandFactoryImpl extends AbstractCommandFactory impleme
 		register(PositionImpl.class, ResolveIssueCommandImpl.class);
 		register(ChangeSpellingPosition.class, ResolveIssueWithChangeSpellingPositionCommandImpl.class);
 		register(AddWordToDictionaryPosition.class, ResolveIssueWithAddWordToDictionaryPositionCommandImpl.class);
+		// Issue #320: an ignore resolves like a plain position; the ignored finding is recorded by
+		// FindingResolutionTrackingCommandHandler after the resolve.
+		register(IgnorePosition.class, ResolveIssueCommandImpl.class);
 	}
 
 	private static void register(Class<? extends Position> positionType,
@@ -112,31 +119,20 @@ public class AnnotationCommandFactoryImpl extends AbstractCommandFactory impleme
 
 	@Override
 	public ResolveIssueCommand newResolveIssueCommand(Position position) {
-		// First, if it's a Hibernate proxy, use the entity name (preserves subclass info)
-		if (position instanceof HibernateProxy) {
-			String entityName = ((HibernateProxy) position).getHibernateLazyInitializer()
-					.getEntityName();
+		// Proxy-safe type resolution — Hibernate entity name, then the persisted discriminator,
+		// then the user class — lives in PositionTypes so that the resolver picked here and the
+		// positionType reported to API clients can never disagree (issue #253).
+		String entityName = PositionTypes.rawTypeNameOf(position);
+		if (entityName != null) {
 			Class<? extends ResolveIssueCommand> resolver = entityNameToResolver.get(entityName);
 			if (resolver != null) {
 				return (ResolveIssueCommand) getCreationStrategy().newInstance(resolver);
 			}
 		}
 
-		// Second, try the discriminator value stored on PositionImpl (helps when proxies are
-		// unwrapped to PositionImpl but retain subclass discriminator text).
-		if (position instanceof PositionImpl) {
-			String discriminator = ((PositionImpl) position).getType();
-			if (discriminator != null) {
-				Class<? extends ResolveIssueCommand> resolver = entityNameToResolver
-						.get(discriminator);
-				if (resolver != null) {
-					return (ResolveIssueCommand) getCreationStrategy().newInstance(resolver);
-				}
-			}
-		}
-
-		// unwrap any CGLIB/Hibernate proxies to the user class
-		Class<?> positionType = ClassUtils.getUserClass(position);
+		// Fall back to the class hierarchy, for positions registered by a superclass or interface
+		// rather than by their own entity name.
+		Class<?> positionType = ProxyTypes.userClassOf(position);
 
 		while (positionType != null) {
 			Class<? extends ResolveIssueCommand> resolverClass = positionToResolverCommand
@@ -154,7 +150,7 @@ public class AnnotationCommandFactoryImpl extends AbstractCommandFactory impleme
 			}
 			positionType = positionType.getSuperclass();
 		}
-		throw new RuntimeException("unexpected position type: " + position.getClass().getName()
+		throw new RuntimeException("unexpected position type: " + entityName
 				+ " no resolver command");
 	}
 
@@ -177,6 +173,12 @@ public class AnnotationCommandFactoryImpl extends AbstractCommandFactory impleme
 	}
 
 	@Override
+	public EditIgnorePositionCommand newEditIgnorePositionCommand() {
+		return (EditIgnorePositionCommand) getCreationStrategy().newInstance(
+				EditIgnorePositionCommandImpl.class);
+	}
+
+	@Override
 	public EditArgumentCommand newEditArgumentCommand() {
 		return (EditArgumentCommand) getCreationStrategy().newInstance(
 				EditArgumentCommandImpl.class);
@@ -186,6 +188,18 @@ public class AnnotationCommandFactoryImpl extends AbstractCommandFactory impleme
 	public RemoveAnnotationFromAnnotatableCommand newRemoveAnnotationFromAnnotatableCommand() {
 		return (RemoveAnnotationFromAnnotatableCommand) getCreationStrategy().newInstance(
 				RemoveAnnotationFromAnnotatableCommandImpl.class);
+	}
+
+	@Override
+	public RemoveAllAnnotationsFromAnnotatableCommand newRemoveAllAnnotationsFromAnnotatableCommand() {
+		return (RemoveAllAnnotationsFromAnnotatableCommand) getCreationStrategy().newInstance(
+				RemoveAllAnnotationsFromAnnotatableCommandImpl.class);
+	}
+
+	@Override
+	public DeleteAnnotationGroupCommand newDeleteAnnotationGroupCommand() {
+		return (DeleteAnnotationGroupCommand) getCreationStrategy().newInstance(
+				DeleteAnnotationGroupCommandImpl.class);
 	}
 
 	@Override

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,22 +25,32 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
+import com.rreganjr.validator.EntityValidationException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
+import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.StoryContainer;
 import com.rreganjr.requel.project.StoryType;
+import com.rreganjr.requel.project.command.AnalysisRequestSource;
 import com.rreganjr.requel.project.command.EditStoryCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.StoryImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author ron
@@ -48,12 +58,15 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editStoryCommand")
 @Scope("prototype")
 public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
-		EditStoryCommand {
+		EditStoryCommand, AuthorizableCommand, ProjectScopedCommand, AnalysisRequestSource {
+
+	private static final Logger log = LoggerFactory.getLogger(EditStoryCommandImpl.class);
 
 	private StoryContainer storyContainer;
 	private Story story;
 	private String text;
 	private String storyTypeName;
+	private String primaryActorName;
 
 	/**
 	 * @param assistantManager
@@ -110,6 +123,16 @@ public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityComma
 	}
 
 	@Override
+	public void setPrimaryActorName(String primaryActorName) {
+		this.primaryActorName = primaryActorName;
+	}
+
+	@Override
+	public String getPrimaryActorName() {
+		return primaryActorName;
+	}
+
+	@Override
 	public void execute() {
 		StoryContainer storyContainer = getProjectRepository().get(getStoryContainer());
 		User editedBy = getProjectRepository().get(getEditedBy());
@@ -128,39 +151,118 @@ public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityComma
 		}
 		projectOrDomain = getRepository().get(projectOrDomain);
 
-		// check for uniqueness
-		try {
-			Story existing = getProjectRepository().findStoryByProjectOrDomainAndName(
-					projectOrDomain, getName());
-			if (storyImpl == null) {
-				throw EntityException.uniquenessConflict(Story.class, existing, FIELD_NAME,
-						EntityExceptionActionType.Creating);
-			} else if (!existing.equals(storyImpl)) {
-				throw EntityException.uniquenessConflict(Story.class, existing, FIELD_NAME,
-						EntityExceptionActionType.Updating);
+		// Check for uniqueness. Skipped when no name was supplied: a null name means "leave it
+		// as it is", and the finder trims the name (issue #251). EditUseCaseCommandImpl and
+		// EditActorCommandImpl already guard this way.
+		if ((getName() != null) && !getName().trim().isEmpty()) {
+			try {
+				Story existing = getProjectRepository().findStoryByProjectOrDomainAndName(
+						projectOrDomain, getName());
+				if (storyImpl == null) {
+					throw EntityException.uniquenessConflict(Story.class, existing, FIELD_NAME,
+							EntityExceptionActionType.Creating);
+				} else if (!existing.equals(storyImpl)) {
+					throw EntityException.uniquenessConflict(Story.class, existing, FIELD_NAME,
+							EntityExceptionActionType.Updating);
+				}
+			} catch (NoSuchEntityException e) {
 			}
-		} catch (NoSuchEntityException e) {
+		}
+
+		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
+		storyImpl = checkExpectedVersion(storyImpl);
+
+		// Resolve the primary actor before any persistence calls. Issue #325: on update a null
+		// name leaves the actor as it is and a blank one clears it; a name that names no actor is
+		// refused. It used to log "leaving unchanged" and then clear the actor anyway.
+		boolean actorSupplied = getPrimaryActorName() != null;
+		Actor resolvedPrimaryActor = null;
+		if (actorSupplied && !getPrimaryActorName().trim().isEmpty()) {
+			try {
+				resolvedPrimaryActor = getProjectRepository().findActorByProjectOrDomainAndName(
+						projectOrDomain, getPrimaryActorName());
+			} catch (NoSuchEntityException e) {
+				throw EntityValidationException.validationFailed(Story.class, "primaryActorName",
+						"there is no actor named '" + getPrimaryActorName().trim() + "'");
+			}
 		}
 
 		if (storyImpl == null) {
 			storyImpl = getProjectRepository().persist(
 					new StoryImpl(projectOrDomain, editedBy, getName(), getText(), getStoryType()));
+			storyImpl.setPrimaryActor(resolvedPrimaryActor);
 		} else {
-			storyImpl.setName(getName());
-			storyImpl.setText(getText());
-			storyImpl.setStoryType(getStoryType());
+			if (getName() != null) {
+				storyImpl.setName(getName());
+			}
+			// Null leaves the text and type as they are; "" clears the text (issue #316).
+			if (getText() != null) {
+				storyImpl.setText(getText());
+			}
+			if (getStoryType() != null) {
+				storyImpl.setStoryType(getStoryType());
+			}
+			// Mirror UseCase pattern: merge first so the entity is managed, then set actor
+			storyImpl = getProjectRepository().merge(storyImpl);
+			if (actorSupplied) {
+				Actor priorActor = storyImpl.getPrimaryActor();
+				if (priorActor != null && !priorActor.equals(resolvedPrimaryActor)) {
+					// Use direct SQL to avoid loading the @ManyToAny collection, which would throw
+					// NoSuchEntityException if the collection contains stale rows for deleted
+					// entities.
+					getProjectRepository().removeActorContainerFromActorJoinTable(
+							priorActor.getId(), storyImpl.getId(), "com.rreganjr.requel.project.Story");
+				}
+				storyImpl.setPrimaryActor(resolvedPrimaryActor);
+			}
 		}
+
 		if (storyContainer != null) {
 			storyImpl.getReferers().add(storyContainer);
 			storyContainer.getStories().add(storyImpl);
 		}
+		// Add to actor's referers using direct SQL (INSERT IGNORE is idempotent; avoids loading
+		// the @ManyToAny collection which may contain stale rows for previously deleted entities).
+		if (resolvedPrimaryActor != null) {
+			getProjectRepository().addActorContainerToActorJoinTable(
+					resolvedPrimaryActor.getId(), storyImpl.getId(),
+					"com.rreganjr.requel.project.Story");
+		}
 		setStory(getProjectRepository().merge(storyImpl));
 	}
 
+	/**
+	 * Legacy fallback. The Story path is migrated to the assistant SPI (issue #43):
+	 * the command-handler layer detects {@link AnalysisRequestSource} and dispatches
+	 * through {@code AnalysisRequestDispatcher}, so this method is normally not
+	 * invoked for stories. It is retained as a safe fallback.
+	 */
 	@Override
 	public void invokeAnalysis() {
 		if (isAnalysisEnabled()) {
 			getAssistantManager().analyzeStory(getStory());
 		}
+	}
+
+	@Override
+	public ProjectOrDomainEntity getAnalysisTarget() {
+		return getStory();
+	}
+
+	@Override
+	public User getAnalysisTriggeredBy() {
+		return getEditedBy();
+	}
+
+	@Override
+	public Project getProject() {
+		if (storyContainer instanceof Project project) return project;
+		if (story != null && story.getProjectOrDomain() instanceof Project project) return project;
+		return null;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(Story.class, "Edit");
 	}
 }

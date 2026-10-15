@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.annotation.impl.command;
 
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -41,7 +42,8 @@ import com.rreganjr.requel.annotation.command.DeletePositionCommand;
  */
 @Controller("deleteIssueCommand")
 @Scope("prototype")
-public class DeleteIssueCommandImpl extends AbstractEditCommand implements DeleteIssueCommand {
+public class DeleteIssueCommandImpl extends AbstractEditCommand implements DeleteIssueCommand, com.rreganjr.requel.project.ProjectScopedCommand,
+		com.rreganjr.platform.command.AuthorizableCommand {
 
 	private Issue issue;
 
@@ -86,10 +88,22 @@ public class DeleteIssueCommandImpl extends AbstractEditCommand implements Delet
 						.newDeletePositionCommand();
 				deletePositionCommand.setPosition(position);
 				deletePositionCommand.setEditedBy(getEditedBy());
+				// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+				CascadeAuthorizable.cascade(this, deletePositionCommand);
 				getCommandHandler().execute(deletePositionCommand);
 			}
 		}
 		getRepository().delete(issue);
 	}
 
+
+	@Override
+	public com.rreganjr.requel.project.Project getProject() {
+		return AnnotationCommandProjectResolver.of(issue);
+	}
+
+	@Override
+	public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+		return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission(com.rreganjr.requel.annotation.Annotation.class, "Delete");
+	}
 }

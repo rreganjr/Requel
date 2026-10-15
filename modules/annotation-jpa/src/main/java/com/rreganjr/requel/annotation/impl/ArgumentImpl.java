@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Temporal;
@@ -93,7 +94,7 @@ public class ArgumentImpl implements Argument, Serializable {
 	@XmlID
 	@XmlAttribute(name = "id")
 	@XmlJavaTypeAdapter(IdAdapter.class)
-	protected Long getId() {
+	public Long getId() {
 		return id;
 	}
 
@@ -102,7 +103,8 @@ public class ArgumentImpl implements Argument, Serializable {
 	}
 
 	@Version
-	protected int getVersion() {
+	@Override
+	public int getVersion() {
 		return version;
 	}
 
@@ -121,6 +123,7 @@ public class ArgumentImpl implements Argument, Serializable {
 		this.position = position;
 	}
 
+	@Lob
 	@XmlElement(name = "text", namespace = "http://www.rreganjr.com/requel")
 	public String getText() {
 		return text;
@@ -141,7 +144,9 @@ public class ArgumentImpl implements Argument, Serializable {
 
     @XmlIDREF()
     @XmlAttribute(name = "createdBy")
-    @ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.PERSIST, CascadeType.REFRESH }, optional = false)
+    // #323: no REFRESH cascade up to the user - a refresh reloads the entity and what it owns,
+    // nothing above it (the user's roles reach every project the user is on).
+    @ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.PERSIST }, optional = false)
     public User getCreatedBy() {
         return createdBy;
 	}

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,6 +53,7 @@ import com.rreganjr.repository.jpa.UserPropertyValueExceptionAdapter;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.user.impl.AbstractUserRole;
 import com.rreganjr.requel.user.Organization;
+import com.rreganjr.requel.user.impl.OrganizationImpl;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.UserRole;
@@ -109,9 +110,10 @@ public class JpaUserRepository extends AbstractJpaRepository implements UserRepo
 
 	public User findUserByUsername(String username) throws NoSuchUserException {
 		try {
+			// #398: = not LIKE, so _ and % in a username aren't wildcards.
 			// TODO: use named query so it can be configured externally
             Query query = getEntityManager().createQuery(
-                    "select object(user) from UserImpl as user where user.username like :username");
+                    "select object(user) from UserImpl as user where user.username = :username");
             query.setParameter("username", username);
 			return (User) query.getSingleResult();
 		} catch (NoResultException e) {
@@ -119,6 +121,15 @@ public class JpaUserRepository extends AbstractJpaRepository implements UserRepo
 		} catch (Exception e) {
 			throw convertException(e, User.class, null, EntityExceptionActionType.Reading);
 		}
+	}
+
+	@Override
+	public User findUserById(Long id) {
+		if (id == null) {
+			return null;
+		}
+		// Returns null when absent (per the interface contract) — used by the PAT auth path (#73).
+		return getEntityManager().find(com.rreganjr.requel.user.impl.UserImpl.class, id);
 	}
 
 	public UserSet findUsers() {
@@ -149,12 +160,20 @@ public class JpaUserRepository extends AbstractJpaRepository implements UserRepo
 		}
 	}
 
+	public Organization findOrganizationById(Long id) {
+		OrganizationImpl org = getEntityManager().find(OrganizationImpl.class, id);
+		if (org == null) {
+			throw NoSuchOrganizationException.forName("id=" + id);
+		}
+		return org;
+	}
+
 	public Organization findOrganizationByName(String name) {
 		try {
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(organization) from OrganizationImpl as organization where name like :name");
+							"select object(organization) from OrganizationImpl as organization where name = :name");
 			query.setParameter("name", name);
 			return (Organization) query.getSingleResult();
 		} catch (NoResultException e) {

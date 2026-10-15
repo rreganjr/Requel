@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -155,10 +155,18 @@ public interface User extends OrganizedEntity, com.rreganjr.platform.identity.Us
 	public void revokeRole(Class<? extends UserRole> userRoleType);
 
 	/**
+	 * The optimistic-locking version counter managed by the persistence layer.
+	 * Must be sent back on save to detect concurrent modifications.
+	 *
+	 * @return current version value
+	 */
+	int getVersion();
+
+	/**
 	 * Test if a user is equal to another user by internal id. This is needed to
 	 * figure out if a user object is equal to another when the username
 	 * changes.
-	 * 
+	 *
 	 * @param other
 	 * @return
 	 */

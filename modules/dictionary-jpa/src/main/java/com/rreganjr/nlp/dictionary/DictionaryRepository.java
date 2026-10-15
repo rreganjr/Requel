@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +33,14 @@ import com.rreganjr.repository.Repository;
  * @author ron
  */
 public interface DictionaryRepository extends Repository {
+
+	/**
+	 * Insert a new entity (graph) for an import, always creating new rows. Unlike
+	 * {@link Repository#persist(Object)}, this never routes an id-bearing deserialized entity to
+	 * {@code merge()} (which Hibernate 6.6 turns into a stale 0-row update for absent rows).
+	 * IDENTITY ids are regenerated; assigned/natural keys are kept. See issue #76.
+	 */
+	<T> T create(T entity) throws com.rreganjr.platform.exception.EntityException;
 
 	/**
 	 * @return The full dictonary of wordnet synsets, categories, and words.
@@ -160,12 +168,146 @@ public interface DictionaryRepository extends Repository {
 	public double infoContent(Synset synset, Linkdef linkType);
 
 	/**
+	 * Add a word to the installation-wide dictionary. Since issue #319 this writes
+	 * {@code install_dictionary_words}, not the WordNet {@code word} table.
+	 * <p>
 	 * TODO: the repository should be for getting only, this should be part of a
 	 * command.
 	 * 
 	 * @param word
 	 */
 	public void addToDictionary(String word);
+
+	// ---------------------------------------------------------------------------------------
+	// Project-scoped dictionary layer (issue #313).
+	//
+	// The methods above see the two installation-wide layers: the jazzy word lists loaded from
+	// the classpath and the WordNet `word` table. The ones below add a third layer on top,
+	// holding the words a user added while working in one project. A null projectId means "no
+	// project", and every one of these delegates to its project-less counterpart above, so a
+	// caller that has no project in hand behaves exactly as it did before.
+	// ---------------------------------------------------------------------------------------
+
+	/**
+	 * @param projectId -
+	 *            the project whose own words are consulted in addition to the installation-wide
+	 *            layers, or null for the installation-wide layers alone.
+	 * @param word
+	 * @return true if the supplied word is in the dictionary for that project
+	 */
+	public Boolean isKnownWord(Long projectId, String word);
+
+	/**
+	 * @param projectId -
+	 *            the project whose own words may appear among the suggestions, or null for the
+	 *            installation-wide layers alone.
+	 * @param word
+	 * @param threshold
+	 * @return a list of words as Strings that are similar to the supplied word with the given
+	 *         threshold.
+	 */
+	public List<String> findSpellingSuggestions(Long projectId, String word, int threshold);
+
+	/**
+	 * Add a word to one project's dictionary. Idempotent: a word already in that project's
+	 * dictionary, in any case, leaves it unchanged rather than failing, because two users can
+	 * resolve the same lexical issue.
+	 * <p>
+	 * TODO: as with {@link #addToDictionary(String)}, a write does not belong on the repository;
+	 * it is here to match the existing shape rather than to endorse it.
+	 *
+	 * @param projectId -
+	 *            the project to add the word to. A null projectId adds to the installation-wide
+	 *            dictionary, preserving the old behaviour.
+	 * @param word
+	 */
+	public void addToDictionary(Long projectId, String word);
+
+	/**
+	 * @param projectId
+	 * @return every word in that project's own dictionary, ordered by lemma
+	 */
+	public List<ProjectDictionaryWord> findProjectWords(Long projectId);
+
+	/**
+	 * @param projectId
+	 * @param phoneticCode -
+	 *            a DoubleMeta code as produced by {@link #generatePhoneticCode(String)}
+	 * @return that project's own words having the given phonetic code. This is the query behind
+	 *         spelling suggestions, and the reason for the (project_id, phonetic_code) index.
+	 */
+	public List<ProjectDictionaryWord> findProjectWordsByPhoneticCode(Long projectId,
+			String phoneticCode);
+
+	/**
+	 * Remove every word in one project's dictionary. Called when the project is deleted.
+	 *
+	 * @param projectId
+	 * @return the number of words removed
+	 */
+	public int deleteProjectWords(Long projectId);
+
+	/**
+	 * @param projectId
+	 * @param lemma
+	 * @return that project's word matching the lemma case-insensitively, or null if it has none
+	 *         (issue #319).
+	 */
+	public ProjectDictionaryWord findProjectWord(Long projectId, String lemma);
+
+	/**
+	 * Remove one word from one project's dictionary, by its row id, and evict that project's
+	 * cached checker so the removal applies to the next lookup (issue #319). The project id is part
+	 * of the match, so an id belonging to another project removes nothing.
+	 *
+	 * @param projectId
+	 * @param wordId
+	 * @return true if a word was removed
+	 */
+	public boolean deleteProjectWord(Long projectId, Long wordId);
+
+	/**
+	 * @param projectId
+	 * @return the number of words in that project's own dictionary (issue #319)
+	 */
+	public int countProjectWords(Long projectId);
+
+	// ---------------------------------------------------------------------------------------
+	// Installation-wide added words (issue #319).
+	//
+	// Words known in every project and with no project, kept apart from the read-only WordNet
+	// corpus in install_dictionary_words. Every checker reads them per lookup, so no checker is
+	// cached against them.
+	// ---------------------------------------------------------------------------------------
+
+	/**
+	 * @return every installation-wide added word, ordered by lemma
+	 */
+	public List<InstallDictionaryWord> findInstallWords();
+
+	/**
+	 * @param phoneticCode -
+	 *            a DoubleMeta code as produced by {@link #generatePhoneticCode(String)}
+	 * @return the installation-wide added words having that phonetic code
+	 */
+	public List<InstallDictionaryWord> findInstallWordsByPhoneticCode(String phoneticCode);
+
+	/**
+	 * Add a word to the installation-wide dictionary. Idempotent: a word already there, in any
+	 * case, is returned unchanged.
+	 *
+	 * @param lemma
+	 * @param createdById -
+	 *            the id of the user adding it, or null if unknown.
+	 * @return the added or existing word, or null for a blank lemma
+	 */
+	public InstallDictionaryWord addInstallWord(String lemma, Long createdById);
+
+	/**
+	 * @param wordId
+	 * @return true if a word was removed
+	 */
+	public boolean deleteInstallWord(Long wordId);
 
 	/**
 	 * @return all the words in the dictionary
@@ -245,6 +387,24 @@ public interface DictionaryRepository extends Repository {
 	 * @return Get a specific semantic link definition by id
 	 */
 	public Linkdef findLinkDef(Long id);
+
+	/**
+	 * Issue #266: the other words sharing a synset with one of {@code lemma}'s senses ranked
+	 * {@code maxRank} or better, any part of speech.
+	 *
+	 * @return lower-case lemmas, excluding {@code lemma}; empty for an unknown word
+	 */
+	public java.util.Set<String> findSynonymLemmas(String lemma, int maxRank);
+
+	/**
+	 * Issue #266: the words WordNet links to {@code lemma} as antonyms, from its senses ranked
+	 * {@code maxRank} or better whose synset's part of speech is one of {@code synsetPos}
+	 * ({@code a}, {@code s}, {@code r}, {@code n}, {@code v}).
+	 *
+	 * @return lower-case lemmas; empty for an unknown word or one without antonyms
+	 */
+	public java.util.Set<String> findAntonymLemmas(String lemma, int maxRank,
+			java.util.Collection<String> synsetPos);
 
 	/**
 	 * @param id

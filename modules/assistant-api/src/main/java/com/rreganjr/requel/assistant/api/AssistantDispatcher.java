@@ -1,0 +1,48 @@
+/*
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+package com.rreganjr.requel.assistant.api;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletionStage;
+
+/**
+ * Queues assistant analysis work.
+ */
+public interface AssistantDispatcher {
+
+	CompletionStage<AssistantRunHandle> dispatch(AnalysisRequest request);
+
+	/**
+	 * Queue a batch of requests, such as every entity of a project (#268). The default
+	 * dispatches each request on its own; an implementation may run the batch as one unit of
+	 * executor work so a large project takes a single slot.
+	 *
+	 * @return one stage per request, in request order.
+	 */
+	default List<CompletionStage<AssistantRunHandle>> dispatchAll(List<AnalysisRequest> requests) {
+		List<CompletionStage<AssistantRunHandle>> stages = new ArrayList<>(requests.size());
+		for (AnalysisRequest request : requests) {
+			stages.add(dispatch(request));
+		}
+		return stages;
+	}
+}

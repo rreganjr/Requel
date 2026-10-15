@@ -1,0 +1,1223 @@
+{
+  "_comment": "Issue #355: what a competent reviewer should raise on each fixture entity. Matching rules are in scripts/ai-eval/README.md. #263: alsoValid lists real flaws a fixture entity has beyond the one it targets; a matching finding is neither a hit nor spurious. #265: policyExpect lists what the policy pass should raise on an entity; an entity without it is policy-silent. #266: corpus lists the relationships between entities a corpus analysis should raise (expect, with finder: true when Find overlaps should flag the pair too), real ones it may raise (alsoValid), and pairs that must not be raised together (silent).",
+  "fixture": "fixture-project.xml",
+  "entities": [
+    {
+      "type": "Goal",
+      "name": "Members love the library",
+      "expect": [
+        {
+          "id": "goal-unmeasurable",
+          "patterns": [
+            "measur",
+            "verif",
+            "testab",
+            "criteri",
+            "subjective",
+            "vague",
+            "quantif"
+          ],
+          "acceptTypes": [
+            "UNMEASURABLE",
+            "MEASURE_WITHOUT_BASELINE"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Send overdue reminders by text message",
+      "expect": [
+        {
+          "id": "goal-solution-not-outcome",
+          "patterns": [
+            "solution",
+            "mechanism",
+            "implementation detail",
+            "rather than (the|an) (outcome|goal|need)",
+            "underlying (need|goal|outcome)",
+            "why (the|a) (text|message)",
+            "intended outcome"
+          ],
+          "acceptTypes": [
+            "SOLUTION_NOT_OUTCOME"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "conflicts-with-privacy",
+          "patterns": [
+            "privat",
+            "outside the library"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "INCONSISTENT"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Fewer complaints about reminders",
+      "expect": [
+        {
+          "id": "goal-proxy-for-outcome",
+          "patterns": [
+            "proxy",
+            "indirect",
+            "symptom",
+            "real (goal|problem|outcome)",
+            "actual (goal|outcome|problem)",
+            "underlying (goal|outcome|problem)",
+            "returned on time"
+          ],
+          "acceptTypes": [
+            "PROXY_FOR_OUTCOME"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Dana approves tool purchases",
+      "expect": [
+        {
+          "id": "goal-person-not-role",
+          "patterns": [
+            "person",
+            "individual",
+            "named",
+            "\\bdana\\b"
+          ],
+          "acceptTypes": [
+            "PERSON_NAMED_NOT_ROLE"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Members find tools quickly",
+      "expect": [
+        {
+          "id": "goal-duplicate",
+          "patterns": [
+            "duplicat",
+            "overlap",
+            "same as",
+            "redundan",
+            "subsum",
+            "restat",
+            "similar"
+          ],
+          "acceptTypes": [
+            "DUPLICATE_AT_DIFFERENT_ABSTRACTION"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Members search the catalogue by name",
+      "expect": [
+        {
+          "id": "goal-duplicate",
+          "patterns": [
+            "duplicat",
+            "overlap",
+            "same as",
+            "redundan",
+            "subsum",
+            "restat",
+            "similar"
+          ],
+          "acceptTypes": [
+            "DUPLICATE_AT_DIFFERENT_ABSTRACTION"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Suspended members cannot borrow",
+      "expect": [
+        {
+          "id": "goal-negative-only",
+          "patterns": [
+            "only (says|states|describes|lists|defines) who",
+            "who (can|may|is allowed to|is eligible to) borrow",
+            "positive (rule|condition|criteri|eligibility)",
+            "negative(ly)? (stated|only|framed)",
+            "by exclusion",
+            "never says who"
+          ],
+          "acceptTypes": [
+            "NEGATIVE_ONLY_SPECIFICATION"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "two-exclusion-rules",
+          "patterns": [],
+          "acceptTypes": [
+            "CONJUNCTIVE_GOAL"
+          ]
+        }
+      ],
+      "policyAlsoValid": [
+        {
+          "id": "contradicts-member-definition",
+          "patterns": [
+            "member"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "CONFLICTING_USAGE"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Online reservations and a mobile app",
+      "expect": [
+        {
+          "id": "goal-conjunctive",
+          "patterns": [
+            "two",
+            "split",
+            "separate",
+            "conjunct",
+            "combin",
+            "multiple",
+            "independent"
+          ],
+          "acceptTypes": [
+            "CONJUNCTIVE_GOAL"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "app-is-a-mechanism",
+          "patterns": [
+            "app"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "SOLUTION_NOT_OUTCOME"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Member data stays private",
+      "expect": [
+        {
+          "id": "goal-constraint-not-goal",
+          "patterns": [
+            "constraint",
+            "policy",
+            "rule",
+            "no (clear )?success",
+            "ongoing",
+            "standing",
+            "invariant",
+            "non-functional"
+          ],
+          "acceptTypes": [
+            "CONSTRAINT_NOT_GOAL"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "conflicts-with-text-reminders",
+          "patterns": [
+            "text message",
+            "sms",
+            "carrier",
+            "gateway",
+            "reminder"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "INCONSISTENT"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Volunteers plan repairs weekly",
+      "expect": [
+        {
+          "id": "goal-not-a-system-goal",
+          "patterns": [
+            "meeting",
+            "process",
+            "not (a|about the) system",
+            "no (software|system)",
+            "without (any )?software",
+            "system (capability|role)",
+            "operational",
+            "out of scope"
+          ],
+          "acceptTypes": [
+            "NOT_A_SYSTEM_GOAL"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Barcode scanning at checkout",
+      "expect": [
+        {
+          "id": "goal-implicit-invariant",
+          "patterns": [
+            "assum",
+            "invariant",
+            "stated as (a )?fact",
+            "protect",
+            "guarantee",
+            "enforce",
+            "who ensures",
+            "kept unique",
+            "stays true",
+            "remain(s)? true"
+          ],
+          "acceptTypes": [
+            "IMPLICIT_INVARIANT"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "barcode-is-a-mechanism",
+          "patterns": [],
+          "acceptTypes": [
+            "SOLUTION_NOT_OUTCOME"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Tools come back on time",
+      "expect": [
+        {
+          "id": "goal-measure-without-baseline",
+          "patterns": [
+            "baseline",
+            "threshold",
+            "target",
+            "how (much|many)",
+            "what (rate|level|percentage)"
+          ],
+          "acceptTypes": [
+            "MEASURE_WITHOUT_BASELINE"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Condition alerts are acknowledged",
+      "expect": [
+        {
+          "id": "goal-vacuous-quantifier",
+          "patterns": [
+            "empty",
+            "zero",
+            "no alerts",
+            "vacuous",
+            "trivial",
+            "none",
+            "at least",
+            "coverage",
+            "never raise",
+            "does not raise"
+          ],
+          "acceptTypes": [
+            "VACUOUS_QUANTIFIER"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Members see what they have on loan",
+      "silent": true,
+      "expect": []
+    },
+    {
+      "type": "Story",
+      "name": "Borrow a drill",
+      "expect": [
+        {
+          "id": "story-missing-benefit",
+          "patterns": [
+            "benefit",
+            "so that",
+            "why",
+            "value",
+            "reason",
+            "purpose"
+          ],
+          "acceptTypes": [
+            "MISSING_BENEFIT"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Story",
+      "name": "Reserve and pay online",
+      "expect": [
+        {
+          "id": "story-conjunctive",
+          "patterns": [
+            "two",
+            "split",
+            "separate",
+            "combin",
+            "multiple",
+            "independent"
+          ],
+          "acceptTypes": [
+            "CONJUNCTIVE_STORY"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Story",
+      "name": "Late returns",
+      "expect": [
+        {
+          "id": "story-is-a-scenario",
+          "patterns": [
+            "scenario",
+            "use case",
+            "steps",
+            "procedure",
+            "flow",
+            "sequence",
+            "numbered"
+          ],
+          "acceptTypes": [
+            "EXTRACT_SCENARIO"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Story",
+      "name": "Halve the repair backlog",
+      "expect": [
+        {
+          "id": "trap-unsourced",
+          "patterns": [
+            "source",
+            "\\bcite",
+            "citation",
+            "where (the|these|this|that) .{0,40}(come|came) from",
+            "unverif",
+            "unsourced",
+            "provenance",
+            "no evidence",
+            "evidence (for|of)",
+            "origin of"
+          ],
+          "acceptTypes": [
+            "UNSOURCED_CLAIM"
+          ]
+        }
+      ],
+      "trap": true,
+      "confirmPatterns": [
+        "\\b(are|is) (internally )?(consistent|correct|accurate)\\b",
+        "\\badds? up\\b",
+        "\\bchecks? out\\b",
+        "\\bsums? correctly\\b"
+      ],
+      "alsoValid": [
+        {
+          "id": "backlog-vs-logged",
+          "patterns": [
+            "logged",
+            "inflow",
+            "point in time",
+            "stock"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "AMBIGUOUS",
+            "INCONSISTENT",
+            "OTHER"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Story",
+      "name": "Return a tool after hours",
+      "silent": true,
+      "expect": []
+    },
+    {
+      "type": "Story",
+      "name": "Renew as a patron",
+      "silent": true,
+      "expect": [],
+      "alsoValid": [
+        {
+          "id": "patron-not-member",
+          "patterns": [
+            "patron"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "UNCLEAR_ACTOR",
+            "INCONSISTENT",
+            "AMBIGUOUS",
+            "OTHER"
+          ]
+        }
+      ],
+      "policyExpect": [
+        {
+          "id": "policy-non-canonical-patron",
+          "patterns": [
+            "patron"
+          ],
+          "acceptTypes": [
+            "NON_CANONICAL_TERM"
+          ],
+          "types": []
+        }
+      ]
+    },
+    {
+      "type": "UseCase",
+      "name": "Check out a tool",
+      "expect": [
+        {
+          "id": "usecase-no-precondition-or-error",
+          "patterns": [
+            "precondition",
+            "pre-condition",
+            "error",
+            "fail",
+            "exception",
+            "altern",
+            "unavailable",
+            "what if"
+          ],
+          "acceptTypes": [
+            "MISSING_PRECONDITION",
+            "MISSING_ERROR_CASE"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "other-half-precondition-or-error",
+          "patterns": [],
+          "acceptTypes": [
+            "MISSING_PRECONDITION",
+            "MISSING_ERROR_CASE"
+          ]
+        },
+        {
+          "id": "member-or-staff",
+          "patterns": [],
+          "acceptTypes": [
+            "UNCLEAR_ACTOR"
+          ]
+        },
+        {
+          "id": "no-outcome",
+          "patterns": [],
+          "acceptTypes": [
+            "MISSING_OUTCOME"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "UseCase",
+      "name": "Approve a purchase",
+      "expect": [
+        {
+          "id": "usecase-person-not-role",
+          "patterns": [
+            "person",
+            "individual",
+            "named",
+            "role",
+            "\\bdana\\b"
+          ],
+          "acceptTypes": [
+            "PERSON_NAMED_NOT_ROLE"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "scenario-step-order",
+          "patterns": [
+            "order"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "INCONSISTENT",
+            "OTHER"
+          ]
+        },
+        {
+          "id": "no-rejection",
+          "patterns": [
+            "reject"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "MISSING_ERROR_CASE"
+          ]
+        },
+        {
+          "id": "no-precondition",
+          "patterns": [],
+          "acceptTypes": [
+            "MISSING_PRECONDITION"
+          ]
+        },
+        {
+          "id": "no-outcome",
+          "patterns": [],
+          "acceptTypes": [
+            "MISSING_OUTCOME"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "UseCase",
+      "name": "Renew a loan",
+      "silent": true,
+      "expect": []
+    },
+    {
+      "type": "Scenario",
+      "name": "Check out at the desk",
+      "expect": [
+        {
+          "id": "scenario-no-failure-branch",
+          "patterns": [
+            "fail",
+            "error",
+            "altern",
+            "exception",
+            "what if",
+            "expired",
+            "reserved",
+            "branch",
+            "unhappy"
+          ],
+          "acceptTypes": [
+            "MISSING_ERROR_CASE"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Scenario",
+      "name": "Approve a purchase request",
+      "expect": [
+        {
+          "id": "scenario-step-order",
+          "patterns": [
+            "order",
+            "sequence",
+            "before",
+            "after",
+            "contradict",
+            "inconsisten",
+            "revers"
+          ],
+          "acceptTypes": [
+            "STEP_ORDER"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "no-rejection-branch",
+          "patterns": [
+            "reject"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "MISSING_ERROR_CASE"
+          ]
+        },
+        {
+          "id": "shipping-beyond-outcome",
+          "patterns": [
+            "ship",
+            "supplier"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "INCONSISTENT"
+          ]
+        },
+        {
+          "id": "no-review-step",
+          "patterns": [
+            "review"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "MISSING_STEP"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Scenario",
+      "name": "Renew from the account page",
+      "silent": true,
+      "expect": []
+    },
+    {
+      "type": "Step",
+      "name": "The system or staff mark the tool as broken",
+      "expect": [
+        {
+          "id": "step-ambiguous-actor",
+          "patterns": [
+            "ambig",
+            "actor",
+            "either",
+            "unclear who",
+            "responsib",
+            "two (possible|alternative) (actors|performers)"
+          ],
+          "acceptTypes": [
+            "AMBIGUOUS_ACTOR"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Step",
+      "name": "Staff photograph the damage and email the member",
+      "expect": [
+        {
+          "id": "step-two-actions",
+          "patterns": [
+            "two",
+            "split",
+            "separate",
+            "multiple",
+            "compound",
+            "single action",
+            "combin"
+          ],
+          "acceptTypes": [
+            "COMPOUND_STEP"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Step",
+      "name": "Staff put the tool on the repair shelf",
+      "silent": true,
+      "expect": []
+    },
+    {
+      "type": "Actor",
+      "name": "Dana Whitfield",
+      "expect": [
+        {
+          "id": "actor-person-not-role",
+          "patterns": [
+            "person",
+            "individual",
+            "named after"
+          ],
+          "acceptTypes": [
+            "PERSON_NAMED_NOT_ROLE"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "only-a-title",
+          "patterns": [],
+          "acceptTypes": [
+            "INCOMPLETE"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Actor",
+      "name": "Non-staff",
+      "expect": [
+        {
+          "id": "actor-defined-by-exclusion",
+          "patterns": [
+            "negation",
+            "exclu",
+            "(defined|described) (only|purely|solely|entirely) by",
+            "by what (it|they) (is|are) not",
+            "not staff"
+          ],
+          "acceptTypes": [
+            "DEFINED_BY_EXCLUSION"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "overlaps-member",
+          "patterns": [],
+          "acceptTypes": [
+            "OVERLAPPING_ROLE"
+          ]
+        },
+        {
+          "id": "unused",
+          "patterns": [],
+          "acceptTypes": [
+            "UNUSED_ACTOR"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Actor",
+      "name": "Member",
+      "silent": true,
+      "expect": []
+    },
+    {
+      "type": "GlossaryTerm",
+      "name": "Loan",
+      "expect": [
+        {
+          "id": "term-circular",
+          "patterns": [
+            "circular",
+            "itself",
+            "tautolog",
+            "defin"
+          ],
+          "acceptTypes": [
+            "CIRCULAR_DEFINITION"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "GlossaryTerm",
+      "name": "Overdue tool",
+      "expect": [
+        {
+          "id": "term-circular",
+          "patterns": [
+            "circular",
+            "itself",
+            "tautolog",
+            "defin"
+          ],
+          "acceptTypes": [
+            "CIRCULAR_DEFINITION"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "GlossaryTerm",
+      "name": "Pickup date",
+      "silent": true,
+      "expect": []
+    },
+    {
+      "type": "Goal",
+      "name": "Two-week loans",
+      "silent": true,
+      "expect": [],
+      "alsoValid": [
+        {
+          "id": "conflicts-with-renewal-or-three-weeks",
+          "patterns": [
+            "renew",
+            "21",
+            "three weeks",
+            "conflict",
+            "contradict"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "INCONSISTENT",
+            "OTHER"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Unpaid fines put accounts on hold",
+      "silent": true,
+      "expect": [],
+      "alsoValid": [
+        {
+          "id": "overlaps-suspended",
+          "patterns": [
+            "suspend",
+            "overlap",
+            "duplicat",
+            "hold"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "DUPLICATE",
+            "INCONSISTENT",
+            "AMBIGUOUS",
+            "OTHER"
+          ]
+        },
+        {
+          "id": "unmeasured-or-negative",
+          "patterns": [
+            "measur",
+            "negative",
+            "prohibit"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "UNMEASURABLE",
+            "NEGATIVE_ONLY"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Story",
+      "name": "Keep a tool for three weeks",
+      "silent": true,
+      "expect": [],
+      "alsoValid": [
+        {
+          "id": "conflicts-with-loan-length",
+          "patterns": [
+            "14",
+            "two weeks",
+            "loan (length|period)",
+            "conflict",
+            "renew"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "INCONSISTENT",
+            "OTHER"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Story",
+      "name": "Place a hold on a tool",
+      "silent": true,
+      "expect": [],
+      "alsoValid": [
+        {
+          "id": "hold-two-meanings",
+          "patterns": [
+            "hold"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "AMBIGUOUS",
+            "INCONSISTENT",
+            "OTHER"
+          ]
+        }
+      ]
+    }
+  ],
+  "corpus": {
+    "expect": [
+      {
+        "id": "contradiction-loan-length",
+        "participants": [
+          [
+            "Goal",
+            "Two-week loans"
+          ],
+          [
+            "Story",
+            "Keep a tool for three weeks"
+          ]
+        ],
+        "acceptTypes": [
+          "CONTRADICTORY_REQUIREMENTS"
+        ],
+        "finder": true
+      },
+      {
+        "id": "renewal-breaks-loan-length",
+        "participants": [
+          [
+            "Goal",
+            "Two-week loans"
+          ],
+          [
+            "UseCase",
+            "Renew a loan"
+          ]
+        ],
+        "acceptTypes": [
+          "UNSATISFIABLE_BY_CHILDREN",
+          "CONTRADICTORY_REQUIREMENTS"
+        ],
+        "finder": true
+      },
+      {
+        "id": "sms-vs-privacy",
+        "participants": [
+          [
+            "Goal",
+            "Send overdue reminders by text message"
+          ],
+          [
+            "Goal",
+            "Member data stays private"
+          ]
+        ],
+        "acceptTypes": [
+          "CONTRADICTORY_REQUIREMENTS"
+        ]
+      },
+      {
+        "id": "duplicate-search",
+        "participants": [
+          [
+            "Goal",
+            "Members find tools quickly"
+          ],
+          [
+            "Goal",
+            "Members search the catalogue by name"
+          ]
+        ],
+        "acceptTypes": [
+          "DUPLICATE_AT_DIFFERENT_ABSTRACTION"
+        ]
+      },
+      {
+        "id": "hold-two-meanings",
+        "participants": [
+          [
+            "Goal",
+            "Unpaid fines put accounts on hold"
+          ],
+          [
+            "Story",
+            "Place a hold on a tool"
+          ]
+        ],
+        "acceptTypes": [
+          "SAME_TERM_DIFFERENT_MEANING"
+        ]
+      },
+      {
+        "id": "non-staff-member",
+        "participants": [
+          [
+            "Actor",
+            "Non-staff"
+          ],
+          [
+            "Actor",
+            "Member"
+          ]
+        ],
+        "acceptTypes": [
+          "SAME_CONCEPT_DIFFERENT_TERMS",
+          "DUPLICATE_AT_DIFFERENT_ABSTRACTION",
+          "OTHER"
+        ]
+      }
+    ],
+    "alsoValid": [
+      {
+        "id": "three-weeks-vs-renewal",
+        "participants": [
+          [
+            "Story",
+            "Keep a tool for three weeks"
+          ],
+          [
+            "UseCase",
+            "Renew a loan"
+          ]
+        ]
+      },
+      {
+        "id": "suspended-vs-on-hold",
+        "participants": [
+          [
+            "Goal",
+            "Suspended members cannot borrow"
+          ],
+          [
+            "Goal",
+            "Unpaid fines put accounts on hold"
+          ]
+        ]
+      },
+      {
+        "id": "loan-length-vs-on-time",
+        "participants": [
+          [
+            "Goal",
+            "Two-week loans"
+          ],
+          [
+            "Goal",
+            "Tools come back on time"
+          ]
+        ]
+      },
+      {
+        "id": "patron-renewal-vs-renew",
+        "participants": [
+          [
+            "Story",
+            "Renew as a patron"
+          ],
+          [
+            "UseCase",
+            "Renew a loan"
+          ]
+        ]
+      },
+      {
+        "id": "purchase-approver",
+        "participants": [
+          [
+            "Goal",
+            "Dana approves tool purchases"
+          ],
+          [
+            "UseCase",
+            "Approve a purchase"
+          ]
+        ]
+      },
+      {
+        "id": "three-weeks-vs-renew-story",
+        "participants": [
+          [
+            "Story",
+            "Keep a tool for three weeks"
+          ],
+          [
+            "Story",
+            "Renew as a patron"
+          ]
+        ]
+      },
+      {
+        "id": "hold-vs-reservation",
+        "participants": [
+          [
+            "Story",
+            "Place a hold on a tool"
+          ],
+          [
+            "UseCase",
+            "Renew a loan"
+          ]
+        ]
+      },
+      {
+        "id": "checkout-skips-eligibility",
+        "participants": [
+          [
+            "Goal",
+            "Suspended members cannot borrow"
+          ],
+          [
+            "UseCase",
+            "Check out a tool"
+          ]
+        ]
+      },
+      {
+        "id": "purchase-steps-reversed",
+        "participants": [
+          [
+            "Step",
+            "The supplier ships the tool"
+          ],
+          [
+            "Step",
+            "The treasurer approves the request"
+          ]
+        ]
+      },
+      {
+        "id": "after-hours-vs-late-returns",
+        "participants": [
+          [
+            "Story",
+            "Late returns"
+          ],
+          [
+            "Story",
+            "Return a tool after hours"
+          ]
+        ]
+      }
+    ],
+    "silent": [
+      {
+        "id": "member-vs-staff",
+        "participants": [
+          [
+            "Actor",
+            "Member"
+          ],
+          [
+            "Actor",
+            "Staff"
+          ]
+        ]
+      },
+      {
+        "id": "member-term-vs-patron",
+        "participants": [
+          [
+            "GlossaryTerm",
+            "Member"
+          ],
+          [
+            "GlossaryTerm",
+            "Patron"
+          ]
+        ]
+      }
+    ]
+  }
+}

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,9 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.Scenario;
+import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.command.CopyScenarioCommand;
+import com.rreganjr.requel.project.command.CopyScenarioStepCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.ScenarioImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
@@ -44,7 +46,17 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("copyScenarioCommand")
 @Scope("prototype")
 public class CopyScenarioCommandImpl extends AbstractEditProjectCommand implements
-		CopyScenarioCommand {
+		CopyScenarioCommand, com.rreganjr.requel.project.ProjectScopedCommand, com.rreganjr.platform.command.AuthorizableCommand {
+
+	@Override
+	public com.rreganjr.requel.project.Project getProject() {
+		return (originalScenario != null && originalScenario.getProjectOrDomain() instanceof com.rreganjr.requel.project.Project p) ? p : null;
+	}
+
+	@Override
+	public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+		return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission(com.rreganjr.requel.project.Scenario.class, "Edit");
+	}
 
 	private Scenario originalScenario;
 	private Scenario newScenario;
@@ -76,7 +88,8 @@ public class CopyScenarioCommandImpl extends AbstractEditProjectCommand implemen
 	}
 
 	public void setNewScenarioName(String newScenarioName) {
-		this.newScenarioName = newScenarioName;
+		// #398: names are saved trimmed, as the lookups by name expect.
+		this.newScenarioName = (newScenarioName == null) ? null : newScenarioName.trim();
 	}
 
 	@Override
@@ -89,7 +102,7 @@ public class CopyScenarioCommandImpl extends AbstractEditProjectCommand implemen
 	}
 
 	@Override
-	public void execute() {
+	public void execute() throws Exception {
 		User editedBy = getRepository().get(getEditedBy());
 		ScenarioImpl originalScenario = (ScenarioImpl) getRepository().get(getOriginalScenario());
 
@@ -102,6 +115,17 @@ public class CopyScenarioCommandImpl extends AbstractEditProjectCommand implemen
 		ScenarioImpl newScenario = getProjectRepository().persist(
 				new ScenarioImpl(originalScenario.getProjectOrDomain(), editedBy, newName,
 						originalScenario.getText(), originalScenario.getType()));
+
+		// Copy steps in order; each gets a unique name via CopyScenarioStepCommand
+		// since step names are unique per project and the originals still exist.
+		for (Step step : originalScenario.getSteps()) {
+			CopyScenarioStepCommand copyStepCommand = getProjectCommandFactory()
+					.newCopyScenarioStepCommand();
+			copyStepCommand.setEditedBy(getEditedBy());
+			copyStepCommand.setOriginalScenarioStep(step);
+			getCommandHandler().execute(copyStepCommand);
+			newScenario.getSteps().add(copyStepCommand.getNewScenarioStep());
+		}
 
 		// TODO: this assumes that all annotations are appropriate for the new
 		// scenario

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,9 +54,9 @@ import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.command.AddGlossaryTermRefererCommand;
 import com.rreganjr.requel.project.command.EditAddActorToProjectPositionCommand;
 import com.rreganjr.requel.project.command.EditAddWordToGlossaryPositionCommand;
-import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.command.RemoveUnneedLexicalIssuesCommand;
 import com.rreganjr.requel.project.exception.NoSuchActorException;
@@ -469,9 +469,13 @@ public class LexicalAssistant extends AbstractAssistant {
 	public void checkSpelling(User assistantUser, ProjectOrDomain projectOrDomain,
 			ProjectOrDomainEntity thingBeingAnalyzed, String annotatableEntityPropertyName,
 			NLPText nlpText) throws Exception {
-		NLPProcessor<Boolean> spellChecker = getNLPProcessorFactory().getSpellingChecker();
+		// Issue #313: spell-check against this project's own dictionary as well as the two
+		// installation-wide layers, so a word added here is not flagged here and is not treated as
+		// known anywhere else.
+		Long projectId = (projectOrDomain == null) ? null : projectOrDomain.getId();
+		NLPProcessor<Boolean> spellChecker = getNLPProcessorFactory().getSpellingChecker(projectId);
 		NLPProcessor<Collection<NLPText>> similarWordFinder = getNLPProcessorFactory()
-				.getSimilarWordFinder();
+				.getSimilarWordFinder(projectId);
 
 		for (NLPText word : nlpText.getLeaves()) {
 			if (!word.in(PartOfSpeech.PUNCTUATION, PartOfSpeech.NUMBER, PartOfSpeech.SYMBOL)
@@ -728,14 +732,18 @@ public class LexicalAssistant extends AbstractAssistant {
 		return editPositionCommand.getPosition();
 	}
 
+	/**
+	 * Recording that the analyzed entity mentions an existing glossary term goes through
+	 * AddGlossaryTermRefererCommand rather than EditGlossaryTermCommand, so the assistant does
+	 * not need GlossaryTerm[Edit] for what is really annotation bookkeeping (issue #302).
+	 */
 	protected void addProjectOrDomainEntityAsRefererToGlossaryTerm(User assistantUser,
 			GlossaryTerm glossaryTerm, ProjectOrDomainEntity thingBeingAnalyzed) throws Exception {
-		EditGlossaryTermCommand command = getProjectCommandFactory().newEditGlossaryTermCommand();
-		Set<ProjectOrDomainEntity> entities = new HashSet<ProjectOrDomainEntity>(1);
-		entities.add(thingBeingAnalyzed);
-		command.setAddReferers(entities);
-		command.setEditedBy(assistantUser);
+		AddGlossaryTermRefererCommand command = getProjectCommandFactory()
+				.newAddGlossaryTermRefererCommand();
 		command.setGlossaryTerm(glossaryTerm);
+		command.setReferer(thingBeingAnalyzed);
+		command.setEditedBy(assistantUser);
 		command = getCommandHandler().execute(command);
 	}
 }

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -72,6 +72,12 @@ public interface AnnotationCommandFactory extends CommandFactory {
 	public EditAddWordToDictionaryPositionCommand newEditAddWordToDictionaryPositionCommand();
 
 	/**
+	 * @return a new EditIgnorePositionCommand for adding the "Ignore" position an assistant offers
+	 *         on a finding (issue #320).
+	 */
+	public EditIgnorePositionCommand newEditIgnorePositionCommand();
+
+	/**
 	 * @return a new EditArgumentCommand for creating or editing an argument for
 	 *         or against a position of an issue.
 	 */
@@ -83,6 +89,20 @@ public interface AnnotationCommandFactory extends CommandFactory {
 	 *         references.
 	 */
 	public RemoveAnnotationFromAnnotatableCommand newRemoveAnnotationFromAnnotatableCommand();
+
+	/**
+	 * @return a new RemoveAllAnnotationsFromAnnotatableCommand that unlinks an
+	 *         entity about to be deleted from every annotation (database state,
+	 *         not session state) and deletes the annotations left orphaned
+	 *         (issue #247).
+	 */
+	public RemoveAllAnnotationsFromAnnotatableCommand newRemoveAllAnnotationsFromAnnotatableCommand();
+
+	/**
+	 * @return a new DeleteAnnotationGroupCommand that deletes every annotation grouped
+	 *         under an object (a project about to be deleted), links first. Issue #247.
+	 */
+	public DeleteAnnotationGroupCommand newDeleteAnnotationGroupCommand();
 
 	/**
 	 * @return a new DeleteNoteCommand for deleting a note from the system and

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,15 +25,21 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalContainer;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.requel.project.command.AnalysisRequestSource;
 import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.GoalImpl;
@@ -47,7 +53,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editGoalCommand")
 @Scope("prototype")
 public class EditGoalCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
-		EditGoalCommand {
+		EditGoalCommand, AuthorizableCommand, ProjectScopedCommand, AnalysisRequestSource {
 
 	private GoalContainer goalContainer;
 	private Goal goal;
@@ -114,26 +120,38 @@ public class EditGoalCommandImpl extends AbstractEditProjectOrDomainEntityComman
 		}
 		projectOrDomain = getRepository().get(projectOrDomain);
 
-		// check for uniqueness
-		try {
-			Goal existing = getProjectRepository().findGoalByProjectOrDomainAndName(
-					projectOrDomain, getName());
-			if (goalImpl == null) {
-				throw EntityException.uniquenessConflict(Goal.class, existing,
-						EditGoalCommand.FIELD_NAME, EntityExceptionActionType.Creating);
-			} else if (!existing.equals(goalImpl)) {
-				throw EntityException.uniquenessConflict(Goal.class, existing,
-						EditGoalCommand.FIELD_NAME, EntityExceptionActionType.Updating);
+		// Check for uniqueness. Skipped when no name was supplied: a null name means "leave it
+		// as it is", and the finder trims the name (issue #251). EditUseCaseCommandImpl and
+		// EditActorCommandImpl already guard this way.
+		if ((getName() != null) && !getName().trim().isEmpty()) {
+			try {
+				Goal existing = getProjectRepository().findGoalByProjectOrDomainAndName(
+						projectOrDomain, getName());
+				if (goalImpl == null) {
+					throw EntityException.uniquenessConflict(Goal.class, existing,
+							EditGoalCommand.FIELD_NAME, EntityExceptionActionType.Creating);
+				} else if (!existing.equals(goalImpl)) {
+					throw EntityException.uniquenessConflict(Goal.class, existing,
+							EditGoalCommand.FIELD_NAME, EntityExceptionActionType.Updating);
+				}
+			} catch (NoSuchEntityException e) {
 			}
-		} catch (NoSuchEntityException e) {
 		}
 
 		if (goalImpl == null) {
 			goalImpl = getProjectRepository().persist(
 					new GoalImpl(projectOrDomain, editedBy, getName(), getText()));
 		} else {
-			goalImpl.setName(getName());
-			goalImpl.setText(getText());
+			// Enforce the caller-supplied optimistic-lock version (issue #108); reloads the
+			// goal and fails cleanly if it changed since the caller loaded it.
+			goalImpl = checkExpectedVersion(goalImpl);
+			if (getName() != null) {
+				goalImpl.setName(getName());
+			}
+			// Null leaves the text as it is; "" clears it (issue #316).
+			if (getText() != null) {
+				goalImpl.setText(getText());
+			}
 		}
 		if (goalContainer != null) {
 			goalImpl.getReferers().add(goalContainer);
@@ -145,10 +163,38 @@ public class EditGoalCommandImpl extends AbstractEditProjectOrDomainEntityComman
 		setGoalContainer(goalContainer);
 	}
 
+	/**
+	 * Legacy fallback. The Goal path is migrated to the assistant SPI (issue #43):
+	 * the command-handler layer detects {@link AnalysisRequestSource} and dispatches
+	 * through {@code AnalysisRequestDispatcher}, so this method is normally not
+	 * invoked for goals. It is retained as a safe fallback.
+	 */
 	@Override
 	public void invokeAnalysis() {
 		if (isAnalysisEnabled()) {
 			getAssistantManager().analyzeGoal(getGoal());
 		}
+	}
+
+	@Override
+	public ProjectOrDomainEntity getAnalysisTarget() {
+		return getGoal();
+	}
+
+	@Override
+	public User getAnalysisTriggeredBy() {
+		return getEditedBy();
+	}
+
+	@Override
+	public Project getProject() {
+		if (goalContainer instanceof Project project) return project;
+		if (goal != null && goal.getProjectOrDomain() instanceof Project project) return project;
+		return null;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(Goal.class, "Edit");
 	}
 }

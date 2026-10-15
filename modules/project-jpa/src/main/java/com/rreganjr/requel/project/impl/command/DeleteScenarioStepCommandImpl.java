@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -31,7 +32,6 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
-import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Step;
@@ -50,7 +50,17 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("deleteScenarioStepCommand")
 @Scope("prototype")
 public class DeleteScenarioStepCommandImpl extends AbstractEditProjectCommand implements
-		DeleteScenarioStepCommand {
+		DeleteScenarioStepCommand, com.rreganjr.requel.project.ProjectScopedCommand, com.rreganjr.platform.command.AuthorizableCommand {
+
+	@Override
+	public com.rreganjr.requel.project.Project getProject() {
+		return (scenarioStep != null && scenarioStep.getProjectOrDomain() instanceof com.rreganjr.requel.project.Project p) ? p : null;
+	}
+
+	@Override
+	public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+		return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission(com.rreganjr.requel.project.Scenario.class, "Delete");
+	}
 
 	private Step scenarioStep;
 
@@ -86,23 +96,22 @@ public class DeleteScenarioStepCommandImpl extends AbstractEditProjectCommand im
 		User editedBy = getRepository().get(getEditedBy());
 		Set<Annotation> annotations = new HashSet<Annotation>(scenarioStep.getAnnotations());
 		for (Annotation annotation : annotations) {
-			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = getAnnotationCommandFactory()
-					.newRemoveAnnotationFromAnnotatableCommand();
+			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = CascadeAuthorizable.cascade(this,
+					getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand());
 			removeAnnotationFromAnnotatableCommand.setEditedBy(editedBy);
 			removeAnnotationFromAnnotatableCommand.setAnnotatable(scenarioStep);
 			removeAnnotationFromAnnotatableCommand.setAnnotation(annotation);
 			getCommandHandler().execute(removeAnnotationFromAnnotatableCommand);
 		}
 		// remove this entity as a referer to any terms
-		for (GlossaryTerm term : scenarioStep.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(scenarioStep)) {
-				term.getReferers().remove(scenarioStep);
-			}
-		}
+		// #386: by native delete; removing from the @ManyToAny referers set fails in Hibernate.
+		getProjectRepository().removeGlossaryTermReferer(null, scenarioStep);
 		Set<Scenario> scenarioReferers = new HashSet<Scenario>(scenarioStep.getUsingScenarios());
 		for (Scenario scenarioReferer : scenarioReferers) {
 			scenarioReferer.getSteps().remove(scenarioStep);
 		}
+		// #247: clear any annotation link committed since this entity was loaded.
+		removeAllAnnotationsBeforeDelete(scenarioStep, editedBy);
 		getRepository().delete(scenarioStep);
 	}
 

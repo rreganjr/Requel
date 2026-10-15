@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Requel - the Collaborative Requirements Elicitation System.
+  ~
+  ~ Copyright © 2008, 2009 Ron Regan Jr.
+  ~
+  ~ Permission is granted to copy, distribute and/or modify this document
+  ~ under the terms of the GNU Free Documentation License, Version 1.3 or
+  ~ any later version published by the Free Software Foundation; with no
+  ~ Invariant Sections, no Front-Cover Texts and no Back-Cover Texts.  
+  ~ See <http://www.gnu.org/copyleft/fdl.html>
+  ~   
+-->
+<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN" "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<book>
+	<bookinfo>
+		<title>User Guide</title>
+		<subtitle>A Collaborative Requirements Tool with Automated Assistance</subtitle>
+		<mediaobject>
+			<imageobject>
+				<imagedata depth="83.25pt" fileref="images/Logo_335x83_demun_lotion.png" width="335.25pt" />
+			</imageobject>
+		</mediaobject>
+		<mediaobject>
+			<imageobject>
+				<imagedata depth="148.5pt" fileref="images/logo_fembot_torso_blue_cutout4.png" width="103.5pt" />
+			</imageobject>
+		</mediaobject>
+		<author>
+			<firstname>Ron</firstname>
+			<surname>Regan</surname>
+			<lineage>Jr.</lineage>
+		</author>
+		<releaseinfo>Version 1.0a</releaseinfo>
+		<copyright>
+			<year>2008</year>
+			<year>2009</year>
+			<holder>Ron Regan Jr.</holder>
+		</copyright>
+		<legalnotice>
+			<blockquote>
+				<simpara>
+					Permission is granted to copy, distribute and/or modify this document under the terms of the GNU
+					Free Documentation License, Version 1.3 or any later version published by the Free Software
+					Foundation; with no Invariant Sections, no Front-Cover Texts and no Back-Cover Texts. A copy of the
+					license is included in the section entitled "GNU Free Documentation License".
+				</simpara>
+			</blockquote>
+		</legalnotice>
+	</bookinfo>
+
+	<toc />
+
+	<xi:include href="Achknowledgements.xml" xmlns:xi="http://www.w3.org/2001/XInclude" />
+	<xi:include href="Introduction.xml" xmlns:xi="http://www.w3.org/2001/XInclude" />
+	<xi:include href="GettingStarted.xml" xmlns:xi="http://www.w3.org/2001/XInclude" />
+</book>

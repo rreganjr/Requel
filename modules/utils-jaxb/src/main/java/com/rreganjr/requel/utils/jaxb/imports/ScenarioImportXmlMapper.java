@@ -1,10 +1,8 @@
 /*
- * $Id: $
- *
- * Copyright 2025 Ron Regan Jr. All Rights Reserved.
- *
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,7 +36,7 @@ public class ScenarioImportXmlMapper {
                 .name(xml.getName())
                 .description(xml.getText())
                 .scenarioType(xml.getScenarioType())
-                .stepRefs(new HashSet<>(xml.getStepRefs()))
+                .stepRefs(xml.getStepRefs())
                 .annotationExternalIds(new HashSet<>(xml.getAnnotationRefs()))
                 .scenarioElement(scenarioElement)
                 .build();

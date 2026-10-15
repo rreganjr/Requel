@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ import jakarta.xml.bind.annotation.XmlIDREF;
 import jakarta.xml.bind.annotation.XmlTransient;
 import jakarta.xml.bind.annotation.XmlType;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import org.hibernate.annotations.OptimisticLock;
 import org.hibernate.annotations.SortNatural;
 
 import com.rreganjr.requel.annotation.Annotation;
@@ -79,7 +80,8 @@ public abstract class AbstractProjectOrDomainEntity implements ProjectOrDomainEn
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	protected Long getId() {
+	@Override
+	public Long getId() {
 		return id;
 	}
 
@@ -89,7 +91,8 @@ public abstract class AbstractProjectOrDomainEntity implements ProjectOrDomainEn
 
 	@Version
 	@XmlAttribute(name = "revision", required = false)
-	protected int getVersion() {
+	@Override
+	public int getVersion() {
 		return version;
 	}
 
@@ -113,7 +116,11 @@ public abstract class AbstractProjectOrDomainEntity implements ProjectOrDomainEn
 	}
 
 	@XmlTransient
-	@ManyToOne(targetEntity = AbstractProjectOrDomain.class, cascade = { CascadeType.PERSIST, CascadeType.REFRESH }, optional = false)
+	// #247: no REFRESH cascade upward. refresh(entity) used to reload its project, the
+	// project's creator, that user's roles and, through ProjectUserRole.activeProjects, every
+	// project that user is on - the whole database, one select per row (300k statements in a
+	// single DeleteProject). A refresh reloads the entity and what it owns, nothing above it.
+	@ManyToOne(targetEntity = AbstractProjectOrDomain.class, cascade = { CascadeType.PERSIST }, optional = false)
 //	@JoinColumn(name="projectordomain_id", insertable = false, updatable = false)
 	@JoinColumn(name="projectordomain_id")
 	public ProjectOrDomain getProjectOrDomain() {
@@ -130,6 +137,7 @@ public abstract class AbstractProjectOrDomainEntity implements ProjectOrDomainEn
 	@ManyToMany(targetEntity = AbstractAnnotation.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@SortNatural
+	@OptimisticLock(excluded = true)
 	public Set<Annotation> getAnnotations() {
 		return annotations;
 	}
@@ -144,6 +152,7 @@ public abstract class AbstractProjectOrDomainEntity implements ProjectOrDomainEn
 	@ManyToMany(targetEntity = GlossaryTermImpl.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@SortNatural
+	@OptimisticLock(excluded = true)
 	public Set<GlossaryTerm> getGlossaryTerms() {
 		return terms;
 	}
@@ -152,7 +161,9 @@ public abstract class AbstractProjectOrDomainEntity implements ProjectOrDomainEn
 		this.terms = terms;
 	}
 
-	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.PERSIST, CascadeType.REFRESH }, optional = false)
+	// #323: no REFRESH cascade up to the user - a refresh reloads the entity and what it owns,
+	// nothing above it (the user's roles reach every project the user is on).
+	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.PERSIST }, optional = false)
 	@XmlIDREF()
 	@XmlAttribute(name = "createdBy")
 	@XmlJavaTypeAdapter(User2UserImplAdapter.class)

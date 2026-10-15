@@ -1,0 +1,66 @@
+/*
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import { environment } from '../../environments/environment';
+import { GoalDto, GoalRelationTypeDto } from '../models/goal';
+
+@Injectable({ providedIn: 'root' })
+export class GoalService {
+
+  /** The relation vocabulary only changes with a deploy, so one request serves the session. */
+  private relationTypes: Promise<GoalRelationTypeDto[]> | null = null;
+
+  constructor(private http: HttpClient) {}
+
+  /**
+   * The goal relation types in server order (#257). Cached after the first success; a failed
+   * request is not cached, so the next caller retries.
+   */
+  getRelationTypes(): Promise<GoalRelationTypeDto[]> {
+    if (!this.relationTypes) {
+      this.relationTypes = firstValueFrom(
+        this.http.get<GoalRelationTypeDto[]>(`${environment.apiBaseUrl}/projects/goal-relation-types`)
+      ).catch(err => {
+        this.relationTypes = null;
+        throw err;
+      });
+    }
+    return this.relationTypes;
+  }
+
+  async listGoals(projectName: string): Promise<GoalDto[]> {
+    return firstValueFrom(
+      this.http.get<GoalDto[]>(
+        `${environment.apiBaseUrl}/projects/${encodeURIComponent(projectName)}/goals`
+      )
+    );
+  }
+
+  async getGoal(projectName: string, goalId: number): Promise<GoalDto> {
+    return firstValueFrom(
+      this.http.get<GoalDto>(
+        `${environment.apiBaseUrl}/projects/${encodeURIComponent(projectName)}/goals/${goalId}`
+      )
+    );
+  }
+}

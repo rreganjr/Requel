@@ -1,0 +1,18 @@
+#![Database Creation]
+
+tomcat:Tomcat[a]
+/dcl:DatabaseCreationListener[a]
+/dbProperties:File
+dm:DriverManager[a]
+connection:Connection[a]
+createDbStmt:Statement[a]
+
+tomcat:dcl.new
+tomcat:dcl.contextInitialized()
+dcl:dbProperties.new
+dcl:dm.getConnection(dbUrl)
+[c:exception no database]
+dcl:dm.getConnection(dbUrl)
+dcl:connection.createStatement()
+dcl:createDbStmt.execute("create database")
+[/c]

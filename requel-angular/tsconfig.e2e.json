@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "types": ["node"],
+    "outDir": "./out-e2e",
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": ["e2e/**/*.ts"],
+  "exclude": ["node_modules"]
+}

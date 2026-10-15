@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,10 +31,17 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalRelation;
 import com.rreganjr.requel.project.GoalRelationType;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.command.EditGoalRelationCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
+import com.rreganjr.platform.exception.EntityExceptionActionType;
+import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.requel.project.exception.GoalSelfRelationException;
 import com.rreganjr.requel.project.impl.GoalRelationImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
@@ -47,7 +54,12 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editGoalRelationCommand")
 @Scope("prototype")
 public class EditGoalRelationCommandImpl extends AbstractProjectCommand implements
-		EditGoalRelationCommand {
+		EditGoalRelationCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.Goal.class, "Edit");
+	}
 
 	private ProjectOrDomain projectOrDomain;
 	private GoalRelation goalRelation;
@@ -56,6 +68,7 @@ public class EditGoalRelationCommandImpl extends AbstractProjectCommand implemen
 	private String relationTypeName;
 	private User editedBy;
 	private boolean analysisEnabled = true;
+	private Integer expectedVersion;
 
 	/**
 	 * @param assistantManager
@@ -140,8 +153,18 @@ public class EditGoalRelationCommandImpl extends AbstractProjectCommand implemen
 		this.editedBy = user;
 	}
 
-	protected User getEditedBy() {
+	@Override
+	public User getEditedBy() {
 		return editedBy;
+	}
+
+	@Override
+	public void setExpectedVersion(Integer expectedVersion) {
+		this.expectedVersion = expectedVersion;
+	}
+
+	protected Integer getExpectedVersion() {
+		return expectedVersion;
 	}
 
 	/**
@@ -156,28 +179,75 @@ public class EditGoalRelationCommandImpl extends AbstractProjectCommand implemen
 				getToGoal());
 		Goal fromGoal = getProjectRepository().findGoalByProjectOrDomainAndName(
 				getProjectOrDomain(), getFromGoal());
-		GoalRelationType goalRelationType;
-		try {
-			goalRelationType = GoalRelationType.valueOf(getRelationType());
-		} catch (Exception e) {
-			throw EntityValidationException.validationFailed(GoalRelation.class, "relationType",
-					"The goal relation type cannot be " + getRelationType());
-		}
+		GoalRelationType goalRelationType = GoalRelationType.parse(getRelationType())
+				.orElseThrow(() -> EntityValidationException.validationFailed(GoalRelation.class,
+						"relationType", "The goal relation type cannot be " + getRelationType()
+								+ "; permitted values are " + GoalRelationType.permittedValues()
+								+ "."));
 
 		if (toGoal.equals(fromGoal)) {
 			throw GoalSelfRelationException.forGoal(toGoal);
 		}
-		// TODO: check for uniqueness?
+		Long editedId = goalRelationImpl == null ? null : goalRelationImpl.getId();
+		checkNoOtherRelation(fromGoal, toGoal, editedId);
+		if (goalRelationType.isSymmetric()) {
+			checkNoSymmetricReverse(fromGoal, toGoal, goalRelationType, editedId);
+		}
 		if (goalRelationImpl == null) {
 			goalRelationImpl = getProjectRepository().persist(
 					new GoalRelationImpl(fromGoal, toGoal, goalRelationType, editedBy));
 		} else {
+			goalRelationImpl = (GoalRelationImpl) getRepository().get(goalRelationImpl);
+			// Enforce the caller-supplied optimistic-lock version on update (issue #108).
+			if (getExpectedVersion() != null
+					&& getExpectedVersion().intValue() != goalRelationImpl.getVersion()) {
+				throw EntityLockException.staleEntity(GoalRelation.class, goalRelationImpl,
+						EntityExceptionActionType.Updating);
+			}
 			goalRelationImpl.setFromGoal(fromGoal);
 			goalRelationImpl.setToGoal(toGoal);
 			goalRelationImpl.setRelationType(goalRelationType);
 			goalRelationImpl = getProjectRepository().merge(goalRelationImpl);
 		}
 		setGoalRelation(goalRelationImpl);
+	}
+
+	/**
+	 * A pair of goals holds at most one relation in each direction (the {@code goal_relations}
+	 * unique key); refuse a second one here as a field-level error rather than let it fail at
+	 * flush. The relation being edited does not collide with itself. Issue #257.
+	 */
+	private static void checkNoOtherRelation(Goal fromGoal, Goal toGoal, Long editedId) {
+		for (GoalRelation existing : fromGoal.getRelationsFromThisGoal()) {
+			if (existing.getToGoal().equals(toGoal) && !isSameRelation(existing, editedId)) {
+				throw EntityValidationException.validationFailed(GoalRelation.class, "toGoal",
+						"\"" + fromGoal.getName() + "\" already has a "
+								+ existing.getRelationType().getLabel() + " relation to \""
+								+ toGoal.getName() + "\"; change that relation's type instead.");
+			}
+		}
+	}
+
+	/**
+	 * A symmetric type holds in both directions, so the reverse of an existing one states the
+	 * same fact twice. Relations are stored as entered, not normalised, so check the other
+	 * direction explicitly. Issue #257.
+	 */
+	private static void checkNoSymmetricReverse(Goal fromGoal, Goal toGoal, GoalRelationType type,
+			Long editedId) {
+		for (GoalRelation existing : toGoal.getRelationsFromThisGoal()) {
+			if (existing.getToGoal().equals(fromGoal) && existing.getRelationType() == type
+					&& !isSameRelation(existing, editedId)) {
+				throw EntityValidationException.validationFailed(GoalRelation.class, "toGoal",
+						"\"" + toGoal.getName() + "\" already has a " + type.getLabel()
+								+ " relation to \"" + fromGoal.getName() + "\"; a "
+								+ type.getLabel() + " relation holds in both directions.");
+			}
+		}
+	}
+
+	private static boolean isSameRelation(GoalRelation relation, Long editedId) {
+		return editedId != null && editedId.equals(relation.getId());
 	}
 
 	@Override
@@ -192,5 +262,20 @@ public class EditGoalRelationCommandImpl extends AbstractProjectCommand implemen
 	@Override
 	public void invokeAnalysis() {
 		// TODO: do goal relations need to be analyzed?
+	}
+
+	@Override
+	public Project getProject() {
+		// projectOrDomain is set by the registrar from the request body's projectName.
+		// Fall back to the goal relation's endpoints if needed (e.g. when reused
+		// from internal command chains that wired only the GoalRelation).
+		if (projectOrDomain instanceof Project project) return project;
+		if (goalRelation != null) {
+			if (goalRelation.getFromGoal() != null
+					&& goalRelation.getFromGoal().getProjectOrDomain() instanceof Project project) return project;
+			if (goalRelation.getToGoal() != null
+					&& goalRelation.getToGoal().getProjectOrDomain() instanceof Project project) return project;
+		}
+		return null;
 	}
 }

@@ -1,8 +1,23 @@
 /*
- * $Id: VerbNetImporterTests.java,v 1.4 2009/01/26 10:19:06 rregan Exp $
- * Copyright (c) 2008 Ron Regan Jr. All Rights Reserved.
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
  */
-
 package com.rreganjr.nlp;
 
 import java.io.File;
@@ -10,11 +25,13 @@ import java.io.FileFilter;
 
 import javax.xml.bind.JAXBElement;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.rreganjr.TestCase;
 import com.rreganjr.nlp.impl.verbnet.VerbNetImporter;
-import org.junit.Ignore;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 //import com.rreganjr.nlp.verbnet.VNCLASS;
 //import com.rreganjr.nlp.verbnet.FRAMES.FRAME;
 //import com.rreganjr.nlp.verbnet.MEMBERS.MEMBER;
@@ -24,39 +41,18 @@ import org.junit.Ignore;
  * 
  * @author ron
  */
-@Ignore
+
 public class VerbNetImporterTests extends TestCase {
-	protected static final Logger log = Logger.getLogger(VerbNetImporter.class);
+	protected static final Logger log = LoggerFactory.getLogger(VerbNetImporter.class);
 
 	private final VerbNetImporter importer = new VerbNetImporter();
-
-	/**
-	 * @param name
-	 */
-	public VerbNetImporterTests(String name) {
-		super(name);
-	}
-
-	/**
-	 * @see com.rreganjr.TestCase#setUp()
-	 */
-	@Override
-	protected void setUp() throws Exception {
-		super.setUp();
-	}
-
-	/**
-	 * @see com.rreganjr.TestCase#tearDown()
-	 */
-	@Override
-	protected void tearDown() throws Exception {
-		super.tearDown();
-	}
 
 	/**
 	 * Test method for
 	 * {@link com.rreganjr.nlp.impl.verbnet.VerbNetImporter#loadVerbNetClass(java.io.InputStream)}.
 	 */
+	@Test
+	@Disabled("VerbNet files not available in test environment")
 	public void testLoadVerbNetClass() throws Exception {
 		String verbNetSchemaFilePath = "nlp/verbnet-2.1/vn_schema-3.xsd";
 		String verbNetDirectoryPath = "nlp/verbnet-2.1/";

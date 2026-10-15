@@ -1,10 +1,8 @@
 /*
- * $Id: $
- *
- * Copyright 2025 Ron Regan Jr. All Rights Reserved.
- *
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,9 +33,10 @@ import com.rreganjr.nlp.dictionary.ParseTag;
 import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
 import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 import com.rreganjr.nlp.impl.NLPProcessorFactoryImpl;
-import org.junit.Ignore;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
-@Ignore("Legacy OpenNLP/Stanford pipeline now out-of-sync with bundled models; disable until NLP stack is refreshed.")
+@Disabled("Legacy OpenNLP/Stanford pipeline now out-of-sync with bundled models; disable until NLP stack is refreshed.")
 public abstract class NLPTests extends TestCase {
 
 	private final NLPProcessorFactory processorFactory = new NLPProcessorFactoryImpl();
@@ -53,6 +52,8 @@ public abstract class NLPTests extends TestCase {
 		return text;
 	}
 
+	@Test
+	@Disabled
 	public void testSentencize() {
 		List<String> expectedSentences = Arrays
 				.asList(new String[] { "This is the first sentence.", "This is the second.",
@@ -74,6 +75,8 @@ public abstract class NLPTests extends TestCase {
 		}
 	}
 
+	@Test
+	@Disabled
 	public void testTokenize() {
 		List<String> expectedTokens = Arrays.asList(new String[] { "I", "bet", "Bob", "$", "1.25",
 				"that", "Pi", "is", "3.1415", "and", "e", "is", "2.7", "something", "." });
@@ -96,6 +99,8 @@ public abstract class NLPTests extends TestCase {
 		}
 	}
 
+	@Test
+	@Disabled
 	public void testPOSTagging() {
 		List<ParseTag> expectedTags = Arrays.asList(new ParseTag[] { ParseTag.PRP, // I
 				ParseTag.VBP, // bet
@@ -126,6 +131,8 @@ public abstract class NLPTests extends TestCase {
 	}
 
 	// TODO: move to dictionary tests
+	@Test
+	@Disabled
 	public void testSimilarWords() {
 		Set<String> expectedWords = new TreeSet<String>();
 		expectedWords.addAll(Arrays.asList(new String[] { "bread", "break", "bream", "cap", "chap",

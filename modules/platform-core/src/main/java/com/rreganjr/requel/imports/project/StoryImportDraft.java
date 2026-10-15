@@ -1,10 +1,8 @@
 /*
- * $Id: $
- *
- * Copyright 2025 Ron Regan Jr. All Rights Reserved.
- *
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,6 +34,7 @@ public class StoryImportDraft {
     private final String name;
     private final String description;
     private final String storyType;
+    private final String primaryActorExternalId;
     private final Set<String> goalExternalIds;
     private final Set<String> actorExternalIds;
     private final Set<String> annotationExternalIds;
@@ -47,6 +46,7 @@ public class StoryImportDraft {
         this.name = builder.name;
         this.description = builder.description;
         this.storyType = builder.storyType;
+        this.primaryActorExternalId = builder.primaryActorExternalId;
         this.goalExternalIds = Collections.unmodifiableSet(new HashSet<>(builder.goalExternalIds));
         this.actorExternalIds = Collections.unmodifiableSet(new HashSet<>(builder.actorExternalIds));
         this.annotationExternalIds =
@@ -72,6 +72,10 @@ public class StoryImportDraft {
     }
 
     public String getStoryType() { return storyType; }
+
+    public String getPrimaryActorExternalId() {
+        return primaryActorExternalId;
+    }
 
     public Set<String> getGoalExternalIds() {
         return goalExternalIds;
@@ -99,6 +103,7 @@ public class StoryImportDraft {
         private String name;
         private String description;
         private String storyType;
+        private String primaryActorExternalId;
         private Set<String> goalExternalIds = new HashSet<>();
         private Set<String> actorExternalIds = new HashSet<>();
         private Set<String> annotationExternalIds = new HashSet<>();
@@ -126,6 +131,11 @@ public class StoryImportDraft {
 
         public Builder storyType(String storyType) {
             this.storyType = storyType;
+            return this;
+        }
+
+        public Builder primaryActorExternalId(String primaryActorExternalId) {
+            this.primaryActorExternalId = primaryActorExternalId;
             return this;
         }
 

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,15 +28,21 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.ActorContainer;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.requel.project.command.AnalysisRequestSource;
 import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.ActorImpl;
@@ -50,7 +56,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editActorCommand")
 @Scope("prototype")
 public class EditActorCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
-		EditActorCommand {
+		EditActorCommand, AuthorizableCommand, ProjectScopedCommand, AnalysisRequestSource {
 
 	private Set<ActorContainer> actorContainers;
 	private Set<ActorContainer> addActorContainers;
@@ -163,6 +169,9 @@ public class EditActorCommandImpl extends AbstractEditProjectOrDomainEntityComma
 		} catch (NoSuchEntityException e) {
 		}
 
+		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
+		actorImpl = checkExpectedVersion(actorImpl);
+
 		if (actorImpl == null) {
 			actorImpl = getProjectRepository().persist(
 					new ActorImpl(projectOrDomain, editedBy, getName(), ""));
@@ -210,15 +219,43 @@ public class EditActorCommandImpl extends AbstractEditProjectOrDomainEntityComma
 		}
 	}
 
+	/**
+	 * Legacy fallback. The Actor path is migrated to the assistant SPI (issue #43):
+	 * the command-handler layer detects {@link AnalysisRequestSource} and dispatches
+	 * through {@code AnalysisRequestDispatcher}, so this method is normally not
+	 * invoked for actors. It is retained as a safe fallback.
+	 */
 	@Override
 	public void invokeAnalysis() {
 		if (isAnalysisEnabled()) {
-			// TODO: because getActor() is being called locally in the
-			// command, the DomainObjectWrappingAdvice that wraps persistence
-			// objects with a DomainObjectWrapper isn't getting invoked.
-			// Reloading the object through a repository solves the problem, but
-			// using aspectj may be better.
 			getAssistantManager().analyzeActor(getRepository().get(getActor()));
 		}
+	}
+
+	@Override
+	public ProjectOrDomainEntity getAnalysisTarget() {
+		return getActor();
+	}
+
+	@Override
+	public User getAnalysisTriggeredBy() {
+		return getEditedBy();
+	}
+
+	@Override
+	public Project getProject() {
+		// The registrar always sets projectOrDomain for actors; fall back to containers/entity
+		if (getProjectOrDomain() instanceof Project project) return project;
+		if (actorContainers != null && !actorContainers.isEmpty()) {
+			Object first = actorContainers.iterator().next();
+			if (first instanceof Project project) return project;
+		}
+		if (actor != null && actor.getProjectOrDomain() instanceof Project project) return project;
+		return null;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(Actor.class, "Edit");
 	}
 }

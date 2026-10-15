@@ -1,9 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
- * 
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,8 +33,10 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import jakarta.persistence.UniqueConstraint;
@@ -92,7 +93,9 @@ public abstract class AbstractStakeholder extends AbstractProjectOrDomainEntity 
 		this.type = type;
 	}
 
-	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.REFRESH }, optional = true)
+	// #323: no REFRESH cascade up to the user - a refresh reloads the entity and what it owns,
+	// nothing above it (the user's roles reach every project the user is on).
+	@ManyToOne(targetEntity = UserImpl.class, optional = true)
 	protected User getUser() {
 		return user;
 	}
@@ -105,8 +108,13 @@ public abstract class AbstractStakeholder extends AbstractProjectOrDomainEntity 
 	 * @see com.rreganjr.requel.project.GoalContainer#getGoals()
 	 */
 	@Override
-	@OneToMany(targetEntity = GoalImpl.class, cascade = { CascadeType.MERGE, CascadeType.PERSIST,
+	// #261: many-to-many, as for actors and stories. It was one-to-many, whose join table makes
+	// goals_id unique, so a goal could belong to only one stakeholder. V33 drops that key.
+	@ManyToMany(targetEntity = GoalImpl.class, cascade = { CascadeType.MERGE, CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
+	@JoinTable(name = "stakeholders_goals",
+			joinColumns = @JoinColumn(name = "abstract_stakeholder_id"),
+			inverseJoinColumns = @JoinColumn(name = "goals_id"))
 	@XmlElementWrapper(name = "goals", namespace = "http://www.rreganjr.com/requel")
 	@XmlIDREF
 	@XmlElement(name = "goalRef", type = GoalImpl.class, namespace = "http://www.rreganjr.com/requel")

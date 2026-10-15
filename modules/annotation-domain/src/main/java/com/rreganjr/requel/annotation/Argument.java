@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,8 +30,20 @@ import com.rreganjr.platform.CreatedEntity;
 public interface Argument extends Comparable<Argument>, CreatedEntity {
 
 	/**
+	 * @return the persistent identity of this argument, or {@code null} for
+	 *         transient instances.
+	 */
+	public Long getId();
+
+	/**
+	 * @return the optimistic-lock version; incremented on each
+	 *         user-initiated modification.
+	 */
+	public int getVersion();
+
+	/**
 	 * The position that the argument is for or against.
-	 * 
+	 *
 	 * @return
 	 */
 	public Position getPosition();

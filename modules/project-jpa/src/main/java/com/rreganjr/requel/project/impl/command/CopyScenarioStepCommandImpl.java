@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,7 +44,17 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("copyScenarioStepCommand")
 @Scope("prototype")
 public class CopyScenarioStepCommandImpl extends AbstractEditProjectCommand implements
-		CopyScenarioStepCommand {
+		CopyScenarioStepCommand, com.rreganjr.requel.project.ProjectScopedCommand, com.rreganjr.platform.command.AuthorizableCommand {
+
+	@Override
+	public com.rreganjr.requel.project.Project getProject() {
+		return (originalScenarioStep != null && originalScenarioStep.getProjectOrDomain() instanceof com.rreganjr.requel.project.Project p) ? p : null;
+	}
+
+	@Override
+	public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+		return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission(com.rreganjr.requel.project.Scenario.class, "Edit");
+	}
 
 	private Step originalScenarioStep;
 	private Step newScenarioStep;
@@ -79,7 +89,8 @@ public class CopyScenarioStepCommandImpl extends AbstractEditProjectCommand impl
 	}
 
 	public void setNewScenarioStepName(String newScenarioStepName) {
-		this.newScenarioStepName = newScenarioStepName;
+		// #398: names are saved trimmed, as the lookups by name expect.
+		this.newScenarioStepName = (newScenarioStepName == null) ? null : newScenarioStepName.trim();
 	}
 
 	@Override
@@ -102,8 +113,8 @@ public class CopyScenarioStepCommandImpl extends AbstractEditProjectCommand impl
 		} else {
 			newName = generateNewScenarioStepName(getNewScenarioStepName());
 		}
-		StepImpl newScenarioStep = getProjectRepository().persist(
-				new StepImpl(originalScenarioStep.getProjectOrDomain(), editedBy, newName,
+		StepImpl newScenarioStep = getProjectRepository()
+				.persist(new StepImpl(originalScenarioStep.getProjectOrDomain(), editedBy, newName,
 						originalScenarioStep.getText(), originalScenarioStep.getType()));
 
 		// TODO: this assumes that all annotations are appropriate for the new
@@ -123,18 +134,17 @@ public class CopyScenarioStepCommandImpl extends AbstractEditProjectCommand impl
 	private String generateNewScenarioStepName(String originalName) {
 		String newName = originalName;
 		try {
-			getProjectRepository().findScenarioByProjectOrDomainAndName(
+			getProjectRepository().findStepByProjectOrDomainAndName(
 					getOriginalScenarioStep().getProjectOrDomain(), newName);
 			int counter = 1;
 			newName = originalName + " " + counter;
 			while (true) {
 				try {
-					getProjectRepository().findScenarioByProjectOrDomainAndName(
+					getProjectRepository().findStepByProjectOrDomainAndName(
 							getOriginalScenarioStep().getProjectOrDomain(), newName);
 					counter++;
 					newName = originalName + " " + counter;
 				} catch (EntityException e) {
-					// new name is not in use
 					break;
 				}
 			}

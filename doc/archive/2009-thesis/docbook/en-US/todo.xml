@@ -1,0 +1,2018 @@
+  <chapter>
+      <title>Working with Requirements</title>
+    <sect1>
+      <info>
+        <title>Project Navigation</title>
+      </info>
+
+      <para>Figure 9 shows a close up of the project navigation tab with the
+      &quot;Purchase Order System&quot; project node in a closed state and the &quot;Requel&quot;
+      project node in an open state. Clicking on the project name opens the
+      &quot;Project Overview&quot; panel for editing the name, description and
+      organization of the project, as well as adding issues and notes to the
+      project. Clicking on the + next to a project name in the project
+      navigation tab expands the project node to display the links to the
+      requirements elements.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="206.25pt" fileref="0300000B.png" width="162pt" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+    </sect1>
+
+    <sect1>
+      <info>
+        <title>Creating and Editing Stakeholders</title>
+      </info>
+
+      <para>The first task to do after creating a new project is adding
+      stakeholders for the users that will work on the project. Clicking on
+      the &quot;Stakeholders&quot; link under a project in the navigation tab opens the
+      stakeholder navigator, which lists all the stakeholders on the project,
+      ordered by username as shown in Figure 10.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="194.25pt" fileref="0300000C.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Users authorized to edit stakeholders will see an &quot;Edit&quot; link in
+      the first column of each stakeholder entry in the table and an &quot;Add&quot;
+      button below the table. If you are not authorized to edit stakeholders
+      the first column contains a &quot;View&quot; link that opens the stakeholder
+      editor, but with read-only access. Clicking on the column titles sorts
+      the stakeholders by that column. The first click sorts them in ascending
+      order alphabetically as shown in Figure 11.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="133.5pt" fileref="0300000D.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>The column indicates the sorting order with an arrow next to the
+      column name. An arrow pointing up indicates ascending order and an arrow
+      pointing down indicates descending order. Clicking on the column title,
+      when it is sorted in ascending order, changes the sorting to descending
+      order. Note: stakeholders without a name, for example the admin and
+      project stakeholders in Figure 11, appear at the end of the
+      results.</para>
+
+      <para>There will always be at least two stakeholders, the person that
+      created the project and the &quot;Analysis Assistant&quot; that the system uses to
+      indicate issues and notes created by the system.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="205.5pt" fileref="0300000E.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Clicking the &quot;Add&quot; button on the stakeholder navigator screen
+      opens the &quot;New Stakeholder&quot; screen shown in Figure 12. This screen is
+      used for creating both user and non-user stakeholders for the project.
+      To create a user stakeholder, leave the &quot;Non-User Name&quot; field empty and
+      select a user from the &quot;User&quot; field, as shown in Figure 13.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="133.5pt" fileref="0300000F.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Only administrators can create user accounts. If a person that you
+      want to add to a project doesn’t appear in the list they may not have a
+      user account. You should ask the Requel administrator to add an account
+      for that person, with the &quot;Project User&quot; role.</para>
+
+      <para>You may optionally enter or select a team name in the &quot;Team&quot;
+      field. The team is for documentation purposes only. Customer and
+      Supplier are examples of team names.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="141.75pt" fileref="03000010.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>User stakeholders can view all requirements elements on a project,
+      but require explicit authorization to edit or delete requirements. The
+      &quot;Stakeholder Permissions&quot; field contains a tree with nodes for each of
+      the requirement element types. Each of the nodes has child nodes with
+      permissions for actions such as &quot;Delete&quot;, &quot;Edit&quot;, and &quot;Grant&quot;, and a
+      checkbox as shown in Figure 14. Checking a box grants permission to the
+      user to perform that action on that element type; unchecking the box
+      revokes the permission. For example in Figure 14 the checkbox for &quot;Edit&quot;
+      under &quot;Actor&quot; is checked indicating the user can create and edit
+      actors.</para>
+
+      <para>The &quot;Grant&quot; action permission allows a user with stakeholder
+      &quot;Edit&quot; permission to grant permissions for that element type to other
+      users. For example, if stakeholder &quot;A&quot; has stakeholder edit permission
+      and story grant permission, he or she can edit stakeholder &quot;B&quot; and grant
+      or revoke &quot;Delete&quot;, &quot;Edit&quot;, and &quot;Grant&quot; permission for actors to
+      stakeholder &quot;B&quot;. If stakeholder &quot;A&quot; does not have grant permission for
+      story elements, he or she can not grant or revoke permissions related to
+      stories to stakeholder &quot;B.&quot;</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="170.25pt" fileref="03000011.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Non-user stakeholders represent organizations or regulatory bodies
+      that don’t have a user representative, but have interests or goals that
+      the system must meet. Figure 15 shows a non-user stakeholder &quot;Harvard
+      University&quot; with one goal named &quot;Work is your own&quot;; representing that
+      projects submitted for homework are expected to be your own work.
+      Non-user stakeholders are created using the same screen as user
+      stakeholders, but instead of selecting a user, a name is entered in the
+      &quot;Non-User Name&quot; field. Non-user stakeholders may have a team.
+      Stakeholder permissions don’t make sense for non-user
+      stakeholders.</para>
+
+      <para>After creating a stakeholder, goals can be added to it. Both user
+      and non-user stakeholders can have goals. A new goal can be added by
+      clicking the &quot;New&quot; button, which opens the &quot;New Goal&quot; screen, or an
+      existing goal can be added to the stakeholder by clicking the &quot;Find&quot;
+      button and selecting a goal from the goal selector panel. Figure 16
+      shows the goal selector panel with the selected goal highlighted.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="204.75pt" fileref="03000012.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>The full goal can be viewed or edited by clicking on the &quot;Edit&quot;
+      link in the first column of the goal table. The goal can be removed from
+      the stakeholder by clicking the &quot;Remove&quot; link as shown in Figure 15.
+      Removing a goal from a stakeholder does not delete it from the
+      system.</para>
+    </sect1>
+
+    <sect1>
+      <info>
+        <title>Creating and Editing Goals</title>
+      </info>
+
+      <para>Goals are used to indicate desired properties, qualities,
+      constraints, features and functions that the system must support. For
+      example, &quot;Easy to Use&quot; is a high-level quality goal; &quot;Must run on Linux&quot;
+      is a technology constraint; &quot;Support an IBIS style of discussion&quot; is a
+      feature.</para>
+
+      <para>Clicking on the &quot;Goals&quot; link in the project navigation tab opens
+      the goal navigator screen shown in Figure 17. The goal navigator has a
+      table with the name of each goal, who created it, and when it was
+      created. If you are authorized to edit goals the first column contains
+      an &quot;Edit&quot; link and below the table is an &quot;Add&quot; button. If you are not
+      authorized to edit goals the first column contains a &quot;View&quot; link that
+      opens the goal editor for read-only viewing.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="192pt" fileref="03000013.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Clicking the add button opens the &quot;New Goal&quot; screen shown in
+      Figure 18. Goals have a name, which is a short one-line description, and
+      a text body that is the full description of the goal. The goal name must
+      be unique in a project. After entering a name and text body, click the
+      save button at the bottom of the screen to create the goal. If the name
+      is unique the system creates the goal and adds it to the goal navigator
+      table.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="192pt" fileref="03000014.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>If the goal was created from another requirements element such as
+      a stakeholder or use case, then the goal is also added to the goals
+      field of that element. All the entities that refer to a goal are shown
+      in the goal editor’s &quot;Referring Entities&quot; table shown in Figure
+      19.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="91.5pt" fileref="03000015.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Upon saving the goal, the system initiates analysis of the goal as
+      a background task referred to as the &quot;Automated Assistant.&quot; The
+      assistant adds notes and issues to the goal as it analyzes it. During
+      analysis of a goal the assistant identifies unknown or misspelled words;
+      potential &quot;significant terms&quot; to add to the glossary; potential actors
+      that don’t already exist in the project; and complex sentences that may
+      be difficult to understand. You may work on any requirements elements as
+      the assistant analyzes them; the assistant will not interfere with your
+      work. See the Working with Analysis Issues section for more information
+      about the analysis.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="86.25pt" fileref="03000016.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Goals can have relationships with other goals listed in the goal
+      editor’s &quot;Relations to Other Goals&quot; field, as shown in Figure 20. The
+      relationships can be used to add traceability of goals from high level
+      soft goals to specific functional requirements and as an indication of
+      how goals interact with each other. Goals may support or conflict with
+      each other. Conflicts help to identify places where tradeoffs may be
+      needed, and to document the rationale behind the decisions made. Goal
+      relations are directional, for example if goal &quot;A&quot; supports goal &quot;B&quot;
+      there is a relationship from goal &quot;A&quot; to goal &quot;B&quot;, but not from goal &quot;B&quot;
+      to goal &quot;A&quot;.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="186pt" fileref="03000017.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Clicking the &quot;Add&quot; button opens the &quot;New Goal Relation&quot; editor as
+      shown in Figure 21. A goal relation has a &quot;From Goal&quot;, a &quot;To Goal&quot;, and
+      the relation type. The editor defaults the &quot;From Goal&quot; selector to the
+      goal in the editor where the add button was clicked. Both the &quot;To&quot; and
+      &quot;From&quot; goal fields list all the goals in the project as possible options
+      as shown in Figure 22. After selecting the &quot;To Goal&quot; and relation type,
+      clicking save creates the relationship and adds it to the goal relations
+      table of the original goal as shown in Figure 20.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="193.5pt" fileref="03000018.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+    </sect1>
+
+    <sect1>
+      <info>
+        <title>Creating and Editing Stories</title>
+      </info>
+
+      <para>Stories are simple narratives of how a user interacts with the
+      system. Stories can be used to describe how things work before the new
+      system is in place, i.e. the current state of affairs, or how things
+      will be when the new system is in place. Stories can describe negative
+      cases, such as problems with the current system, or how the new system
+      should behave in a bad situation.</para>
+
+      <para>Clicking the &quot;Stories&quot; link in the project navigator tab opens the
+      stories navigation screen as shown in Figure 23.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="186pt" fileref="03000019.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>The stories navigator has a table with the name, type, who created
+      it, and when it was created. If you are authorized to edit stories the
+      first column contains an &quot;Edit&quot; link and below the table is an &quot;Add&quot;
+      button. If you are not authorized to edit stories the first column
+      contains a &quot;View&quot; link that opens the story editor in read-only
+      mode.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="186.75pt" fileref="0300001A.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Clicking the &quot;Edit&quot; button for an existing story opens the story
+      editor screen shown in Figure 24. A story has a short one-line name, a
+      type of &quot;Success&quot; or &quot;Exception&quot; and a text body. The story name must be
+      unique in the project. Clicking the &quot;Save&quot; button, located at the bottom
+      of the screen, validates and creates or updates the story and initiates
+      analysis as a background task. See the Working with Analysis Issues
+      section for more information about the analysis.</para>
+
+      <para>Optionally, stories can have goals and actors assigned. The actors
+      add traceability to the types of users appropriate to the story. The
+      goals can be used to indicate the goals supported by the story or
+      derived from the story. For both goals and actors there are &quot;New&quot; and
+      &quot;Find&quot; buttons as shown in Figure 25. The &quot;New&quot; button is used to open
+      an editor for creating a new actor or goal that gets assigned to the
+      story. The &quot;Find&quot; button is used to open a selector, like the one in
+      Figure 16, to choose an existing goal or actor.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="170.25pt" fileref="0300001B.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+    </sect1>
+
+    <sect1>
+      <info>
+        <title>Creating and Editing Actors</title>
+      </info>
+
+      <para>Actors represent the types of users that will interact with the
+      system. Actors may be human users or other systems. Clicking on the
+      &quot;Actors&quot; link in the project navigation tab opens the actor navigator
+      screen shown in Figure 26. The actor navigator contains a table of the
+      actors with columns for the name, description, who created it, and when
+      it was created. If you are authorized to edit actors the first column
+      contains an &quot;Edit&quot; link and below the table is an &quot;Add&quot; button. If you
+      are not authorized to edit actors the first column contains a &quot;View&quot;
+      link that opens the actor editor for read-only viewing.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="171.75pt" fileref="0300001C.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Clicking the &quot;Add&quot; button opens the &quot;New Actor&quot; editor as shown in
+      Figure 27.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="177pt" fileref="0300001D.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>An actor has a name that must be unique in the project, and a
+      description. The description can be used to describe the actor’s primary
+      function or to describe an example &quot;persona&quot; for a person or system that
+      typifies the actor. For example the following is a persona for a user of
+      the Requel system:</para>
+
+      <blockquote>
+        <para>Theresa is an accountant for Bailey Pet Supply tasked with
+        specifying the requirements for integrating the purchase order system
+        with the accounting system using the system. Theresa has never used a
+        requirements tool before and has no projects. Theresa will be an
+        end-user of the resulting system.</para>
+      </blockquote>
+
+      <para>Actors may have goals that identify the functions of the system
+      relevant to the actor, or general interests that the actor has that the
+      system must meet. Figure 28 shows the goal references of an actor in the
+      Requel system.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="130.5pt" fileref="0300001E.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>From the actor editor new goals can be added using the &quot;New&quot;
+      button or existing goals can be added using the &quot;Find&quot; button. Goals
+      attached to the actor can be removed by clicking the &quot;Remove&quot; link in
+      the first column of the goals table. Goals that are removed from the
+      actor are not deleted from the project.</para>
+
+      <para>Like other requirements element actors are analyzed when saved.
+      See the Working with Analysis Issues section for more information about
+      the analysis.</para>
+    </sect1>
+
+    <sect1>
+      <info>
+        <title>Creating and Editing Scenarios</title>
+      </info>
+
+      <para>Scenarios are semi-structured sequences of steps where the actor
+      invokes an action on the system in one step, followed by a response by
+      the system in the next step. Scenarios are composed of an ordered list
+      of steps where a step may be a single action or a reference to another
+      scenario with its own set of steps. Scenarios may be used as stand alone
+      entities that describe an interaction more explicitly than a story, or
+      in conjunction with a use case.</para>
+
+      <para>Clicking on the &quot;Scenarios&quot; link in the project navigator opens
+      the scenarios navigator screen as shown in Figure 29. In addition to the
+      standard name, created by, and date created columns, the scenario
+      navigator has two additional columns: &quot;Top Level&quot; and &quot;Type&quot;. The top
+      level column indicates if a scenario is used as a step in another
+      scenario. Scenarios with a &quot;Yes&quot; value means the scenario is a top level
+      scenario and not used in other scenarios. The type column indicates how
+      the scenario is used, for example if it is used as an alternate,
+      exceptional, or optional sequence of steps in another scenario.</para>
+
+      <para>If you are authorized to edit scenarios the first column contains
+      an &quot;Edit&quot; link and below the table is an &quot;Add&quot; button. If you are not
+      authorized to edit scenarios the first column contains a &quot;View&quot; link
+      that opens the scenario editor for read-only viewing.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="185.25pt" fileref="0300001F.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Clicking the &quot;Add&quot; button opens the &quot;New Scenario&quot; editor as shown
+      in Figure 30. A scenario has a name, type, optional descriptive text,
+      and a sequence of steps. The scenario name must be unique in a project.
+      The type of scenario is most relevant for scenarios that are steps in
+      other scenarios and is described in the Editing Scenario Steps section,
+      which gives a description of how to add and edit the steps of a
+      scenario.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="161.25pt" fileref="03000020.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>The scenario editor lists the scenarios that use the scenario
+      being edited in the &quot;Referring Scenarios&quot; table as shown in Figure 31.
+      Clicking the edit link in the table opens the scenario editor for that
+      scenario.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="80.25pt" fileref="03000021.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+    </sect1>
+
+    <sect1>
+      <info>
+        <title>Creating and Editing Use Cases</title>
+      </info>
+
+      <para>Use cases represent functional requirements in terms of how a user
+      interacts with the system. In the Requel system a use case is a
+      confluence of stories, goals, and actors with a scenario to describe the
+      behavior of a specific function of the system.</para>
+
+      <para>Clicking on the &quot;Use Cases&quot; link in the project navigator opens
+      the use case navigator screen as shown in Figure 32. The navigator
+      includes columns for the use case name, primary actor, created by
+      username, and date created. If you are authorized to edit use cases the
+      first column contains an &quot;Edit&quot; link and below the table is an &quot;Add&quot;
+      button. If you are not authorized to edit use cases the first column
+      contains a &quot;View&quot; link that opens the use case editor for read-only
+      viewing.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="175.5pt" fileref="03000022.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Clicking the &quot;Add&quot; button opens the &quot;New Use Case&quot; editor as shown
+      in Figure 33. A use case has a name, which must be unique in a project,
+      an optional description, and a primary actor. The primary actor input is
+      a combo-box where the actor can be selected from the drop-down list, or
+      a name can be entered. If a name is entered, when the use case is saved,
+      a new actor is created, added to the project, and set as the primary
+      actor. The description and other information of the actor can be edited
+      later, by opening the actor editor through the actor navigation
+      screen.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="175.5pt" fileref="03000023.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>A use case can contain a set of goals that represent what the
+      primary actor is trying to accomplish with the use case. Goals are added
+      and removed from use cases just like goals on other entities, such as on
+      the actor editor screen as shown in Figure 28.</para>
+
+      <para>Most use cases only have a single primary actor, but in some cases
+      additional actors are needed to show complex interactions where the
+      system interacts with external services to support the user’s actions.
+      Auxiliary actors are displayed in a table as shown in Figure 34. Like
+      goals, a new actor can be created and added, or an existing actor can be
+      added to the auxiliary actors of the use case.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="84pt" fileref="03000024.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Use cases can reference multiple stories as example of successful
+      and exceptional interactions with the system. Stories are useful as
+      rationale for understanding the scenario of the use case. Stories are
+      displayed in a table as shown in Figure 35 and can be added and removed
+      just like actors and goals.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="90.75pt" fileref="03000025.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Editing the scenario of the use case is described in the Editing
+      Scenario Steps section.</para>
+    </sect1>
+
+    <sect1>
+      <info>
+        <title>Editing Scenario Steps</title>
+      </info>
+
+      <para>The scenario step editor is used by both the scenario editor and
+      use case editor screens. When creating a new scenario the steps editor
+      appears with no steps and two buttons as shown in Figure 36.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="70.5pt" fileref="03000026.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>The &quot;Add Step&quot; button creates an empty step node as shown in
+      Figure 37. New steps are added below any existing steps.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="30pt" fileref="03000027.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <informaltable>
+        <tgroup cols="2">
+          <colspec colname="column-1" colwidth="1260*" />
+
+          <colspec colname="column-2" colwidth="5940*" />
+
+          <tbody>
+            <row>
+              <entry>
+                <figure>
+                  <info />
+
+                  <mediaobject>
+                    <imageobject>
+                      <imagedata depth="29.25pt" fileref="03000028.png"
+                                 width="36.75pt" />
+                    </imageobject>
+                  </mediaobject>
+                </figure>
+              </entry>
+
+              <entry>
+                <para>The &quot;slotted puzzle&quot; icon is used to drag a step to a
+                new location in the scenario by dropping it on the tabbed
+                puzzle piece. A step can be dragged from and dropped to any
+                sub-step level.</para>
+              </entry>
+            </row>
+
+            <row>
+              <entry>
+                <figure>
+                  <info />
+
+                  <mediaobject>
+                    <imageobject>
+                      <imagedata depth="34.5pt" fileref="03000029.png"
+                                 width="36pt" />
+                    </imageobject>
+                  </mediaobject>
+                </figure>
+              </entry>
+
+              <entry>
+                <para>The &quot;tabbed puzzle&quot; icon is the drop target for moving a
+                step. Dropping a step on the target inserts that step in the
+                location and moves the existing all subsequent steps down by
+                one.</para>
+              </entry>
+            </row>
+
+            <row>
+              <entry>
+                <figure>
+                  <info />
+
+                  <mediaobject>
+                    <imageobject>
+                      <imagedata depth="27.75pt" fileref="0300002A.png"
+                                 width="27.75pt" />
+                    </imageobject>
+                  </mediaobject>
+                </figure>
+              </entry>
+
+              <entry>
+                <para>The &quot;X&quot; button removes the step from the scenario and
+                moves all subsequent steps up by one. If the step is a simple
+                step with no sub-steps it is deleted from the project. If the
+                step is a sub-scenario it is removed, but not deleted.</para>
+              </entry>
+            </row>
+
+            <row>
+              <entry>
+                <figure>
+                  <info />
+
+                  <mediaobject>
+                    <imageobject>
+                      <imagedata depth="27pt" fileref="0300002B.png"
+                                 width="27pt" />
+                    </imageobject>
+                  </mediaobject>
+                </figure>
+              </entry>
+
+              <entry>
+                <para>The &quot;sub-step&quot; button adds a new sub-step to this step.
+                If the step has other sub-steps the new one is added at the
+                end of the sequence.</para>
+              </entry>
+            </row>
+          </tbody>
+        </tgroup>
+
+        <caption>
+          <para>Table 1: Step Node Controls</para>
+        </caption>
+      </informaltable>
+
+      <para>Sub-steps can be nested to any level. Each step that contains
+      sub-steps has a &quot;-&quot; button to the left of all other controls when the
+      sub-steps are visible. Clicking it hides the sub-steps. When a step’s
+      sub-steps are hidden the step has a &quot;+&quot; button, which exposes the
+      sub-steps when clicked.</para>
+    </sect1>
+
+    <sect1>
+      <info>
+        <title>Generating Documents</title>
+      </info>
+
+      <para>Once the requirements are in Requel you will want to generate a
+      specification document to provide to the developers to build the system.
+      Just as there are many processes for acquiring requirements, there are
+      many formats for specifying requirements. Requel supports creating
+      custom documentation using the XML Stylesheet Language Transformations
+      (XSLT) language to transform the requirements from an XML format into a
+      specification document. XSLT is a powerful language that can transform
+      XML into a variety of structured or unstructured document formats such
+      as HTML, PDF, and Microsoft Office documents using the Office Open XML
+      format.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="175.5pt" fileref="0300002E.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Clicking on the &quot;Documents&quot; link in the project navigation opens
+      the documents navigator as shown in Figure 40. Each entry in the table
+      represents an XSLT script for generating a document. If you are
+      authorized to edit documents (in the stakeholder permissions it is
+      labeled as ReportGenerator) the first column contains an &quot;Edit&quot; link and
+      below the table is an &quot;Add&quot; button. If you are not authorized to edit
+      documents the first column contains a &quot;View&quot; link that opens the
+      document editor for read-only viewing.</para>
+
+      <para>The second column of the table holds a &quot;Run&quot; link that executes
+      the XSLT script on the requirements to generate a document. The document
+      is returned to the browser, which gives you the option to open it or
+      save it as shown in Figure 41. The document will have the project’s name
+      as the file name with an appropriate extension for the type of document
+      as a suffix. For example, an HTML document for a project named &quot;Requel&quot;
+      will be named &quot;Requel.html&quot;.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="175.5pt" fileref="0300002F.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>The built-in &quot;HTML Specification&quot; document is added to all
+      projects when they are created. It generates a simply formatted Web page
+      with all requirements elements as shown in Figure 42. There is a section
+      for each of the requirement element types: stakeholders, actors, goals,
+      stories, use cases and scenarios. At the top of the document is a table
+      of contents that links to each section and also to each element of the
+      requirements.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="216.75pt" fileref="03000030.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+    </sect1>
+
+    <sect1>
+      <info>
+        <title>Adding a Document Generator</title>
+      </info>
+
+      <para>Clicking the &quot;Add&quot; button opens the &quot;New Document&quot; editor as shown
+      in Figure 43. A document has a name, which must be unique in the
+      project, and the XSLT script text.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="186pt" fileref="03000031.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>An XSLT can be uploaded from your local system by clicking the
+      &quot;Browse&quot; button, finding the file with the file upload dialog, and then
+      clicking the &quot;Upload&quot; button. The contents of the XSLT will be loaded in
+      the &quot;Text&quot; field. You can edit the XSLT in the text box, but it is not
+      an effective tool for more than simple text changes.</para>
+    </sect1>
+
+    <sect1>
+      <info>
+        <title>Working with Terms</title>
+      </info>
+
+      <para>Each project has a glossary of terms. Using a glossary to
+      explicitly define how words are used in a project can help improve
+      understanding by using a consistent and explicitly defined set of terms.
+      Clicking on the &quot;Terms&quot; link in the project navigator opens the terms
+      navigator screen shown in Figure 44. If you are authorized to edit terms
+      (in the stakeholder permissions it is labeled as GlossaryTerm) the first
+      column contains an &quot;Edit&quot; link and below the table is an &quot;Add&quot; button.
+      If you are not authorized to edit terms the first column contains a
+      &quot;View&quot; link that opens the term editor for read-only viewing.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="177pt" fileref="03000032.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>The terms navigator shows the text of the term in the &quot;Name&quot;
+      column and the full text of the definition. The canonical term column
+      contains the name of another term if the term is not the preferred term
+      for the concept. For example the term &quot;the application&quot; in Figure 45 has
+      the term &quot;The system&quot; as the canonical term. Ideally there should only
+      be one term per concept and the system has a feature to solve this
+      problem described below.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="16.5pt" fileref="03000033.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Clicking the &quot;Edit&quot; button on a term opens the term editor shown
+      in Figure 46. The editor has text fields for the name and description
+      and a selector button for choosing a canonical term.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="178.5pt" fileref="03000034.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>The selector button displays &quot;&lt;nothing selected&gt;&quot; when the
+      term doesn’t have a canonical term. Clicking the &quot;Select&quot; button opens a
+      selector screen that looks like the navigator screen. When a canonical
+      term is selected the name of the term shows up to the left of the button
+      as shown in Figure 47. When creating a new term or changing the name of
+      the term, the system scans all the requirements and adds
+      cross-references between the elements and the term.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="36.75pt" fileref="03000035.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>As stated before, ideally there should only be one term per
+      concept. In many cases different people use different terms to refer to
+      the same thing when writing requirements individually. To solve the
+      problem Requel has function that will replace all the occurrences of a
+      term with its canonical term in all the requirement elements. First, all
+      the terms need to be added to the glossary. The automated assistant will
+      probably create issues identifying them as potential glossary terms;
+      resolving these issues will create the terms and add references to all
+      the requirement elements that use them. For all the terms that you want
+      to replace, edit them and select the preferred term as the canonical
+      term. At the bottom of the term editor is a &quot;Replace Term&quot; button shown
+      in Figure 48. Clicking the button causes the system to update all the
+      occurrences of the term in the requirements elements with its canonical
+      term.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="42pt" fileref="03000036.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+    </sect1>
+  </chapter>
+
+  <chapter>
+    <info>
+      <title>Discussing and Negotiating Requirements</title>
+    </info>
+
+    <para>This section describes adding notes and issues to requirements, and
+    negotiating resolutions to issues.</para>
+
+    <para>Discussion and negotiation are an important aspect of collaboration.
+    For example a stakeholder adds an issue indicating a goal needs more
+    details. Other stakeholders then propose solutions to the issue, and argue
+    the merits of each with arguments supporting or conflicting with the
+    potential solution. Once all the proposed solutions have been discussed,
+    one can be chosen as the resolution.</para>
+
+    <sect1>
+      <info>
+        <title>Adding Notes and Issues</title>
+      </info>
+
+      <para>All the requirements elements support adding notes and issues.
+      Each of the requirements editors has an &quot;Annotations&quot; table with the
+      notes and issues as shown in Figure 49. If you are authorized to edit
+      annotations the first column contains an &quot;Edit&quot; link and below the table
+      are &quot;Add Issue&quot; and &quot;Add Note&quot; buttons. If you are not authorized to
+      edit annotations the first column contains a &quot;View&quot; link that opens the
+      note or issue editor for read-only viewing. Note: typically you will
+      want all stakeholders to have &quot;Edit&quot; permission for annotations.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="180pt" fileref="03000037.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>The type column in the table indicates if the annotation is a note
+      or issue. The status column will always have the value &quot;Informational&quot;
+      for notes and either &quot;Unresolved&quot; or &quot;Resolution: …&quot; for issues. When an
+      issue is resolved the status will start with &quot;Resolution:&quot; followed by
+      the text of the position that resolved the issue. The &quot;Must be
+      Resolved?&quot; column will always have &quot;No&quot; for notes and either &quot;Yes&quot; or
+      &quot;No&quot; for issues. The &quot;Text&quot; column contains the full text of the
+      issue.</para>
+
+      <para>Clicking on the &quot;Add Note&quot; button opens the &quot;New Note&quot; editor as
+      shown in Figure 50. A note only has the text of the note.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="178.5pt" fileref="03000038.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>There isn’t a way to find existing notes and add them to multiple
+      requirement elements, but the system automatically detects adding notes
+      with identical text and instead of creating a new note it will add the
+      existing note to the requirement. Figure 51 shows a note shared by two
+      goals, indicated in the &quot;Referring Entities&quot; table.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="217.5pt" fileref="03000039.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Clicking on the &quot;Add Issue&quot; button opens the &quot;New Issue&quot; editor as
+      shown in Figure 52. An issue has text, a must be resolved checkbox, and
+      positions. The must be resolved property is only for documentation
+      purposes.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="178.5pt" fileref="0300003A.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>After an issue is saved positions can be added by users authorized
+      to edit issues by clicking the &quot;Add&quot; button below the positions table as
+      shown in Figure 53.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="108pt" fileref="0300003B.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Positions represent potential solutions to an issue. The position
+      editor has a text field to enter the text of the position and a table of
+      arguments that argue for or against the position as a solution to the
+      issue, as shown in Figure 54. After a position is saved arguments can be
+      added by users authorized to edit issues by clicking the &quot;Add&quot; button
+      below the arguments table.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="190.5pt" fileref="0300003C.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>Arguments are the reasons why a particular position of an issue
+      should or should not be chosen as the solution. Arguments have text
+      description and a support level with values from &quot;strongly against&quot; to
+      &quot;strongly for.&quot; Clicking the add or edit button opens the argument
+      editor shown in Figure 55. The argument editor has a field for entering
+      the text of the argument and a drop down list with the support
+      levels.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="180.75pt" fileref="0300003D.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>All the open issues for all the elements of a project can be seen
+      on the &quot;Open Issues&quot; screen as shown in Figure 56. The screen can be
+      opened from the project navigator &quot;Open Issues&quot; link. The issues screen
+      has a &quot;View&quot; link for each issue that opens the issue editor. The issues
+      table has a column labeled &quot;Annotatables&quot; that lists out all of the
+      requirements elements that are assigned to the issue.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="178.5pt" fileref="0300003E.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+    </sect1>
+
+    <sect1>
+      <info>
+        <title>Working with Analysis Issues</title>
+      </info>
+
+      <para>Every time a requirement element is saved the system’s &quot;Automated
+      Assistant&quot; analyses it and adds issues for potential problems or
+      improvements. The issues will concern potential spelling errors or
+      unfamiliar words, possible glossary terms and actors, complex sentences,
+      and poorly structured scenario steps. Issues added during analysis will
+      always have the &quot;assistant&quot; user as the creator as shown in the second
+      column from the right in Figure 57.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="35.25pt" fileref="0300003F.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>The issues added by the assistant have specialized positions that
+      automate the task described in the position. Figure 58 shows the
+      positions of the issue &quot;The phrase ‘a project’ is a potential glossary
+      term, actor, or domain object&quot; from Figure 57. The position &quot;Ignore this
+      phrase&quot; resolves the issue without taking any action. The position &quot;Add
+      ‘a project’ to the project glossary&quot; adds the term &quot;a project&quot; to the
+      glossary and a reference to all the project elements that are assigned
+      to the issue, when used to resolve the issue.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="130.5pt" fileref="03000040.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <informaltable>
+        <tgroup cols="2">
+          <colspec colname="column-1" colwidth="3438*" />
+
+          <colspec colname="column-2" colwidth="5418*" />
+
+          <tbody>
+            <row>
+              <entry>
+                <para>
+                  <emphasis role="bold">Position Text</emphasis>
+                </para>
+              </entry>
+
+              <entry>
+                <para>
+                  <emphasis role="bold">Action taken when the position is used
+                  to resolve the issue.</emphasis>
+                </para>
+              </entry>
+            </row>
+
+            <row>
+              <entry>
+                <para>Add "…" to the project glossary.</para>
+              </entry>
+
+              <entry>
+                <para>Creates the term in the glossary and adds a reference to
+                all the project elements that are assigned to the
+                issue.</para>
+              </entry>
+            </row>
+
+            <row>
+              <entry>
+                <para>Add "…" as an actor to the project.</para>
+              </entry>
+
+              <entry>
+                <para>Creates a new actor in the project and adds a reference
+                to all the project elements that are assigned to the
+                issue.</para>
+              </entry>
+            </row>
+
+            <row>
+              <entry>
+                <para>Change the word "…" to "…".</para>
+              </entry>
+
+              <entry>
+                <para>Updates the name and text of all the requirement
+                elements that are assigned to the issue to replace the
+                original text with the new text.</para>
+              </entry>
+            </row>
+
+            <row>
+              <entry>
+                <para>Add "…" to the dictionary.</para>
+              </entry>
+
+              <entry>
+                <para>Adds the word to the systems global dictionary so that
+                future occurrences of the word will not be identified as
+                unknown.</para>
+              </entry>
+            </row>
+
+            <row>
+              <entry>
+                <para>Add the actor &quot;…&quot; to the use case.</para>
+              </entry>
+
+              <entry>
+                <para>Adds the actor to the auxiliary actors of the use
+                case.</para>
+              </entry>
+            </row>
+
+            <row>
+              <entry>
+                <para>Change &quot;…&quot; to the primary actor.</para>
+              </entry>
+
+              <entry>
+                <para>Replaces the text in the scenario step with the name of
+                the primary actor.</para>
+              </entry>
+            </row>
+          </tbody>
+        </tgroup>
+
+        <caption>
+          <para>Table 2: Automated Task Positions</para>
+        </caption>
+      </informaltable>
+    </sect1>
+  </chapter>
+
+  <chapter>
+    <info>
+      <title>Requel Setup</title>
+    </info>
+
+    <para>This section describes the setup of the Requel system. The system is
+    distributed as a Java Web Archive File (WAR) and requires only minimal
+    configuration to setup.</para>
+
+    <sect1>
+      <info>
+        <title>System Requirements</title>
+      </info>
+
+      <para>Requel is a Web application implemented in the Java language and
+      based on the Java Enterprise Edition (JEE5) platform, intended to run in
+      a standard Web container. Requel requires the standard Sun Microsystems
+      Java runtime version 6 update 4 or later to operate properly. Requel has
+      dependencies on Sun’s virtual machine and will not work with a
+      third-party virtual machine. Requel is known to work with versions 5.5
+      and 6.0 of the Apache Tomcat Web container.</para>
+
+      <para>Requel stores user and project data in a standard SQL database. It
+      is known to work with MySQL Server version 5.0. The database
+      initialization scripts may have MySQL specific syntax and commands, so
+      using a different database my require converting the SQL syntax of the
+      files.</para>
+    </sect1>
+
+    <sect1>
+      <info>
+        <title>Create a Database User</title>
+      </info>
+
+      <para>Before Requel can be installed a database user account must be
+      created. Requel will use this account to create and initialize the
+      database when first installed, and to update the requirements and user
+      data during normal operation. It is important that the account has all
+      privileges granted for the database that Requel will use.</para>
+
+      <para>The MySQL commands below create a user named ‘requel’ with the
+      password ‘password’ and grants all privileges to that user for all
+      objects in the database named ‘requeldb’. The database does not need to
+      be created ahead of time; Requel will create it on the first startup if
+      it doesn’t exist.</para>
+
+      <programlisting>
+				CREATE USER 'requel' IDENTIFIED BY 'password'; GRANT ALL PRIVILEGES ON requeldb.* TO requel; FLUSH
+				PRIVILEGES;
+			</programlisting>
+
+      <para>Figure 59 shows how to use the MySQL command line interface to
+      login as the root user and create the Requel user. If the Web server and
+      database server are on different physical servers, then in the create
+      user and grant commands append the Web server hostname or IP address to
+      the username. For example, requel@192.168.1.100.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="277.5pt" fileref="03000041.png" width="6in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+    </sect1>
+
+    <sect1>
+      <info>
+        <title>Configuration</title>
+      </info>
+
+      <para>The Requel system requires minimal configuration to get running.
+      The database settings are the only settings that must be configured
+      before the system can be used and they should be configured before
+      installing the WAR file in a Web server.</para>
+
+      <para>To configure the database settings the db.properties file must be
+      unpacked from the WAR file. This can be done using the Java jar command
+      as shown in Figure 60. Create a directory to hold the contents of the
+      WAR file and copy the file into that directory. Use the jar command
+      below to extract the file:</para>
+
+      <programlisting>
+				jar xvf requel.war WEB-INF\classes\db.properties
+
+			</programlisting>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="296.25pt" fileref="03000042.png" width="6in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>When the jar command completes there will be a WEB-INF directory.
+      Open the file WEB-INF\classes\db.properties in a text editor such as
+      WordPad in Windows as shown in Figure 61. You will need to set the
+      db.username, db.password, db.server, db.port, and db.name properties.
+      Note: the Requel database user must have database creation permission if
+      the database specified in the db.name property doesn’t already
+      exist.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="152.25pt" fileref="03000043.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>After saving the properties file, it must be added back to the WAR
+      file. Use the jar command below to add the updated properties file to
+      the war file as shown in Figure 62.</para>
+
+      <programlisting>
+				jar uvf requel.war WEB-INF\classes\db.properties
+
+			</programlisting>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="100.5pt" fileref="03000044.png" width="6in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>The WAR file is now ready to be deployed to a Web server.</para>
+    </sect1>
+
+    <sect1>
+      <info>
+        <title>Deploying to Apache Tomcat</title>
+      </info>
+
+      <para>Apache Tomcat is a freely available open source JEE Web container.
+      Use the Web application manger that comes with Tomcat to deploy the
+      Requel WAR file. Open a Web browser to the manager page of the Tomcat
+      server. The server prompts you for a username and password and then
+      displays the manager page as shown in Figure 63.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="225pt" fileref="03000045.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>At the bottom of the page is the WAR file deployment form as shown
+      in Figure 64. Use the browse button to locate the Requel WAR file with
+      the updated database properties and then click the Deploy button to
+      upload and install the application. It will typically take from between
+      five and twenty minutes for Requel to create and initialize the database
+      depending on the performance of the database server.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="69pt" fileref="03000046.png" width="371.25pt" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+
+      <para>When the deployment completes the application manager lists Requel
+      in the applications section as shown in Figure 65. Clicking the
+      &quot;/requel&quot; link in the &quot;Path&quot; column of the table connects to Requel and
+      the login screen should appear as shown in Figure 1. You should record
+      the URL from the address bar of the Web browser to send to users for
+      accessing the system.</para>
+
+      <figure>
+        <info />
+
+        <mediaobject>
+          <imageobject>
+            <imagedata depth="175.5pt" fileref="03000047.png" width="5in" />
+          </imageobject>
+        </mediaobject>
+      </figure>
+    </sect1>
+
+    <sect1>
+      <info>
+        <title>Completing the Setup</title>
+      </info>
+
+      <para>The first thing to do when the system is ready for access is to
+      login using the built-in administrator account and change the password.
+      The username and password are both set to ‘admin’ when the system is
+      initialized. See the User Administration section for instructions on
+      changing the password. You should also change the password of the
+      built-in project and assistant users.</para>
+
+      <para>The system is now ready to be used. The next step is creating
+      accounts for the users to access the system. See the User Administration
+      section for instructions on creating users.</para>
+    </sect1>
+  </chapter>
+
+  <chapter>
+    <info>
+      <title>User Administration</title>
+    </info>
+
+    <para>The primary task of system administrators is creating and managing
+    users. System users with the system administrator role are authorized to
+    edit user accounts for all users, and to add new users.</para>
+
+    <figure>
+      <info />
+
+      <mediaobject>
+        <imageobject>
+          <imagedata depth="125.25pt" fileref="03000048.png" width="147pt" />
+        </imageobject>
+      </mediaobject>
+    </figure>
+
+    <para>After logging in the left hand side of the screen will contain a tab
+    labeled &quot;Users&quot; with a &quot;New User&quot; button for creating new users and tree
+    containing all the users of the system as shown in Figure 66. Clicking the
+    new user button opens the &quot;New User&quot; editor as shown in Figure 67.
+    Clicking on a user name in the tree opens that user for editing. Each user
+    must have a username, password, organization, email address, and at least
+    one user role. The name and phone number are optional.</para>
+
+    <figure>
+      <info />
+
+      <mediaobject>
+        <imageobject>
+          <imagedata depth="214.5pt" fileref="03000049.png" width="5in" />
+        </imageobject>
+      </mediaobject>
+    </figure>
+
+    <para>The user name must be unique. If the chosen name is already in use
+    by another user, the system reports an error message to the right of the
+    username field as shown in Figure 68.</para>
+
+    <figure>
+      <info />
+
+      <mediaobject>
+        <imageobject>
+          <imagedata depth="27.75pt" fileref="0300004A.png" width="5in" />
+        </imageobject>
+      </mediaobject>
+    </figure>
+
+    <para>The user roles and permissions are used to authorize a user to
+    access different features of the system. The &quot;Project User Role&quot; grants
+    the user access to the project features of the system. The &quot;Create
+    Projects&quot; permission under the project user role grants the user the
+    ability to create new projects. The &quot;System Admin User Role&quot; grants the
+    user access to the user administration function of the system. Figure 69
+    shows an example of a user with the project user role and permission to
+    create new projects.</para>
+
+    <figure>
+      <info />
+
+      <mediaobject>
+        <imageobject>
+          <imagedata depth="51pt" fileref="0300004B.png" width="5in" />
+        </imageobject>
+      </mediaobject>
+    </figure>
+
+    <para>Roles and permissions can be changed after a user is created, but a
+    user must always have at least one role. To disable a user’s access to the
+    system the password should be reset.</para>
+  </chapter>
+
+  <chapter>
+    <info>
+      <title>GNU Free Documentation License</title>
+    </info>
+
+    <para>Version 1.3, 3 November 2008</para>
+
+    <para>Copyright © 2000, 2001, 2002, 2007, 2008 Free Software Foundation,
+    Inc. &lt;http://fsf.org/&gt;</para>
+
+    <para>Everyone is permitted to copy and distribute verbatim copies of this
+    license document, but changing it is not allowed.</para>
+
+    <para>0. PREAMBLE</para>
+
+    <para>The purpose of this License is to make a manual, textbook, or other
+    functional and useful document "free" in the sense of freedom: to assure
+    everyone the effective freedom to copy and redistribute it, with or
+    without modifying it, either commercially or noncommercially. Secondarily,
+    this License preserves for the author and publisher a way to get credit
+    for their work, while not being considered responsible for modifications
+    made by others.</para>
+
+    <para>This License is a kind of "copyleft", which means that derivative
+    works of the document must themselves be free in the same sense. It
+    complements the GNU General Public License, which is a copyleft license
+    designed for free software.</para>
+
+    <para>We have designed this License in order to use it for manuals for
+    free software, because free software needs free documentation: a free
+    program should come with manuals providing the same freedoms that the
+    software does. But this License is not limited to software manuals; it can
+    be used for any textual work, regardless of subject matter or whether it
+    is published as a printed book. We recommend this License principally for
+    works whose purpose is instruction or reference.</para>
+
+    <para>1. APPLICABILITY AND DEFINITIONS</para>
+
+    <para>This License applies to any manual or other work, in any medium,
+    that contains a notice placed by the copyright holder saying it can be
+    distributed under the terms of this License. Such a notice grants a
+    world-wide, royalty-free license, unlimited in duration, to use that work
+    under the conditions stated herein. The "Document", below, refers to any
+    such manual or work. Any member of the public is a licensee, and is
+    addressed as "you". You accept the license if you copy, modify or
+    distribute the work in a way requiring permission under copyright
+    law.</para>
+
+    <para>A "Modified Version" of the Document means any work containing the
+    Document or a portion of it, either copied verbatim, or with modifications
+    and/or translated into another language.</para>
+
+    <para>A "Secondary Section" is a named appendix or a front-matter section
+    of the Document that deals exclusively with the relationship of the
+    publishers or authors of the Document to the Document's overall subject
+    (or to related matters) and contains nothing that could fall directly
+    within that overall subject. (Thus, if the Document is in part a textbook
+    of mathematics, a Secondary Section may not explain any mathematics.) The
+    relationship could be a matter of historical connection with the subject
+    or with related matters, or of legal, commercial, philosophical, ethical
+    or political position regarding them.</para>
+
+    <para>The "Invariant Sections" are certain Secondary Sections whose titles
+    are designated, as being those of Invariant Sections, in the notice that
+    says that the Document is released under this License. If a section does
+    not fit the above definition of Secondary then it is not allowed to be
+    designated as Invariant. The Document may contain zero Invariant Sections.
+    If the Document does not identify any Invariant Sections then there are
+    none.</para>
+
+    <para>The "Cover Texts" are certain short passages of text that are
+    listed, as Front-Cover Texts or Back-Cover Texts, in the notice that says
+    that the Document is released under this License. A Front-Cover Text may
+    be at most 5 words, and a Back-Cover Text may be at most 25 words.</para>
+
+    <para>A "Transparent" copy of the Document means a machine-readable copy,
+    represented in a format whose specification is available to the general
+    public, that is suitable for revising the document straightforwardly with
+    generic text editors or (for images composed of pixels) generic paint
+    programs or (for drawings) some widely available drawing editor, and that
+    is suitable for input to text formatters or for automatic translation to a
+    variety of formats suitable for input to text formatters. A copy made in
+    an otherwise Transparent file format whose markup, or absence of markup,
+    has been arranged to thwart or discourage subsequent modification by
+    readers is not Transparent. An image format is not Transparent if used for
+    any substantial amount of text. A copy that is not "Transparent" is called
+    "Opaque".</para>
+
+    <para>Examples of suitable formats for Transparent copies include plain
+    ASCII without markup, Texinfo input format, LaTeX input format, SGML or
+    XML using a publicly available DTD, and standard-conforming simple HTML,
+    PostScript or PDF designed for human modification. Examples of transparent
+    image formats include PNG, XCF and JPG. Opaque formats include proprietary
+    formats that can be read and edited only by proprietary word processors,
+    SGML or XML for which the DTD and/or processing tools are not generally
+    available, and the machine-generated HTML, PostScript or PDF produced by
+    some word processors for output purposes only.</para>
+
+    <para>The "Title Page" means, for a printed book, the title page itself,
+    plus such following pages as are needed to hold, legibly, the material
+    this License requires to appear in the title page. For works in formats
+    which do not have any title page as such, "Title Page" means the text near
+    the most prominent appearance of the work's title, preceding the beginning
+    of the body of the text.</para>
+
+    <para>The "publisher" means any person or entity that distributes copies
+    of the Document to the public.</para>
+
+    <para>A section "Entitled XYZ" means a named subunit of the Document whose
+    title either is precisely XYZ or contains XYZ in parentheses following
+    text that translates XYZ in another language. (Here XYZ stands for a
+    specific section name mentioned below, such as "Acknowledgements",
+    "Dedications", "Endorsements", or "History".) To "Preserve the Title" of
+    such a section when you modify the Document means that it remains a
+    section "Entitled XYZ" according to this definition.</para>
+
+    <para>The Document may include Warranty Disclaimers next to the notice
+    which states that this License applies to the Document. These Warranty
+    Disclaimers are considered to be included by reference in this License,
+    but only as regards disclaiming warranties: any other implication that
+    these Warranty Disclaimers may have is void and has no effect on the
+    meaning of this License.</para>
+
+    <para>2. VERBATIM COPYING</para>
+
+    <para>You may copy and distribute the Document in any medium, either
+    commercially or non-commercially, provided that this License, the
+    copyright notices, and the license notice saying this License applies to
+    the Document are reproduced in all copies, and that you add no other
+    conditions whatsoever to those of this License. You may not use technical
+    measures to obstruct or control the reading or further copying of the
+    copies you make or distribute. However, you may accept compensation in
+    exchange for copies. If you distribute a large enough number of copies you
+    must also follow the conditions in section 3.</para>
+
+    <para>You may also lend copies, under the same conditions stated above,
+    and you may publicly display copies.</para>
+
+    <para>3. COPYING IN QUANTITY</para>
+
+    <para>If you publish printed copies (or copies in media that commonly have
+    printed covers) of the Document, numbering more than 100, and the
+    Document's license notice requires Cover Texts, you must enclose the
+    copies in covers that carry, clearly and legibly, all these Cover Texts:
+    Front-Cover Texts on the front cover, and Back-Cover Texts on the back
+    cover. Both covers must also clearly and legibly identify you as the
+    publisher of these copies. The front cover must present the full title
+    with all words of the title equally prominent and visible. You may add
+    other material on the covers in addition. Copying with changes limited to
+    the covers, as long as they preserve the title of the Document and satisfy
+    these conditions, can be treated as verbatim copying in other
+    respects.</para>
+
+    <para>If the required texts for either cover are too voluminous to fit
+    legibly, you should put the first ones listed (as many as fit reasonably)
+    on the actual cover, and continue the rest onto adjacent pages.</para>
+
+    <para>If you publish or distribute Opaque copies of the Document numbering
+    more than 100, you must either include a machine-readable Transparent copy
+    along with each Opaque copy, or state in or with each Opaque copy a
+    computer-network location from which the general network-using public has
+    access to download using public-standard network protocols a complete
+    Transparent copy of the Document, free of added material. If you use the
+    latter option, you must take reasonably prudent steps, when you begin
+    distribution of Opaque copies in quantity, to ensure that this Transparent
+    copy will remain thus accessible at the stated location until at least one
+    year after the last time you distribute an Opaque copy (directly or
+    through your agents or retailers) of that edition to the public.</para>
+
+    <para>It is requested, but not required, that you contact the authors of
+    the Document well before redistributing any large number of copies, to
+    give them a chance to provide you with an updated version of the
+    Document.</para>
+
+    <para>4. MODIFICATIONS</para>
+
+    <para>You may copy and distribute a Modified Version of the Document under
+    the conditions of sections 2 and 3 above, provided that you release the
+    Modified Version under precisely this License, with the Modified Version
+    filling the role of the Document, thus licensing distribution and
+    modification of the Modified Version to whoever possesses a copy of it. In
+    addition, you must do these things in the Modified Version:</para>
+
+    <para>* A. Use in the Title Page (and on the covers, if any) a title
+    distinct from that of the Document, and from those of previous versions
+    (which should, if there were any, be listed in the History section of the
+    Document). You may use the same title as a previous version if the
+    original publisher of that version gives permission.</para>
+
+    <para>* B. List on the Title Page, as authors, one or more persons or
+    entities responsible for authorship of the modifications in the Modified
+    Version, together with at least five of the principal authors of the
+    Document (all of its principal authors, if it has fewer than five), unless
+    they release you from this requirement.</para>
+
+    <para>* C. State on the Title page the name of the publisher of the
+    Modified Version, as the publisher.</para>
+
+    <para>* D. Preserve all the copyright notices of the Document.</para>
+
+    <para>* E. Add an appropriate copyright notice for your modifications
+    adjacent to the other copyright notices.</para>
+
+    <para>* F. Include, immediately after the copyright notices, a license
+    notice giving the public permission to use the Modified Version under the
+    terms of this License, in the form shown in the Addendum below.</para>
+
+    <para>* G. Preserve in that license notice the full lists of Invariant
+    Sections and required Cover Texts given in the Document's license
+    notice.</para>
+
+    <para>* H. Include an unaltered copy of this License.</para>
+
+    <para>* I. Preserve the section Entitled "History", Preserve its Title,
+    and add to it an item stating at least the title, year, new authors, and
+    publisher of the Modified Version as given on the Title Page. If there is
+    no section Entitled "History" in the Document, create one stating the
+    title, year, authors, and publisher of the Document as given on its Title
+    Page, then add an item describing the Modified Version as stated in the
+    previous sentence.</para>
+
+    <para>* J. Preserve the network location, if any, given in the Document
+    for public access to a Transparent copy of the Document, and likewise the
+    network locations given in the Document for previous versions it was based
+    on. These may be placed in the "History" section. You may omit a network
+    location for a work that was published at least four years before the
+    Document itself, or if the original publisher of the version it refers to
+    gives permission.</para>
+
+    <para>* K. For any section Entitled "Acknowledgements" or "Dedications",
+    Preserve the Title of the section, and preserve in the section all the
+    substance and tone of each of the contributor acknowledgements and/or
+    dedications given therein.</para>
+
+    <para>* L. Preserve all the Invariant Sections of the Document, unaltered
+    in their text and in their titles. Section numbers or the equivalent are
+    not considered part of the section titles.</para>
+
+    <para>* M. Delete any section Entitled "Endorsements". Such a section may
+    not be included in the Modified Version.</para>
+
+    <para>* N. Do not retitle any existing section to be Entitled
+    "Endorsements" or to conflict in title with any Invariant Section.</para>
+
+    <para>* O. Preserve any Warranty Disclaimers.</para>
+
+    <para>If the Modified Version includes new front-matter sections or
+    appendices that qualify as Secondary Sections and contain no material
+    copied from the Document, you may at your option designate some or all of
+    these sections as invariant. To do this, add their titles to the list of
+    Invariant Sections in the Modified Version's license notice. These titles
+    must be distinct from any other section titles.</para>
+
+    <para>You may add a section Entitled "Endorsements", provided it contains
+    nothing but endorsements of your Modified Version by various parties—for
+    example, statements of peer review or that the text has been approved by
+    an organization as the authoritative definition of a standard.</para>
+
+    <para>You may add a passage of up to five words as a Front-Cover Text, and
+    a passage of up to 25 words as a Back-Cover Text, to the end of the list
+    of Cover Texts in the Modified Version. Only one passage of Front-Cover
+    Text and one of Back-Cover Text may be added by (or through arrangements
+    made by) any one entity. If the Document already includes a cover text for
+    the same cover, previously added by you or by arrangement made by the same
+    entity you are acting on behalf of, you may not add another; but you may
+    replace the old one, on explicit permission from the previous publisher
+    that added the old one.</para>
+
+    <para>The author(s) and publisher(s) of the Document do not by this
+    License give permission to use their names for publicity for or to assert
+    or imply endorsement of any Modified Version.</para>
+
+    <para>5. COMBINING DOCUMENTS</para>
+
+    <para>You may combine the Document with other documents released under
+    this License, under the terms defined in section 4 above for modified
+    versions, provided that you include in the combination all of the
+    Invariant Sections of all of the original documents, unmodified, and list
+    them all as Invariant Sections of your combined work in its license
+    notice, and that you preserve all their Warranty Disclaimers.</para>
+
+    <para>The combined work need only contain one copy of this License, and
+    multiple identical Invariant Sections may be replaced with a single copy.
+    If there are multiple Invariant Sections with the same name but different
+    contents, make the title of each such section unique by adding at the end
+    of it, in parentheses, the name of the original author or publisher of
+    that section if known, or else a unique number. Make the same adjustment
+    to the section titles in the list of Invariant Sections in the license
+    notice of the combined work.</para>
+
+    <para>In the combination, you must combine any sections Entitled "History"
+    in the various original documents, forming one section Entitled "History";
+    likewise combine any sections Entitled "Acknowledgements", and any
+    sections Entitled "Dedications". You must delete all sections Entitled
+    "Endorsements".</para>
+
+    <para>6. COLLECTIONS OF DOCUMENTS</para>
+
+    <para>You may make a collection consisting of the Document and other
+    documents released under this License, and replace the individual copies
+    of this License in the various documents with a single copy that is
+    included in the collection, provided that you follow the rules of this
+    License for verbatim copying of each of the documents in all other
+    respects.</para>
+
+    <para>You may extract a single document from such a collection, and
+    distribute it individually under this License, provided you insert a copy
+    of this License into the extracted document, and follow this License in
+    all other respects regarding verbatim copying of that document.</para>
+
+    <para>7. AGGREGATION WITH INDEPENDENT WORKS</para>
+
+    <para>A compilation of the Document or its derivatives with other separate
+    and independent documents or works, in or on a volume of a storage or
+    distribution medium, is called an "aggregate" if the copyright resulting
+    from the compilation is not used to limit the legal rights of the
+    compilation's users beyond what the individual works permit. When the
+    Document is included in an aggregate, this License does not apply to the
+    other works in the aggregate which are not themselves derivative works of
+    the Document.</para>
+
+    <para>If the Cover Text requirement of section 3 is applicable to these
+    copies of the Document, then if the Document is less than one half of the
+    entire aggregate, the Document's Cover Texts may be placed on covers that
+    bracket the Document within the aggregate, or the electronic equivalent of
+    covers if the Document is in electronic form. Otherwise they must appear
+    on printed covers that bracket the whole aggregate.</para>
+
+    <para>8. TRANSLATION</para>
+
+    <para>Translation is considered a kind of modification, so you may
+    distribute translations of the Document under the terms of section 4.
+    Replacing Invariant Sections with translations requires special permission
+    from their copyright holders, but you may include translations of some or
+    all Invariant Sections in addition to the original versions of these
+    Invariant Sections. You may include a translation of this License, and all
+    the license notices in the Document, and any Warranty Disclaimers,
+    provided that you also include the original English version of this
+    License and the original versions of those notices and disclaimers. In
+    case of a disagreement between the translation and the original version of
+    this License or a notice or disclaimer, the original version will
+    prevail.</para>
+
+    <para>If a section in the Document is Entitled "Acknowledgements",
+    "Dedications", or "History", the requirement (section 4) to Preserve its
+    Title (section 1) will typically require changing the actual title.</para>
+
+    <para>9. TERMINATION</para>
+
+    <para>You may not copy, modify, sublicense, or distribute the Document
+    except as expressly provided under this License. Any attempt otherwise to
+    copy, modify, sublicense, or distribute it is void, and will automatically
+    terminate your rights under this License.</para>
+
+    <para>However, if you cease all violation of this License, then your
+    license from a particular copyright holder is reinstated (a)
+    provisionally, unless and until the copyright holder explicitly and
+    finally terminates your license, and (b) permanently, if the copyright
+    holder fails to notify you of the violation by some reasonable means prior
+    to 60 days after the cessation.</para>
+
+    <para>Moreover, your license from a particular copyright holder is
+    reinstated permanently if the copyright holder notifies you of the
+    violation by some reasonable means, this is the first time you have
+    received notice of violation of this License (for any work) from that
+    copyright holder, and you cure the violation prior to 30 days after your
+    receipt of the notice.</para>
+
+    <para>Termination of your rights under this section does not terminate the
+    licenses of parties who have received copies or rights from you under this
+    License. If your rights have been terminated and not permanently
+    reinstated, receipt of a copy of some or all of the same material does not
+    give you any rights to use it.</para>
+
+    <para>10. FUTURE REVISIONS OF THIS LICENSE</para>
+
+    <para>The Free Software Foundation may publish new, revised versions of
+    the GNU Free Documentation License from time to time. Such new versions
+    will be similar in spirit to the present version, but may differ in detail
+    to address new problems or concerns. See
+    http://www.gnu.org/copyleft/.</para>
+
+    <para>Each version of the License is given a distinguishing version
+    number. If the Document specifies that a particular numbered version of
+    this License "or any later version" applies to it, you have the option of
+    following the terms and conditions either of that specified version or of
+    any later version that has been published (not as a draft) by the Free
+    Software Foundation. If the Document does not specify a version number of
+    this License, you may choose any version ever published (not as a draft)
+    by the Free Software Foundation. If the Document specifies that a proxy
+    can decide which future versions of this License can be used, that proxy's
+    public statement of acceptance of a version permanently authorizes you to
+    choose that version for the Document.</para>
+
+    <para>11. RELICENSING</para>
+
+    <para>"Massive Multiauthor Collaboration Site" (or "MMC Site") means any
+    World Wide Web server that publishes copyrightable works and also provides
+    prominent facilities for anybody to edit those works. A public wiki that
+    anybody can edit is an example of such a server. A "Massive Multiauthor
+    Collaboration" (or "MMC") contained in the site means any set of
+    copyrightable works thus published on the MMC site.</para>
+
+    <para>"CC-BY-SA" means the Creative Commons Attribution-Share Alike 3.0
+    license published by Creative Commons Corporation, a not-for-profit
+    corporation with a principal place of business in San Francisco,
+    California, as well as future copyleft versions of that license published
+    by that same organization.</para>
+
+    <para>"Incorporate" means to publish or republish a Document, in whole or
+    in part, as part of another Document.</para>
+
+    <para>An MMC is "eligible for relicensing" if it is licensed under this
+    License, and if all works that were first published under this License
+    somewhere other than this MMC, and subsequently incorporated in whole or
+    in part into the MMC, (1) had no cover texts or invariant sections, and
+    (2) were thus incorporated prior to November 1, 2008.</para>
+
+    <para>The operator of an MMC Site may republish an MMC contained in the
+    site under CC-BY-SA on the same site at any time before August 1, 2009,
+    provided the MMC is eligible for relicensing.</para>
+
+    <para>ADDENDUM: How to use this License for your documents</para>
+
+    <para>To use this License in a document you have written, include a copy
+    of the License in the document and put the following copyright and license
+    notices just after the title page:</para>
+
+    <para>Copyright (C) YEAR YOUR NAME.</para>
+
+    <para>Permission is granted to copy, distribute and/or modify this
+    document</para>
+
+    <para>under the terms of the GNU Free Documentation License, Version
+    1.3</para>
+
+    <para>or any later version published by the Free Software
+    Foundation;</para>
+
+    <para>with no Invariant Sections, no Front-Cover Texts, and no Back-Cover
+    Texts.</para>
+
+    <para>A copy of the license is included in the section entitled
+    "GNU</para>
+
+    <para>Free Documentation License".</para>
+
+    <para>If you have Invariant Sections, Front-Cover Texts and Back-Cover
+    Texts, replace the "with … Texts." line with this:</para>
+
+    <para>with the Invariant Sections being LIST THEIR TITLES, with the</para>
+
+    <para>Front-Cover Texts being LIST, and with the Back-Cover Texts being
+    LIST.</para>
+
+    <para>If you have Invariant Sections without Cover Texts, or some other
+    combination of the three, merge those two alternatives to suit the
+    situation.</para>
+
+    <para>If your document contains nontrivial examples of program code, we
+    recommend releasing these examples in parallel under your choice of free
+    software license, such as the GNU General Public License, to permit their
+    use in free software.</para>
+  </chapter>

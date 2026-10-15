@@ -1,10 +1,8 @@
 /*
- * $Id: $
- *
- * Copyright 2025 Ron Regan Jr. All Rights Reserved.
- *
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,8 +35,16 @@ public class StakeholderImportXmlMapper {
             throw new ImportException("stakeholder XML payload is required");
         }
         // ensure user draft is registered separately by caller
+        // Permission keys in the form StakeholderPermission.getPermissionKey() uses:
+        // entityType[permissionType].
+        java.util.Set<String> permissionKeys = new java.util.LinkedHashSet<>();
+        for (StakeholderImportXml.PermissionXml permission : xml.getPermissions()) {
+            if (permission.getEntityType() != null && permission.getPermissionType() != null) {
+                permissionKeys.add(permission.getEntityType().trim() + "[" + permission.getPermissionType().trim() + "]");
+            }
+        }
         return new StakeholderImportDraft(xml.getId(), xml.getCreatedBy(), xml.getUser().getId(),
-                new java.util.HashSet<>(xml.getAnnotationRefs()));
+                new java.util.HashSet<>(xml.getAnnotationRefs()), permissionKeys);
     }
 
     public StakeholderImportDraft toDraft(NonUserStakeholderImportXml xml) {

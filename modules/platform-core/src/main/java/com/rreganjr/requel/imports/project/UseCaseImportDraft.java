@@ -1,10 +1,8 @@
 /*
- * $Id: $
- *
- * Copyright 2025 Ron Regan Jr. All Rights Reserved.
- *
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +35,7 @@ public class UseCaseImportDraft {
     private final String description;
     private final String primaryActorExternalId;
     private final String scenarioExternalId;
+    private final java.util.List<String> additionalScenarioExternalIds;
     private final Set<String> storyExternalIds;
     private final Set<String> goalExternalIds;
     private final Set<String> actorExternalIds;
@@ -49,6 +48,8 @@ public class UseCaseImportDraft {
         this.description = builder.description;
         this.primaryActorExternalId = builder.primaryActorExternalId;
         this.scenarioExternalId = builder.scenarioExternalId;
+        this.additionalScenarioExternalIds =
+                java.util.List.copyOf(builder.additionalScenarioExternalIds);
         this.storyExternalIds = Collections.unmodifiableSet(new HashSet<>(builder.storyExternalIds));
         this.goalExternalIds = Collections.unmodifiableSet(new HashSet<>(builder.goalExternalIds));
         this.actorExternalIds = Collections.unmodifiableSet(new HashSet<>(builder.actorExternalIds));
@@ -80,6 +81,11 @@ public class UseCaseImportDraft {
         return scenarioExternalId;
     }
 
+    /** Issue #275: the use case's additional scenarios, in export order. */
+    public java.util.List<String> getAdditionalScenarioExternalIds() {
+        return additionalScenarioExternalIds;
+    }
+
     public Set<String> getStoryExternalIds() {
         return storyExternalIds;
     }
@@ -107,6 +113,7 @@ public class UseCaseImportDraft {
         private String description;
         private String primaryActorExternalId;
         private String scenarioExternalId;
+        private final java.util.List<String> additionalScenarioExternalIds = new java.util.ArrayList<>();
         private Set<String> storyExternalIds = new HashSet<>();
         private Set<String> goalExternalIds = new HashSet<>();
         private Set<String> actorExternalIds = new HashSet<>();
@@ -134,6 +141,13 @@ public class UseCaseImportDraft {
 
         public Builder primaryActorExternalId(String primaryActorExternalId) {
             this.primaryActorExternalId = primaryActorExternalId;
+            return this;
+        }
+
+        public Builder additionalScenarioExternalIds(java.util.List<String> ids) {
+            if (ids != null) {
+                this.additionalScenarioExternalIds.addAll(ids);
+            }
             return this;
         }
 

@@ -1,10 +1,8 @@
 /*
- * $Id: $
- *
- * Copyright 2025 Ron Regan Jr. All Rights Reserved.
- *
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -146,6 +144,24 @@ class ProjectXmlStreamingRoundTripIT {
 	@Autowired
 	private UserCommandFactory userCommandFactory;
 
+	@Autowired
+	private com.rreganjr.requel.tagging.command.TagCommandFactory tagCommandFactory;
+
+	@Autowired
+	private com.rreganjr.requel.tagging.TagRepository tagRepository;
+
+	@Autowired
+	private com.rreganjr.nlp.dictionary.DictionaryRepository dictionaryRepository;
+
+	@Autowired
+	private com.rreganjr.requel.project.IgnoredFindingStore ignoredFindingStore;
+
+	@Autowired
+	private com.rreganjr.requel.project.ProvenanceStore provenanceStore;
+
+	@jakarta.persistence.PersistenceContext
+	private jakarta.persistence.EntityManager entityManager;
+
 	@Test
 	@Transactional
 	void importExportRoundTripKeepsProjectRoundTrippable() throws Exception {
@@ -194,19 +210,636 @@ class ProjectXmlStreamingRoundTripIT {
 
 	@Test
 	@Transactional
+	void tagsRoundTripByName() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		Goal goal = originalProject.getGoals().stream().findFirst()
+				.orElseThrow(() -> new AssertionError("sample project has no goal"));
+
+		// A namespaced project-scoped tag and a global tag, both on the goal.
+		assignImportedTagForTest(projectUser, originalProject, goal, "type", "business-rule");
+		assignImportedTagForTest(projectUser, null, goal, "scope", "shared");
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		String xml = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(xml).as("exported XML tag tokens")
+				.contains("<tags>")
+				.contains("type:business-rule")
+				.contains("scope:shared");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		String reName = originalProject.getName() + " TagReimport " + Instant.now().toEpochMilli();
+		Project reimported = importProject(exportedBytes, projectUser, reName);
+		entityManager.flush();
+		Goal reGoal = reimported.getGoals().stream().findFirst()
+				.orElseThrow(() -> new AssertionError("reimported project has no goal"));
+
+		Set<String> tokens = tagRepository.findTagsOnEntity("Goal", reGoal.getId()).stream()
+				.map(t -> new com.rreganjr.requel.tagging.TagToken(
+						t.getCategory(), t.getValue(), t.getColor()).toToken())
+				.collect(Collectors.toSet());
+		assertThat(tokens).as("tags on the reimported goal")
+				.contains("type:business-rule", "scope:shared");
+
+		// The global tag was resolved by key on import, not duplicated.
+		assertThat(tagRepository.findTag(null, "scope", "shared"))
+				.as("global tag resolved by key").isNotNull();
+	}
+
+	/**
+	 * The project's own dictionary travels with the project file (issue #313).
+	 * <p>
+	 * The words are written and read through DictionaryRepository, not through the project's
+	 * collection — that collection is a read-only export view. So this covers the whole path:
+	 * repository write, JAXB export off the collection, STAX read on import, repository write
+	 * against the new project's id.
+	 */
+	@Test
+	@Transactional
+	void projectDictionaryWordsRoundTrip() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+
+		dictionaryRepository.addToDictionary(originalProject.getId(), "requelspeak");
+		dictionaryRepository.addToDictionary(originalProject.getId(), "Elicitron");
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		String xml = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(xml).as("exported XML dictionary block")
+				.contains("<dictionary>")
+				.contains("requelspeak")
+				.contains("Elicitron");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		String reName = originalProject.getName() + " DictReimport " + Instant.now().toEpochMilli();
+		Project reimported = importProject(exportedBytes, projectUser, reName);
+		entityManager.flush();
+
+		Set<String> lemmas = dictionaryRepository.findProjectWords(reimported.getId()).stream()
+				.map(com.rreganjr.nlp.dictionary.ProjectDictionaryWord::getLemma)
+				.collect(Collectors.toSet());
+		assertThat(lemmas).as("dictionary words on the reimported project")
+				.containsExactlyInAnyOrder("requelspeak", "Elicitron");
+
+		// The original keeps its own copy: the import added words to the new project, it did not
+		// move them.
+		assertThat(dictionaryRepository.findProjectWords(originalProject.getId())).hasSize(2);
+
+		// And the words are known in each project, which is the point of the layer.
+		assertThat(dictionaryRepository.isKnownWord(reimported.getId(), "requelspeak")).isTrue();
+		assertThat(dictionaryRepository.isKnownWord(reimported.getId(), "elicitron")).isTrue();
+	}
+
+	/**
+	 * A word removed from the project's Dictionary page (issue #319) is gone from the next
+	 * export: the export reads the repository, and the removal is a row delete there.
+	 */
+	@Test
+	@Transactional
+	void aRemovedDictionaryWordIsAbsentFromTheExport() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project project = createSampleProject(projectUser);
+
+		dictionaryRepository.addToDictionary(project.getId(), "requelkeepword");
+		dictionaryRepository.addToDictionary(project.getId(), "requelgoneword");
+		entityManager.flush();
+		Long goneId = dictionaryRepository.findProjectWord(project.getId(), "requelgoneword")
+				.getId();
+		assertThat(dictionaryRepository.deleteProjectWord(project.getId(), goneId)).isTrue();
+
+		String xml = new String(exportProject(project), StandardCharsets.UTF_8);
+		assertThat(xml).as("exported XML dictionary block")
+				.contains("requelkeepword")
+				.doesNotContain("requelgoneword");
+	}
+
+	/**
+	 * Issue #320: an export carries each issue's resolution and every plain issue, and the import
+	 * used to drop both. {@code AnnotationImportXml} didn't read {@code resolvedByPosition},
+	 * {@code resolvedByUser} or {@code dateResolved}, and {@code AnnotationStaxImporter} read
+	 * only {@code <note>} and {@code <lexicalIssue>}, so every {@code <issue>} was lost.
+	 */
+	@Test
+	@Transactional
+	void issueResolutionsAndPlainIssuesRoundTrip() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		Goal goal = originalProject.getGoals().iterator().next();
+		String ts = Long.toString(System.nanoTime());
+
+		// A lexical issue resolved as ignored, a plain issue resolved by a human position, and an
+		// open plain issue.
+		com.rreganjr.requel.annotation.command.EditLexicalIssueCommand lexical =
+				annotationCommandFactory.newEditLexicalIssueCommand();
+		lexical.setEditedBy(projectUser);
+		lexical.setGroupingObject(originalProject);
+		lexical.setAnnotatable(goal);
+		lexical.setWord("zorblat" + ts);
+		lexical.setAnnotatableEntityPropertyName("Name");
+		lexical.setText("The word zorblat" + ts + " is not recognized.");
+		lexical.setMustBeResolved(true);
+		com.rreganjr.requel.annotation.Issue lexicalIssue = commandHandler.execute(lexical).getIssue();
+		resolveWith(lexicalIssue, projectUser, "Ignore this word.");
+
+		com.rreganjr.requel.annotation.Issue resolvedPlain = addIssue(originalProject, goal,
+				projectUser, "Who signs off on this? " + ts);
+		resolveWith(resolvedPlain, projectUser, "The product owner " + ts);
+		addIssue(originalProject, goal, projectUser, "Is this still needed? " + ts);
+		entityManager.flush();
+		java.util.Date originalResolvedDate = lexicalIssue.getResolvedDate();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		String xml = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(xml).as("exported XML").contains("<issue ").contains("resolvedByPosition=");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		String reName = originalProject.getName() + " Resolutions " + Instant.now().toEpochMilli();
+		Project reimported = importProject(exportedBytes, projectUser, reName);
+		entityManager.flush();
+		entityManager.clear();
+
+		Goal importedGoal = projectRepository.findProjectByName(reName).getGoals().stream()
+				.filter(candidate -> candidate.getName().equals(goal.getName())).findFirst()
+				.orElseThrow(() -> new AssertionError("goal " + goal.getName() + " not imported"));
+		List<com.rreganjr.requel.annotation.Issue> issues = importedGoal.getAnnotations().stream()
+				.map(org.hibernate.Hibernate::unproxy)
+				.filter(com.rreganjr.requel.annotation.Issue.class::isInstance)
+				.map(com.rreganjr.requel.annotation.Issue.class::cast).collect(Collectors.toList());
+
+		com.rreganjr.requel.annotation.Issue importedLexical = issueWithText(issues,
+				"The word zorblat" + ts + " is not recognized.");
+		assertThat(importedLexical.isResolved()).as("ignored lexical issue stays resolved").isTrue();
+		assertThat(importedLexical.getResolvedByPosition().getText()).isEqualTo("Ignore this word.");
+		assertThat(importedLexical.getResolvedDate()).as("resolution date is kept, to the second")
+				.isCloseTo(originalResolvedDate, 1000);
+
+		com.rreganjr.requel.annotation.Issue importedResolvedPlain = issueWithText(issues,
+				"Who signs off on this? " + ts);
+		assertThat(importedResolvedPlain.isResolved()).as("plain resolved issue").isTrue();
+		assertThat(importedResolvedPlain.getResolvedByPosition().getText())
+				.isEqualTo("The product owner " + ts);
+
+		com.rreganjr.requel.annotation.Issue importedOpenPlain = issueWithText(issues,
+				"Is this still needed? " + ts);
+		assertThat(importedOpenPlain.isResolved()).as("plain open issue").isFalse();
+
+		// A resolution that points at a position missing from the file imports the issue open
+		// instead of failing the import.
+		String positionId = xml.replaceAll("(?s).*resolvedByPosition=\"([^\"]+)\".*", "$1");
+		byte[] brokenBytes = xml.replace("resolvedByPosition=\"" + positionId + "\"",
+				"resolvedByPosition=\"POS_missing\"").getBytes(StandardCharsets.UTF_8);
+		String brokenName = originalProject.getName() + " Dangling " + Instant.now().toEpochMilli();
+		assertThat(importProject(brokenBytes, projectUser, brokenName)).isNotNull();
+	}
+
+	/**
+	 * Issue #271: an issue's severity is exported and imported, and a file exported before #271
+	 * (no {@code severity} attribute) imports each issue with its kind's default.
+	 */
+	@Test
+	@Transactional
+	void issueSeverityRoundTripsAndOldFilesGetTheDefault() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		Goal goal = originalProject.getGoals().iterator().next();
+		String ts = Long.toString(System.nanoTime());
+
+		com.rreganjr.requel.annotation.command.EditIssueCommand high =
+				annotationCommandFactory.newEditIssueCommand();
+		high.setEditedBy(projectUser);
+		high.setGroupingObject(originalProject);
+		high.setAnnotatable(goal);
+		high.setText("Admin console may be tenant-wide " + ts);
+		high.setMustBeResolved(true);
+		high.setSeverity(com.rreganjr.requel.annotation.IssueSeverity.HIGH);
+		commandHandler.execute(high);
+
+		com.rreganjr.requel.annotation.command.EditLexicalIssueCommand lexical =
+				annotationCommandFactory.newEditLexicalIssueCommand();
+		lexical.setEditedBy(projectUser);
+		lexical.setGroupingObject(originalProject);
+		lexical.setAnnotatable(goal);
+		lexical.setWord("zorblat" + ts);
+		lexical.setAnnotatableEntityPropertyName("Name");
+		lexical.setText("The word zorblat" + ts + " is not recognized.");
+		lexical.setMustBeResolved(true);
+		commandHandler.execute(lexical);
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		String xml = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(xml).as("exported XML").contains("severity=\"HIGH\"").contains("severity=\"LOW\"");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		String reName = originalProject.getName() + " Severity " + Instant.now().toEpochMilli();
+		importProject(exportedBytes, projectUser, reName);
+		// An export from before #271: the same file with every severity attribute removed.
+		byte[] oldBytes = xml.replaceAll(" severity=\"[A-Z]+\"", "")
+				.getBytes(StandardCharsets.UTF_8);
+		assertXmlMatchesProjectSchema(oldBytes);
+		String oldName = originalProject.getName() + " PreSeverity " + Instant.now().toEpochMilli();
+		importProject(oldBytes, projectUser, oldName);
+		entityManager.flush();
+		entityManager.clear();
+
+		List<com.rreganjr.requel.annotation.Issue> roundTripped = issuesOnGoal(reName, goal);
+		assertThat(issueWithText(roundTripped, "Admin console may be tenant-wide " + ts)
+				.getSeverity()).isEqualTo(com.rreganjr.requel.annotation.IssueSeverity.HIGH);
+		assertThat(issueWithText(roundTripped, "The word zorblat" + ts + " is not recognized.")
+				.getSeverity()).isEqualTo(com.rreganjr.requel.annotation.IssueSeverity.LOW);
+
+		List<com.rreganjr.requel.annotation.Issue> fromOldFile = issuesOnGoal(oldName, goal);
+		assertThat(issueWithText(fromOldFile, "Admin console may be tenant-wide " + ts)
+				.getSeverity()).as("plain issue default")
+				.isEqualTo(com.rreganjr.requel.annotation.IssueSeverity.MEDIUM);
+		assertThat(issueWithText(fromOldFile, "The word zorblat" + ts + " is not recognized.")
+				.getSeverity()).as("lexical issue default")
+				.isEqualTo(com.rreganjr.requel.annotation.IssueSeverity.LOW);
+	}
+
+	/**
+	 * Issue #257: every goal relation type round-trips with its direction. Before #257 the
+	 * streaming import kept only Supports, so a Conflicts relation was lost on every import. A
+	 * type this build does not know is skipped and the rest of the file imports.
+	 */
+	@Test
+	@Transactional
+	void everyGoalRelationTypeRoundTripsAndAnUnknownTypeIsSkipped() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		createGoal(originalProject, "Relation hub", "The goal every relation starts from.", projectUser);
+		for (com.rreganjr.requel.project.GoalRelationType type
+				: com.rreganjr.requel.project.GoalRelationType.values()) {
+			createGoal(originalProject, "Spoke " + type.name(), "Related by " + type.name() + ".",
+					projectUser);
+			com.rreganjr.requel.project.command.EditGoalRelationCommand relate =
+					projectCommandFactory.newEditGoalRelationCommand();
+			relate.setAnalysisEnabled(false);
+			relate.setEditedBy(projectUser);
+			relate.setProjectOrDomain(originalProject);
+			relate.setFromGoal("Relation hub");
+			relate.setToGoal("Spoke " + type.name());
+			relate.setRelationType(type.name());
+			commandHandler.execute(relate);
+		}
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		String xml = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(xml).as("exported XML")
+				.contains("relationType=\"Conflicts\"").contains("relationType=\"Measures\"");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		String reName = originalProject.getName() + " Relations " + Instant.now().toEpochMilli();
+		importProject(exportedBytes, projectUser, reName);
+		// A newer export, or a hand edit: a relation type this build does not know.
+		byte[] unknownBytes = xml.replace("relationType=\"Obstructs\"", "relationType=\"Blocks\"")
+				.getBytes(StandardCharsets.UTF_8);
+		String unknownName = originalProject.getName() + " Unknown " + Instant.now().toEpochMilli();
+		importProject(unknownBytes, projectUser, unknownName);
+		entityManager.flush();
+		entityManager.clear();
+
+		java.util.Map<String, com.rreganjr.requel.project.GoalRelationType> expected =
+				new java.util.TreeMap<>();
+		for (com.rreganjr.requel.project.GoalRelationType type
+				: com.rreganjr.requel.project.GoalRelationType.values()) {
+			expected.put("Spoke " + type.name(), type);
+		}
+		assertThat(hubRelations(reName)).as("all seven, from the hub").isEqualTo(expected);
+
+		expected.remove("Spoke Obstructs");
+		assertThat(hubRelations(unknownName)).as("the unknown one skipped").isEqualTo(expected);
+		assertThat(projectRepository.findProjectByName(unknownName).getGoals())
+				.as("its goals still import")
+				.anyMatch(goal -> goal.getName().equals("Spoke Obstructs"));
+	}
+
+	/** The imported hub's outgoing relations, target goal name → type. */
+	private java.util.Map<String, com.rreganjr.requel.project.GoalRelationType> hubRelations(
+			String projectName) {
+		Goal hub = findGoalByName(projectRepository.findProjectByName(projectName), "Relation hub");
+		java.util.Map<String, com.rreganjr.requel.project.GoalRelationType> relations =
+				new java.util.TreeMap<>();
+		hub.getRelationsFromThisGoal().forEach(relation -> relations.put(
+				relation.getToGoal().getName(), relation.getRelationType()));
+		return relations;
+	}
+
+	private List<com.rreganjr.requel.annotation.Issue> issuesOnGoal(String projectName, Goal goal) {
+		Goal importedGoal = projectRepository.findProjectByName(projectName).getGoals().stream()
+				.filter(candidate -> candidate.getName().equals(goal.getName())).findFirst()
+				.orElseThrow(() -> new AssertionError("goal " + goal.getName() + " not imported"));
+		return importedGoal.getAnnotations().stream()
+				.map(org.hibernate.Hibernate::unproxy)
+				.filter(com.rreganjr.requel.annotation.Issue.class::isInstance)
+				.map(com.rreganjr.requel.annotation.Issue.class::cast).collect(Collectors.toList());
+	}
+
+	/**
+	 * Issue #320: ignored findings and the IgnorePosition marker round-trip, with each key
+	 * rebuilt for the entity's new id and pointing at the imported issue.
+	 */
+	@Test
+	@Transactional
+	void ignoredFindingsRoundTrip() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		Goal goal = originalProject.getGoals().iterator().next();
+		String ts = Long.toString(System.nanoTime());
+
+		com.rreganjr.requel.annotation.command.EditLexicalIssueCommand lexical =
+				annotationCommandFactory.newEditLexicalIssueCommand();
+		lexical.setEditedBy(projectUser);
+		lexical.setGroupingObject(originalProject);
+		lexical.setAnnotatable(goal);
+		lexical.setWord("zorblat" + ts);
+		lexical.setAnnotatableEntityPropertyName("Name");
+		lexical.setText("The word zorblat" + ts + " is not recognized.");
+		lexical.setMustBeResolved(true);
+		com.rreganjr.requel.annotation.Issue issue = commandHandler.execute(lexical).getIssue();
+		com.rreganjr.requel.annotation.command.EditIgnorePositionCommand ignorePosition =
+				annotationCommandFactory.newEditIgnorePositionCommand();
+		ignorePosition.setEditedBy(projectUser);
+		ignorePosition.setIssue(issue);
+		ignorePosition.setText("Ignore this word.");
+		com.rreganjr.requel.annotation.Position ignore = commandHandler.execute(ignorePosition)
+				.getPosition();
+		com.rreganjr.requel.annotation.command.ResolveIssueCommand resolve =
+				annotationCommandFactory.newResolveIssueCommand(ignore);
+		resolve.setEditedBy(projectUser);
+		resolve.setIssue(issue);
+		resolve.setPosition(ignore);
+		commandHandler.execute(resolve);
+		String suffix = "unknown-word:Name:zorblat" + ts;
+		ignoredFindingStore.record(new com.rreganjr.requel.project.IgnoredFindingStore.Spec(
+				originalProject.getId(), "Goal", goal.getId(), "legacy-lexical", "unknown-word",
+				"Name", suffix, "zorblat" + ts, issue.getId()), projectUser);
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		String xml = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(xml).as("exported XML").contains("<ignorePosition ").contains("<ignoredFinding ");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		String reName = originalProject.getName() + " Ignores " + Instant.now().toEpochMilli();
+		Project reimported = importProject(exportedBytes, projectUser, reName);
+		entityManager.flush();
+
+		Goal importedGoal = reimported.getGoals().stream()
+				.filter(candidate -> candidate.getName().equals(goal.getName())).findFirst()
+				.orElseThrow(() -> new AssertionError("goal " + goal.getName() + " not imported"));
+		List<com.rreganjr.requel.project.IgnoredFinding> ignored = ignoredFindingStore
+				.list(reimported.getId());
+		assertThat(ignored).as("ignored findings on the reimported project").hasSize(1);
+		com.rreganjr.requel.project.IgnoredFinding row = ignored.get(0);
+		assertThat(row.getIdempotencyKey())
+				.isEqualTo("legacy-lexical:Goal:" + importedGoal.getId() + ":" + suffix);
+		com.rreganjr.requel.annotation.Issue importedIssue = importedGoal.getAnnotations().stream()
+				.map(org.hibernate.Hibernate::unproxy)
+				.filter(com.rreganjr.requel.annotation.Issue.class::isInstance)
+				.map(com.rreganjr.requel.annotation.Issue.class::cast)
+				.filter(candidate -> candidate.getText().startsWith("The word zorblat" + ts))
+				.findFirst().orElseThrow();
+		assertThat(row.getAnnotationId()).isEqualTo(importedIssue.getId());
+		assertThat(org.hibernate.Hibernate.unproxy(importedIssue.getResolvedByPosition()))
+				.isInstanceOf(com.rreganjr.requel.annotation.impl.IgnorePosition.class);
+		// The original keeps its own.
+		assertThat(ignoredFindingStore.list(originalProject.getId())).hasSize(1);
+	}
+
+	/**
+	 * Issue #272: sources and their links travel with the project. The external id keeps its
+	 * case, the hashes and the fingerprint are kept, and the links point at the imported entities.
+	 */
+	@Test
+	@Transactional
+	void externalSourcesAndTheirLinksRoundTrip() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		Goal goal = originalProject.getGoals().iterator().next();
+		String key = "CON-" + System.nanoTime();
+		var source = provenanceStore.recordSource(new com.rreganjr.requel.project.ProvenanceStore
+				.SourceSpec(originalProject.getId(), "jira", key,
+						com.rreganjr.requel.project.SourceLocatorType.URL,
+						"https://tracker.example.com/browse/" + key, "The ticket", "v7"),
+				projectUser).source();
+		String fingerprint = com.rreganjr.requel.project.TargetFingerprint.of(goal);
+		var originalLink = provenanceStore.link(new com.rreganjr.requel.project.ProvenanceStore
+				.LinkSpec(source, com.rreganjr.requel.project.SourceLinkRelation.DERIVED_FROM, "Goal",
+						goal.getId(), "AC-1", "fragmenthash", "v7", fingerprint), projectUser);
+		java.util.Date ingested = java.util.Date.from(Instant.parse("2026-01-02T03:04:05Z"));
+		provenanceStore.restoreIngestedAt(originalLink.getId(), ingested);
+		provenanceStore.restoreLastIngestedAt(source.getId(), ingested);
+		var guide = provenanceStore.recordSource(new com.rreganjr.requel.project.ProvenanceStore
+				.SourceSpec(originalProject.getId(), "doc", "docs/guide.pdf",
+						com.rreganjr.requel.project.SourceLocatorType.PATH, "docs/guide.pdf", null,
+						null), projectUser).source();
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		String xml = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(xml).as("exported XML").contains("<externalSource ").contains("<sourceLink ");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		String reName = originalProject.getName() + " Sources " + Instant.now().toEpochMilli();
+		Project reimported = importProject(exportedBytes, projectUser, reName);
+		entityManager.flush();
+
+		Goal importedGoal = reimported.getGoals().stream()
+				.filter(candidate -> candidate.getName().equals(goal.getName())).findFirst()
+				.orElseThrow(() -> new AssertionError("goal " + goal.getName() + " not imported"));
+		var sources = provenanceStore.listSources(reimported.getId());
+		assertThat(sources).extracting(com.rreganjr.requel.project.ExternalSource::getExternalId)
+				.containsExactlyInAnyOrder(key, "docs/guide.pdf");
+		var imported = provenanceStore.findSource(reimported.getId(), "jira", key).orElseThrow();
+		assertThat(imported.getLocator()).isEqualTo("https://tracker.example.com/browse/" + key);
+		assertThat(imported.getContentHash()).isEqualTo("v7");
+		assertThat(imported.getTitle()).isEqualTo("The ticket");
+		var links = provenanceStore.linksForSource(imported.getId());
+		assertThat(links).hasSize(1);
+		var link = links.get(0);
+		assertThat(link.getTargetId()).isEqualTo(importedGoal.getId());
+		assertThat(link.getFragment()).isEqualTo("AC-1");
+		assertThat(link.getFragmentHash()).isEqualTo("fragmenthash");
+		assertThat(link.getSourceHashSeen()).isEqualTo("v7");
+		assertThat(link.getEntityFingerprint()).isEqualTo(fingerprint)
+				.isEqualTo(com.rreganjr.requel.project.TargetFingerprint.of(importedGoal));
+		assertThat(link.getIngestedAt()).as("ingest time kept").isEqualTo(ingested);
+		assertThat(imported.getLastIngestedAt()).as("source ingest time kept").isEqualTo(ingested);
+		assertThat(provenanceStore.findSource(reimported.getId(), "doc", "docs/guide.pdf")
+				.orElseThrow().getLocatorType())
+				.isEqualTo(com.rreganjr.requel.project.SourceLocatorType.PATH);
+		assertThat(guide.getId()).isNotNull();
+		// The original keeps its own.
+		assertThat(provenanceStore.listSources(originalProject.getId())).hasSize(2);
+	}
+
+	/**
+	 * Issue #273: a reference's kind and note, a citation (which import used to turn into a
+	 * DERIVED_FROM link) and a defers-to edge travel with the project. A link with an unknown
+	 * relation, or an edge naming a source that is not in the file, is skipped rather than failing
+	 * the import.
+	 */
+	@Test
+	@Transactional
+	void referencesCitationsAndPrecedenceRoundTrip() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		Goal goal = originalProject.getGoals().iterator().next();
+		String ts = String.valueOf(System.nanoTime());
+		var guide = provenanceStore.recordSource(new com.rreganjr.requel.project.ProvenanceStore
+				.SourceSpec(originalProject.getId(), "doc", "guide-" + ts, null, null, "The guide",
+						null, "guide", "Operator procedures"), projectUser).source();
+		var runbook = provenanceStore.recordSource(new com.rreganjr.requel.project.ProvenanceStore
+				.SourceSpec(originalProject.getId(), "doc", "RUNBOOK-" + ts, null, null, null, null,
+						"runbook", null), projectUser).source();
+		provenanceStore.addAuthority(guide, runbook, "operational detail", projectUser);
+		provenanceStore.link(new com.rreganjr.requel.project.ProvenanceStore.LinkSpec(runbook,
+				com.rreganjr.requel.project.SourceLinkRelation.CITES, "Goal", goal.getId(), "§4",
+				null, null, null), projectUser);
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		String xml = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(xml).contains("relation=\"CITES\"").contains("<defersTo ")
+				.contains("note=\"Operator procedures\"");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		Project reimported = importProject(exportedBytes, projectUser,
+				originalProject.getName() + " Refs " + Instant.now().toEpochMilli());
+		entityManager.flush();
+		Goal importedGoal = reimported.getGoals().stream()
+				.filter(candidate -> candidate.getName().equals(goal.getName())).findFirst()
+				.orElseThrow();
+		var importedGuide = provenanceStore.findSource(reimported.getId(), "doc", "guide-" + ts)
+				.orElseThrow();
+		assertThat(importedGuide.getKind()).isEqualTo("guide");
+		assertThat(importedGuide.getNote()).isEqualTo("Operator procedures");
+		var importedRunbook = provenanceStore.findSource(reimported.getId(), "doc", "RUNBOOK-" + ts)
+				.orElseThrow();
+		var links = provenanceStore.linksForSource(importedRunbook.getId());
+		assertThat(links).hasSize(1);
+		assertThat(links.get(0).getRelation()).as("the relation survives import")
+				.isEqualTo(com.rreganjr.requel.project.SourceLinkRelation.CITES);
+		assertThat(links.get(0).getTargetId()).isEqualTo(importedGoal.getId());
+		assertThat(links.get(0).getFragment()).isEqualTo("§4");
+		var edges = provenanceStore.authorityEdges(reimported.getId());
+		assertThat(edges).hasSize(1);
+		assertThat(edges.get(0).getSubordinate().getId()).isEqualTo(importedGuide.getId());
+		assertThat(edges.get(0).getSuperior().getId()).isEqualTo(importedRunbook.getId());
+		assertThat(edges.get(0).getNote()).isEqualTo("operational detail");
+
+		// A hand-edited file: an unknown relation and an edge to a source that is not there.
+		String tampered = xml.replace("relation=\"CITES\"", "relation=\"SUPERSEDES\"")
+				.replaceAll("(<(?:\\w+:)?defersTo\\b[^>]*externalId=\")RUNBOOK-" + ts,
+						"$1MISSING-" + ts);
+		assertThat(tampered).contains("SUPERSEDES").contains("MISSING-" + ts);
+		Project skipped = importProject(tampered.getBytes(StandardCharsets.UTF_8), projectUser,
+				originalProject.getName() + " Tampered " + Instant.now().toEpochMilli());
+		entityManager.flush();
+		var skippedRunbook = provenanceStore.findSource(skipped.getId(), "doc", "RUNBOOK-" + ts)
+				.orElseThrow();
+		assertThat(provenanceStore.linksForSource(skippedRunbook.getId()))
+				.as("the unknown relation is skipped").isEmpty();
+		assertThat(provenanceStore.authorityEdges(skipped.getId()))
+				.as("the edge to a missing source is skipped").isEmpty();
+		assertThat(provenanceStore.findSource(skipped.getId(), "doc", "guide-" + ts)).isPresent();
+	}
+
+	private com.rreganjr.requel.annotation.Issue addIssue(Project project, Goal goal, User editor,
+			String text) throws Exception {
+		com.rreganjr.requel.annotation.command.EditIssueCommand command =
+				annotationCommandFactory.newEditIssueCommand();
+		command.setEditedBy(editor);
+		command.setGroupingObject(project);
+		command.setAnnotatable(goal);
+		command.setText(text);
+		command.setMustBeResolved(true);
+		return commandHandler.execute(command).getIssue();
+	}
+
+	private void resolveWith(com.rreganjr.requel.annotation.Issue issue, User editor,
+			String positionText) throws Exception {
+		com.rreganjr.requel.annotation.command.EditPositionCommand position =
+				annotationCommandFactory.newEditPositionCommand();
+		position.setEditedBy(editor);
+		position.setIssue(issue);
+		position.setText(positionText);
+		com.rreganjr.requel.annotation.Position created = commandHandler.execute(position)
+				.getPosition();
+		com.rreganjr.requel.annotation.command.ResolveIssueCommand resolve =
+				annotationCommandFactory.newResolveIssueCommand(created);
+		resolve.setEditedBy(editor);
+		resolve.setIssue(issue);
+		resolve.setPosition(created);
+		commandHandler.execute(resolve);
+	}
+
+	private static com.rreganjr.requel.annotation.Issue issueWithText(
+			List<com.rreganjr.requel.annotation.Issue> issues, String text) {
+		return issues.stream().filter(issue -> text.equals(issue.getText())).findFirst()
+				.orElseThrow(() -> new AssertionError("no imported issue '" + text + "'; got "
+						+ issues.stream().map(Annotation::getText).collect(Collectors.toList())));
+	}
+
+	private void assignImportedTagForTest(User user, Project projectScope, Goal goal,
+			String category, String value) throws Exception {
+		com.rreganjr.requel.tagging.command.EditTagCommand edit = tagCommandFactory.newEditTagCommand();
+		edit.setEditedBy(user);
+		edit.setProjectScope(projectScope);
+		edit.setCategory(category);
+		edit.setValue(value);
+		edit.execute();
+
+		com.rreganjr.requel.tagging.command.AssignTagCommand assign = tagCommandFactory.newAssignTagCommand();
+		assign.setEditedBy(user);
+		assign.setProjectScope(projectScope);
+		assign.setTag(edit.getTag());
+		assign.setTaggable((com.rreganjr.requel.tagging.Taggable) goal);
+		assign.execute();
+	}
+
+	@Test
+	@Transactional
 	void importingSampleXmlPreservesCanonicalGlossaryTerms() throws Exception {
 		initializeBaselineData();
 		User projectUser = ensureProjectUserExists();
-		byte[] sampleXml = Files.readAllBytes(Path.of("doc", "samples", "Requel.xml"));
+		// The canonical sample lives at <repo-root>/doc/samples/Requel.xml.
+		// Reading it via a relative filesystem path doesn't work under surefire
+		// (CWD is the module root, not the repo root). The repo-root copy is
+		// copied onto the test classpath at doc/samples/Requel.xml by a
+		// <testResource> block in this module's pom.xml.
+		byte[] sampleXml;
+		try (InputStream sampleStream = getClass().getClassLoader()
+				.getResourceAsStream("doc/samples/Requel.xml")) {
+			if (sampleStream == null) {
+				throw new IllegalStateException(
+						"doc/samples/Requel.xml not found on test classpath. "
+								+ "Check the <testResource> block in modules/requel-app/pom.xml.");
+			}
+			sampleXml = sampleStream.readAllBytes();
+		}
 		String importedProjectName = "Sample Import " + UUID.randomUUID();
 		Project imported = importProject(sampleXml, projectUser, importedProjectName);
 
 		GlossaryTerm alias = imported.getGlossaryTerms().stream()
-				.filter(term -> "Pee Pee Snow Cone".equals(term.getName()))
+				.filter(term -> "Interested Party".equals(term.getName()))
 				.findFirst()
 				.orElseThrow(() -> new AssertionError("Alias glossary term not imported"));
 		GlossaryTerm canonical = imported.getGlossaryTerms().stream()
-				.filter(term -> "Yellow Snow".equals(term.getName()))
+				.filter(term -> "Stakeholder".equals(term.getName()))
 				.findFirst()
 				.orElseThrow(() -> new AssertionError("Canonical glossary term not imported"));
 
@@ -235,7 +868,7 @@ class ProjectXmlStreamingRoundTripIT {
 			command.setPassword("project");
 			command.setRepassword("project");
 			command.setName("Builtin Project User");
-			command.setEmailAddress("rreganjr@users.sourceforge.net");
+			command.setEmailAddress("project@requel.invalid");
 			command.setOrganizationName("Requel");
 			command.addUserRoleName(ProjectUserRole.getRoleName(ProjectUserRole.class));
 			command.addUserRolePermissionName(ProjectUserRole.getRoleName(ProjectUserRole.class),
@@ -246,28 +879,25 @@ class ProjectXmlStreamingRoundTripIT {
 		}
 	}
 
+	/**
+	 * Establishes baseline users/roles/permissions before the round-trip
+	 * exercises. As of the move to Spring Boot's {@code DatabaseInitializationRunner}
+	 * (an {@code @EventListener(ApplicationReadyEvent.class)} that iterates
+	 * every {@code SystemInitializer} bean), every initializer already runs
+	 * during application context startup — long before any test method
+	 * executes. The previous body of this method re-ran each initializer and
+	 * also explicitly granted the project role to admin/assistant/project,
+	 * which collided with the application-startup state and produced
+	 * "detached entity passed to persist: JpaUserRolePermission" errors when
+	 * the test's {@code @Transactional} context tried to re-persist permission
+	 * entities that were already managed in a different persistence context.
+	 *
+	 * <p>Keeping the method (rather than deleting the call sites) makes the
+	 * intent explicit at the call site and gives us a single place to add
+	 * additional baseline state if the test fixture needs it later.
+	 */
 	private void initializeBaselineData() {
-		userRolePermissionsInitializer.initialize();
-		stakeholderPermissionsInitializer.initialize();
-		adminUserInitializer.initialize();
-		assistantUserInitializer.initialize();
-		projectUserInitializer.initialize();
-		ensureUserHasProjectRole("admin");
-		ensureUserHasProjectRole("assistant");
-		ensureUserHasProjectRole("project");
-	}
-
-	private void ensureUserHasProjectRole(String username) {
-		try {
-			User user = userRepository.findUserByUsername(username);
-			if (!user.hasRole(ProjectUserRole.class)) {
-				user.grantRole(ProjectUserRole.class);
-			}
-			user.getRoleForType(ProjectUserRole.class)
-					.grantUserRolePermission(ProjectUserRole.createProjects);
-		} catch (NoSuchUserException ignored) {
-			// optional user (e.g., assistant) may not exist in some test configurations
-		}
+		// DatabaseInitializationRunner has already established the baseline.
 	}
 
 	private Project createSampleProject(User creator) throws Exception {
@@ -298,7 +928,7 @@ class ProjectXmlStreamingRoundTripIT {
 
 		createGoal(project, goalName, "Ensure requirements are captured accurately.", creator);
 		createActor(project, actorName, "Represents a primary system user.", creator);
-		createStory(project, storyName, "As a user I want to manage requirements.", creator);
+		createStory(project, storyName, "As a user I want to manage requirements.", actorName, creator);
 
 		List<EditScenarioStepCommand> stepCommands = List.of(
 				newScenarioStepCommand(project, creator, stepNameOne,
@@ -393,7 +1023,7 @@ class ProjectXmlStreamingRoundTripIT {
 		return command.getActor();
 	}
 
-	private Story createStory(Project project, String name, String text, User creator) throws Exception {
+	private Story createStory(Project project, String name, String text, String primaryActorName, User creator) throws Exception {
 		EditStoryCommand command = projectCommandFactory.newEditStoryCommand();
 		command.setAnalysisEnabled(false);
 		command.setEditedBy(creator);
@@ -401,6 +1031,7 @@ class ProjectXmlStreamingRoundTripIT {
 		command.setName(name);
 		command.setText(text);
 		command.setStoryTypeName(StoryType.Success.name());
+		command.setPrimaryActorName(primaryActorName);
 		command = commandHandler.execute(command);
 		assertThat(command.getStory()).as("Created story").isNotNull();
 		return command.getStory();
@@ -531,6 +1162,7 @@ private UseCase createUseCase(Project project, String primaryActorName,
 				.stream()
 				.map(story -> new StorySummary(story.getName(), story.getText(),
 						story.getStoryType() != null ? story.getStoryType().name() : null,
+						story.getPrimaryActor() != null ? story.getPrimaryActor().getName() : null,
 						countAnnotationsFor(allAnnotations, story)))
 				.collect(Collectors.toSet());
 
@@ -793,7 +1425,7 @@ private UseCase createUseCase(Project project, String primaryActorName,
 
 	private record EntitySummary(String name, String text, int annotationCount) {}
 
-	private record StorySummary(String name, String text, String type, int annotationCount) {}
+	private record StorySummary(String name, String text, String type, String primaryActorName, int annotationCount) {}
 
 	private record StepSummary(String name, String text, String type, int annotationCount) {}
 

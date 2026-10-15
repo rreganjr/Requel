@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,5 +54,15 @@ public interface EditStoryCommand extends EditTextEntityCommand {
 	 *            the name of the type of story
 	 */
 	public void setStoryTypeName(String storyTypeName);
+
+	/**
+	 * Set the name of the primary actor for this story. Null clears the primary actor.
+	 */
+	public void setPrimaryActorName(String primaryActorName);
+
+	/**
+	 * Get the name of the primary actor to set on this story.
+	 */
+	public String getPrimaryActorName();
 
 }

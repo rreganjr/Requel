@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -87,10 +87,14 @@ public class EditLexicalIssueCommandImpl extends EditIssueCommandImpl implements
 					issue = getAnnotationRepository().findLexicalIssue(getGroupingObject(),
 							annotatable, getWord(), getAnnotatableEntityPropertyName());
 				}
+				// #271: a supplied severity also applies to the issue reused by word.
+				applySeverity(issue);
 			} catch (NoSuchAnnotationException e) {
-				issue = getRepository().persist(
-						new LexicalIssue(groupingObject, getText(), getMustBeResolved(), editedBy,
-								getAnnotatableEntityPropertyName(), getWord()));
+				LexicalIssue created = new LexicalIssue(groupingObject, getText(),
+						getMustBeResolved(), editedBy, getAnnotatableEntityPropertyName(),
+						getWord());
+				applySeverity(created);
+				issue = getRepository().persist(created);
 			}
 		} else {
 			if (getText() != null) {
@@ -99,6 +103,7 @@ public class EditLexicalIssueCommandImpl extends EditIssueCommandImpl implements
 			if (getWord() != null) {
 				issue.setWord(getWord());
 			}
+			applySeverity(issue);
 			issue = getRepository().merge(issue);
 		}
 		if (annotatable != null) {

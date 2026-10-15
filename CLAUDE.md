@@ -1,0 +1,335 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+Requel is a web-based requirements management system supporting collaboration among stakeholders with automated NLP-based assistance. It models requirements as goals, stories, actors, scenarios, and use-cases with an IBIS-style annotation/discussion layer. Originally a 2009 Harvard ALM thesis project, now modernized to Spring Boot 3 / Java 17.
+
+
+## Process Instructions
+
+Always write commit messages to commit.md at the root of the project. Clear out existing content unless you are updating the message as told. In the file following the format:
+```
+https://github.com/rreganjr/Requel/issues/38
+
+<short description, for example what tasks from what plan were implemented>
+
+<details - file specific changes, including explaination when fixing bugs of what was broken and how the fix solves the problem>
+```
+
+Claude (re)writes `commit.md` to describe the current change before each commit. `commit.md` is
+gitignored (`/commit.md`) and is **never committed** — it is the source for the commit message,
+consumed via `git commit -F commit.md` (or copy/pasted into the VS Code commit box). When the PR
+body should differ from the commit message (a PR summary, scope notes, a "Closes #<n>"), write it
+to `pr.md` — also gitignored (`/pr.md`), also never staged — and pass it as `gh pr create
+--body-file pr.md`. **Refresh `pr.md`/`commit.md` immediately before the command that consumes it**;
+a stale reuse (e.g. last ticket's `pr.md`) is an easy and embarrassing mistake. Stage only the
+changed source files — never `git add commit.md`/`pr.md`, and never `git add -A` (it would sweep
+them in).
+
+Never commit unless explicitly told to commit
+
+Never push changes to the github repo
+
+**"Let's commit" / "let's push" means prepare, then hand over the commands.** Claude does not run
+`git` or `gh` commands that change state — not commit, push, branch, tag, PR, issue edit, or
+comment — even when told to. On either phrase Claude:
+
+1. Checks the working tree holds what it should and that the verification gate in step 3 of the
+   Development Workflow has passed.
+2. (Re)writes `commit.md` for the current change, in the format above.
+3. Prints the exact commands to paste, with nothing left to fill in: `git add` naming each changed
+   file, `git commit -F commit.md`, `git push -u origin <branch>`, `gh pr create ...`.
+
+Read-only git — `log`, `show`, `status`, `diff`, `rev-parse` — is fine for Claude to run, but
+always with `--no-optional-locks`. When Claude reaches the repo over the Cowork device bridge it
+cannot delete files, so any command that takes `.git/index.lock` leaves it behind and blocks the
+next git operation from the developer's own terminal.
+
+Documentation is filed by lifecycle. See `doc/README.md` for the full layout and the one
+question that decides where a file goes.
+
+- **Ticket-scoped artifacts** — plans, reviews, rollups, issue drafts — go in
+  `doc/work/<release>/`, where `<release>` is the reactor version's major.minor from the
+  root `pom.xml` (`2.0.0-dev` → `doc/work/2.0/`). Never hardcode the release.
+- **Standing documentation** goes in `doc/architecture/` (how it is built),
+  `doc/guides/` (how to run it) or `doc/ui/` (the Angular layer).
+- **Proposals not yet tied to an issue** go in `doc/work/backlog/`.
+- Nothing new belongs at the root of `doc/` except `README.md`.
+
+Work artifacts are never retro-edited. A plan or review is correct as of when it was
+written, and a version or path it names that has since changed is a record, not a defect.
+
+Never use `TL;DR` I hate that abbreviation, use `Summary`
+
+### Development Workflow
+
+Each release such as `release/2.0` has a GitHub project (**Requel 2.0**, `github.com/users/rreganjr/projects/2`); all issues for the release are added to it. We use the **Story Points** (estimate) and **Story Points (Retro)** (actual, filled after merge) custom fields to track effort.
+
+How releases, milestones, hotfixes and version bumps work is in `doc/guides/RELEASE_PROCESS.md`; `release/2.0` below stands for the active release branch.
+
+Every change is tied to a GitHub issue and lands via a ticket branch and a PR — never commit straight onto `release/2.0`. The two exceptions (`doc/guides/RELEASE_PROCESS.md`, "Commits that skip the PR") are documentation-only changes (`doc/**/*.md`, root `*.md`) and maintainer-script changes (`scripts/**`), which CI skips, and release commits that only bump the version; both still carry the issue URL on line 1. **Steps that create or change Git/GitHub state (branch, commit, push, PR, issue edits, project-field edits, merges) are always run by the developer, never by Claude.** Claude prepares them — reviews, plans, writes `commit.md`, works out the exact `git`/`gh` invocation, checks the tree is in the state the command assumes — and hands the commands over to paste. See the "let's commit / let's push" rule above.
+
+**The ticket lifecycle, every time:**
+
+1. **Review the ticket for completeness** — before any code. Pull the issue and read it against the current state of the tree (ACs may have drifted as sibling tickets merged). Surface open questions and get decisions before planning. Claude does the review; the developer runs the read-only pull:
+   ```bash
+   gh issue view <n> --repo rreganjr/Requel --json number,title,body,labels,state > tmp/issue-<n>.json
+   ```
+   Report: is it still needed, have the ACs changed, any blockers/decisions needed. Ask the open questions and wait for answers.
+2. **Write an implementation plan** — a house-style doc at `doc/work/<release>/<n>-<slug>-plan.md` (scope/locked decisions, contracts, step-by-step, test plan, out-of-scope, risks, AC mapping). All plans/reviews/notes live under `doc/work/<release>/`. Get a thumbs-up on the plan (and on any risky decisions, e.g. a route move) before coding. One ticket, one PR (§ "One PR per ticket" below).
+3. **Branch (at the start of work)** — cut from `release/2.0`, named `<issue-number>-<short-slug>` (e.g. `142-route-groups`, `128-154-app-shell`). All edits on that branch. (Claude may create the branch over the device bridge with `git switch -c` / `git checkout -b` — those don't leave a lock — but never `git branch -D`, `git rebase`, `git stash`, or anything else that writes refs/index over the bridge; hand those to the developer.)
+4. **Implement.** Keep a per-ticket verify script at `tmp/<n>-verify.sh` (gitignored) that runs the exact gates below, so the developer runs one command.
+5. **Verify — the gate. All relevant suites must pass before committing:**
+   - **Java (backend):** `mvn clean verify` green — whenever any `modules/**` changed.
+   - **JS unit (frontend):** whenever `requel-angular/**` changed. Run **once, non-watch** — vitest defaults to an interactive watch that stops at a `q` prompt, so always pass `--watch=false` and export `CI=1`:
+     ```bash
+     cd requel-angular
+     CI=1 npx ng test --watch=false --include='src/app/**/<the-specs-you-touched>.spec.ts'
+     # or the whole suite: CI=1 npm test -- --watch=false
+     ```
+   - **Typecheck** (fast, catches template/wiring errors unit tests miss): `npx tsc -p tsconfig.app.json --noEmit && npx tsc -p tsconfig.spec.json --noEmit`, and for route/lazy/template changes a dev build: `npx ng build --configuration development`.
+   - **e2e (Playwright):** required whenever routing, navigation, page objects, or user-visible flows changed — the unit suite will *not* catch a broken route or a page-object locator. e2e needs the full stack, so it normally runs in **CI**; read a failed run's report instead of guessing:
+     ```bash
+     # from the CI e2e coverage JSON, list the failing cases + locations
+     python3 - <<'EOF'
+     import json; d=json.load(open("e2ecoverage.json"))
+     def walk(ns):
+       for n in ns:
+         if n.get('status')=='failed' and '.e2e.ts' in str(n.get('location','')):
+           print(n['location'], '::', n.get('title'))
+         for k in ('subs','rows','children'):
+           if isinstance(n.get(k),list): walk(n[k])
+     walk(d['rows'])
+     EOF
+     ```
+     When the route/behavior changed **intentionally**, updating the e2e that encoded the old behavior is correct (not a regression); when the change was meant to be behavior-preserving, a red e2e is a real regression — fix the code, not the test.
+   Do not commit until the relevant suites pass.
+6. **Commit message** — (re)write `commit.md` in the format under **Process Instructions**, with a closing keyword (`Closes #<n>`). `commit.md` is gitignored and never staged.
+7. **Commit + push** — Claude hands over `git add <changed files>` (name them; never `git add -A`, which would sweep in `commit.md`/`pr.md`), `git commit -F commit.md`, `git push -u origin <branch>`. When the PR body differs from the commit message, write it to `pr.md` (also gitignored) and refresh it *before* the `gh pr create`/`gh pr edit` — a stale `pr.md` is an easy mistake.
+8. **PR** — Claude hands over `gh pr create --base release/2.0 --head <branch>`, always with `--title` (`<issue#>: <concise summary>`) and `--body-file pr.md`. PRs are squash-merged.
+9. **Merge** — developer merges once CI (including e2e) is green. `--admin` overrides branch protection on `release/2.0` when needed; auto-merge is disabled on this repo.
+10. **Close the issue** — `release/2.0` is not the default branch, so `Closes #<n>` does **not** auto-close on merge. After merge:
+    ```bash
+    gh issue close <n> --repo rreganjr/Requel --reason completed       --comment "Merged to release/2.0 via #<pr>."
+    ```
+11. **Sync the epic rollup** (for tickets under a rollup like #124):
+    ```bash
+    bash scripts/reorder-ui-ux-subissues.sh --sync-checks --comment
+    ```
+    It reconciles the rollup doc's checkboxes/progress from **issue-closed state** (not PR-merged state), so run it *after* step 10.
+12. **Story Points (Retro)** — record actual effort so estimate-vs-actual stays honest. **Use the scripts; never hand-run `gh project`.** The fine-grained `GH_TOKEN` this tree exports can read ProjectsV2 but cannot write it (`item-add`/`item-edit` fail with *"Resource not accessible by personal access token"*), and `gh auth refresh` cannot add scopes to an env token. `scripts/retro-lib.sh` solves this by wrapping `gh` so that `gh project` calls — and only those — use the classic `project`-scoped PAT at `~/.config/gh-tokens/rreganjr-projects`, leaving `gh issue` and git on the ambient token.
+    ```bash
+    ./scripts/audit-retros.sh 2.0                 # read-only: VIOLATION / MISSING / DRIFT / OK
+    ./scripts/set-points.sh <n> 0                 # one issue: initial 0, retro auto-computed
+    ./scripts/set-points.sh <n> 0 <retro>         # same, overriding the computed retro
+    ./scripts/backfill-points.sh 2.0              # fill every closed v2.0 issue that has no retro yet
+    ./scripts/clear-open-retros.sh 2.0 --apply    # clear retros set on still-open issues
+    ```
+    **The retro number is measured, not judged:** `retro = snap_fib(commit_days(n))`, where `commit_days` counts distinct days with a commit carrying `https://github.com/rreganjr/Requel/issues/<n>` (line 1 of every commit here). The scale is ~1 working day = 1 point, snapped to Fibonacci. Calibration: #40 = 1d → 1, #73 = 3d → 3, #69 = 4d → 5, #43 = 11d → 13, #38 = 39d → 34. Override only deliberately — a value that differs from the calc shows as **DRIFT** on every later audit, and a one-day ticket pointed at 5 is worth five of #38's days on the same board.
+
+    **Zero is a legitimate retro.** An issue closed with no commit referencing it — a duplicate, a board/config fix, or work that rode along under another issue — scores **0**, and `set-points.sh` writes that 0 rather than leaving the field blank. A blank retro means "not yet scored" and stays MISSING on every audit; a recorded 0 means "closed, cost nothing" and reads OK.
+
+    Four gotchas, each of which has already bitten:
+    - **Retro is closed-only.** `set-points.sh` *silently* drops the retro on an open issue (it still writes the initial estimate), so run step 10 before step 12 and check the output for a `Story Points (Retro) = ` line rather than assuming the write happened.
+    - **The second argument is always written.** `./scripts/set-points.sh <n> 0` sets initial Story Points to **0**. If the issue carries a real pre-work estimate, pass that number instead of `0` or you will erase it.
+    - **Epics never carry a retro.** `is_epic` strips it from anything labelled `Epic`; the sub-issues carry the effort.
+    - **Backfill fills, it does not overwrite.** `backfill-points.sh` skips any issue that already has a retro (a deliberate override is not a gap) and passes each issue's existing initial estimate back through instead of zeroing it. `--recompute` re-derives set values on purpose; estimates are preserved either way.
+    - **Mind the GraphQL budget (5,000 points/hour).** The scripts share their lookups: the project id, the field ids and a one-shot index of every issue's state and labels are resolved once per run and passed to child processes through the environment. Budget is billed in points, not calls: the per-issue lookups are gone, and what remains is the board read at ~200 points — `item-list` pages at 100 items and each item pulls `fieldValues(first:100)`, so it is ~100 points per page regardless of `--limit` (measured: 208 points at both 200 and 500). A generous `ITEM_LIMIT` therefore costs nothing, and `warn_if_truncated` shouts if a read ever hits it. Don't hand-roll a `gh project` loop of your own — a per-issue lookup pattern exhausted the hour's budget mid-backfill once already. `gh api graphql -f query='{ rateLimit { remaining resetAt } }'` reports what's left (that query is free, and takes the token whose budget you want to check).
+    - **The two scripts see different sets.** `audit-retros.sh` walks the *project board*, so an issue never added to it is invisible there; `backfill-points.sh` selects by *milestone* `v<release>`, so an issue missing its milestone is invisible to that. `set-points.sh` adds the issue to the board itself, which is how a stray one gets on.
+
+**One PR per ticket.** A ticket lands as exactly one branch and one PR. Never split it into stacked sub-PRs, and never land part of a ticket with a "Part of #<n>" PR. If a ticket is too big for one PR, say so in the review (step 1) and propose splitting it into separate tickets, each with its own branch, PR and retro. Ask before filing them: every ticket costs a full CI run and a review cycle, so the split has to be worth that. Small related fixes found along the way are folded into the current ticket rather than split off.
+
+**Device-bridge git caveat.** Over the Cowork bridge Claude cannot delete files, so any git command that takes `.git/*.lock` (notably `git status`, `git branch -D`, an interrupted `checkout`/`rebase`) leaves the lock behind and blocks the developer's terminal. Claude therefore: uses only read-only plumbing (`git show`, `git rev-parse`, `git ls-files`, `git log`) or `diff <(git show ref:path) path`, avoids `git status`, and hands **all** state-changing git to the developer. If a lock is stranded, the developer clears it: `rm -f .git/index.lock .git/*.lock .git/refs/**/*.lock`.
+
+**Auto-close caveat:** the repo's default branch is `master`, but PRs target `release/2.0`. GitHub auto-closes an issue from `Closes #<n>` only when the PR merges into the **default** branch, so merging into `release/2.0` does **not** close the issue — always do step 10 explicitly.
+
+**Hotfixes** patch the latest shipped release on `master` (`doc/guides/RELEASE_PROCESS.md`, "Hotfixes"): the same lifecycle, but the branch is cut from `origin/master` (`git switch -c <issue#>-<slug> origin/master`), the PR is `gh pr create --repo rreganjr/Requel --base master ...`, the issue goes on the patch milestone (`v2.0.1`) and the parent board (`./scripts/add-milestone-issues-to-project.sh 2.0.1`), and step 10 is not needed because `master` is the default branch. After the tag, `master` is merged forward into the active release branch with a merge commit, never a squash.
+
+Command reference — all run by the developer, in the developer's environment, not Claude's sandbox. Claude fills placeholders and hands them over:
+
+```bash
+# 0. Review:  gh issue view <n> --repo rreganjr/Requel --json number,title,body,labels,state > tmp/issue-<n>.json
+# 1. Plan:    doc/work/<release>/<n>-<slug>-plan.md  (then get sign-off)
+# 2. Branch:  git switch -c <issue#>-<slug> release/2.0
+# 3. Verify (must pass — run what the change touched):
+mvn clean verify                                              # backend (modules/**)
+cd requel-angular && CI=1 npm test -- --watch=false           # frontend unit (requel-angular/**)
+# e2e runs in CI; read a failed run's e2ecoverage.json (see step 5 above)
+# 4. commit.md with a "Closes #<n>" line (gitignored — never `git add` it)
+# 5. Commit + push (stage only changed source files):
+git add <changed files> && git commit -F commit.md && git push -u origin <issue#>-<slug>
+# 6. PR (always --title; body from pr.md, refreshed first):
+gh pr create --repo rreganjr/Requel --base release/2.0 --head <issue#>-<slug>   --title "<issue#>: <concise summary>" --body-file pr.md
+# 7. After squash-merge (release/2.0 is not default → close manually):
+gh issue close <n> --repo rreganjr/Requel --reason completed --comment "Merged to release/2.0 via #<pr>."
+# 8. Rollup + retro:
+bash scripts/reorder-ui-ux-subissues.sh --sync-checks --comment
+#    (then record actual effort: ./scripts/set-points.sh <n> 0   — see step 12)
+```
+
+Recovery — work accidentally committed onto `release/2.0`:
+
+- **Not yet pushed:** move the commits to a branch and rewind local `release/2.0`:
+  `git branch <issue#>-<slug>` then `git reset --hard origin/release/2.0` then
+  `git switch <issue#>-<slug>` and continue at step 5 above.
+- **Already pushed to `origin/release/2.0`:** do **not** rewrite the shared branch. The work is
+  integrated; just close the issue with a comment linking the commit
+  (`gh issue close <n> --comment "Done in <sha> on release/2.0: ..."`).
+
+## Build Commands
+
+Requires **Java 17**, **Maven 3.6.3+**, and **Node 22+**. Set `JAVA_HOME` accordingly.
+
+The NLP data is not in the source tree: the first build on a machine downloads the
+`requel-nlp-data` jar from its GitHub Release (`modules/nlp-data`, see `doc/guides/NLP_DATA.md`).
+An IDE shows it as missing until one command-line build has run.
+
+```bash
+# Full build (Java + Angular, skips tests)
+mvn -pl modules/requel-app -am package -DskipTests
+
+# Fast iterative build (Java only, skips Angular and tests)
+mvn -pl modules/requel-app -am package -DskipAngularBuild=true -DskipTests=true
+
+# Run all tests
+mvn test
+
+# Run a single test class
+mvn -pl modules/requel-app -am test -Dtest=ProjectXmlRoundTripIT
+
+# Run a single module's tests
+mvn -pl modules/project-jpa test
+
+# Build Docker image
+mvn -pl modules/requel-app -am package -Pdocker-image -DskipTests
+```
+
+## Running Locally
+
+The jar is named for the reactor version in the root `pom.xml` (`requel-app-<version>.jar`), currently `2.0.0-dev` — update these commands when that version changes.
+
+**Always run the jar locally with `--spring.profiles.active=dev`, and always include it when handing
+over a `java -jar` command.** The dev profile enables `/api/dev/reset-admin` and
+`/api/dev/reset-project`, which the Playwright global setup calls to put the admin and project
+users back in canonical state before each run (without it the run prints two
+`[global-setup] ... not available` warnings and depends on whatever state those users are in),
+plus CORS for `ng serve` on :4200 and the dev OAuth client. Note that it resets the admin
+credentials to `admin`/`admin` on the database it points at.
+
+```bash
+# With local MySQL (Angular served from the JAR at /)
+java -jar modules/requel-app/target/requel-app-2.0.0-dev.jar \
+  --spring.profiles.active=dev --server.port=8080 \
+  '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
+  --spring.datasource.username=root --spring.datasource.password=password
+
+# Angular dev server (hot reload) + Spring Boot backend - the same command; the dev profile's
+# CORS setting is what lets localhost:4200 call it:
+java -jar modules/requel-app/target/requel-app-2.0.0-dev.jar \
+  --spring.profiles.active=dev --server.port=8080 \
+  '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
+  --spring.datasource.username=root --spring.datasource.password=password
+# Then in requel-angular/:
+cd requel-angular && ng serve
+
+# Or use docker-compose (MySQL + app)
+docker-compose up
+```
+
+Default login: **admin** / **admin** at http://localhost:8080/
+
+## Architecture
+
+### Maven Monorepo (18 modules under `/modules/`)
+
+DDD-inspired modular architecture with domain/persistence/UI separation:
+
+**Foundation:**
+- `platform-core` — shared exceptions, base abstractions (repository, command, validation)
+- `platform-identity` — identity primitives, auth, password hashing
+
+**Domain → JPA pairs** (interfaces in `-domain`, persistence in `-jpa`):
+- `user-domain` / `user-jpa` — system users, roles
+- `project-domain` / `project-jpa` — the core aggregate: projects, goals, actors, stories, scenarios, stakeholders
+- `annotation-domain` / `annotation-jpa` — IBIS discussion layer (issues, positions, arguments) attached to any domain entity via Hibernate `@Any`/`@ManyToAny` discriminator pattern
+
+**Features:**
+- `nlp-jpa` — Stanford CoreNLP + OpenNLP integration; goal/scenario/lexical assistants
+- `nlp-data` — fetches the versioned `requel-nlp-data` jar (models, WordNet glosses, dictionary dumps, jazzy, VerbNet) from its GitHub Release and installs it locally; `nlp-jpa` depends on it at runtime. Never put NLP data back under `src/main/resources` — a change is a new `nlp-data-<N>` release (`doc/guides/NLP_DATA.md`)
+- `dictionary-jpa` — spell-check lexicon persistence
+- `utils-jaxb` — JAXB import/export patchers (XML project serialization)
+
+**UI:**
+- `requel-angular/` — Angular 17+ SPA (outside the Maven module tree); built by `frontend-maven-plugin` during `mvn package` and served from `classpath:/static/`
+
+**Assistants:**
+- `assistant-core, assistant-api` - A key feature or Requel is background assistants that analyze the requirements and add annotations to elements such as notes and issues. issues have positions that may automate a fix to the requirements. There are legacy assistants that use NLP and custom logic to suggest fixes. The future is ai assistants `assistant-ai, assistant-anthropic, assistant-openai` and MCP support so external ai agents can build Requel models.
+
+**Application:**
+- `requel-app` — Spring Boot entry point, Flyway migrations, integration tests; serves the Angular SPA at `/` and the CQRS API at `/api/**`
+
+### Key Patterns
+
+- **Aggregate roots:** Project is the main aggregate containing goals, actors, stories, scenarios, stakeholders
+- **Command pattern:** Domain mutations via command classes (separate from query repositories); `AnalysisInvokingCommandHandler` triggers NLP after writes
+- **Repository pattern:** `AbstractRepository` → `AbstractJpaRepository`; interfaces in domain modules, implementations in JPA modules
+- **Annotation registry:** `AnnotatableTypeRegistry` in `annotation-domain` maps discriminator strings to entity types; `project-jpa` registers its types via `ProjectAnnotatableRegistryConfiguration`
+- **JAXB import/export:** Streaming importer with AggregateAssembler/ImportUnitOfWork pattern; patchers resolve cross-references post-unmarshal without repository access from entity constructors
+
+### CQRS API Architecture
+
+The Angular SPA is backed by a hybrid CQRS API:
+- **Writes:** `POST /api/commands/{commandType}` — single dispatch endpoint, ~37 command types
+- **Reads:** `GET /api/...` — conventional query endpoints, ~28 total
+- **Composite CommandFactory:** per-domain factories (`ProjectCommandFactory`, `UserCommandFactory`, etc.) register their command types at startup; a top-level `CommandFactory` facade provides `newCommand(type, input)` entry point
+- **Domain integration:** existing Commands implement `ApiCommand<T>` interface for input mapping
+- **Authorization:** `AuthorizingCommandHandler` in handler chain checks `AuthorizableCommand.getAuthorizationRequirement()` before execute. See `doc/architecture/AUTH_ARCH.md`
+- Full architecture diagram and endpoint inventory in `doc/work/2.0/UI_REFACTOR_PLAN.md` Section 3.1
+
+### Database
+
+- **Production:** MySQL 8.4, schema managed by Flyway (`modules/requel-app/src/main/resources/db/migration/`)
+- **Tests:** H2 in-memory (MySQL mode), Hibernate DDL `create-drop`, Flyway disabled
+- Test config: `modules/requel-app/src/test/resources/application-test.properties`
+
+## Development Guardrails
+
+- **Domain purity:** Keep domain code persistence-ignorant — no repository access from entity constructors or JAXB hooks
+- **Aggregate boundaries:** Follow DDD terminology from `doc/architecture/unmarshalling_plan.md`; honour the AggregateAssembler/ImportUnitOfWork pattern for import logic
+- **Annotation decoupling:** The annotation module must not import project implementation classes; use the registry pattern
+- **Module dependencies flow downward:** domain modules never depend on JPA modules
+- **Project XML compatibility:** Import/export must satisfy `doc/samples/project.xsd`; changes to JAXB mappings need round-trip regression tests
+- **Never edit an applied Flyway migration, not even a comment.** Flyway's checksum covers every line, so any change to a `V*__*.sql` file already on `release/2.0` fails startup on every existing database (#304 rewrote doc paths in the comments of V8, V9, V13 and V14; #316 put them back). Bulk find-and-replace passes must skip `db/migration/`. A fix goes in a new migration.
+- **No upward `CascadeType.REFRESH`:** never cascade REFRESH from a child to its parent/owner (entity → project, anything → user, role → projects). `em.refresh(entity)` follows every REFRESH edge; one upward edge turned a refresh into a reload of the whole database (#247: 300k statements per DeleteProject). Refresh reloads the entity and what it owns, nothing above it.
+
+## Key Documentation
+
+- `doc/work/2.0/20-release-plan.md` - New release with new Angular UI, CQRS API, SSE streaming, AI assistance, MCP spport
+- `doc/architecture/AUTH_ARCH.md` — authorization architecture: AuthorizingCommandHandler, permission model, Angular PermissionService
+- `doc/architecture/MODULARIZATION_PLAN.md` — module dependency graph, refactoring roadmap, package conventions
+- `doc/architecture/unmarshalling_plan.md` — JAXB import strategy, aggregate assembly
+- `doc/guides/agents.md` — AI agent workflows, edit policies, guardrails
+- `doc/architecture/USER_AND_STAKEHOLDER_MODEL.md` — identity/stakeholder coupling explanation
+- `doc/guides/NLP_DATA.md` — where the NLP data jar comes from, how the build fetches it, how to publish a new version, and what was pruned in #193
+- `doc/architecture/DICTIONARY_LOADING.md` — the two dictionary load paths (MySQL SQL dumps vs `dictionary.xml.gz`), which environments use which, and the properties that control them
+- `doc/README.md` — the documentation map: what each folder means and where a new file goes
+- `doc/work/<release>/INDEX.md` — generated by `scripts/gen-doc-index.sh`; every ticket
+  artifact in the release with its live issue state
+- `doc/guides/RELEASE_PROCESS.md` — versioning, release branches, milestones and boards, cutting a release, hotfixes, forward merges, Flyway numbering across branches, support policy
+
+## Testing
+
+- **JUnit 5 (Jupiter)** — fully migrated from JUnit 4; 59 test classes, all using `org.junit.jupiter.api`
+- Tests in `modules/requel-app/src/test/` cover commands, REST API (MockMvc), repositories, authorization, and JAXB round-trips
+- Surefire configured with `failIfNoTests=false` — modules without tests still build
+- Key test classes: `AuthorizationIT` (28 authorization scenarios), `ProjectXmlStreamingRoundTripIT`, `ProjectUserCreationIT`, `AnnotationAnyMappingTest`, `DeleteProjectIT` / `DeleteProjectMySqlIT` (delete cascades on H2 and on Testcontainers MySQL), `DeleteCascadeIT`
+
+### Writing tests
+
+- **One H2 database per Spring context, shared by every IT in the run.** `@SpringBootTest` contexts are cached, so a test class sees whatever rows and auto-increment counters earlier classes left behind. Never assume an id value, an empty table, or "the second row I create".
+- **Ids from different tables collide.** Tables are per-table auto-increment (`stories`, `usecases`, `goals`, … all start at 1), so `storyId == useCaseId` is a normal event whose timing depends on which test classes ran before yours. A fixture that needs "an id that is NOT also an X id" must create rows until the condition holds (see `CommandGatewayIT`'s `storyId2` loop), not check it once and hope — adding an unrelated IT to the suite shifted the counters and failed CI on #248.
+- **Manufacture race outcomes with `JdbcTemplate`.** Code that only matters under concurrency (a link written between a delete's load and its flush, a dangling `annotation_annotatable` row) is never reached by a single-threaded test; insert or delete the join rows natively to create the end state, then run the command (`DeleteCascadeIT`, `DeleteProjectIT`).
+- **H2 is not MySQL.** `create-drop` has no Flyway schema, no InnoDB locking and no leftover data, so FK order, lock waits and orphan-row failures only show on MySQL: extend the H2 IT with a `@Testcontainers` subclass (`DeleteProjectMySqlIT` pattern) for anything that touches deletes or join tables.
+- **A green Playwright run proves little on its own.** The e2e `deleteProject` helper is best-effort and swallows failures; after an e2e run grep the app log for `Command execution failed`, `TransientObject`, `Lock wait timeout` (must be 0) and compare `Deadlock found` with `succeeded after retry` (must match).

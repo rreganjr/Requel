@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ import java.util.Map;
  * http://bulba.sdsu.edu/jeanette/thesis/PennTags.html by JEANETTE PETTIBONE
  * pettibon@stanford.edu
  * 
- * @author rreganjr@users.sourceforge.net
+ * @author 11188410+rreganjr@users.noreply.github.com
  */
 public enum ParseTag {
 

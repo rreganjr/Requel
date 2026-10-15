@@ -1,6 +1,25 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <xs:schema version="1.0" targetNamespace="http://www.rreganjr.com/requel" xmlns:tns="http://www.rreganjr.com/requel" xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
+  <!--
+    Length bound for artifact names, mirroring ValidationLimits.ARTIFACT_NAME_MAX (issue #171) and
+    the varchar(255) columns in V1__init.sql / V13__tagging.sql. Stated as a named type rather than
+    repeated inline so the schema carries the bound once. Import unmarshals straight into the JPA
+    entities and does NOT run schema validation, so the @Size annotations remain the enforcement on
+    the import path; this makes an over-long name diagnosable from the document alone, before it
+    reaches the database, for anyone validating a file against this schema.
+
+    userPermission/@name is deliberately NOT bound here: user_role_permissions.name is varchar(50)
+    and holds system-controlled permission identifiers, so it is excluded for the same reason
+    JpaUserRolePermission has no @Size.
+  -->
+  <xs:simpleType name="artifactName">
+    <xs:restriction base="xs:string">
+      <xs:maxLength value="255"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+
   <xs:element name="annotationRef" type="xs:IDREF" />
 
   <xs:element name="actor" type="tns:actor"/>
@@ -10,10 +29,15 @@
   <xs:element name="addGlossaryTermPosition" type="tns:addGlossaryTermPosition"/>
 
   <xs:element name="addWordToDictionaryPosition" type="tns:addWordToDictionaryPosition"/>
+  <xs:element name="ignorePosition" type="tns:ignorePosition"/>
 
   <xs:element name="argument" type="tns:argument"/>
 
+  <xs:element name="assistantUserRole" type="tns:assistantUserRole"/>
+
   <xs:element name="changeSpellingPosition" type="tns:changeSpellingPosition"/>
+
+  <xs:element name="dictionaryWord" type="tns:dictionaryWord"/>
 
   <xs:element name="domainAdminUserRole" type="tns:domainAdminUserRole"/>
 
@@ -68,16 +92,19 @@
     <xs:attribute name="createdBy" type="xs:IDREF"/>
     <xs:attribute name="dateCreated" type="xs:string"/>
     <xs:attribute name="id" type="xs:ID"/>
+    <!-- Issue #275: export only. The entities this annotation is stale on (#270); never read on
+         import, because staleness is derived. -->
+    <xs:attribute name="staleOn" type="xs:IDREFS"/>
   </xs:complexType>
 
   <xs:complexType name="user">
     <xs:sequence>
-      <xs:element name="username" type="xs:string" form="qualified"/>
+      <xs:element name="username" type="tns:artifactName" form="qualified"/>
       <xs:element name="password" type="xs:string" form="qualified"/>
       <xs:element name="passwordSalt" type="xs:string" form="qualified" minOccurs="0"/>
       <xs:element name="passwordEncryptingAlgorithm" type="xs:string" form="qualified" minOccurs="0"/>
       <xs:element name="passwordEncryptingIterations" type="xs:int" form="qualified" minOccurs="0"/>
-      <xs:element name="name" type="xs:string" form="qualified" default=""/>
+      <xs:element name="name" type="tns:artifactName" form="qualified" default=""/>
       <xs:element name="emailAddress" type="xs:string" form="qualified" minOccurs="0"/>
       <xs:element name="phoneNumber" type="xs:string" form="qualified" minOccurs="0"/>
       <xs:element ref="tns:organization"/>
@@ -85,6 +112,7 @@
         <xs:complexType>
           <xs:sequence>
             <xs:choice minOccurs="0" maxOccurs="unbounded">
+              <xs:element ref="tns:assistantUserRole"/>
               <xs:element ref="tns:domainAdminUserRole"/>
               <xs:element ref="tns:projectUserRole"/>
               <xs:element ref="tns:systemAdminUserRole"/>
@@ -99,7 +127,7 @@
 
   <xs:complexType name="organization">
     <xs:sequence/>
-    <xs:attribute name="name" type="xs:string"/>
+    <xs:attribute name="name" type="tns:artifactName"/>
   </xs:complexType>
 
   <xs:complexType name="abstractUserRole" abstract="true">
@@ -122,6 +150,16 @@
   </xs:complexType>
 
   <xs:complexType name="addWordToDictionaryPosition">
+    <xs:complexContent>
+      <xs:extension base="tns:position">
+        <xs:sequence/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <!-- The "Ignore" position an assistant offers on a finding (issue #320). A marker: what was
+       ignored is recorded as an ignoredFinding on the project. -->
+  <xs:complexType name="ignorePosition">
     <xs:complexContent>
       <xs:extension base="tns:position">
         <xs:sequence/>
@@ -177,6 +215,7 @@
           </xs:element>
         </xs:sequence>
         <xs:attribute name="mustBeResolved" type="xs:boolean" use="required"/>
+        <xs:attribute name="severity" type="tns:issueSeverity"/>
         <xs:attribute name="resolvedByPosition" type="xs:IDREF"/>
         <xs:attribute name="resolvedByUser" type="xs:IDREF"/>
         <xs:attribute name="dateResolved" type="xs:string"/>
@@ -197,6 +236,15 @@
   <xs:complexType name="note">
     <xs:complexContent>
       <xs:extension base="tns:abstractAnnotation">
+        <xs:sequence/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <!-- Issue #260: the user an assistant writes as. It cannot log in. -->
+  <xs:complexType name="assistantUserRole">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractUserRole">
         <xs:sequence/>
       </xs:extension>
     </xs:complexContent>
@@ -237,6 +285,13 @@
           </xs:sequence>
         </xs:complexType>
       </xs:element>
+      <xs:element name="dictionary" form="qualified" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element ref="tns:dictionaryWord" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
       <xs:element name="glossary" form="qualified" minOccurs="0">
         <xs:complexType>
           <xs:sequence>
@@ -251,7 +306,7 @@
           </xs:sequence>
         </xs:complexType>
       </xs:element>
-      <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+      <xs:element name="name" type="tns:artifactName" form="qualified" minOccurs="0"/>
       <xs:element name="reports" form="qualified" minOccurs="0">
         <xs:complexType>
           <xs:sequence>
@@ -309,7 +364,7 @@
               </xs:sequence>
             </xs:complexType>
           </xs:element>
-          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+          <xs:element name="name" type="tns:artifactName" form="qualified" minOccurs="0"/>
         </xs:sequence>
         <xs:attribute name="id" type="xs:ID"/>
       </xs:extension>
@@ -352,7 +407,7 @@
     <xs:complexContent>
       <xs:extension base="tns:abstractTextEntity">
         <xs:sequence>
-          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+          <xs:element name="name" type="tns:artifactName" form="qualified" minOccurs="0"/>
           <xs:element name="goalRelations" form="qualified" minOccurs="0">
             <xs:complexType>
               <xs:sequence>
@@ -387,7 +442,7 @@
     <xs:complexContent>
       <xs:extension base="tns:abstractTextEntity">
         <xs:sequence>
-          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+          <xs:element name="name" type="tns:artifactName" form="qualified" minOccurs="0"/>
         </xs:sequence>
         <xs:attribute name="canonicalTerm" type="xs:IDREF"/>
         <xs:attribute name="id" type="xs:ID"/>
@@ -395,11 +450,18 @@
     </xs:complexContent>
   </xs:complexType>
 
+  <!-- A word in one project's own spell-check dictionary (issue #313). The two installation-level
+       layers - the jazzy word lists and the WordNet corpus - are not part of a project file. -->
+  <xs:complexType name="dictionaryWord">
+    <xs:attribute name="lemma" type="xs:string" use="required"/>
+    <xs:attribute name="phoneticCode" type="xs:string"/>
+  </xs:complexType>
+
   <xs:complexType name="step">
     <xs:complexContent>
       <xs:extension base="tns:abstractTextEntity">
         <xs:sequence>
-          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+          <xs:element name="name" type="tns:artifactName" form="qualified" minOccurs="0"/>
         </xs:sequence>
         <xs:attribute name="scenarioType" type="xs:string"/>
         <xs:attribute name="id" type="xs:ID"/>
@@ -411,9 +473,11 @@
     <xs:complexContent>
       <xs:extension base="tns:abstractTextEntity">
         <xs:sequence>
-          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+          <xs:element name="name" type="tns:artifactName" form="qualified" minOccurs="0"/>
         </xs:sequence>
         <xs:attribute name="id" type="xs:ID"/>
+        <!-- Issue #275: the bundled generator this report renders (project-html, ticket-markdown). -->
+        <xs:attribute name="builtin" type="xs:string"/>
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
@@ -470,7 +534,7 @@
               </xs:sequence>
             </xs:complexType>
           </xs:element>
-          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+          <xs:element name="name" type="tns:artifactName" form="qualified" minOccurs="0"/>
         </xs:sequence>
         <xs:attribute name="id" type="xs:ID"/>
       </xs:extension>
@@ -481,7 +545,7 @@
     <xs:complexContent>
       <xs:extension base="tns:abstractStakeholder">
         <xs:sequence>
-          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+          <xs:element name="name" type="tns:artifactName" form="qualified" minOccurs="0"/>
           <xs:element name="text" type="xs:string" form="qualified" minOccurs="0"/>
         </xs:sequence>
         <xs:attribute name="id" type="xs:ID"/>
@@ -507,7 +571,8 @@
               </xs:sequence>
             </xs:complexType>
           </xs:element>
-          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+          <xs:element name="name" type="tns:artifactName" form="qualified" minOccurs="0"/>
+          <xs:element name="primaryActorRef" type="xs:IDREF" form="qualified" minOccurs="0"/>
         </xs:sequence>
         <xs:attribute name="storyType" type="xs:string"/>
         <xs:attribute name="id" type="xs:ID"/>
@@ -526,6 +591,14 @@
               </xs:sequence>
             </xs:complexType>
           </xs:element>
+          <!-- Issue #275: the use case's additional scenarios, by reference. -->
+          <xs:element name="additionalScenarios" form="qualified" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="scenarioRef" type="xs:IDREF" form="qualified" minOccurs="0" maxOccurs="unbounded"/>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
           <xs:element name="goals" form="qualified" minOccurs="0">
             <xs:complexType>
               <xs:sequence>
@@ -533,7 +606,7 @@
               </xs:sequence>
             </xs:complexType>
           </xs:element>
-          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+          <xs:element name="name" type="tns:artifactName" form="qualified" minOccurs="0"/>
           <xs:element name="primaryActorRef" type="xs:IDREF" form="qualified" minOccurs="0"/>
           <xs:element name="scenarioRef" type="xs:IDREF" form="qualified" minOccurs="0"/>
           <xs:element name="stories" form="qualified" minOccurs="0">
@@ -607,7 +680,32 @@
                     <xs:element ref="tns:changeSpellingPosition"/>
                     <xs:element ref="tns:addActorPosition"/>
                     <xs:element ref="tns:addGlossaryTermPosition"/>
+                    <xs:element ref="tns:ignorePosition"/>
                   </xs:choice>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
+            <xs:element name="tags" form="qualified" minOccurs="0" maxOccurs="1">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="tagAssignment" type="tns:tagAssignment" form="qualified"
+                              minOccurs="0" maxOccurs="unbounded"/>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
+            <xs:element name="ignoredFindings" form="qualified" minOccurs="0" maxOccurs="1">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="ignoredFinding" type="tns:ignoredFinding" form="qualified"
+                              minOccurs="0" maxOccurs="unbounded"/>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
+            <xs:element name="externalSources" form="qualified" minOccurs="0" maxOccurs="1">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="externalSource" type="tns:externalSource" form="qualified"
+                              minOccurs="0" maxOccurs="unbounded"/>
                 </xs:sequence>
               </xs:complexType>
             </xs:element>
@@ -617,6 +715,68 @@
         </xs:sequence>
       </xs:extension>
     </xs:complexContent>
+  </xs:complexType>
+
+  <!-- An assistant finding a user chose to ignore on one entity and property (issue #320). The key
+       is rebuilt on import as assistant:entityType:<new id>:keySuffix. -->
+  <xs:complexType name="ignoredFinding">
+    <xs:attribute name="entityType" type="xs:string" use="required"/>
+    <xs:attribute name="entityRef" type="xs:IDREF" use="required"/>
+    <xs:attribute name="assistant" type="xs:string" use="required"/>
+    <xs:attribute name="findingType" type="xs:string" use="required"/>
+    <xs:attribute name="property" type="xs:string"/>
+    <xs:attribute name="keySuffix" type="xs:string" use="required"/>
+    <xs:attribute name="subject" type="xs:string"/>
+    <xs:attribute name="annotationRef" type="xs:IDREF"/>
+    <xs:attribute name="createdBy" type="xs:string"/>
+    <xs:attribute name="dateCreated" type="xs:string"/>
+  </xs:complexType>
+
+  <!-- An external artifact the project's entities were built from, and the entities built from
+       each of its fragments (issue #272). Requel never reads the locator. Issue #273: every source
+       is also a project reference; a sourceLink may be a citation (relation CITES), and defersTo
+       names a source that wins where the two disagree. -->
+  <xs:complexType name="externalSource">
+    <xs:sequence>
+      <xs:element name="sourceLink" type="tns:sourceLink" form="qualified" minOccurs="0"
+                  maxOccurs="unbounded"/>
+      <xs:element name="defersTo" type="tns:sourceAuthority" form="qualified" minOccurs="0"
+                  maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="system" type="xs:string" use="required"/>
+    <xs:attribute name="externalId" type="xs:string" use="required"/>
+    <xs:attribute name="locatorType" type="xs:string"/>
+    <xs:attribute name="locator" type="xs:string"/>
+    <xs:attribute name="title" type="xs:string"/>
+    <xs:attribute name="kind" type="xs:string"/>
+    <xs:attribute name="contentHash" type="xs:string"/>
+    <xs:attribute name="lastIngestedAt" type="xs:string"/>
+    <xs:attribute name="note" type="xs:string"/>
+  </xs:complexType>
+
+  <!-- Issue #273: the enclosing source defers to this one, named by system and external id. -->
+  <xs:complexType name="sourceAuthority">
+    <xs:attribute name="system" type="xs:string" use="required"/>
+    <xs:attribute name="externalId" type="xs:string" use="required"/>
+    <xs:attribute name="note" type="xs:string"/>
+  </xs:complexType>
+
+  <!-- relation: DERIVED_FROM or CITES (#273). -->
+  <xs:complexType name="sourceLink">
+    <xs:attribute name="relation" type="xs:string" use="required"/>
+    <xs:attribute name="entityType" type="xs:string" use="required"/>
+    <xs:attribute name="entityRef" type="xs:IDREF" use="required"/>
+    <xs:attribute name="fragment" type="xs:string"/>
+    <xs:attribute name="fragmentHash" type="xs:string"/>
+    <xs:attribute name="sourceHashSeen" type="xs:string"/>
+    <xs:attribute name="entityFingerprint" type="xs:string"/>
+    <xs:attribute name="ingestedAt" type="xs:string"/>
+  </xs:complexType>
+
+  <xs:complexType name="tagAssignment">
+    <xs:attribute name="entityType" type="xs:string"/>
+    <xs:attribute name="entityRef" type="xs:IDREF"/>
+    <xs:attribute name="token" type="xs:string"/>
   </xs:complexType>
 
   <xs:complexType name="systemAdminUserRole">
@@ -634,6 +794,14 @@
       <xs:enumeration value="Neutral"/>
       <xs:enumeration value="Against"/>
       <xs:enumeration value="StronglyAgainst"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="issueSeverity">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="LOW"/>
+      <xs:enumeration value="MEDIUM"/>
+      <xs:enumeration value="HIGH"/>
     </xs:restriction>
   </xs:simpleType>
 </xs:schema>

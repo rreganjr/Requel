@@ -1,10 +1,8 @@
 /*
- * $Id: $
- *
- * Copyright 2025 Ron Regan Jr. All Rights Reserved.
- *
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +20,10 @@
  */
 package com.rreganjr.requel.imports.project;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -36,7 +36,8 @@ public class ScenarioImportDraft {
     private final String name;
     private final String description;
     private final String scenarioType;
-    private final Set<String> stepRefs;
+    /** In scenario order (#263: a set lost the order of every imported scenario's steps). */
+    private final List<String> stepRefs;
     private final Set<String> annotationExternalIds;
     private final boolean scenarioElement;
 
@@ -46,7 +47,7 @@ public class ScenarioImportDraft {
         this.name = builder.name;
         this.description = builder.description;
         this.scenarioType = builder.scenarioType;
-        this.stepRefs = Collections.unmodifiableSet(new HashSet<>(builder.stepRefs));
+        this.stepRefs = Collections.unmodifiableList(new ArrayList<>(builder.stepRefs));
         this.annotationExternalIds =
                 Collections.unmodifiableSet(new HashSet<>(builder.annotationExternalIds));
         this.scenarioElement = builder.scenarioElement;
@@ -70,7 +71,7 @@ public class ScenarioImportDraft {
 
     public String getScenarioType() { return scenarioType; }
 
-    public Set<String> getStepRefs() {
+    public List<String> getStepRefs() {
         return stepRefs;
     }
 
@@ -92,7 +93,7 @@ public class ScenarioImportDraft {
         private String name;
         private String description;
         private String scenarioType;
-        private Set<String> stepRefs = new HashSet<>();
+        private List<String> stepRefs = new ArrayList<>();
         private Set<String> annotationExternalIds = new HashSet<>();
         private boolean scenarioElement = true;
 
@@ -121,7 +122,7 @@ public class ScenarioImportDraft {
             return this;
         }
 
-        public Builder stepRefs(Set<String> stepRefs) {
+        public Builder stepRefs(List<String> stepRefs) {
             if (stepRefs != null) {
                 this.stepRefs.addAll(stepRefs);
             }

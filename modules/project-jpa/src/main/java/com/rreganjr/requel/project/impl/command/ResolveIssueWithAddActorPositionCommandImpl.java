@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,8 +41,7 @@ import com.rreganjr.requel.project.impl.AddActorPosition;
 import com.rreganjr.platform.identity.User;
 
 /**
- * This resolves an issue with the specified position by adding a word or phrase
- * to the project glossary.
+ * This resolves an issue with the specified position by adding an actor to the project.
  * 
  * @author ron
  */

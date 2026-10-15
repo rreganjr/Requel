@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>User guide &mdash; Requel 2.0 user guide</title>
+<meta name="description" content="How to use Requel 2.0: projects, requirements, stakeholders and permissions, issues and discussion, AI review, reports, and the API, MCP server and CLI." />
+<link rel="icon" type="image/png" href="../images/logo_robot.png" />
+<link rel="stylesheet" href="../site.css" />
+</head>
+<body class="guide">
+
+<header class="brand">
+  <div class="brand-inner">
+    <img src="../images/logo_robot.png" alt="" />
+    <div>
+      <h1><a href="../index.html">Requel</a></h1>
+      <p>User guide for Requel 2.0</p>
+    </div>
+  </div>
+</header>
+
+<nav class="guide-nav" aria-label="User guide">
+  <ul>
+    <li><a href="index.html" aria-current="page">Contents</a></li>
+    <li><a href="getting-started.html">Getting started</a></li>
+    <li><a href="projects.html">Projects</a></li>
+    <li><a href="requirements.html">Requirements</a></li>
+    <li><a href="stakeholders.html">Stakeholders</a></li>
+    <li><a href="issues.html">Issues and discussion</a></li>
+    <li><a href="ai-review.html">AI review</a></li>
+    <li><a href="reports.html">Reports</a></li>
+    <li><a href="integrations.html">API, MCP and CLI</a></li>
+  </ul>
+</nav>
+
+<main>
+  <h1>User guide</h1>
+  <p class="lead">How to use Requel 2.0, a web application for writing requirements with everyone who has a stake in them. To install and run it, see <a href="https://github.com/rreganjr/Requel/blob/master/doc/guides/INSTALL.md">Installing and running Requel</a>.</p>
+  <section>
+    <h2>How Requel thinks about requirements</h2>
+    <div class="card">
+      <p>Everything lives in a <strong>project</strong>. A project holds the requirements, the people
+        who work on them, and the discussion about them.</p>
+      <dl>
+        <dt>Goals</dt>
+        <dd>What the system must achieve, and why. Goals can support, refine, conflict with or depend
+          on each other.</dd>
+        <dt>Stories</dt>
+        <dd>A short narrative of one person using the system, either succeeding or hitting a
+          problem.</dd>
+        <dt>Actors</dt>
+        <dd>The roles that use the system: people, other systems or devices.</dd>
+        <dt>Use cases and scenarios</dt>
+        <dd>A use case says what an actor does with the system. Its scenarios are the steps, as a
+          main flow plus alternatives and exceptions.</dd>
+        <dt>Glossary</dt>
+        <dd>The project's terms and what they mean, with alternate names pointing at the preferred
+          one.</dd>
+        <dt>Stakeholders</dt>
+        <dd>The people and groups with a say in the requirements. Users who are stakeholders get
+          permissions on the project.</dd>
+        <dt>Annotations</dt>
+        <dd>Notes and issues attached to any of the above. An issue collects positions (possible
+          resolutions) and arguments for and against them until someone resolves it.</dd>
+        <dt>Assistants</dt>
+        <dd>Automated checks that read the text and raise issues: vague words, spelling, complex
+          sentences and likely glossary terms, plus the optional AI review.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section>
+    <h2>Contents</h2>
+    <div class="links">
+      <a class="tile" href="getting-started.html">
+        <span class="title">Getting started</span>
+        <span class="desc">Log in, find your way around, change your password, add users.</span>
+      </a>
+      <a class="tile" href="projects.html">
+        <span class="title">Projects</span>
+        <span class="desc">Create, import, export and delete projects; the project overview.</span>
+      </a>
+      <a class="tile" href="requirements.html">
+        <span class="title">Requirements</span>
+        <span class="desc">Goals, stories, actors, use cases, scenarios, the glossary and tags.</span>
+      </a>
+      <a class="tile" href="stakeholders.html">
+        <span class="title">Stakeholders</span>
+        <span class="desc">Who is on a project and what each person may change.</span>
+      </a>
+      <a class="tile" href="issues.html">
+        <span class="title">Issues and discussion</span>
+        <span class="desc">Notes, issues, positions and arguments; the built-in checks; open issues.</span>
+      </a>
+      <a class="tile" href="ai-review.html">
+        <span class="title">AI review</span>
+        <span class="desc">Reviews, policies and corpus analysis by an AI model you choose.</span>
+      </a>
+      <a class="tile" href="reports.html">
+        <span class="title">Reports</span>
+        <span class="desc">Turn a project into a specification or a ticket with an XSLT template.</span>
+      </a>
+      <a class="tile" href="integrations.html">
+        <span class="title">API, MCP and CLI</span>
+        <span class="desc">Tokens, the REST API, AI clients over MCP, and <code>requel-cli</code>.</span>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>Try it with the sample project</h2>
+    <div class="card">
+      <p>The screenshots in this guide show the sample project, the requirements for Requel itself.
+        Download <a href="https://raw.githubusercontent.com/rreganjr/Requel/master/doc/samples/Requel.xml">Requel.xml</a>
+        and import it (<a href="projects.html#import-and-export">Projects &rarr; Import</a>) to follow
+        along.</p>
+    </div>
+  </section>
+
+  <nav class="pager" aria-label="Previous and next page">
+    <a class="next" href="getting-started.html">Getting started &rarr;</a>
+  </nav>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <p>The screenshots show the sample project
+      (<a href="https://github.com/rreganjr/Requel/blob/master/doc/samples/Requel.xml">Requel.xml</a>)
+      and are retaken for each release by <code>scripts/guide-screenshots.mjs</code>.</p>
+    <p>Requel is free software, released under the
+      <a href="https://github.com/rreganjr/Requel/blob/master/LICENSE">GNU General Public License v3</a>.
+      Found a mistake in this guide? <a href="https://github.com/rreganjr/Requel/issues">Open an issue</a>.</p>
+  </div>
+</footer>
+
+</body>
+</html>

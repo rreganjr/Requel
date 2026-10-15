@@ -1,100 +1,124 @@
-## Requel
+## Requel 2.0
 
-Requel is a Web-based requirements management system that supports collaboration among all stakeholders and provides (_very limited_) automated assistance to validate requirements and suggest improvements. It supports requirements as goals, stories, and use-cases.
+[![CI](https://github.com/rreganjr/Requel/actions/workflows/ci.yml/badge.svg)](https://github.com/rreganjr/Requel/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/rreganjr/Requel/branch/master/graph/badge.svg)](https://codecov.io/gh/rreganjr/Requel)
+[![License](https://img.shields.io/github/license/rreganjr/Requel)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/rreganjr/Requel)](https://github.com/rreganjr/Requel/releases)
+[![Last commit](https://img.shields.io/github/last-commit/rreganjr/Requel)](https://github.com/rreganjr/Requel/commits/master)
+[![Docker Pulls](https://img.shields.io/docker/pulls/rreganjr/requel)](https://hub.docker.com/r/rreganjr/requel)
+[![Java](https://img.shields.io/badge/Java-17-007396?logo=openjdk)](https://openjdk.org/projects/jdk/17/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
+[![Angular](https://img.shields.io/badge/Angular-21-DD0031?logo=angular)](https://angular.dev/)
 
-See the [User Guide](https://github.com/rreganjr/Requel/raw/master/doc/UserGuide.pdf) for more details on using Requel. **NOTE** Chapter 5, _Requel Setup_ is no longer relevant with the executable Jar file.
+Requel is a web-based requirements management system that supports collaboration among all
+stakeholders and provides automated assistance to validate requirements and suggest improvements.
+It models requirements as goals, stories, actors, scenarios, and use-cases with an IBIS-style
+annotation and discussion layer for negotiating issues and tracking decisions.
 
-For more information about the motivation for this project see the [Thesis Document](https://github.com/rreganjr/Requel/raw/master/doc/ThesisFinalColor.pdf).
+**[User guide](https://rreganjr.github.io/Requel/guide/)**: how to use Requel 2.0, with
+screenshots. **[Website](https://rreganjr.github.io/Requel/)**: an overview and the published
+project schema.
 
-See the example [Requel.xml](https://raw.githubusercontent.com/rreganjr/Requel/v1.0.1-beta/doc/samples/Requel.xml) project file  that can be imported.
+For background on what requirements engineering is and why it matters, see the
+[Thesis Document](https://github.com/rreganjr/Requel/raw/master/doc/archive/2009-thesis/ThesisFinalColor.pdf)
+(Harvard ALM, 2009). The [Requel 1.0 user guide](https://github.com/rreganjr/Requel/raw/master/doc/archive/2009-thesis/UserGuide.pdf)
+(2009) describes the same concepts with the 1.0 screens.
 
-### New Executable Jar for Easy Running
+An example project file that can be imported:
+[Requel.xml](https://raw.githubusercontent.com/rreganjr/Requel/master/doc/samples/Requel.xml)
 
-This release replicates the functionality of the original release from 2009, but as an executable jar file that is easier to configure and run. It targets **Java 17** and ships with Spring Boot 3 / Hibernate 6. Make sure your `JAVA_HOME` points to a JDK 17 install before launching. The app embeds Tomcat, so you only need to have a MySQL database running. Pass database settings and a port to listen on if 8080 is not available:
+---
 
-Pass in the database setting parameters like this:
+### What's new in 2.0 (2026)
 
-* **jdbc url** --spring.datasource.url=\<url\>
-* **username** --spring.datasource.username=\<username\>
-* **password** --spring.datasource.password=\<password\>
+- **A new web UI.** The Echo2 server-side UI is replaced by an Angular single-page app, bundled
+  into the same jar, with live refresh when other people or the assistants change something.
+- **An API.** Everything the UI does goes through `POST /api/commands/{type}` and `GET /api/...`,
+  with personal API tokens for scripts.
+- **AI requirements review.** Assistants review goals, stories, use cases and scenarios and
+  raise issues you can discuss and resolve. Use OpenAI, Anthropic, Gemini or a local model
+  (Ollama); projects can write their own review definitions. See
+  [AI assistant setup](doc/guides/AI_ASSISTANT_SETUP.md).
+- **MCP server and `requel-cli`.** AI clients (Claude, VS Code and others) can read and edit a
+  project over MCP with OAuth sign-in; the CLI does the same from a terminal.
+- **Stakeholder permissions that hang together.** Permissions granted together are shown
+  together, deletes that remove owned items are explained, and granting needs Grant.
+- **Also:** tags, report generators, project delete, links from entities to their sources
+  (tickets, documents), actors on stories, and an audit log of every command.
 
-If you already have an existing Requel database (created before Flyway was introduced), run once with these Flyway baseline flags so the schema is registered and the identity fixes apply:
+---
 
-* `-e SPRING_FLYWAY_BASELINE_ON_MIGRATE=true`
-* `-e SPRING_FLYWAY_BASELINE_VERSION=1`
+### Running Requel
 
-Remove these after the first successful start; subsequent runs should omit them.
- 
-Optionally pass the service port like this:
-
-* **port** --server.port=\<portnumber\>
-
-### Example command
-
-Note for zsh users: quote the JDBC URL (because of the `?`) or prefix the command with `noglob`. Ensure the command runs on Java 17 (set `JAVA_HOME` or use a 17-enabled shell) before launching the jar.
+The quickest way is Docker Compose:
 
 ```bash
-# macOS (uses /usr/libexec/java_home)
-JAVA_HOME=$(/usr/libexec/java_home -v 17) PATH="$JAVA_HOME/bin:$PATH" \
-java -jar ./target/Requel-1.2.0.jar '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' --spring.datasource.username=root --spring.datasource.password='password' --server.port=8081
-
-# Linux (set JAVA_HOME manually)
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-export PATH="$JAVA_HOME/bin:$PATH"
-java -jar ./target/Requel-1.2.0.jar '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' --spring.datasource.username=root --spring.datasource.password='password' --server.port=8081
-
-# Windows PowerShell
-$env:JAVA_HOME="C:\\Program Files\\Java\\jdk-17"
-$env:Path="${env:JAVA_HOME}\\bin;${env:Path}"
-java -jar .\target\Requel-1.2.0.jar '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' --spring.datasource.username=root --spring.datasource.password='password' --server.port=8081
-
-# Windows Command Prompt
-set JAVA_HOME=C:\\Program Files\\Java\\jdk-17
-set PATH=%JAVA_HOME%\\bin;%PATH%
-java -jar .\target\Requel-1.2.0.jar "--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC" --spring.datasource.username=root --spring.datasource.password=password --server.port=8081
+curl -fsSLO https://raw.githubusercontent.com/rreganjr/Requel/v2.0.0/docker-compose.yml
+echo "REQUEL_JWT_SECRET=$(openssl rand -base64 48)" > .env
+docker compose up -d
 ```
 
-Then access the app http://localhost:8081/
+The first start takes a few minutes while the dictionary loads. Then open
+http://localhost:8080/, log in as **admin** / **admin** and change the password.
 
-log in to the application as **admin** user with password **admin**.
+[Installing and running Requel](doc/guides/INSTALL.md) covers Compose, plain Docker and the
+jar, upgrading from 1.x, every setting, and what to check before anyone else can reach it.
+Docker images: https://hub.docker.com/r/rreganjr/requel/
 
-### If You Use Docker
-check out  https://hub.docker.com/r/rreganjr/requel/
+---
 
+### Building from source
+
+Requires **Java 17**, **Maven 3.6.3+** and **Node 22+**. The first build downloads the NLP data
+jar from this repository's GitHub Releases, so it needs to reach github.com (see
+[NLP data](doc/guides/NLP_DATA.md)).
+
+```bash
+# Full build (Java + Angular)
+mvn -pl modules/requel-app -am package -DskipTests
+
+# Java only (fast iteration, skips Angular)
+mvn -pl modules/requel-app -am package -DskipAngularBuild=true -DskipTests=true
+
+# Build Docker image
+mvn -pl modules/requel-app -am package -Pdocker-image -DskipTests
 ```
-docker network create requel-net || true
 
-# MySQL 8.4 container (maps host port 3307)
-docker run --name requelDB --net=requel-net -p3307:3306 -e MYSQL_ROOT_PASSWORD=pa33w0rd -d mysql:8.4
+To run a development build with the Angular dev server and the reset endpoints the e2e tests
+use, add `--spring.profiles.active=dev`
+([`application-dev.properties`](modules/requel-app/src/main/resources/application-dev.properties)).
+Never run a reachable server with `dev`: its reset endpoints are unauthenticated.
 
-# Requel 1.2.0 image (Java 17 base), connecting to MySQL 8
-docker run --name requel --net=requel-net -p8181:8080 -d \
-  rreganjr/requel:1.2.0 \
-  --spring.datasource.url=jdbc:mysql://requelDB:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC \
-  --spring.datasource.username=root \
-  --spring.datasource.password=pa33w0rd
-```
-Then access the app http://localhost:8181/ (host MySQL exposed on port 3307)
+---
 
-### Database initialization and upgrades
+### Database migrations
 
-- **Fresh database**: nothing extra to pass. Flyway runs `V1__init.sql` (now emits proper `AUTO_INCREMENT` PKs and no `*_seq` tables). `V2__identity_cleanup.sql` is a no-op on a clean schema.
-- **Existing database** (pre-Flyway or older schema with sequence tables):
-  - If `flyway_schema_history` already exists, just start the new image; Flyway will run `V2__identity_cleanup.sql` to drop legacy `*_seq` tables and set PKs to `AUTO_INCREMENT`.
-  - If there is no `flyway_schema_history`, start once with:
-    ```
-    -e SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
-    -e SPRING_FLYWAY_BASELINE_VERSION=1
-    ```
-    This baselines your current schema as version 1, then applies `V2__identity_cleanup.sql`. Remove these env vars after the first successful start.
-  - Example first start against an existing DB:
-    ```bash
-    docker run --name requel --net=requel-net -p8181:8080 -d \
-      -e SPRING_FLYWAY_BASELINE_ON_MIGRATE=true \
-      -e SPRING_FLYWAY_BASELINE_VERSION=1 \
-      rreganjr/requel:1.2.0 \
-      --spring.datasource.url=jdbc:mysql://requelDB:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC \
-      --spring.datasource.username=root \
-      --spring.datasource.password=pa33w0rd
-    ```
-    On subsequent starts, omit the two `SPRING_FLYWAY_*` env vars.
+Flyway applies the migrations in
+[`modules/requel-app/src/main/resources/db/migration`](modules/requel-app/src/main/resources/db/migration)
+on startup. A fresh database needs nothing extra. A 1.2 database is migrated in place; a 1.0 or
+1.1 database is refused, and its projects move by XML export and import
+([Upgrading](doc/guides/INSTALL.md#upgrading)).
+
+---
+
+### Version history
+
+#### 2.0 (2026) — Angular SPA, CQRS API
+
+Complete replacement of the Echo2 server-side UI with an Angular SPA backed by a CQRS API,
+plus AI requirements review, an MCP server and `requel-cli`. The Angular build is bundled into
+the JAR by Maven so the deployment model is unchanged: one JAR, one database.
+
+#### 1.2 (2025) — Java 17, Spring Boot 3
+
+Modernized the original 2009 codebase to run on a current Java stack without changing the
+application behavior or UI. Migrated from Java 8 / Spring 4 / Hibernate 4 / Tomcat WAR to
+Java 17 / Spring Boot 3.3 / Hibernate 6 / embedded Tomcat JAR. Introduced Flyway for schema
+management. The Echo2 UI was retained unchanged.
+
+#### 1.0 (2009) — Original Harvard ALM thesis release
+
+Requel was developed as a Harvard Extension School ALM thesis project. It ran as a Java EE WAR
+on Tomcat with an Echo2 Ajax UI, MySQL for persistence, and Stanford CoreNLP / OpenNLP for the
+automated requirements analysis features (glossary term extraction, ambiguity detection). The
+thesis document and user guide from this release are still included in `doc/`.

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@ import jakarta.xml.bind.annotation.XmlIDREF;
 import jakarta.xml.bind.annotation.XmlRootElement;
 import jakarta.xml.bind.annotation.XmlType;
 
+import org.hibernate.annotations.OptimisticLock;
 import org.xml.sax.SAXException;
 
 import com.rreganjr.requel.annotation.Annotation;
@@ -49,6 +50,7 @@ import com.rreganjr.requel.annotation.impl.AbstractAnnotation;
 import com.rreganjr.requel.annotation.impl.PositionImpl;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
+import com.rreganjr.requel.tagging.Taggable;
 import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.UserStakeholder;
@@ -64,12 +66,15 @@ import com.rreganjr.requel.user.JAXBOrganizedEntityPatcher;
 @DiscriminatorValue(value = "com.rreganjr.requel.project.impl.ProjectImpl")
 @XmlRootElement(name = "project", namespace = "http://www.rreganjr.com/requel")
 @XmlType(name = "project", namespace = "http://www.rreganjr.com/requel")
-public class ProjectImpl extends AbstractProjectOrDomain implements Project {
+public class ProjectImpl extends AbstractProjectOrDomain implements Project, Taggable {
 	static final long serialVersionUID = 0L;
 
 	private Organization organization;
 	private String status;
 	private Set<Annotation> annotations = new TreeSet<Annotation>();
+	private Set<TagAssignmentXml> exportTagAssignments = new HashSet<TagAssignmentXml>();
+	private java.util.List<IgnoredFindingXml> exportIgnoredFindings = new java.util.ArrayList<IgnoredFindingXml>();
+	private java.util.List<ExternalSourceXml> exportExternalSources = new java.util.ArrayList<ExternalSourceXml>();
 
 	/**
 	 * @param name
@@ -152,6 +157,55 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project {
 		return positions;
 	}
 
+	/**
+	 * Export/import carrier for tag assignments (issue #112, Phase 5). Not persistent — populated
+	 * for export by the service layer from the tag repository, and read on import by the tag StAX
+	 * importer. Holding only {@link TagAssignmentXml} (strings + an IDREF) keeps the marshal graph
+	 * free of any tag class.
+	 */
+	@Transient
+	@XmlElementWrapper(name = "tags", namespace = "http://www.rreganjr.com/requel", required = false)
+	@XmlElement(name = "tagAssignment", namespace = "http://www.rreganjr.com/requel")
+	public Set<TagAssignmentXml> getExportTagAssignments() {
+		return exportTagAssignments;
+	}
+
+	public void setExportTagAssignments(Set<TagAssignmentXml> exportTagAssignments) {
+		this.exportTagAssignments = exportTagAssignments;
+	}
+
+	/**
+	 * Export carrier for the project's ignored findings (issue #320). Not persistent; filled by
+	 * {@code ExportProjectCommandImpl} from the {@code IgnoredFindingStore}, the same way the tags
+	 * above are.
+	 */
+	@Transient
+	@XmlElementWrapper(name = "ignoredFindings", namespace = "http://www.rreganjr.com/requel", required = false)
+	@XmlElement(name = "ignoredFinding", namespace = "http://www.rreganjr.com/requel")
+	public java.util.List<IgnoredFindingXml> getExportIgnoredFindings() {
+		return exportIgnoredFindings;
+	}
+
+	public void setExportIgnoredFindings(java.util.List<IgnoredFindingXml> exportIgnoredFindings) {
+		this.exportIgnoredFindings = exportIgnoredFindings;
+	}
+
+	/**
+	 * Export carrier for the project's external sources and their entity links (issue #272). Not
+	 * persistent; filled by {@code ExportProjectCommandImpl} from the {@code ProvenanceStore}, the
+	 * same way the ignored findings above are.
+	 */
+	@Transient
+	@XmlElementWrapper(name = "externalSources", namespace = "http://www.rreganjr.com/requel", required = false)
+	@XmlElement(name = "externalSource", namespace = "http://www.rreganjr.com/requel")
+	public java.util.List<ExternalSourceXml> getExportExternalSources() {
+		return exportExternalSources;
+	}
+
+	public void setExportExternalSources(java.util.List<ExternalSourceXml> exportExternalSources) {
+		this.exportExternalSources = exportExternalSources;
+	}
+
 	@XmlElementWrapper(name = "annotations", namespace = "http://www.rreganjr.com/requel", required = false)
 	// changed xml mapping to output references to annotations instead of the
 	// annotations directly because
@@ -164,6 +218,7 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project {
 	@ManyToMany(targetEntity = AbstractAnnotation.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@JoinTable(name = "project_annotations")
+	@OptimisticLock(excluded = true)
 	public Set<Annotation> getAnnotations() {
 		return annotations;
 	}

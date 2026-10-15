@@ -1,9 +1,8 @@
 /*
- * $Id: $
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
- * 
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,16 +38,13 @@ import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.impl.ProjectImpl;
 import com.rreganjr.platform.identity.User;
-import org.junit.Test;
-import org.junit.Ignore;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 
 /**
  * @author ron
  */
-@Ignore("Legacy JAXB marshalling test; JAXB runtime removed while project moves to StAX importer.")
-@RunWith(SpringRunner.class)
+@Disabled("Legacy JAXB marshalling test; JAXB runtime removed while project moves to StAX importer.")
 public class ProjectJAXBTest extends AbstractIntegrationTestCase {
 
 	@Test
@@ -112,7 +108,7 @@ public class ProjectJAXBTest extends AbstractIntegrationTestCase {
 			m.marshal(project, writer);
 			System.out.println(writer);
 		} catch (Exception e) {
-			log.error(e, e);
+			log.error("test error", e);
 			throw e;
 		}
 	}

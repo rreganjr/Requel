@@ -1,0 +1,17 @@
+#![Dictionary Initialization (SQL)]
+
+dbInitializer:DatabaseInitializer[a]
+dicSqlInit:DictionarySQLInitializer[a]
+dicInit:DictionaryInitializer[a]
+dicIcmd:ImportDictionaryCommand[a]
+cmdHndlr:CommandHandler[a]
+dictionaryRepository:DictionaryRepository[a]
+
+dbInitializer:dicSqlInit.initialize()
+dicSqlInit:dictionaryRepository.getCategories()
+[c:if no categories]
+dicSqlInit:.loadSQLFile("categorydef.sql")
+dicSqlInit:.loadSQLFile("word.sql")
+dicSqlInit:.loadSQLFile("synset.sql")
+dicSqlInit:.loadSQLFile("sense.sql")
+[/c]

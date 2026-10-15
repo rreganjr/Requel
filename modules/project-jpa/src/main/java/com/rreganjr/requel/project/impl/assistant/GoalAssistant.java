@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,8 +54,11 @@ public class GoalAssistant extends TextEntityAssistant {
 	}
 
 	protected void analyzeGoalRelations(Goal goal) {
-		for (GoalRelation goalRelation : goal.getRelationsFromThisGoal()) {
-
-		}
+		// TODO: implement goal-relation analysis.
+		// relationsFromThisGoal is FetchType.LAZY and the entity is detached by the time
+		// this method is called (AssistantFacade.analyzeGoal() reloads the goal in its own
+		// transaction which closes before the async Runnable body runs). When this is
+		// implemented, iterate the collection inside a TransactionTemplate to avoid
+		// LazyInitializationException.
 	}
 }

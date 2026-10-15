@@ -1,0 +1,378 @@
+/*
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+package com.rreganjr.requel.project.impl.command;
+
+import java.util.HashSet;
+import java.util.Set;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Controller;
+
+import com.rreganjr.command.Command;
+import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.CascadeAuthorizable;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermissionOrSystemAdminRole;
+import com.rreganjr.platform.command.EditCommand;
+import com.rreganjr.platform.exception.EntityExceptionActionType;
+import com.rreganjr.platform.exception.EntityLockException;
+import com.rreganjr.platform.identity.User;
+import com.rreganjr.requel.annotation.Annotation;
+import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
+import com.rreganjr.requel.annotation.command.DeleteAnnotationGroupCommand;
+import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
+import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.requel.project.ProjectTeam;
+import com.rreganjr.requel.project.ReportGenerator;
+import com.rreganjr.requel.project.Scenario;
+import com.rreganjr.requel.project.Stakeholder;
+import com.rreganjr.requel.project.Step;
+import com.rreganjr.requel.project.Story;
+import com.rreganjr.requel.project.UseCase;
+import com.rreganjr.requel.project.command.DeleteActorCommand;
+import com.rreganjr.requel.project.command.DeleteGlossaryTermCommand;
+import com.rreganjr.requel.project.command.DeleteGoalCommand;
+import com.rreganjr.requel.project.command.DeleteProjectCommand;
+import com.rreganjr.requel.project.command.DeleteReportGeneratorCommand;
+import com.rreganjr.requel.project.command.DeleteScenarioCommand;
+import com.rreganjr.requel.project.command.DeleteScenarioStepCommand;
+import com.rreganjr.requel.project.command.DeleteStakeholderCommand;
+import com.rreganjr.requel.project.command.DeleteStoryCommand;
+import com.rreganjr.requel.project.command.DeleteUseCaseCommand;
+import com.rreganjr.requel.project.command.ProjectCommandFactory;
+import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
+import com.rreganjr.requel.user.UserRepository;
+import com.rreganjr.requel.user.impl.SystemAdminUserRole;
+
+/**
+ * Delete a whole project and every entity it contains (issue #240, epic #239).
+ *
+ * <p>
+ * Requel's aggregate mappings cascade only {@code PERSIST}/{@code REFRESH}, so a
+ * bare {@code delete(project)} would orphan every child. Rather than change the
+ * persistence semantics repo-wide (or hand-roll native bulk deletes that bypass
+ * reference cleanup and the annotation/tag registries), this command cascades by
+ * orchestration: it invokes the existing per-entity {@code Delete*Command}s -
+ * run as steps of this delete, authorized by its own permission (issue #75), so a
+ * {@code Project[Delete]} holder needs no child's {@code Edit}/{@code Delete} - reusing their tested
+ * reference cleanup and per-entity audit, then clears the project's own
+ * annotations and teams and deletes the project row.
+ *
+ * <p>
+ * Delete order is reference-safe: use-cases (which delete their own scenarios and
+ * steps, #247) before the remaining steps and scenarios; containers before the
+ * goals/actors/stories they hold; glossary terms after the entities that refer to
+ * them. Every entity delete ends with a database-state sweep of its annotation
+ * links (#247) so a background assistant cannot leave an FK-violating join row.
+ *
+ * @author ron
+ */
+@Controller("deleteProjectCommand")
+@Scope("prototype")
+public class DeleteProjectCommandImpl extends AbstractEditProjectCommand implements
+		DeleteProjectCommand, AuthorizableCommand, ProjectScopedCommand {
+
+	private com.rreganjr.requel.project.ProjectAssistantSettingsStore assistantSettingsStore;
+
+	/** Issue #268: setter-injected, as the ignored-finding store is; null in plain unit tests. */
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setAssistantSettingsStore(
+			com.rreganjr.requel.project.ProjectAssistantSettingsStore assistantSettingsStore) {
+		this.assistantSettingsStore = assistantSettingsStore;
+	}
+
+	private com.rreganjr.requel.project.ProjectAssistantDefinitions assistantDefinitions;
+
+	/** Issue #260: the project's own assistant definitions; null without assistant-core. */
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setAssistantDefinitions(
+			com.rreganjr.requel.project.ProjectAssistantDefinitions assistantDefinitions) {
+		this.assistantDefinitions = assistantDefinitions;
+	}
+
+	private Project project;
+
+	private Integer expectedVersion;
+
+	/**
+	 * @param assistantManager
+	 * @param userRepository
+	 * @param projectRepository
+	 * @param projectCommandFactory
+	 * @param annotationCommandFactory
+	 * @param commandHandler
+	 */
+	private final com.rreganjr.nlp.dictionary.DictionaryRepository dictionaryRepository;
+
+	@Autowired
+	public DeleteProjectCommandImpl(AssistantFacade assistantManager, UserRepository userRepository,
+			ProjectRepository projectRepository, ProjectCommandFactory projectCommandFactory,
+			AnnotationCommandFactory annotationCommandFactory, CommandHandler commandHandler,
+			com.rreganjr.nlp.dictionary.DictionaryRepository dictionaryRepository) {
+		super(assistantManager, userRepository, projectRepository, projectCommandFactory,
+				annotationCommandFactory, commandHandler);
+		this.dictionaryRepository = dictionaryRepository;
+	}
+
+	@Override
+	public void setProject(Project project) {
+		this.project = project;
+	}
+
+	@Override
+	public void setExpectedVersion(Integer expectedVersion) {
+		this.expectedVersion = expectedVersion;
+	}
+
+	protected Integer getExpectedVersion() {
+		return expectedVersion;
+	}
+
+	@Override
+	public void execute() throws Exception {
+		Project project = getRepository().get(getProject());
+		// #279: take the project row's write lock before the cascade touches a single child.
+		// An assistant run's apply phase takes the same lock on the same row first (see
+		// AssistantProjectGate), so the two paths can only interleave one of two safe ways:
+		// the apply commits before this delete starts - and step 11 below sweeps what it
+		// wrote - or it blocks here until the row is gone and cancels itself. Without this,
+		// the delete's order is children -> project and the apply's is project -> children,
+		// which is an ABBA deadlock under InnoDB. Taken before the version check so a stale
+		// rejection cannot race either.
+		project = getRepository().lockForUpdate(project);
+		User editedBy = getRepository().get(getEditedBy());
+
+		// Enforce the caller-supplied optimistic-lock version (issue #108).
+		if (getExpectedVersion() != null
+				&& getExpectedVersion().intValue() != project.getVersion()) {
+			throw EntityLockException.staleEntity(Project.class, project,
+					EntityExceptionActionType.Deleting);
+		}
+
+		// Note: project-scoped tag rows/assignments (tagging module) are intentionally
+		// not cleaned up here. The tagging schema uses soft FKs (no DB constraint) for
+		// project_id and taggable_id (see V13__tagging.sql), so deleting the project and
+		// its taggable children never violates a constraint; the orphaned rows are the
+		// same benign leftover the existing per-entity Delete*Commands produce. Cleaning
+		// them belongs to the tagging module (it owns TagRepository, which project-jpa
+		// does not depend on) - a follow-up, not this command.
+
+		// 1) Use-cases first (#247). DeleteUseCase deletes the use-case's own primary and
+		// additional scenarios (and their steps) with it: scenarios a use case owns are not
+		// reliably reachable from project.getScenarios(), and one that IS also there must
+		// not be deleted while usecases.scenario_id / usecase_scenarios still reference it.
+		for (UseCase useCase : new HashSet<UseCase>(project.getUseCases())) {
+			DeleteUseCaseCommand command = getProjectCommandFactory().newDeleteUseCaseCommand();
+			command.setUseCase(useCase);
+			executeStep(command, editedBy);
+		}
+
+		// 2) Remaining scenarios and steps. Delete plain (non-scenario) steps first, then
+		// every scenario-typed entity (top-level plus any nested as a step).
+		// Walk scenarios and their steps via the domain interfaces (the impl's
+		// getAllScenariosAndSteps() is not exposed on Project).
+		Set<Step> allScenariosAndSteps = new HashSet<Step>(project.getScenarios());
+		// Issue #325: plus every step row that carries this project's id, found by query. A step
+		// dropped from a scenario's list before #325 was never deleted, so no scenario reaches
+		// it, and on MySQL the leftover row's projectordomain_id FK refused the final delete.
+		allScenariosAndSteps.addAll(getProjectRepository().findStepsByProjectOrDomain(project));
+		java.util.Deque<Scenario> toExamine = new java.util.ArrayDeque<Scenario>(
+				project.getScenarios());
+		while (!toExamine.isEmpty()) {
+			Scenario current = toExamine.pop();
+			for (Step step : current.getSteps()) {
+				if (allScenariosAndSteps.add(step) && step instanceof Scenario nested) {
+					toExamine.add(nested);
+				}
+			}
+		}
+		for (Step step : allScenariosAndSteps) {
+			if (!(step instanceof Scenario)) {
+				DeleteScenarioStepCommand command = getProjectCommandFactory()
+						.newDeleteScenarioStepCommand();
+				command.setScenarioStep(step);
+				executeStep(command, editedBy);
+			}
+		}
+		Set<Scenario> scenarios = new HashSet<Scenario>(project.getScenarios());
+		for (Step step : allScenariosAndSteps) {
+			if (step instanceof Scenario scenario) {
+				scenarios.add(scenario);
+			}
+		}
+		for (Scenario scenario : scenarios) {
+			DeleteScenarioCommand command = getProjectCommandFactory().newDeleteScenarioCommand();
+			command.setScenario(scenario);
+			executeStep(command, editedBy);
+		}
+
+		// 3) Stories.
+		for (Story story : new HashSet<Story>(project.getStories())) {
+			DeleteStoryCommand command = getProjectCommandFactory().newDeleteStoryCommand();
+			command.setStory(story);
+			executeStep(command, editedBy);
+		}
+
+		// 4) Actors.
+		for (Actor actor : new HashSet<Actor>(project.getActors())) {
+			DeleteActorCommand command = getProjectCommandFactory().newDeleteActorCommand();
+			command.setActor(actor);
+			executeStep(command, editedBy);
+		}
+
+		// 5) Goals (containers above have emptied their referer sets).
+		for (Goal goal : new HashSet<Goal>(project.getGoals())) {
+			DeleteGoalCommand command = getProjectCommandFactory().newDeleteGoalCommand();
+			command.setGoal(goal);
+			executeStep(command, editedBy);
+		}
+
+		// 6) Glossary terms (after the entities that refer to them).
+		for (GlossaryTerm term : new HashSet<GlossaryTerm>(project.getGlossaryTerms())) {
+			DeleteGlossaryTermCommand command = getProjectCommandFactory()
+					.newDeleteGlossaryTermCommand();
+			command.setGlossaryTerm(term);
+			executeStep(command, editedBy);
+		}
+
+		// 7) Report generators.
+		for (ReportGenerator reportGenerator : new HashSet<ReportGenerator>(
+				project.getReportGenerators())) {
+			DeleteReportGeneratorCommand command = getProjectCommandFactory()
+					.newDeleteReportGeneratorCommand();
+			command.setReportGenerator(reportGenerator);
+			executeStep(command, editedBy);
+		}
+
+		// 8) Stakeholders - user and non-user alike. This severs the project
+		// association only; no User row is ever deleted (see DeleteStakeholder).
+		for (Stakeholder stakeholder : new HashSet<Stakeholder>(project.getStakeholders())) {
+			DeleteStakeholderCommand command = getProjectCommandFactory()
+					.newDeleteStakeholderCommand();
+			command.setStakeholder(stakeholder);
+			executeStep(command, editedBy);
+		}
+
+		// 9) Teams (no per-entity command). Detach members (a @ManyToMany join)
+		// and delete the team row.
+		for (ProjectTeam team : new HashSet<ProjectTeam>(project.getTeams())) {
+			ProjectTeam managedTeam = getRepository().get(team);
+			managedTeam.getMembers().clear();
+			project.getTeams().remove(team);
+			removeAllAnnotationsBeforeDelete(managedTeam, editedBy);
+			getRepository().delete(managedTeam);
+		}
+
+		// 10) The project's own dictionary words (issue #313). project_dictionary_words is keyed
+		// by the project's id and nothing references it, so it only has to go before the project
+		// row: on MySQL the row carries an InnoDB foreign key to pods(id), which the H2 profile
+		// (create-drop, no Flyway) does not have — DeleteProjectMySqlIT is what checks the real
+		// constraint. A bulk delete rather than per-row entity deletes: the words are not
+		// annotatable, have no children, and are not loaded in the project's object graph.
+		dictionaryRepository.deleteProjectWords(project.getId());
+		// Issue #320: the project's ignored findings. Keyed by project id, nothing references them.
+		if (getIgnoredFindingStore() != null) {
+			getIgnoredFindingStore().deleteForProject(project.getId());
+		}
+		// Issue #272: the project's external sources and every entity's links to them. Keyed by
+		// project id; the links go first (they carry the only foreign key, to the sources).
+		if (getProvenanceStore() != null) {
+			getProvenanceStore().deleteForProject(project.getId());
+		}
+		// Issue #268: which assistants run in the project. Keyed by project id, like the above.
+		if (assistantSettingsStore != null) {
+			assistantSettingsStore.deleteForProject(project.getId());
+		}
+		// Issue #260: the project's own assistant definitions. Keyed by project id, no foreign key.
+		if (assistantDefinitions != null) {
+			assistantDefinitions.deleteForProject(project.getId());
+		}
+
+		// 11) The project's own annotations.
+		for (Annotation annotation : new HashSet<Annotation>(project.getAnnotations())) {
+			RemoveAnnotationFromAnnotatableCommand command = CascadeAuthorizable.cascade(this,
+					getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand());
+			command.setEditedBy(editedBy);
+			command.setAnnotatable(project);
+			command.setAnnotation(annotation);
+			getCommandHandler().execute(command);
+		}
+
+		// 12) Whatever is still grouped under the project: annotations an assistant filed
+		// against an entity deleted before its findings were applied, or left unlinked by
+		// earlier bugs. annotations.grouping_object_id is an @Any with no foreign key, so a
+		// survivor is an orphan row - and, if it was loaded during the cascade, a commit
+		// failure ("references an unsaved transient instance of 'null'"). #247.
+		DeleteAnnotationGroupCommand deleteAnnotationGroup = getAnnotationCommandFactory()
+				.newDeleteAnnotationGroupCommand();
+		deleteAnnotationGroup.setGroupingObject(project);
+		deleteAnnotationGroup.setEditedBy(editedBy);
+		CascadeAuthorizable.cascade(this, deleteAnnotationGroup);
+		getCommandHandler().execute(deleteAnnotationGroup);
+
+		// 13) Finally, the project row itself (#247: after a database-state sweep of any
+		// annotation linked to the project since it was loaded).
+		removeAllAnnotationsBeforeDelete(project, editedBy);
+		getRepository().delete(project);
+	}
+
+	/**
+	 * Run a step of this project delete: attribute it to the acting user and authorize it by this
+	 * command's requirement (issue #75) - Project[Delete], or the administrator role - rather than
+	 * the child's own permission. Everything in the project is the project's to delete.
+	 */
+	private void executeStep(EditCommand command, User editedBy) throws Exception {
+		command.setEditedBy(editedBy);
+		CascadeAuthorizable.cascade(this, command);
+		getCommandHandler().execute((Command) command);
+	}
+
+	@Override
+	public Project getProject() {
+		return project;
+	}
+
+	/**
+	 * {@code Project[Delete]} on this project, <em>or</em> the system-administrator role
+	 * (issue #256).
+	 *
+	 * <p>
+	 * The role alternative exists because the stakeholder gate blocked the use case the
+	 * delete-project epic was built for: on the dev instance 377 of 524 projects reported
+	 * {@code canDelete: false}, all of them e2e fixtures and imports created through paths
+	 * that never made the admin a stakeholder, so the rubbish #239 set out to remove could
+	 * not be removed by anyone. This is deliberately the only command that takes the
+	 * alternative - an administrator gains the ability to delete a whole project, not
+	 * general editing rights inside one - and {@code AuthorizationIT} pins that narrowness.
+	 */
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermissionOrSystemAdminRole(Project.class, "Delete",
+				SystemAdminUserRole.class);
+	}
+}

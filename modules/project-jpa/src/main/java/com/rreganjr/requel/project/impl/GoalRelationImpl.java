@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,7 +37,10 @@ import jakarta.xml.bind.annotation.XmlType;
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.OptimisticLock;
 import org.hibernate.annotations.SortNatural;
+import org.hibernate.type.SqlTypes;
 
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.impl.AbstractAnnotation;
@@ -99,7 +102,8 @@ public class GoalRelationImpl implements GoalRelation, Serializable {
 	@XmlID
 	@XmlAttribute(name = "id")
 	@XmlJavaTypeAdapter(IdAdapter.class)
-	protected Long getId() {
+	@Override
+	public Long getId() {
 		return id;
 	}
 
@@ -108,7 +112,8 @@ public class GoalRelationImpl implements GoalRelation, Serializable {
 	}
 
 	@Version
-	protected int getVersion() {
+	@Override
+	public int getVersion() {
 		return version;
 	}
 
@@ -124,8 +129,15 @@ public class GoalRelationImpl implements GoalRelation, Serializable {
 				+ getToGoal().getName();
 	}
 
+	/**
+	 * Stored by name in a {@code VARCHAR} column (V23), not a native enum column, so the enum is
+	 * the only list of values; {@code @JdbcTypeCode} keeps H2's generated schema the same shape
+	 * as the Flyway one. Issue #257.
+	 */
 	@Override
 	@Enumerated(EnumType.STRING)
+	@JdbcTypeCode(SqlTypes.VARCHAR)
+	@Column(name = "relation_type", length = 32)
 	@XmlAttribute(name = "relationType")
 	@XmlJavaTypeAdapter(GoalRelationTypeAdapter.class)
 	public GoalRelationType getRelationType() {
@@ -199,6 +211,7 @@ public class GoalRelationImpl implements GoalRelation, Serializable {
 	@ManyToMany(targetEntity = AbstractAnnotation.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@SortNatural
+	@OptimisticLock(excluded = true)
 	public Set<Annotation> getAnnotations() {
 		return annotations;
 	}
@@ -207,7 +220,9 @@ public class GoalRelationImpl implements GoalRelation, Serializable {
 		this.annotations = annotations;
 	}
 
-	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.PERSIST, CascadeType.REFRESH }, optional = false)
+	// #323: no REFRESH cascade up to the user - a refresh reloads the entity and what it owns,
+	// nothing above it (the user's roles reach every project the user is on).
+	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.PERSIST }, optional = false)
 	@XmlIDREF()
 	@XmlAttribute(name = "createdBy")
 	@XmlJavaTypeAdapter(User2UserImplAdapter.class)
@@ -346,9 +361,14 @@ public class GoalRelationImpl implements GoalRelation, Serializable {
 	@XmlTransient
 	public static class GoalRelationTypeAdapter extends XmlAdapter<String, GoalRelationType> {
 
+		/**
+		 * Not on the live import path (the streaming importer reads {@code relationType} as a
+		 * string and skips unknown values with a WARN, issue #257); legacy JAXB unmarshalling of
+		 * an unknown value yields null here rather than failing the whole document.
+		 */
 		@Override
 		public GoalRelationType unmarshal(String typeString) throws Exception {
-			return GoalRelationType.valueOf(typeString);
+			return GoalRelationType.parse(typeString).orElse(null);
 		}
 
 		@Override

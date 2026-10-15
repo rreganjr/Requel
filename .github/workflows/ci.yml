@@ -1,0 +1,341 @@
+name: CI
+
+# Build, test, and report coverage on every push and pull request that
+# targets master or any release/* branch. The release/2.0 cycle uses this
+# workflow as the gate for merging feature branches into the integration
+# branch. See doc/work/2.0/20-release-plan.md §5.1.
+#
+# Documentation-only changes skip it: markdown and the website are not built or tested, and
+# docs-only commits go straight onto the branch (doc/guides/RELEASE_PROCESS.md, "Commits that
+# skip the PR"). The filter is *.md, not doc/**: doc/samples/project.xsd is read by the XML
+# round-trip tests. A push that touches anything else still runs the whole workflow.
+
+on:
+  push:
+    branches:
+      - master
+      - "release/**"
+    paths-ignore:
+      - "*.md"
+      - "doc/**/*.md"
+      # Maintainer helpers (board, retro, issue and release scripts): nothing in the build or
+      # the test suites runs them.
+      - "scripts/**"
+      # The GitHub Pages site (pages.yml publishes it). Not website/integration/**: the schema
+      # copy there is checked by ProjectSchemaNameLengthTest.
+      - "website/*.html"
+      - "website/*.css"
+      - "website/guide/**"
+      - "website/images/**"
+  pull_request:
+    branches:
+      - master
+      - "release/**"
+    paths-ignore:
+      - "*.md"
+      - "doc/**/*.md"
+      # Maintainer helpers (board, retro, issue and release scripts): nothing in the build or
+      # the test suites runs them.
+      - "scripts/**"
+      # The GitHub Pages site (pages.yml publishes it). Not website/integration/**: the schema
+      # copy there is checked by ProjectSchemaNameLengthTest.
+      - "website/*.html"
+      - "website/*.css"
+      - "website/guide/**"
+      - "website/images/**"
+
+# Cancel earlier runs of the same workflow on the same ref. Useful when
+# someone force-pushes a feature branch and the in-flight run becomes stale.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-and-test:
+    name: Build & test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      # The root pom's maven-toolchains-plugin runs during the `validate`
+      # phase and requires ~/.m2/toolchains.xml to contain a matching JDK
+      # entry (vendor=any, version=17). GitHub runners don't ship one, so
+      # without this step every Maven build fails before reaching compile.
+      # See doc/guides/MAVEN_TOOLCHAINS.md for the local-dev equivalent.
+      - name: Write Maven toolchains.xml
+        run: |
+          mkdir -p "$HOME/.m2"
+          cat > "$HOME/.m2/toolchains.xml" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <toolchains>
+            <toolchain>
+              <type>jdk</type>
+              <provides>
+                <version>17</version>
+                <vendor>any</vendor>
+              </provides>
+              <configuration>
+                <jdkHome>${JAVA_HOME}</jdkHome>
+              </configuration>
+            </toolchain>
+          </toolchains>
+          EOF
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: requel-angular/package-lock.json
+
+      # `mvn verify` triggers the frontend-maven-plugin in modules/requel-app
+      # which downloads its own Node into target/ and runs `npm install` +
+      # `ng build` for the Angular bundle, then proceeds with the Java build.
+      # Surefire runs the unit suite during the `test` phase; failsafe (added
+      # to the root pom alongside this workflow) runs the *IT.java integration
+      # tests during the `integration-test`/`verify` phases. JaCoCo writes a
+      # combined HTML+XML coverage report to **/target/site/jacoco/.
+      # requel-cli is listed too: requel-app doesn't depend on it, so -am alone skips its tests.
+      - name: Maven build, unit + integration tests, Angular bundle
+        run: >
+          mvn -pl modules/requel-app,modules/requel-cli -am verify
+          --batch-mode --no-transfer-progress
+          -Dstyle.color=always
+
+      # The frontend-maven-plugin only invokes `ng build`, not `ng test` or
+      # `ng lint`. Run the ESLint import guard (#147) and the Vitest unit suite
+      # separately using the host-installed Node, sharing one `npm ci`.
+      # `--no-watch` makes the runner exit after one pass (default is watch).
+      - name: Angular lint + unit tests (Vitest)
+        working-directory: requel-angular
+        run: |
+          npm ci
+          npm run lint
+          npm test -- --no-watch
+
+      - name: Upload JaCoCo coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage
+          path: "**/target/site/jacoco/"
+          if-no-files-found: warn
+          retention-days: 14
+
+      # The per-module reports are each built from their own module's exec file, so a class
+      # exercised only by an integration test in another module reads as 0% in them. The
+      # aggregate report in modules/requel-app attributes that cross-module coverage, and until
+      # issue #313 it was generated on every build and never uploaded — its output directory is
+      # site/jacoco-aggregate, which the per-module glob does not match.
+      - name: Upload backend coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: "**/target/site/jacoco/jacoco.xml,modules/requel-app/target/site/jacoco-aggregate/jacoco.xml"
+          flags: backend
+          name: jacoco-backend
+          fail_ci_if_error: false
+          use_oidc: true
+
+      - name: Upload backend test results to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: "**/target/surefire-reports/TEST-*.xml,**/target/failsafe-reports/TEST-*.xml"
+          flags: backend
+          name: junit-backend
+          report_type: test_results
+          disable_search: true
+          handle_no_reports_found: true
+          fail_ci_if_error: false
+          use_oidc: true
+
+      - name: Upload Angular unit test results to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: requel-angular/test-results/vitest.junit.xml
+          flags: frontend-unit
+          name: vitest-frontend-unit
+          report_type: test_results
+          disable_search: true
+          handle_no_reports_found: true
+          fail_ci_if_error: false
+          use_oidc: true
+
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            **/target/surefire-reports/
+            **/target/failsafe-reports/
+            requel-angular/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  e2e:
+    name: E2E + frontend coverage
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    # E2E is serial (workers:1) and coverage-instrumented; ~35 min observed. Give it
+    # headroom over the ~20 min norm without masking a real slowdown.
+    timeout-minutes: 60
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: requel
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -ppassword"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Write Maven toolchains.xml
+        run: |
+          mkdir -p "$HOME/.m2"
+          cat > "$HOME/.m2/toolchains.xml" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <toolchains>
+            <toolchain>
+              <type>jdk</type>
+              <provides>
+                <version>17</version>
+                <vendor>any</vendor>
+              </provides>
+              <configuration>
+                <jdkHome>${JAVA_HOME}</jdkHome>
+              </configuration>
+            </toolchain>
+          </toolchains>
+          EOF
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: requel-angular/package-lock.json
+
+      - name: Build app jar
+        run: >
+          mvn -pl modules/requel-app -am package
+          --batch-mode --no-transfer-progress
+          -DskipTests
+          -Dstyle.color=always
+
+      - name: Install Playwright browsers
+        working-directory: requel-angular
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run Playwright with coverage
+        run: |
+          APP_JAR="$(find modules/requel-app/target -maxdepth 1 -name 'requel-app-*.jar' ! -name '*-sources.jar' | head -n 1)"
+          java -jar "$APP_JAR" \
+            --spring.profiles.active=dev \
+            --server.port=8080 \
+            '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
+            --spring.datasource.username=root \
+            --spring.datasource.password=password \
+            --requel.dictionary.sql-initializer.enabled=false \
+            > requel-e2e.log 2>&1 &
+          APP_PID=$!
+          trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
+
+          for i in {1..60}; do
+            if curl -fsS http://localhost:8080/actuator/health > /dev/null; then
+              break
+            fi
+            sleep 2
+          done
+
+          if ! curl -fsS http://localhost:8080/actuator/health > /dev/null; then
+            cat requel-e2e.log
+            exit 1
+          fi
+
+          reset_dev_fixture() {
+            local path="$1"
+            for i in {1..60}; do
+              if curl -fsS -X POST "http://localhost:8080${path}" > /dev/null; then
+                return 0
+              fi
+              sleep 2
+            done
+            echo "Timed out waiting for ${path}"
+            cat requel-e2e.log
+            exit 1
+          }
+
+          reset_dev_fixture /api/dev/reset-admin
+          reset_dev_fixture /api/dev/reset-project
+
+          (cd requel-angular && npm run e2e:coverage)
+          perl -0pi -e 's#^SF:src/#SF:requel-angular/src/#mg' requel-angular/coverage/lcov.info
+
+      - name: Upload E2E coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: requel-angular/coverage/lcov.info
+          flags: frontend-e2e
+          name: monocart-frontend-e2e
+          fail_ci_if_error: false
+          use_oidc: true
+
+      - name: Upload E2E test results to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: requel-angular/test-results/playwright.junit.xml
+          flags: frontend-e2e
+          name: playwright-frontend-e2e
+          report_type: test_results
+          disable_search: true
+          handle_no_reports_found: true
+          fail_ci_if_error: false
+          use_oidc: true
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            requel-angular/playwright-report/
+            requel-angular/test-results/
+            requel-e2e.log
+          if-no-files-found: ignore
+          retention-days: 14

@@ -1,0 +1,47 @@
+/*
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import { GlossaryTermDto } from '../models/term';
+import { CommandService } from './command.service';
+import { projectApiUrl } from './api-url';
+
+@Injectable({ providedIn: 'root' })
+export class TermService {
+  constructor(private http: HttpClient, private commandService: CommandService) {}
+
+  listTerms(projectName: string): Promise<GlossaryTermDto[]> {
+    return firstValueFrom(this.http.get<GlossaryTermDto[]>(projectApiUrl(projectName, 'terms')));
+  }
+
+  getTerm(projectName: string, termId: number): Promise<GlossaryTermDto> {
+    return firstValueFrom(this.http.get<GlossaryTermDto>(projectApiUrl(projectName, 'terms', termId)));
+  }
+
+  saveTerm(projectName: string, termId: number | null, name: string, text: string, canonicalTermId: number | null) {
+    return this.commandService.execute('EditGlossaryTerm', { projectName, termId, name, text, canonicalTermId });
+  }
+
+  deleteTerm(projectName: string, termId: number) {
+    return this.commandService.execute('DeleteGlossaryTerm', { projectName, termId });
+  }
+}

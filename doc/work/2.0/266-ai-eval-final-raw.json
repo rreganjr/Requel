@@ -1,0 +1,929 @@
+{
+  "meta": {
+    "date": "2026-10-03T20:58:17",
+    "label": "cli/claude final",
+    "baseUrl": "http://localhost:8080",
+    "project": "AI Eval 20261003-205522",
+    "runs": 3
+  },
+  "corpus": [
+    {
+      "finder": {
+        "outcome": "ok",
+        "runId": "f8628e04-21d6-46c2-b630-01b4c94b2806",
+        "error": null,
+        "summary": "53 entities; 2 possible conflicts, 5 possible overlaps",
+        "evidenceUnverified": 0,
+        "relationships": [
+          {
+            "type": "POSSIBLE_OVERLAP",
+            "text": "Possible overlap between Goal \"Two-week loans\" and Use case \"Check out a tool\" (similarity 0.41). Check whether one repeats or refines the other.",
+            "annotationId": 7346,
+            "participants": [
+              [
+                "Goal",
+                "Two-week loans"
+              ],
+              [
+                "UseCase",
+                "Check out a tool"
+              ]
+            ]
+          },
+          {
+            "type": "POSSIBLE_CONFLICT",
+            "text": "Possible conflict between Goal \"Two-week loans\" and Use case \"Renew a loan\": '14 days' / '7 days'. Check that both can hold.",
+            "annotationId": 7348,
+            "participants": [
+              [
+                "Goal",
+                "Two-week loans"
+              ],
+              [
+                "UseCase",
+                "Renew a loan"
+              ]
+            ]
+          },
+          {
+            "type": "POSSIBLE_OVERLAP",
+            "text": "Possible overlap between Goal \"Members see what they have on loan\" and Use case \"Renew a loan\" (similarity 0.47). Check whether one repeats or refines the other.",
+            "annotationId": 7344,
+            "participants": [
+              [
+                "Goal",
+                "Members see what they have on loan"
+              ],
+              [
+                "UseCase",
+                "Renew a loan"
+              ]
+            ]
+          },
+          {
+            "type": "POSSIBLE_OVERLAP",
+            "text": "Possible overlap between Goal \"Online reservations and a mobile app\" and Story \"Reserve and pay online\" (similarity 0.39). Check whether one repeats or refines the other.",
+            "annotationId": 7347,
+            "participants": [
+              [
+                "Goal",
+                "Online reservations and a mobile app"
+              ],
+              [
+                "Story",
+                "Reserve and pay online"
+              ]
+            ]
+          },
+          {
+            "type": "POSSIBLE_CONFLICT",
+            "text": "Possible conflict between Goal \"Two-week loans\" and Story \"Keep a tool for three weeks\": '14 days' / '21 days'. Check that both can hold.",
+            "annotationId": 7349,
+            "participants": [
+              [
+                "Goal",
+                "Two-week loans"
+              ],
+              [
+                "Story",
+                "Keep a tool for three weeks"
+              ]
+            ]
+          },
+          {
+            "type": "POSSIBLE_OVERLAP",
+            "text": "Possible overlap between Story \"Keep a tool for three weeks\" and Story \"Renew as a patron\" (similarity 0.41). Check whether one repeats or refines the other.",
+            "annotationId": 7345,
+            "participants": [
+              [
+                "Story",
+                "Keep a tool for three weeks"
+              ],
+              [
+                "Story",
+                "Renew as a patron"
+              ]
+            ]
+          },
+          {
+            "type": "POSSIBLE_OVERLAP",
+            "text": "Possible overlap between Goal \"Dana approves tool purchases\" and Use case \"Approve a purchase\" (similarity 0.65). Check whether one repeats or refines the other.",
+            "annotationId": 7343,
+            "participants": [
+              [
+                "Goal",
+                "Dana approves tool purchases"
+              ],
+              [
+                "UseCase",
+                "Approve a purchase"
+              ]
+            ]
+          }
+        ],
+        "score": {
+          "found": [
+            "contradiction-loan-length",
+            "renewal-breaks-loan-length"
+          ],
+          "wanted": [
+            "contradiction-loan-length",
+            "renewal-breaks-loan-length"
+          ],
+          "silentRaised": [],
+          "pairs": 7
+        }
+      },
+      "analysis": {
+        "outcome": "ok",
+        "runId": "6f496350-382b-45b3-ab32-dc49246e8ecc",
+        "error": null,
+        "summary": "The main conflict is loan length. Goal 'Two-week loans' fixes every loan at 14 days, but story 'Keep a tool for three weeks' asks for 21 days without renewing, and the 'Renew a loan' use case, its step and story 'Renew as a patron' push the due date 7 days further. The word 'hold' means two things: an account blocked for unpaid fines, and a tool kept for a member. A tool hold also looks like the same thing as a 'reservation' under a different name, which leaves unclear whether a hold blocks renewal. The late-return story assumes the member pays at the desk, which the after-hours return box rules out. The checkout scenario never checks the borrowing restrictions that 'Suspended members cannot borrow' sets. The 'Non-staff' actor contains 'Member'. 'Renew as a patron' repeats the 'Renew a loan' use case without a link. 'Patron' and 'Member' are declared synonyms in the glossary, so they are not raised.",
+        "evidenceUnverified": 0,
+        "relationships": [
+          {
+            "type": "OTHER",
+            "text": "Actor 'Non-staff' (Actor:691) is anyone who is not library staff, which includes every member (Actor:690) who is not also staff. Their definitions overlap. It is unclear which actor a requirement means when it concerns people outside the staff, for example whether member-facing requirements also apply to non-member non-staff.",
+            "annotationId": 7356,
+            "participants": [
+              [
+                "Actor",
+                "Member"
+              ],
+              [
+                "Actor",
+                "Non-staff"
+              ]
+            ]
+          },
+          {
+            "type": "CONTRADICTORY_REQUIREMENTS",
+            "text": "Goal 'Two-week loans' (Goal:1106) makes every tool due back 14 days after checkout. Story 'Keep a tool for three weeks' (Story:737) asks to keep a tool for 21 days after checkout without renewing. Both cannot hold.",
+            "annotationId": 7350,
+            "participants": [
+              [
+                "Goal",
+                "Two-week loans"
+              ],
+              [
+                "Story",
+                "Keep a tool for three weeks"
+              ]
+            ]
+          },
+          {
+            "type": "CONTRADICTORY_REQUIREMENTS",
+            "text": "Story 'Late returns' (Story:738) assumes the member is at the desk when a late tool is returned: staff take the payment and a receipt prints. Story 'Return a tool after hours' (Story:742) lets a member return a tool, possibly a late one, through the return box while the library is closed, with no one to take payment. Late returns through the box are not covered.",
+            "annotationId": 7354,
+            "participants": [
+              [
+                "Story",
+                "Late returns"
+              ],
+              [
+                "Story",
+                "Return a tool after hours"
+              ]
+            ]
+          },
+          {
+            "type": "UNSATISFIABLE_BY_CHILDREN",
+            "text": "Goal 'Suspended members cannot borrow' (Goal:1104) forbids lending to suspended members or members with more than two overdue tools. The 'Check out a tool' use case (UseCase:414) and its scenario 'Check out at the desk' (Scenario:1162) go straight from scanning the member card (Step:1164) to recording the loan (Step:1166), with no check. As written, the checkout flow lends to members the goal excludes.",
+            "annotationId": 7355,
+            "participants": [
+              [
+                "Goal",
+                "Suspended members cannot borrow"
+              ],
+              [
+                "Scenario",
+                "Check out at the desk"
+              ],
+              [
+                "Step",
+                "Staff scan the member card"
+              ],
+              [
+                "Step",
+                "The system records the loan"
+              ],
+              [
+                "UseCase",
+                "Check out a tool"
+              ]
+            ]
+          },
+          {
+            "type": "SAME_TERM_DIFFERENT_MEANING",
+            "text": "'Hold' means two different things. In goal 'Unpaid fines put accounts on hold' (Goal:1107) it is an account restriction for unpaid fines. In story 'Place a hold on a tool' (Story:739) it is a tool kept for a member when it comes back. Someone building one feature can easily misread the other, for example by treating a member 'with a hold' as blocked.",
+            "annotationId": 7352,
+            "participants": [
+              [
+                "Goal",
+                "Unpaid fines put accounts on hold"
+              ],
+              [
+                "Story",
+                "Place a hold on a tool"
+              ]
+            ]
+          },
+          {
+            "type": "CONTRADICTORY_REQUIREMENTS",
+            "text": "Goal 'Two-week loans' (Goal:1106) says every borrowed tool is due back 14 days after checkout. Use case 'Renew a loan' (UseCase:415), its step Step:1174 and story 'Renew as a patron' (Story:740) move the due date 7 days later, so a renewed tool is due 21 or more days after checkout. The goal as written allows no renewal.",
+            "annotationId": 7351,
+            "participants": [
+              [
+                "Goal",
+                "Two-week loans"
+              ],
+              [
+                "Step",
+                "The system adds 7 days to the loan's due date and shows the new date"
+              ],
+              [
+                "Story",
+                "Renew as a patron"
+              ],
+              [
+                "UseCase",
+                "Renew a loan"
+              ]
+            ]
+          },
+          {
+            "type": "SAME_CONCEPT_DIFFERENT_TERMS",
+            "text": "Story 'Place a hold on a tool' (Story:739) describes keeping a tool for a member. 'Renew a loan' (UseCase:415), the 'Pickup date' glossary term (GlossaryTerm:211) and Goal:1102 call keeping a tool for a member 'reserving'. Nothing says whether a hold is a reservation. If it is not, UseCase:415's precondition does not stop a renewal of a tool another member has a hold on, and the hold never comes back.",
+            "annotationId": 7353,
+            "participants": [
+              [
+                "GlossaryTerm",
+                "Pickup date"
+              ],
+              [
+                "Goal",
+                "Online reservations and a mobile app"
+              ],
+              [
+                "Story",
+                "Place a hold on a tool"
+              ],
+              [
+                "UseCase",
+                "Renew a loan"
+              ]
+            ]
+          },
+          {
+            "type": "DUPLICATE_AT_DIFFERENT_ABSTRACTION",
+            "text": "Story 'Renew as a patron' (Story:740) and use case 'Renew a loan' (UseCase:415) state the same requirement: renewing a loan for another week (7 days) from the account page. The use case is the more detailed version. They are not linked, so a change to one can leave the other out of date.",
+            "annotationId": 7357,
+            "participants": [
+              [
+                "Story",
+                "Renew as a patron"
+              ],
+              [
+                "UseCase",
+                "Renew a loan"
+              ]
+            ]
+          }
+        ],
+        "score": {
+          "hits": [
+            "contradiction-loan-length",
+            "renewal-breaks-loan-length",
+            "hold-two-meanings",
+            "non-staff-member"
+          ],
+          "exact": [
+            "contradiction-loan-length",
+            "hold-two-meanings",
+            "non-staff-member"
+          ],
+          "alsoValid": [
+            "patron-renewal-vs-renew",
+            "hold-vs-reservation",
+            "checkout-skips-eligibility",
+            "after-hours-vs-late-returns"
+          ],
+          "silentRaised": [],
+          "spurious": []
+        }
+      }
+    },
+    {
+      "finder": {
+        "outcome": "ok",
+        "runId": "609032ca-7267-4c4d-a719-b1a131516928",
+        "error": null,
+        "summary": "53 entities; 2 possible conflicts, 5 possible overlaps",
+        "evidenceUnverified": 0,
+        "relationships": [
+          {
+            "type": "POSSIBLE_OVERLAP",
+            "text": "Possible overlap between Goal \"Two-week loans\" and Use case \"Check out a tool\" (similarity 0.41). Check whether one repeats or refines the other.",
+            "annotationId": 7361,
+            "participants": [
+              [
+                "Goal",
+                "Two-week loans"
+              ],
+              [
+                "UseCase",
+                "Check out a tool"
+              ]
+            ]
+          },
+          {
+            "type": "POSSIBLE_CONFLICT",
+            "text": "Possible conflict between Goal \"Two-week loans\" and Use case \"Renew a loan\": '14 days' / '7 days'. Check that both can hold.",
+            "annotationId": 7363,
+            "participants": [
+              [
+                "Goal",
+                "Two-week loans"
+              ],
+              [
+                "UseCase",
+                "Renew a loan"
+              ]
+            ]
+          },
+          {
+            "type": "POSSIBLE_OVERLAP",
+            "text": "Possible overlap between Goal \"Members see what they have on loan\" and Use case \"Renew a loan\" (similarity 0.47). Check whether one repeats or refines the other.",
+            "annotationId": 7359,
+            "participants": [
+              [
+                "Goal",
+                "Members see what they have on loan"
+              ],
+              [
+                "UseCase",
+                "Renew a loan"
+              ]
+            ]
+          },
+          {
+            "type": "POSSIBLE_OVERLAP",
+            "text": "Possible overlap between Goal \"Online reservations and a mobile app\" and Story \"Reserve and pay online\" (similarity 0.39). Check whether one repeats or refines the other.",
+            "annotationId": 7362,
+            "participants": [
+              [
+                "Goal",
+                "Online reservations and a mobile app"
+              ],
+              [
+                "Story",
+                "Reserve and pay online"
+              ]
+            ]
+          },
+          {
+            "type": "POSSIBLE_CONFLICT",
+            "text": "Possible conflict between Goal \"Two-week loans\" and Story \"Keep a tool for three weeks\": '14 days' / '21 days'. Check that both can hold.",
+            "annotationId": 7364,
+            "participants": [
+              [
+                "Goal",
+                "Two-week loans"
+              ],
+              [
+                "Story",
+                "Keep a tool for three weeks"
+              ]
+            ]
+          },
+          {
+            "type": "POSSIBLE_OVERLAP",
+            "text": "Possible overlap between Story \"Keep a tool for three weeks\" and Story \"Renew as a patron\" (similarity 0.41). Check whether one repeats or refines the other.",
+            "annotationId": 7360,
+            "participants": [
+              [
+                "Story",
+                "Keep a tool for three weeks"
+              ],
+              [
+                "Story",
+                "Renew as a patron"
+              ]
+            ]
+          },
+          {
+            "type": "POSSIBLE_OVERLAP",
+            "text": "Possible overlap between Goal \"Dana approves tool purchases\" and Use case \"Approve a purchase\" (similarity 0.65). Check whether one repeats or refines the other.",
+            "annotationId": 7358,
+            "participants": [
+              [
+                "Goal",
+                "Dana approves tool purchases"
+              ],
+              [
+                "UseCase",
+                "Approve a purchase"
+              ]
+            ]
+          }
+        ],
+        "score": {
+          "found": [
+            "contradiction-loan-length",
+            "renewal-breaks-loan-length"
+          ],
+          "wanted": [
+            "contradiction-loan-length",
+            "renewal-breaks-loan-length"
+          ],
+          "silentRaised": [],
+          "pairs": 7
+        }
+      },
+      "analysis": {
+        "outcome": "ok",
+        "runId": "944d39de-a13b-4ecc-b5a9-6d5b02f67742",
+        "error": null,
+        "summary": "The main problem is the loan period. Goal 'Two-week loans' fixes every loan at 14 days, but the renewal use case and its step add 7 days, the patron renewal story asks for an extra week, and another story asks for 21 days without renewing. The word 'hold' means two things: an account blocked for unpaid fines, and a tool kept for a member. Several terms overlap without a glossary link: 'suspended' and 'on hold' accounts, 'hold' and 'reserved' for a tool out on loan, and the Non-staff actor, which contains Member. Two smaller relationships: the late-return procedure assumes a staffed desk that after-hours drop-box returns bypass, and the catalogue-search goal is an unlinked concrete version of the find-tools-quickly goal. Other candidate pairs, such as a goal and the use case that delivers it, or patron and member (which the glossary links), are consistent.",
+        "evidenceUnverified": 0,
+        "relationships": [
+          {
+            "type": "CONTRADICTORY_REQUIREMENTS",
+            "text": "Goal 'Two-week loans' (Goal:1106) makes every tool due back 14 days after checkout. Story 'Keep a tool for three weeks' (Story:737) asks to keep a tool for 21 days after checkout without renewing. Both cannot hold.",
+            "annotationId": 7350,
+            "participants": [
+              [
+                "Goal",
+                "Two-week loans"
+              ],
+              [
+                "Story",
+                "Keep a tool for three weeks"
+              ]
+            ]
+          },
+          {
+            "type": "SAME_TERM_DIFFERENT_MEANING",
+            "text": "'Hold' means two different things. In goal 'Unpaid fines put accounts on hold' (Goal:1107) it is an account restriction for unpaid fines. In story 'Place a hold on a tool' (Story:739) it is a tool kept for a member when it comes back. Someone building one feature can easily misread the other, for example by treating a member 'with a hold' as blocked.",
+            "annotationId": 7352,
+            "participants": [
+              [
+                "Goal",
+                "Unpaid fines put accounts on hold"
+              ],
+              [
+                "Story",
+                "Place a hold on a tool"
+              ]
+            ]
+          },
+          {
+            "type": "CONTRADICTORY_REQUIREMENTS",
+            "text": "Goal 'Two-week loans' (Goal:1106) says every borrowed tool is due back 14 days after checkout. Use case 'Renew a loan' (UseCase:415), its step Step:1174 and story 'Renew as a patron' (Story:740) move the due date 7 days later, so a renewed tool is due 21 or more days after checkout. The goal as written allows no renewal.",
+            "annotationId": 7351,
+            "participants": [
+              [
+                "Goal",
+                "Two-week loans"
+              ],
+              [
+                "Step",
+                "The system adds 7 days to the loan's due date and shows the new date"
+              ],
+              [
+                "Story",
+                "Renew as a patron"
+              ],
+              [
+                "UseCase",
+                "Renew a loan"
+              ]
+            ]
+          },
+          {
+            "type": "OTHER",
+            "text": "Story 'Late returns' assumes the member is at the desk: staff scan the tool, take the payment and print a receipt. Story 'Return a tool after hours' has the member drop the tool in a box while the library is closed. A late tool returned through the box cannot follow the late-return procedure, and nothing says how its fine is charged.",
+            "annotationId": 7368,
+            "participants": [
+              [
+                "Story",
+                "Late returns"
+              ],
+              [
+                "Story",
+                "Return a tool after hours"
+              ]
+            ]
+          },
+          {
+            "type": "SAME_CONCEPT_DIFFERENT_TERMS",
+            "text": "Goal 'Suspended members cannot borrow' talks about a 'suspended account'. Goal 'Unpaid fines put accounts on hold' talks about an account 'on hold'. Nothing says whether these are the same state, so it is unclear whether a member on hold for unpaid fines may borrow.",
+            "annotationId": 7365,
+            "participants": [
+              [
+                "Goal",
+                "Suspended members cannot borrow"
+              ],
+              [
+                "Goal",
+                "Unpaid fines put accounts on hold"
+              ]
+            ]
+          },
+          {
+            "type": "SAME_CONCEPT_DIFFERENT_TERMS",
+            "text": "Story 'Place a hold on a tool' calls a request for a tool that is out on loan a 'hold'. Use case 'Renew a loan' blocks renewal when another member has 'reserved' a tool that is on loan, which appears to be the same thing. With no glossary entry linking them, a hold placed under story 739 might not block renewals.",
+            "annotationId": 7366,
+            "participants": [
+              [
+                "Story",
+                "Place a hold on a tool"
+              ],
+              [
+                "UseCase",
+                "Renew a loan"
+              ]
+            ]
+          },
+          {
+            "type": "SAME_CONCEPT_DIFFERENT_TERMS",
+            "text": "Actor 'Non-staff' (anyone who is not library staff) contains actor 'Member', so every member is also non-staff. With overlapping actors, it is unclear which one a requirement about members or outsiders applies to.",
+            "annotationId": 7367,
+            "participants": [
+              [
+                "Actor",
+                "Member"
+              ],
+              [
+                "Actor",
+                "Non-staff"
+              ]
+            ]
+          },
+          {
+            "type": "DUPLICATE_AT_DIFFERENT_ABSTRACTION",
+            "text": "Goal 'Members find tools quickly' sets a measured outcome for finding tools in the catalogue. Goal 'Members search the catalogue by name' is a more concrete version of the same need. Nothing links them, so the one-minute target may not be checked against the search feature.",
+            "annotationId": 7369,
+            "participants": [
+              [
+                "Goal",
+                "Members find tools quickly"
+              ],
+              [
+                "Goal",
+                "Members search the catalogue by name"
+              ]
+            ]
+          }
+        ],
+        "score": {
+          "hits": [
+            "contradiction-loan-length",
+            "renewal-breaks-loan-length",
+            "duplicate-search",
+            "hold-two-meanings",
+            "non-staff-member"
+          ],
+          "exact": [
+            "contradiction-loan-length",
+            "duplicate-search",
+            "hold-two-meanings",
+            "non-staff-member"
+          ],
+          "alsoValid": [
+            "suspended-vs-on-hold",
+            "hold-vs-reservation",
+            "after-hours-vs-late-returns"
+          ],
+          "silentRaised": [],
+          "spurious": []
+        }
+      }
+    },
+    {
+      "finder": {
+        "outcome": "ok",
+        "runId": "fe9ee112-08d5-4fff-8a3f-c73d6b745c86",
+        "error": null,
+        "summary": "53 entities; 2 possible conflicts, 5 possible overlaps",
+        "evidenceUnverified": 0,
+        "relationships": [
+          {
+            "type": "POSSIBLE_OVERLAP",
+            "text": "Possible overlap between Goal \"Two-week loans\" and Use case \"Check out a tool\" (similarity 0.41). Check whether one repeats or refines the other.",
+            "annotationId": 7373,
+            "participants": [
+              [
+                "Goal",
+                "Two-week loans"
+              ],
+              [
+                "UseCase",
+                "Check out a tool"
+              ]
+            ]
+          },
+          {
+            "type": "POSSIBLE_CONFLICT",
+            "text": "Possible conflict between Goal \"Two-week loans\" and Use case \"Renew a loan\": '14 days' / '7 days'. Check that both can hold.",
+            "annotationId": 7375,
+            "participants": [
+              [
+                "Goal",
+                "Two-week loans"
+              ],
+              [
+                "UseCase",
+                "Renew a loan"
+              ]
+            ]
+          },
+          {
+            "type": "POSSIBLE_OVERLAP",
+            "text": "Possible overlap between Goal \"Members see what they have on loan\" and Use case \"Renew a loan\" (similarity 0.47). Check whether one repeats or refines the other.",
+            "annotationId": 7371,
+            "participants": [
+              [
+                "Goal",
+                "Members see what they have on loan"
+              ],
+              [
+                "UseCase",
+                "Renew a loan"
+              ]
+            ]
+          },
+          {
+            "type": "POSSIBLE_OVERLAP",
+            "text": "Possible overlap between Goal \"Online reservations and a mobile app\" and Story \"Reserve and pay online\" (similarity 0.39). Check whether one repeats or refines the other.",
+            "annotationId": 7374,
+            "participants": [
+              [
+                "Goal",
+                "Online reservations and a mobile app"
+              ],
+              [
+                "Story",
+                "Reserve and pay online"
+              ]
+            ]
+          },
+          {
+            "type": "POSSIBLE_CONFLICT",
+            "text": "Possible conflict between Goal \"Two-week loans\" and Story \"Keep a tool for three weeks\": '14 days' / '21 days'. Check that both can hold.",
+            "annotationId": 7376,
+            "participants": [
+              [
+                "Goal",
+                "Two-week loans"
+              ],
+              [
+                "Story",
+                "Keep a tool for three weeks"
+              ]
+            ]
+          },
+          {
+            "type": "POSSIBLE_OVERLAP",
+            "text": "Possible overlap between Story \"Keep a tool for three weeks\" and Story \"Renew as a patron\" (similarity 0.41). Check whether one repeats or refines the other.",
+            "annotationId": 7372,
+            "participants": [
+              [
+                "Story",
+                "Keep a tool for three weeks"
+              ],
+              [
+                "Story",
+                "Renew as a patron"
+              ]
+            ]
+          },
+          {
+            "type": "POSSIBLE_OVERLAP",
+            "text": "Possible overlap between Goal \"Dana approves tool purchases\" and Use case \"Approve a purchase\" (similarity 0.65). Check whether one repeats or refines the other.",
+            "annotationId": 7370,
+            "participants": [
+              [
+                "Goal",
+                "Dana approves tool purchases"
+              ],
+              [
+                "UseCase",
+                "Approve a purchase"
+              ]
+            ]
+          }
+        ],
+        "score": {
+          "found": [
+            "contradiction-loan-length",
+            "renewal-breaks-loan-length"
+          ],
+          "wanted": [
+            "contradiction-loan-length",
+            "renewal-breaks-loan-length"
+          ],
+          "silentRaised": [],
+          "pairs": 7
+        }
+      },
+      "analysis": {
+        "outcome": "ok",
+        "runId": "f8082596-e883-40da-a711-a0b89435e13b",
+        "error": null,
+        "summary": "The main problem is loan length. Goal 'Two-week loans' fixes every loan at 14 days, but Story:737 asks for 21 days without renewing, and the renewal use case, its scenario step and Story:740 all add 7 more days. The word 'hold' means two things: an account on hold for unpaid fines (Goal:1107) and a hold placed on a tool (Story:739). A tool hold also overlaps with 'reserve', which the renewal precondition relies on, and an account 'on hold' overlaps with a 'suspended' account. The after-hours return box (Story:742) cannot follow the late-return flow (Story:738), which needs the member at the desk to pay. Sending overdue reminders by text message (Goal:1103) likely passes member phone numbers to a carrier or SMS provider, which Goal:1097 forbids. Goal:1102 and Story:741 both ask for online reservations without being linked. The actor 'Non-staff' contains 'Member' with nothing saying how they relate. Other candidate pairs were judged fine: a goal and the use case that delivers it, or 'patron', which the glossary defines as another name for member.",
+        "evidenceUnverified": 0,
+        "relationships": [
+          {
+            "type": "CONTRADICTORY_REQUIREMENTS",
+            "text": "Goal 'Two-week loans' (Goal:1106) makes every tool due back 14 days after checkout. Story 'Keep a tool for three weeks' (Story:737) asks to keep a tool for 21 days after checkout without renewing. Both cannot hold.",
+            "annotationId": 7350,
+            "participants": [
+              [
+                "Goal",
+                "Two-week loans"
+              ],
+              [
+                "Story",
+                "Keep a tool for three weeks"
+              ]
+            ]
+          },
+          {
+            "type": "SAME_TERM_DIFFERENT_MEANING",
+            "text": "'Hold' means two different things. In goal 'Unpaid fines put accounts on hold' (Goal:1107) it is an account restriction for unpaid fines. In story 'Place a hold on a tool' (Story:739) it is a tool kept for a member when it comes back. Someone building one feature can easily misread the other, for example by treating a member 'with a hold' as blocked.",
+            "annotationId": 7352,
+            "participants": [
+              [
+                "Goal",
+                "Unpaid fines put accounts on hold"
+              ],
+              [
+                "Story",
+                "Place a hold on a tool"
+              ]
+            ]
+          },
+          {
+            "type": "CONTRADICTORY_REQUIREMENTS",
+            "text": "Goal 'Two-week loans' (Goal:1106) says every borrowed tool is due back 14 days after checkout. Use case 'Renew a loan' (UseCase:415), its step Step:1174 and story 'Renew as a patron' (Story:740) move the due date 7 days later, so a renewed tool is due 21 or more days after checkout. The goal as written allows no renewal.",
+            "annotationId": 7351,
+            "participants": [
+              [
+                "Goal",
+                "Two-week loans"
+              ],
+              [
+                "Step",
+                "The system adds 7 days to the loan's due date and shows the new date"
+              ],
+              [
+                "Story",
+                "Renew as a patron"
+              ],
+              [
+                "UseCase",
+                "Renew a loan"
+              ]
+            ]
+          },
+          {
+            "type": "OTHER",
+            "text": "Story 'Late returns' assumes the member is at the desk: staff scan the tool, take the payment and print a receipt. Story 'Return a tool after hours' has the member drop the tool in a box while the library is closed. A late tool returned through the box cannot follow the late-return procedure, and nothing says how its fine is charged.",
+            "annotationId": 7368,
+            "participants": [
+              [
+                "Story",
+                "Late returns"
+              ],
+              [
+                "Story",
+                "Return a tool after hours"
+              ]
+            ]
+          },
+          {
+            "type": "SAME_CONCEPT_DIFFERENT_TERMS",
+            "text": "Goal 'Suspended members cannot borrow' talks about a 'suspended account'. Goal 'Unpaid fines put accounts on hold' talks about an account 'on hold'. Nothing says whether these are the same state, so it is unclear whether a member on hold for unpaid fines may borrow.",
+            "annotationId": 7365,
+            "participants": [
+              [
+                "Goal",
+                "Suspended members cannot borrow"
+              ],
+              [
+                "Goal",
+                "Unpaid fines put accounts on hold"
+              ]
+            ]
+          },
+          {
+            "type": "SAME_CONCEPT_DIFFERENT_TERMS",
+            "text": "Actor 'Non-staff' (anyone who is not library staff) contains actor 'Member', so every member is also non-staff. With overlapping actors, it is unclear which one a requirement about members or outsiders applies to.",
+            "annotationId": 7367,
+            "participants": [
+              [
+                "Actor",
+                "Member"
+              ],
+              [
+                "Actor",
+                "Non-staff"
+              ]
+            ]
+          },
+          {
+            "type": "CONTRADICTORY_REQUIREMENTS",
+            "text": "Goal 'Send overdue reminders by text message' sends texts to members. Sending a text normally passes the member's phone number to a carrier or SMS gateway outside the library. Goal 'Member data stays private' says contact details are never shared outside library staff, at any time. Unless texts can be sent without any outside party, both cannot hold.",
+            "annotationId": 7378,
+            "participants": [
+              [
+                "Goal",
+                "Member data stays private"
+              ],
+              [
+                "Goal",
+                "Send overdue reminders by text message"
+              ]
+            ]
+          },
+          {
+            "type": "DUPLICATE_AT_DIFFERENT_ABSTRACTION",
+            "text": "Goal 'Online reservations and a mobile app' and Story 'Reserve and pay online' both ask for online reservations, and they are not linked. Each also adds something the other lacks: the goal adds a mobile app, the story adds paying the annual fee online. It is unclear which one is the source of the requirement.",
+            "annotationId": 7379,
+            "participants": [
+              [
+                "Goal",
+                "Online reservations and a mobile app"
+              ],
+              [
+                "Story",
+                "Reserve and pay online"
+              ]
+            ]
+          },
+          {
+            "type": "SAME_CONCEPT_DIFFERENT_TERMS",
+            "text": "Story 'Place a hold on a tool' describes keeping a tool on loan for a member when it comes back. Use case 'Renew a loan', Goal 'Online reservations and a mobile app' and Story 'Reserve and pay online' talk about reserving a tool. No glossary entry says whether a hold and a reservation are the same thing. This matters for the renewal precondition: if only reservations block renewal, a member with a hold could wait forever while the borrower keeps renewing.",
+            "annotationId": 7377,
+            "participants": [
+              [
+                "Goal",
+                "Online reservations and a mobile app"
+              ],
+              [
+                "Story",
+                "Place a hold on a tool"
+              ],
+              [
+                "Story",
+                "Reserve and pay online"
+              ],
+              [
+                "UseCase",
+                "Renew a loan"
+              ]
+            ]
+          }
+        ],
+        "score": {
+          "hits": [
+            "contradiction-loan-length",
+            "renewal-breaks-loan-length",
+            "sms-vs-privacy",
+            "hold-two-meanings",
+            "non-staff-member"
+          ],
+          "exact": [
+            "contradiction-loan-length",
+            "sms-vs-privacy",
+            "hold-two-meanings",
+            "non-staff-member"
+          ],
+          "alsoValid": [
+            "suspended-vs-on-hold",
+            "hold-vs-reservation",
+            "after-hours-vs-late-returns"
+          ],
+          "silentRaised": [],
+          "spurious": [
+            {
+              "type": "DUPLICATE_AT_DIFFERENT_ABSTRACTION",
+              "participants": [
+                [
+                  "Goal",
+                  "Online reservations and a mobile app"
+                ],
+                [
+                  "Story",
+                  "Reserve and pay online"
+                ]
+              ],
+              "text": "Goal 'Online reservations and a mobile app' and Story 'Reserve and pay online' both ask for online reservations, and they are not linked. Each also adds something the other lacks: the goal adds a mobile app, the story adds paying the annual fee online. It is unclear which one is the source of the requirement."
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

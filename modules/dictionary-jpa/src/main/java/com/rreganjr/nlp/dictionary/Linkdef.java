@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,6 +57,11 @@ public class Linkdef implements Serializable {
 	 * The id of hyponym link definition type.
 	 */
 	public static final int HYPONYM_INSTANCE = 4;
+
+	/**
+	 * The id of the antonym link definition type, a lexical link between word senses (#266).
+	 */
+	public static final int ANTONYM = 30;
 
 	private Long linkid;
 	private String name;

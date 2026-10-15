@@ -1,0 +1,444 @@
+/*
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+package com.rreganjr.requel.project;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import com.rreganjr.requel.user.User;
+
+/**
+ * Every {@link DeleteProjectIT} case, run against a real MySQL 8.4 with the Flyway
+ * schema (issue #247).
+ * <p>
+ * The H2 profile ({@code create-drop}, Flyway off) cannot reproduce what broke
+ * DeleteProject in the e2e suite: the InnoDB foreign keys on the
+ * {@code <table>_annotations} join tables, {@code usecases.scenario_id} and
+ * {@code scenarios.projectordomain_id}, or the row-locking a full-scan delete on the
+ * un-indexed {@code annotation_annotatable} took. This class re-runs the inherited
+ * cases on the production schema so those regress here instead of in CI's e2e run.
+ * <p>
+ * Skipped (not failed) when Docker is not available on the build machine.
+ */
+@Testcontainers(disabledWithoutDocker = true)
+public class DeleteProjectMySqlIT extends DeleteProjectIT {
+
+	@Container
+	static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4")
+			.withDatabaseName("requel")
+			.withUsername("requel")
+			.withPassword("requel")
+			// the e2e/dev compose file runs 8.4 with the same character set defaults
+			.withCommand("--character-set-server=utf8mb4",
+					"--collation-server=utf8mb4_0900_ai_ci");
+
+	@DynamicPropertySource
+	static void mysql(DynamicPropertyRegistry registry) {
+		// DeleteProjectIT is @TestInstance(PER_CLASS): Spring builds the context while creating
+		// the test instance, BEFORE the Testcontainers extension's beforeAll starts the
+		// @Container. Start it here so the mapped port exists when the suppliers run
+		// (start() on a running container is a no-op; the extension still stops it).
+		if (!MYSQL.isRunning()) {
+			MYSQL.start();
+		}
+		registry.add("spring.datasource.url", () -> MYSQL.getJdbcUrl()
+				+ "?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC");
+		registry.add("spring.datasource.username", MYSQL::getUsername);
+		registry.add("spring.datasource.password", MYSQL::getPassword);
+		registry.add("spring.datasource.driver-class-name", () -> "com.mysql.cj.jdbc.Driver");
+		registry.add("spring.jpa.database-platform", () -> "org.hibernate.dialect.MySQLDialect");
+		// The production path: Flyway builds the schema (V1..Vn), Hibernate only maps it.
+		registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");
+		registry.add("spring.flyway.enabled", () -> "true");
+		registry.add("spring.flyway.baseline-on-migrate", () -> "true");
+		registry.add("spring.flyway.baseline-version", () -> "0");
+		// Fail fast, visibly, if a lock is ever contended in this single-threaded test.
+		registry.add("spring.datasource.hikari.connection-init-sql",
+				() -> "SET SESSION innodb_lock_wait_timeout = 10");
+	}
+
+	@Autowired
+	private JdbcTemplate mysqlJdbcTemplate;
+
+	/**
+	 * #279, the real race. {@code DeleteProjectCommandImpl} deletes children first and the
+	 * project row last, so its natural lock order is children -> project; an apply that
+	 * locked the project and then wrote annotations would order them project -> children,
+	 * which is an ABBA deadlock under InnoDB. The fix makes the {@code pods} row a single
+	 * ordered gate both paths take <em>first</em>.
+	 * <p>
+	 * This holds the gate on one thread and starts the delete on another, then proves the
+	 * delete really is blocked by it before releasing. If the lock were not taken - or were
+	 * taken in the wrong order - this fails fast rather than hanging: the class pins
+	 * {@code innodb_lock_wait_timeout} to 10s.
+	 */
+	@Test
+	void projectDeleteBlocksOnTheSameGateAnAssistantApplyTakes() throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		long ts = System.currentTimeMillis();
+		Project project = createProject(admin, "del-race-" + ts);
+		Long projectId = project.getId();
+
+		CountDownLatch gateHeld = new CountDownLatch(1);
+		CountDownLatch releaseGate = new CountDownLatch(1);
+		ExecutorService threads = Executors.newFixedThreadPool(2);
+		try {
+			// Thread A: take the gate the way an apply does, and hold it.
+			Future<?> holder = threads.submit(() -> {
+				new org.springframework.transaction.support.TransactionTemplate(transactionManager)
+						.execute(status -> {
+							mysqlJdbcTemplate.queryForList(
+									"SELECT id FROM pods WHERE id = ? FOR UPDATE", projectId);
+							gateHeld.countDown();
+							try {
+								releaseGate.await(30, TimeUnit.SECONDS);
+							} catch (InterruptedException e) {
+								Thread.currentThread().interrupt();
+							}
+							return null;
+						});
+				return null;
+			});
+			assertTrue(gateHeld.await(30, TimeUnit.SECONDS), "thread A never took the gate");
+
+			// Thread B: delete the project. It must block on the very same row.
+			Integer expectedVersion = project.getVersion();
+			Future<?> deleter = threads.submit(() -> {
+				deleteProject(admin, project, expectedVersion);
+				return null;
+			});
+			assertFalse(isDone(deleter), "the delete must block on the project row while an "
+					+ "assistant apply holds it; it did not, so the gate is not being taken "
+					+ "before the cascade");
+
+			releaseGate.countDown();
+			deleter.get(60, TimeUnit.SECONDS);
+			holder.get(30, TimeUnit.SECONDS);
+		} finally {
+			threads.shutdownNow();
+		}
+
+		assertEquals(0, mysqlJdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM pods WHERE id = ?", Integer.class, projectId),
+				"the delete must still complete once the gate is released");
+		assertEquals(0, mysqlJdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM annotations WHERE grouping_object_id = ?", Integer.class,
+				projectId),
+				"no annotation may survive grouped under the deleted project");
+	}
+
+	/**
+	 * #279: V17 collects annotations already orphaned by this bug. Flyway has run it against
+	 * an empty schema by the time these tests execute, so it cleaned nothing; seed the shape
+	 * it targets and re-run its statements.
+	 * <p>
+	 * The interesting cases are the ones that must <em>survive</em>. A position is shared -
+	 * {@code PositionImpl.issues} is a {@code @ManyToMany} - so one answering a live issue as
+	 * well as an orphan must stay. And a broken group alone is not grounds for deletion: an
+	 * annotation still attached to a live entity stays too, group or no group.
+	 */
+	@Test
+	void v17CleansOrphansButKeepsAnythingStillReferencedByLiveRows() throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		long ts = System.currentTimeMillis();
+		Long adminId = admin.getId();
+		long missingProjectId = 900000000L + (ts % 1000000L);
+
+		// A live project with a real issue, and an orphan issue grouped under a pods row
+		// that does not exist - exactly what a losing assistant apply used to leave behind.
+		Project live = createProject(admin, "del-v17-" + ts);
+		Long liveIssueId = insertAnnotation(adminId, live.getId(), "live issue " + ts);
+		Long orphanIssueId = insertAnnotation(adminId, missingProjectId, "orphan issue " + ts);
+
+		Long sharedPositionId = insertPosition(adminId, "shared position " + ts);
+		Long orphanOnlyPositionId = insertPosition(adminId, "orphan-only position " + ts);
+		mysqlJdbcTemplate.update("INSERT INTO position_issue (position_id, issue_id) VALUES (?, ?)",
+				sharedPositionId, liveIssueId);
+		mysqlJdbcTemplate.update("INSERT INTO position_issue (position_id, issue_id) VALUES (?, ?)",
+				sharedPositionId, orphanIssueId);
+		mysqlJdbcTemplate.update("INSERT INTO position_issue (position_id, issue_id) VALUES (?, ?)",
+				orphanOnlyPositionId, orphanIssueId);
+		mysqlJdbcTemplate.update(
+				"INSERT INTO annotation_annotatable (annotation_id, annotatable_type, annotatable_id)"
+						+ " VALUES (?, 'Goal', 999999999)",
+				orphanIssueId);
+
+		// A broken group is not on its own enough to delete a row: this one is filed under the
+		// same missing project but still annotates a live entity, and must survive. Deleting it
+		// would take an annotation off a project that still exists.
+		Long stillAttachedId = insertAnnotation(adminId, missingProjectId, "still attached " + ts);
+		mysqlJdbcTemplate.update(
+				"INSERT INTO annotation_annotatable (annotation_id, annotatable_type, annotatable_id)"
+						+ " VALUES (?, 'Project', ?)",
+				stillAttachedId, live.getId());
+
+		runV17();
+
+		assertEquals(0, mysqlJdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM annotations WHERE id = ?", Integer.class, orphanIssueId),
+				"the orphan annotation must be collected");
+		assertEquals(0, mysqlJdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM annotation_annotatable WHERE annotation_id = ?",
+				Integer.class, orphanIssueId),
+				"its link rows must go with it");
+		assertEquals(0, mysqlJdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM positions WHERE id = ?", Integer.class, orphanOnlyPositionId),
+				"a position that only answered the orphan issue must go too");
+		assertEquals(1, mysqlJdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM annotations WHERE id = ?", Integer.class, liveIssueId),
+				"the live issue must be untouched");
+		assertEquals(1, mysqlJdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM positions WHERE id = ?", Integer.class, sharedPositionId),
+				"a position still answering a live issue must survive - positions are shared");
+		assertEquals(1, mysqlJdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM annotations WHERE id = ?", Integer.class, stillAttachedId),
+				"an annotation that still annotates a live entity must survive a broken group");
+		assertEquals(1, mysqlJdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM annotation_annotatable WHERE annotation_id = ?",
+				Integer.class, stillAttachedId),
+				"and so must its link to that live entity");
+	}
+
+	/**
+	 * V19 (issue #325) deletes plain steps no scenario uses any more, the leftovers of the old
+	 * replace-the-whole-list step handling, along with their join rows. A step a scenario still
+	 * uses, the scenario itself, and the annotation that pointed at the orphan all stay, and a
+	 * second run is harmless.
+	 */
+	@Test
+	void v19DeletesOrphanStepsAndTheirJoinRowsButKeepsUsedOnes() throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		long ts = System.currentTimeMillis();
+		Project live = createProject(admin, "del-v19-" + ts);
+
+		com.rreganjr.requel.project.command.EditScenarioCommand scenarioCmd =
+				getProjectCommandFactory().newEditScenarioCommand();
+		scenarioCmd.setEditedBy(admin);
+		scenarioCmd.setProjectOrDomain(live);
+		scenarioCmd.setName("v19 scenario " + ts);
+		scenarioCmd.setScenarioTypeName(ScenarioType.Primary.name());
+		scenarioCmd.setStepCommands(java.util.List.of(v19Step(admin, live, "kept step " + ts),
+				v19Step(admin, live, "orphan step " + ts)));
+		Scenario scenario = getCommandHandler().execute(scenarioCmd).getScenario();
+		Long scenarioId = scenario.getId();
+		Long keptId = scenario.getSteps().get(0).getId();
+		Long orphanId = scenario.getSteps().get(1).getId();
+
+		com.rreganjr.requel.project.command.EditGlossaryTermCommand termCmd =
+				getProjectCommandFactory().newEditGlossaryTermCommand();
+		termCmd.setEditedBy(admin);
+		termCmd.setProjectOrDomain(live);
+		termCmd.setName("v19term" + ts);
+		Long termId = getCommandHandler().execute(termCmd).getGlossaryTerm().getId();
+
+		// Manufacture what the old code left: the orphan's scenario_steps row gone, its other
+		// links still in place.
+		mysqlJdbcTemplate.update("DELETE FROM scenario_steps WHERE step_id = ?", orphanId);
+		Long annotationId = insertAnnotation(admin.getId(), live.getId(), "note on orphan " + ts);
+		mysqlJdbcTemplate.update("INSERT INTO annotation_annotatable (annotation_id,"
+				+ " annotatable_type, annotatable_id) VALUES (?, 'Step', ?)", annotationId, orphanId);
+		mysqlJdbcTemplate.update("INSERT INTO scenarios_annotations (step_impl_id, annotations_id)"
+				+ " VALUES (?, ?)", orphanId, annotationId);
+		mysqlJdbcTemplate.update("INSERT INTO terms_referers (term_id, referer_type, referer_id)"
+				+ " VALUES (?, 'com.rreganjr.requel.project.Step', ?)", termId, orphanId);
+		mysqlJdbcTemplate.update("INSERT INTO scenarios_glossary_terms (step_impl_id,"
+				+ " glossary_terms_id) VALUES (?, ?)", orphanId, termId);
+
+		runMigration("V19__delete_orphan_steps.sql");
+		runMigration("V19__delete_orphan_steps.sql");
+
+		assertEquals(0, count("SELECT COUNT(*) FROM scenarios WHERE id = ?", orphanId),
+				"the orphan step must be deleted");
+		assertEquals(0, count("SELECT COUNT(*) FROM annotation_annotatable WHERE annotatable_id = ?"
+				+ " AND annotatable_type = 'Step'", orphanId), "its annotation link must go");
+		assertEquals(0, count("SELECT COUNT(*) FROM scenarios_annotations WHERE step_impl_id = ?",
+				orphanId), "its scenarios_annotations row must go");
+		assertEquals(0, count("SELECT COUNT(*) FROM terms_referers WHERE referer_id = ?"
+				+ " AND referer_type = 'com.rreganjr.requel.project.Step'", orphanId),
+				"its terms_referers row must go");
+		assertEquals(0, count("SELECT COUNT(*) FROM scenarios_glossary_terms WHERE step_impl_id = ?",
+				orphanId), "its scenarios_glossary_terms row must go");
+		assertEquals(1, count("SELECT COUNT(*) FROM scenarios WHERE id = ?", keptId),
+				"a step a scenario still uses must survive");
+		assertEquals(1, count("SELECT COUNT(*) FROM scenarios WHERE id = ?", scenarioId),
+				"a top-level scenario is not an orphan");
+		assertEquals(1, count("SELECT COUNT(*) FROM annotations WHERE id = ?", annotationId),
+				"the annotation itself stays, as it does when DeleteScenarioStep runs");
+	}
+
+	/**
+	 * V20 (issue #319) moves the user additions the old installation-wide "Add to Dictionary"
+	 * wrote into the WordNet {@code word} table over to {@code install_dictionary_words}. A corpus
+	 * word has a sense (or another corpus reference) and stays; a row nothing references moves,
+	 * keeping its phonetic code; and a second run is harmless.
+	 */
+	@Test
+	void v20MovesUnreferencedWordRowsToTheInstallationTable() throws Exception {
+		long ts = System.currentTimeMillis();
+		long base = 1_900_000_000L + (ts % 1_000_000L) * 10;
+		String orphan = "v20orphan" + ts;
+		String withSense = "v20sense" + ts;
+		String withMorph = "v20morph" + ts;
+		mysqlJdbcTemplate.update("INSERT INTO categorydef (name, pos) VALUES (?, 'n')",
+				"v20cat" + (ts % 100000));
+		Long categoryId = mysqlJdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+		mysqlJdbcTemplate.update("INSERT INTO synset (definition, pos, categoryid)"
+				+ " VALUES ('v20 synset', 'n', ?)", categoryId);
+		Long synsetId = mysqlJdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+		mysqlJdbcTemplate.update("INSERT INTO word (wordid, lemma, phonetic_code) VALUES (?, ?, 'FKRN')",
+				base, orphan);
+		mysqlJdbcTemplate.update("INSERT INTO word (wordid, lemma, phonetic_code) VALUES (?, ?, 'SNS')",
+				base + 1, withSense);
+		mysqlJdbcTemplate.update("INSERT INTO word (wordid, lemma, phonetic_code) VALUES (?, ?, 'MRF')",
+				base + 2, withMorph);
+		mysqlJdbcTemplate.update("INSERT INTO sense (synsetid, wordid, `rank`) VALUES (?, ?, 1)",
+				synsetId, base + 1);
+		mysqlJdbcTemplate.update("INSERT INTO morphref (morphid, pos, wordid) VALUES (?, 'n', ?)",
+				(int) (ts % 1_000_000L), (int) (base + 2));
+		try {
+			runMigration("V20__install_dictionary_words.sql");
+			runMigration("V20__install_dictionary_words.sql");
+
+			assertEquals(0, count("SELECT COUNT(*) FROM word WHERE lemma = ?", orphan),
+					"an unreferenced word row must leave the WordNet table");
+			assertEquals(1, count("SELECT COUNT(*) FROM install_dictionary_words"
+					+ " WHERE lemma = ? AND phonetic_code = 'FKRN'", orphan),
+					"it must arrive once in the installation table, with its phonetic code");
+			assertEquals(1, count("SELECT COUNT(*) FROM word WHERE lemma = ?", withSense),
+					"a word with a sense is corpus and must stay");
+			assertEquals(1, count("SELECT COUNT(*) FROM word WHERE lemma = ?", withMorph),
+					"a word a morph points at is corpus and must stay");
+			assertEquals(0, count("SELECT COUNT(*) FROM install_dictionary_words"
+					+ " WHERE lemma IN (?, ?)", withSense, withMorph),
+					"corpus words must not be copied");
+			assertEquals(1, count("SELECT COUNT(*) FROM information_schema.statistics"
+					+ " WHERE table_schema = DATABASE() AND table_name = 'word'"
+					+ " AND index_name = 'idx_word_phonetic'"),
+					"the phonetic-code index must exist once");
+			assertEquals(0, count("SELECT COUNT(*) FROM information_schema.tables"
+					+ " WHERE table_schema = DATABASE() AND table_name = 'v20_user_words'"),
+					"the work table must be dropped");
+		} finally {
+			mysqlJdbcTemplate.update("DELETE FROM install_dictionary_words WHERE lemma = ?", orphan);
+			mysqlJdbcTemplate.update("DELETE FROM morphref WHERE wordid = ?", (int) (base + 2));
+			mysqlJdbcTemplate.update("DELETE FROM sense WHERE wordid = ?", base + 1);
+			mysqlJdbcTemplate.update("DELETE FROM word WHERE wordid IN (?, ?, ?)", base, base + 1,
+					base + 2);
+			mysqlJdbcTemplate.update("DELETE FROM synset WHERE synsetid = ?", synsetId);
+			mysqlJdbcTemplate.update("DELETE FROM categorydef WHERE categoryid = ?", categoryId);
+		}
+	}
+
+	private com.rreganjr.requel.project.command.EditScenarioStepCommand v19Step(User admin,
+			Project project, String name) {
+		com.rreganjr.requel.project.command.EditScenarioStepCommand step =
+				getProjectCommandFactory().newEditScenarioStepCommand();
+		step.setEditedBy(admin);
+		step.setProjectOrDomain(project);
+		step.setName(name);
+		step.setText("step");
+		step.setScenarioTypeName(ScenarioType.Primary.name());
+		return step;
+	}
+
+	private int count(String sql, Object... args) {
+		return mysqlJdbcTemplate.queryForObject(sql, Integer.class, args);
+	}
+
+	/** A Future is "not done" only if it is still running - a thrown task counts as done. */
+	private static boolean isDone(Future<?> future) throws Exception {
+		// Give the delete a moment to reach the lock before concluding it is blocked.
+		Thread.sleep(1500);
+		return future.isDone();
+	}
+
+	private Long insertAnnotation(Long createdById, Long groupingObjectId, String text) {
+		mysqlJdbcTemplate.update("INSERT INTO annotations (annotation_type, date_created,"
+				+ " grouping_object_type, grouping_object_id, text, version, must_be_resolved,"
+				+ " created_by_id) VALUES ('com.rreganjr.requel.annotation.Issue', NOW(6),"
+				+ " 'Project', ?, ?, 0, b'0', ?)", groupingObjectId, text, createdById);
+		return mysqlJdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+	}
+
+	private Long insertPosition(Long createdById, String text) {
+		mysqlJdbcTemplate.update("INSERT INTO positions (position_type, date_created, text,"
+				+ " version, created_by_id)"
+				+ " VALUES ('com.rreganjr.requel.annotation.impl.PositionImpl', NOW(6), ?, 0, ?)",
+				text, createdById);
+		return mysqlJdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+	}
+
+	/**
+	 * Re-run V17's statements. Flyway applied them to an empty schema at context startup, so
+	 * running them again is the only way to exercise what they actually collect. Reads the
+	 * real migration off the classpath rather than restating it, so the test cannot drift
+	 * away from what ships.
+	 */
+	private void runV17() throws Exception {
+		runMigration("V17__delete_orphan_annotations.sql");
+	}
+
+	/** Re-run a migration's statements, read off the classpath (see {@link #runV17()}). */
+	private void runMigration(String fileName) throws Exception {
+		String sql;
+		try (java.io.InputStream in = getClass()
+				.getResourceAsStream("/db/migration/" + fileName)) {
+			org.junit.jupiter.api.Assertions.assertNotNull(in, fileName + " not on the classpath");
+			sql = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+		}
+		StringBuilder stripped = new StringBuilder();
+		for (String line : sql.split("\\R")) {
+			if (!line.trim().startsWith("--")) {
+				stripped.append(line).append('\n');
+			}
+		}
+		// One connection for the whole script: V20's guarded CREATE INDEX keeps its SQL in a
+		// session variable across SET / PREPARE / EXECUTE, which a pooled connection per
+		// statement would lose.
+		String script = stripped.toString();
+		mysqlJdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Void>) con -> {
+			try (java.sql.Statement st = con.createStatement()) {
+				for (String statement : script.split(";")) {
+					if (!statement.isBlank()) {
+						st.execute(statement.trim());
+					}
+				}
+			}
+			return null;
+		});
+	}
+}

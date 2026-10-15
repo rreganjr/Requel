@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,11 +22,12 @@ package com.rreganjr.requel.project.command;
 
 import com.rreganjr.requel.command.AnalyzableEditCommand;
 import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 
 /**
  * @author ron
  */
-public interface EditProjectCommand extends AnalyzableEditCommand {
+public interface EditProjectCommand extends AnalyzableEditCommand, ProjectScopedCommand {
 
 	/**
 	 * The name of the "name" field used to correlate to the field in an editor
@@ -45,7 +46,12 @@ public interface EditProjectCommand extends AnalyzableEditCommand {
 	public void setText(String description);
 
 	/**
-	 * @param organizationName
+	 * @param organizationId - the id of an existing organization
+	 */
+	public void setOrganizationId(Long organizationId);
+
+	/**
+	 * @param organizationName - the name of the organization (used to create a new one if organizationId is not set)
 	 */
 	public void setOrganizationName(String organizationName);
 
@@ -58,4 +64,17 @@ public interface EditProjectCommand extends AnalyzableEditCommand {
 	 * @return
 	 */
 	public Project getProject();
+
+	/**
+	 * Set the caller-supplied optimistic-lock version expected for the project being
+	 * edited. When non-null on an update, the command compares it against the
+	 * project's currently persisted version and fails with an
+	 * {@link com.rreganjr.platform.exception.EntityLockException} if it has changed
+	 * since the caller loaded it. A {@code null} value (or a create) skips the check.
+	 * See issue #108.
+	 *
+	 * @param expectedVersion the version the caller believes is current, or
+	 *        {@code null} to skip the optimistic-lock check
+	 */
+	public void setExpectedVersion(Integer expectedVersion);
 }

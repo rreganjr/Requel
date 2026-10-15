@@ -1,0 +1,181 @@
+name: Container Publish
+
+# Fires only on tag pushes matching v* (e.g. v2.0.0-rc1, v2.0.0).
+# Builds the JAR + Docker image via the existing `docker-image` Maven
+# profile, smoke-tests the image against the docker-compose.yml stack,
+# then pushes the image to Docker Hub.
+# See doc/work/2.0/20-release-plan.md §5.2 and §6.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+# Don't cancel a publish run in flight if the same tag gets re-pushed.
+# Killing mid-publish could leave a half-pushed image manifest on
+# Docker Hub. CI workflows can afford to be aggressive about
+# cancellation; this one should not.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Build, smoke test, push image
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      DOCKER_IMAGE: rreganjr/requel
+
+    steps:
+      - name: Check out at tag
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      # Same toolchains stanza ci.yml and release.yml write. The root
+      # pom's maven-toolchains-plugin runs during the `validate` phase
+      # and demands a matching JDK entry. Without this step every Maven
+      # build fails before reaching compile. See doc/guides/MAVEN_TOOLCHAINS.md
+      # for the local-dev equivalent.
+      - name: Write Maven toolchains.xml
+        run: |
+          mkdir -p "$HOME/.m2"
+          cat > "$HOME/.m2/toolchains.xml" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <toolchains>
+            <toolchain>
+              <type>jdk</type>
+              <provides>
+                <version>17</version>
+                <vendor>any</vendor>
+              </provides>
+              <configuration>
+                <jdkHome>${JAVA_HOME}</jdkHome>
+              </configuration>
+            </toolchain>
+          </toolchains>
+          EOF
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: requel-angular/package-lock.json
+
+      # Tag-derived version with the leading `v` stripped. e.g.
+      # `v2.0.0-rc1` → `2.0.0-rc1`. Used for `docker push` below and
+      # for the local re-tag that lets the smoke test reuse the
+      # unmodified docker-compose.yml.
+      - name: Extract version from tag
+        id: ver
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      # Full Maven build with tests + the docker-image profile. The
+      # profile's exec-maven-plugin invocation runs `docker build`
+      # against the repo-root Dockerfile, producing an image tagged
+      # `rreganjr/requel:${project.version}`. project.version is read
+      # from the root pom (currently 2.0.0-dev) — so for now the image
+      # is always tagged `rreganjr/requel:2.0.0-dev` regardless of the
+      # git tag that triggered this workflow. The re-tag step below
+      # adapts the locally-built image to whatever version the git
+      # tag indicates.
+      - name: Maven build, tests, Docker image
+        run: >
+          mvn -pl modules/requel-app -am verify -Pdocker-image
+          --batch-mode --no-transfer-progress
+          -Dstyle.color=always
+          -Dmaven.test.redirectTestOutputToFile=true
+
+      # The Maven build produced rreganjr/requel:${project.version}.
+      # If project.version doesn't already match the tag (e.g. version
+      # is 2.0.0-dev but tag is v2.0.0-rc1), tag it under the
+      # tag-derived name as well, so push uses the right coordinate.
+      - name: Tag image with tag-derived version
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          POM_VERSION=$(mvn -pl modules/requel-app help:evaluate \
+                       -Dexpression=project.version -q -DforceStdout)
+          echo "POM version: ${POM_VERSION}"
+          echo "Tag version: ${VERSION}"
+          if [ "${POM_VERSION}" != "${VERSION}" ]; then
+            docker tag "${DOCKER_IMAGE}:${POM_VERSION}" "${DOCKER_IMAGE}:${VERSION}"
+          fi
+          # Smoke test uses the unmodified docker-compose.yml, which
+          # references rreganjr/requel:2.0.0-dev hardcoded. Tag the
+          # just-built image under that name too so compose picks it
+          # up without any file edits.
+          if [ "${POM_VERSION}" != "2.0.0-dev" ]; then
+            docker tag "${DOCKER_IMAGE}:${POM_VERSION}" "${DOCKER_IMAGE}:2.0.0-dev"
+          fi
+
+      # Bring up the compose stack and probe /actuator/health. The port opens only after
+      # Flyway and the first-start dictionary load (#379), several minutes on a fresh
+      # database; allow up to ~10 minutes. The app refuses the built-in JWT secret outside
+      # the dev profile (#376), so give it a throwaway one.
+      - name: Smoke test (docker-compose up + health probe)
+        run: |
+          REQUEL_JWT_SECRET="$(openssl rand -base64 48)" docker compose up -d
+          for i in $(seq 1 120); do
+            if curl -fsS http://localhost:8080/actuator/health > /dev/null 2>&1; then
+              echo "Health check passed on attempt ${i}"
+              exit 0
+            fi
+            echo "Attempt ${i}: not ready yet, sleeping 5s..."
+            sleep 5
+          done
+          echo "Health check never succeeded after 120 attempts. Dumping compose logs:"
+          docker compose logs
+          exit 1
+
+      - name: Tear down smoke test stack
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      # Publish a multi-platform image (#396): linux/amd64 for servers and Intel Macs,
+      # linux/arm64 for Apple Silicon and ARM servers, so neither runs under emulation.
+      # The Dockerfile only copies the platform-neutral jar onto eclipse-temurin (itself
+      # multi-arch), so the arm64 half needs no compiling under QEMU. It is built from the
+      # same jar the amd64 smoke test above ran; buildx pushes both under one tag. A final
+      # release (no dash after the patch number, e.g. v2.0.0, not v2.0.0-rc1 or
+      # v0.0.0-test1) also moves :latest.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Push multi-platform image
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          FINAL: ${{ !contains(github.ref_name, '-') }}
+        run: |
+          POM_VERSION=$(mvn -pl modules/requel-app help:evaluate \
+                       -Dexpression=project.version -q -DforceStdout)
+          JAR="modules/requel-app/target/requel-app-${POM_VERSION}.jar"
+          test -f "${JAR}" || { echo "missing ${JAR}"; exit 1; }
+          TAGS=(-t "${DOCKER_IMAGE}:${VERSION}")
+          if [ "${FINAL}" = "true" ]; then
+            TAGS+=(-t "${DOCKER_IMAGE}:latest")
+          fi
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            --build-arg "JAR_FILE=${JAR}" "${TAGS[@]}" --push .
+          docker buildx imagetools inspect "${DOCKER_IMAGE}:${VERSION}"
+
+      - name: Log out of Docker Hub
+        if: always()
+        run: docker logout

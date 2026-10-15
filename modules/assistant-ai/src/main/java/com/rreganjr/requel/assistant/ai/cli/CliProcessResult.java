@@ -1,0 +1,39 @@
+/*
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+package com.rreganjr.requel.assistant.ai.cli;
+
+import java.time.Duration;
+import java.util.Objects;
+
+/**
+ * What a CLI run produced. {@code stdout} holds at most the invocation's
+ * {@code maxOutputBytes}; {@code stdoutTruncated} says more was written and discarded.
+ * {@code exitCode} is {@code -1} when the run timed out.
+ */
+public record CliProcessResult(int exitCode, byte[] stdout, boolean stdoutTruncated,
+		String stderr, boolean timedOut, Duration elapsed) {
+
+	public CliProcessResult {
+		Objects.requireNonNull(stdout, "stdout");
+		stderr = stderr == null ? "" : stderr;
+		Objects.requireNonNull(elapsed, "elapsed");
+	}
+}

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 import jakarta.xml.bind.annotation.XmlType;
 
 import com.rreganjr.platform.identity.User;
+import com.rreganjr.requel.annotation.IssueSeverity;
 
 /**
  * An issue related to a word used in the text of an entity.
@@ -68,6 +69,15 @@ public class LexicalIssue extends IssueImpl {
 
 	protected LexicalIssue() {
 		// for hibernate
+	}
+
+	/**
+	 * Issue #271: lexical issues are the legacy spell-check, vague-word and glossary-phrase
+	 * output, so they default below a general issue. V22 backfills existing rows the same way.
+	 */
+	@Override
+	public IssueSeverity defaultSeverity() {
+		return IssueSeverity.LOW;
 	}
 
 	/**

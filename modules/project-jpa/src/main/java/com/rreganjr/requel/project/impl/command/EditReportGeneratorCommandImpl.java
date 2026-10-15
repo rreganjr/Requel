@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,12 +25,17 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.ReportGenerator;
 import com.rreganjr.requel.project.command.EditReportGeneratorCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -45,10 +50,11 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editReportGeneratorCommand")
 @Scope("prototype")
 public class EditReportGeneratorCommandImpl extends AbstractEditProjectOrDomainEntityCommand
-		implements EditReportGeneratorCommand {
+		implements EditReportGeneratorCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	private ReportGenerator reportGenerator;
 	private String text;
+	private String builtinKey;
 
 	/**
 	 * @param assistantManager
@@ -85,31 +91,53 @@ public class EditReportGeneratorCommandImpl extends AbstractEditProjectOrDomainE
 	}
 
 	@Override
+	public void setBuiltinKey(String builtinKey) {
+		this.builtinKey = builtinKey;
+	}
+
+	@Override
 	public void execute() {
 		User editedBy = getProjectRepository().get(getEditedBy());
 		ReportGeneratorImpl reportGeneratorImpl = (ReportGeneratorImpl) getReportGenerator();
 		ProjectOrDomain projectOrDomain = getProjectRepository().get(getProjectOrDomain());
 
-		// check for uniqueness
-		try {
-			ReportGenerator existing = getProjectRepository()
-					.findReportGeneratorByProjectOrDomainAndName(projectOrDomain, getName());
-			if (reportGeneratorImpl == null) {
-				throw EntityException.uniquenessConflict(ReportGenerator.class, existing,
-						FIELD_NAME, EntityExceptionActionType.Creating);
-			} else if (!existing.equals(reportGeneratorImpl)) {
-				throw EntityException.uniquenessConflict(ReportGenerator.class, existing,
-						FIELD_NAME, EntityExceptionActionType.Updating);
+		// Check for uniqueness. Skipped when no name was supplied: a null name means "leave it
+		// as it is", and the finder trims the name, so it would NPE (issue #316).
+		if (getName() != null) {
+			try {
+				ReportGenerator existing = getProjectRepository()
+						.findReportGeneratorByProjectOrDomainAndName(projectOrDomain, getName());
+				if (reportGeneratorImpl == null) {
+					throw EntityException.uniquenessConflict(ReportGenerator.class, existing,
+							FIELD_NAME, EntityExceptionActionType.Creating);
+				} else if (!existing.equals(reportGeneratorImpl)) {
+					throw EntityException.uniquenessConflict(ReportGenerator.class, existing,
+							FIELD_NAME, EntityExceptionActionType.Updating);
+				}
+			} catch (NoSuchEntityException e) {
 			}
-		} catch (NoSuchEntityException e) {
 		}
 
 		if (reportGeneratorImpl == null) {
-			reportGeneratorImpl = getProjectRepository().persist(
-					new ReportGeneratorImpl(projectOrDomain, editedBy, getName(), getText()));
+			ReportGeneratorImpl created = new ReportGeneratorImpl(projectOrDomain, editedBy,
+					getName(), getText());
+			created.setBuiltinKey(builtinKey);
+			reportGeneratorImpl = getProjectRepository().persist(created);
 		} else {
-			reportGeneratorImpl.setName(getName());
-			reportGeneratorImpl.setText(getText());
+			// Null leaves a property as it is; "" clears the text (issue #316).
+			if (getName() != null) {
+				reportGeneratorImpl.setName(getName());
+			}
+			if (getText() != null) {
+				// Issue #275: new text on a bundled generator detaches it, so the user's template
+				// is what renders from now on and a bundle update never overwrites it. Saving
+				// the text unchanged (the editor sends name and text together) keeps the link.
+				if (reportGeneratorImpl.getBuiltinKey() != null
+						&& !getText().equals(reportGeneratorImpl.getText())) {
+					reportGeneratorImpl.setBuiltinKey(null);
+				}
+				reportGeneratorImpl.setText(getText());
+			}
 		}
 		reportGeneratorImpl = getProjectRepository().merge(reportGeneratorImpl);
 		setReportGenerator(reportGeneratorImpl);
@@ -120,5 +148,22 @@ public class EditReportGeneratorCommandImpl extends AbstractEditProjectOrDomainE
 		if (isAnalysisEnabled()) {
 			// TODO: analyze report generator?
 		}
+	}
+
+	@Override
+	public Project getProject() {
+		if (getProjectOrDomain() instanceof Project project) {
+			return project;
+		}
+		if (reportGenerator != null
+				&& reportGenerator.getProjectOrDomain() instanceof Project project) {
+			return project;
+		}
+		return null;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(ReportGenerator.class, "Edit");
 	}
 }

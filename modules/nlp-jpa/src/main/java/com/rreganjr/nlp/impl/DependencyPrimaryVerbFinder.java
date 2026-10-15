@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -85,7 +85,10 @@ public class DependencyPrimaryVerbFinder implements NLPProcessor<NLPText> {
 						}
 					}
 				} catch (NLPProcessorException e) {
-					log.warn(e.toString());
+					// #268: expected, not a problem. Names ("Webinar"), bracketed notes and commands
+					// ("Create the room", #349) have no subject, so no primary verb; at WARN this
+					// flooded the log on every whole-project analysis.
+					log.debug(e.toString());
 				}
 			}
 		}

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,6 +32,16 @@ import com.rreganjr.requel.annotation.Annotatable;
  * @author ron
  */
 public interface ProjectOrDomainEntity extends NamedEntity, Annotatable, CreatedEntity, Describable {
+
+	/**
+	 * @return the persistent identity of this entity.
+	 */
+	public Long getId();
+
+	/**
+	 * @return the optimistic-lock version; incremented on each user-initiated modification.
+	 */
+	public int getVersion();
 
 	/**
 	 * @return the project or domain that the entity is attached to.

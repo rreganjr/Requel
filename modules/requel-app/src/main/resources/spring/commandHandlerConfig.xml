@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  - Spring config for navigation setup.
+  - Spring config for the command handler chain (decorator pattern).
+  - Chain: Auditing → CurrentUser → RetryOnLockFailures → ExceptionMapping → Authorizing → Validating → FindingResolutionTracking → AnalysisInvoking → Default
+  -
+  - Validating is INSIDE Authorizing on purpose (issue #171): a caller who may not run the
+  - command gets a 403 and learns nothing about its input shape. Reversing the two means an
+  - unauthorized caller sending a malformed payload gets a 422 listing field names.
   -->
 <beans xmlns="http://www.springframework.org/schema/beans"
 		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -13,24 +18,68 @@
 			http://www.springframework.org/schema/tx https://www.springframework.org/schema/tx/spring-tx.xsd
 			http://www.springframework.org/schema/util https://www.springframework.org/schema/util/spring-util.xsd
 			">
+
 	<!-- create these nested so that only one CommandHandler class is exposed -->
-	<bean id="commandHandler" class="com.rreganjr.command.RetryOnLockFailuresCommandHandler" scope="singleton">
+	<bean id="commandHandler" class="com.rreganjr.requel.service.audit.AuditingCommandHandler" scope="singleton">
 		<constructor-arg index="0">
-			<bean class="com.rreganjr.command.ExceptionMappingCommandHandler" scope="singleton">
+			<bean class="com.rreganjr.requel.service.command.CurrentUserCommandHandler" scope="singleton">
 				<constructor-arg index="0">
-					<bean class="com.rreganjr.repository.jpa.ExceptionMapper"/>
-				</constructor-arg>
-				<constructor-arg index="1">
-					<bean class="com.rreganjr.requel.command.AnalysisInvokingCommandHandler" scope="singleton">
+					<bean class="com.rreganjr.command.RetryOnLockFailuresCommandHandler" scope="singleton">
 						<constructor-arg index="0">
-							<bean class="com.rreganjr.command.DefaultCommandHandler" scope="singleton"/>
+							<bean class="com.rreganjr.command.ExceptionMappingCommandHandler" scope="singleton">
+								<constructor-arg index="0">
+									<bean class="com.rreganjr.repository.jpa.ExceptionMapper"/>
+								</constructor-arg>
+								<constructor-arg index="1">
+									<bean class="com.rreganjr.requel.command.AuthorizingCommandHandler" scope="singleton">
+										<constructor-arg index="0">
+										  <bean class="com.rreganjr.requel.service.command.ValidatingCommandHandler" scope="singleton">
+										   <constructor-arg index="0">
+											<bean class="com.rreganjr.requel.command.FindingResolutionTrackingCommandHandler" scope="singleton">
+												<constructor-arg index="0">
+													<bean class="com.rreganjr.requel.command.AnalysisInvokingCommandHandler" scope="singleton">
+														<constructor-arg index="0">
+															<bean class="com.rreganjr.command.DefaultCommandHandler" scope="singleton"/>
+														</constructor-arg>
+														<constructor-arg index="1">
+															<ref bean="analysisRequestDispatcher"/>
+														</constructor-arg>
+													</bean>
+												</constructor-arg>
+												<constructor-arg index="1">
+													<ref bean="assistantFindingRepository"/>
+												</constructor-arg>
+												<!-- #320: records ignored findings on an Ignore resolve -->
+												<property name="ignoredFindingStore" ref="ignoredFindingStore"/>
+											</bean>
+										   </constructor-arg>
+										   <constructor-arg index="1">
+											<ref bean="commandInputValidator"/>
+										   </constructor-arg>
+										  </bean>
+										</constructor-arg>
+									</bean>
+								</constructor-arg>
+							</bean>
+						</constructor-arg>
+						<constructor-arg index="1">
+							<ref bean="projectRepository"/>
 						</constructor-arg>
 					</bean>
+				</constructor-arg>
+				<constructor-arg index="1">
+					<ref bean="currentUserResolver"/>
 				</constructor-arg>
 			</bean>
 		</constructor-arg>
 		<constructor-arg index="1">
-			<ref bean="projectRepository"/>			
+			<ref bean="commandAuditLogRepository"/>
+		</constructor-arg>
+		<constructor-arg index="2">
+			<ref bean="sensitiveFieldRedactor"/>
+		</constructor-arg>
+		<constructor-arg index="3">
+			<ref bean="projectRepository"/>
 		</constructor-arg>
 	</bean>
 </beans>

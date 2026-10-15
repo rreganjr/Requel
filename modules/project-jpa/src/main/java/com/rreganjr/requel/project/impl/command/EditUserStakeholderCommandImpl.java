@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,6 +28,10 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationException;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.platform.exception.NoSuchEntityException;
@@ -35,10 +39,12 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.ProjectTeam;
 import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.StakeholderPermission;
+import com.rreganjr.requel.project.StakeholderPermissionRules;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.EditUserStakeholderCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -56,7 +62,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editUserStakeholderCommand")
 @Scope("prototype")
 public class EditUserStakeholderCommandImpl extends AbstractEditProjectOrDomainEntityCommand
-		implements EditUserStakeholderCommand {
+		implements EditUserStakeholderCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	private UserStakeholder stakeholder;
 	private String username;
@@ -134,6 +140,9 @@ public class EditUserStakeholderCommandImpl extends AbstractEditProjectOrDomainE
 		} catch (NoSuchEntityException e) {
 		}
 
+		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
+		stakeholderImpl = checkExpectedVersion(stakeholderImpl);
+
 		ProjectTeam oldTeam = null;
 		ProjectTeam newTeam = null;
 		if (stakeholderImpl != null) {
@@ -171,15 +180,8 @@ public class EditUserStakeholderCommandImpl extends AbstractEditProjectOrDomainE
 			newTeam.getMembers().add(stakeholderImpl);
 		}
 
-		for (StakeholderPermission permission : getProjectRepository()
-				.findAvailableStakeholderPermissions()) {
-			if (stakeholderImpl.hasPermission(permission)
-					&& !getStakeholderPermissions().contains(permission.getPermissionKey())) {
-				stakeholderImpl.revokeStakeholderPermission(permission);
-			} else if (!stakeholderImpl.hasPermission(permission)
-					&& getStakeholderPermissions().contains(permission.getPermissionKey())) {
-				stakeholderImpl.grantStakeholderPermission(permission);
-			}
+		if (getStakeholderPermissions() != null) {
+			applyPermissions(projectOrDomain, editedBy, stakeholderImpl);
 		}
 
 		if (user != null) {
@@ -189,10 +191,95 @@ public class EditUserStakeholderCommandImpl extends AbstractEditProjectOrDomainE
 		setStakeholder(stakeholderImpl);
 	}
 
+	/**
+	 * #75: grant and revoke so the stakeholder holds exactly the requested permissions plus what
+	 * they imply ({@link StakeholderPermissionRules#closure}). Every permission that changes, added
+	 * or removed, must be one the editor holds, together with the Grant that covers it
+	 * ({@link StakeholderPermissionRules#grantKeyFor}) - so nobody hands out, or takes away, more
+	 * than they could themselves, and editing your own stakeholder can't raise it. An internal
+	 * call with no editor is not checked.
+	 */
+	private void applyPermissions(ProjectOrDomain projectOrDomain,
+			com.rreganjr.platform.identity.User editedBy, UserStakeholderImpl stakeholderImpl) {
+		Set<String> wanted = StakeholderPermissionRules.closure(getStakeholderPermissions());
+		java.util.Collection<StakeholderPermission> catalog = getProjectRepository()
+				.findAvailableStakeholderPermissions();
+		Set<String> catalogKeys = new java.util.HashSet<>();
+		for (StakeholderPermission permission : catalog) {
+			catalogKeys.add(permission.getPermissionKey());
+		}
+		java.util.List<StakeholderPermission> grants = new java.util.ArrayList<>();
+		java.util.List<StakeholderPermission> revokes = new java.util.ArrayList<>();
+		for (StakeholderPermission permission : catalog) {
+			boolean held = stakeholderImpl.hasPermission(permission);
+			boolean want = wanted.contains(permission.getPermissionKey());
+			if (held && !want) {
+				revokes.add(permission);
+			} else if (!held && want) {
+				grants.add(permission);
+			}
+		}
+		if (editedBy != null && (!grants.isEmpty() || !revokes.isEmpty())) {
+			Set<String> editorKeys = editorPermissionKeys(projectOrDomain, editedBy);
+			java.util.List<String> refused = new java.util.ArrayList<>();
+			java.util.List<StakeholderPermission> changing = new java.util.ArrayList<>(grants);
+			changing.addAll(revokes);
+			for (StakeholderPermission permission : changing) {
+				String key = permission.getPermissionKey();
+				String grantKey = StakeholderPermissionRules.grantKeyFor(key, catalogKeys);
+				if (!editorKeys.contains(key) || !editorKeys.contains(grantKey)) {
+					refused.add(StakeholderPermissionRules.label(key) + " (needs "
+							+ StakeholderPermissionRules.label(key) + " and "
+							+ StakeholderPermissionRules.label(grantKey) + ")");
+				}
+			}
+			if (!refused.isEmpty()) {
+				throw new AuthorizationException("You can't grant or remove: "
+						+ String.join(", ", refused));
+			}
+		}
+		for (StakeholderPermission permission : revokes) {
+			stakeholderImpl.revokeStakeholderPermission(permission);
+		}
+		for (StakeholderPermission permission : grants) {
+			stakeholderImpl.grantStakeholderPermission(permission);
+		}
+	}
+
+	/** The editor's own permission keys in this project; none when they aren't a stakeholder. */
+	private Set<String> editorPermissionKeys(ProjectOrDomain projectOrDomain,
+			com.rreganjr.platform.identity.User editedBy) {
+		Set<String> keys = new java.util.HashSet<>();
+		if (!(editedBy instanceof User editorUser)) {
+			return keys;
+		}
+		try {
+			UserStakeholder editor = getProjectRepository()
+					.findStakeholderByProjectOrDomainAndUser(projectOrDomain, editorUser);
+			for (StakeholderPermission permission : editor.getStakeholderPermissions()) {
+				keys.add(permission.getPermissionKey());
+			}
+		} catch (NoSuchEntityException e) {
+			// not a stakeholder: grants nothing
+		}
+		return keys;
+	}
+
 	@Override
 	public void invokeAnalysis() {
 		if (isAnalysisEnabled()) {
 			// TODO: analyze stakeholder?
 		}
+	}
+
+	@Override
+	public Project getProject() {
+		if (getProjectOrDomain() instanceof Project project) return project;
+		return null;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(Stakeholder.class, "Edit");
 	}
 }

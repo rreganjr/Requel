@@ -1,0 +1,36 @@
+#![Initial Login]
+
+tomcat:Tomcat[a]
+echo2:Echo2[a]
+app:UIFrameworkApp[a]
+submitLoginListener:SubmitLoginListener[a]
+loginFailedListener:LoginFailedListener[a]
+requelMainScreen:RequelMainScreen[a]
+eventDispatcher:EventDispatcher[a]
+loginController:LoginController[a]
+loginOkController:LoginOkController[a]
+userCommandFactory:UserCommandFactory[a]
+commandHandler:CommandHandler[a]
+/loginCommand:LoginCommand[a]
+
+tomcat:echo2.service()
+echo2:submitLoginListener.actionPerformed()
+submitLoginListener:eventDispatcher.dispatchEvent(new LoginEvent())
+eventDispatcher:loginController.actionPerformed(loginEvent)
+loginController:userCommandFactory.newLoginCommand()
+userCommandFactory:loginCommand.new()
+loginController:loginCommand.setUsername(username)
+loginController:loginCommand.setPassword(password)
+[c:try]
+loginController:commandHandler.execute(loginCommand)
+loginController:eventDispatcher.dispatchEvent(new LoginOkEvent())
+eventDispatcher:loginOkController.actionPerformed(loginOkEvent)
+loginOkController:app.setUser(loginOkEvent.getUser())
+loginOkController:app.setCurrentScreen("mainScreen")
+app:requelMainScreen.setup()
+[/c]
+[c:exception invalid username or password]
+loginController:eventDispatcher.dispatchEvent(new LoginFailedEvent())
+eventDispatcher:loginFailedListener.actionPerformed(loginFailedEvent)
+loginFailedListener:app.setMessage("login failed")
+[/c]

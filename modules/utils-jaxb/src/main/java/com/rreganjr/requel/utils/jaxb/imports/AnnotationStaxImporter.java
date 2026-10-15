@@ -1,10 +1,8 @@
 /*
- * $Id: $
- *
- * Copyright 2025 Ron Regan Jr. All Rights Reserved.
- *
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -65,6 +63,12 @@ public class AnnotationStaxImporter {
                     if ("note".equals(reader.getLocalName())) {
                         AnnotationImportXml xml = unmarshaller.unmarshal(reader, AnnotationImportXml.class).getValue();
                         drafts.add(mapper.toDraft(xml, AnnotationImportDraft.Type.NOTE));
+                        continue;
+                    } else if ("issue".equals(reader.getLocalName())) {
+                        // Issue #320: plain issues (human- or AI-raised) are exported as <issue>
+                        // and were silently dropped on import.
+                        AnnotationImportXml xml = unmarshaller.unmarshal(reader, AnnotationImportXml.class).getValue();
+                        drafts.add(mapper.toDraft(xml, AnnotationImportDraft.Type.ISSUE));
                         continue;
                     } else if ("lexicalIssue".equals(reader.getLocalName())) {
                         AnnotationImportXml xml = unmarshaller.unmarshal(reader, AnnotationImportXml.class).getValue();

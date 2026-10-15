@@ -1,0 +1,357 @@
+import { Component, signal, WritableSignal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { provideRouter, Router } from '@angular/router';
+import { LayoutComponent } from './layout';
+import { AuthService } from '../../core/auth.service';
+import { EventStreamService } from '../../core/event-stream.service';
+import { AnnouncerService } from '../../core/announcer.service';
+import { EMPTY, Subject } from 'rxjs';
+import { StreamConnectionState, StreamEventEnvelope } from '../../models/stream';
+import { PermissionService } from '../../core/permission.service';
+import { SidebarNavComponent } from '../../shared/sidebar-nav';
+import { AppearanceMenuComponent } from '../../shared/appearance-menu';
+
+// Lightweight stand-in for the sidebar so the layout can render without the
+// sidebar's data services / SSE subscriptions.
+@Component({ selector: 'app-sidebar-nav', standalone: true, template: '' })
+class SidebarNavStubComponent {}
+
+@Component({ selector: 'app-appearance-menu', standalone: true, template: '' })
+class AppearanceMenuStubComponent {}
+
+@Component({ selector: 'app-route-stub', standalone: true, template: '' })
+class RouteStubComponent {}
+
+describe('LayoutComponent accessibility (issue #135)', () => {
+  function createFixture() {
+    TestBed.configureTestingModule({
+      imports: [LayoutComponent],
+      providers: [
+        provideNoopAnimations(),
+        provideRouter([]),
+        { provide: AuthService, useValue: { user: signal(null), logout: vi.fn() } },
+        { provide: EventStreamService, useValue: { connect: vi.fn(), isConnected: () => false, connectionState: () => 'idle', events$: EMPTY } }
+      ]
+    });
+    TestBed.overrideComponent(LayoutComponent, {
+      remove: { imports: [SidebarNavComponent, AppearanceMenuComponent] },
+      add: { imports: [SidebarNavStubComponent, AppearanceMenuStubComponent] }
+    });
+    const fixture = TestBed.createComponent(LayoutComponent);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('renders a skip link as the first focusable element, targeting #main-content', () => {
+    const el: HTMLElement = createFixture().nativeElement;
+
+    const skip = el.querySelector<HTMLAnchorElement>('a.skip-link');
+    expect(skip).toBeTruthy();
+    expect(skip!.getAttribute('href')).toBe('#main-content');
+
+    const focusable = el.querySelectorAll<HTMLElement>(
+      'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    expect(focusable.length).toBeGreaterThan(0);
+    expect(focusable[0]).toBe(skip);
+  });
+
+  it('exposes <main> as a focus target with id="main-content" and tabindex="-1"', () => {
+    const el: HTMLElement = createFixture().nativeElement;
+
+    const main = el.querySelector<HTMLElement>('main#main-content');
+    expect(main).toBeTruthy();
+    expect(main!.getAttribute('tabindex')).toBe('-1');
+  });
+});
+
+
+// ----- #154 top bar + sidebar collapse -------------------------------------
+const SIDEBAR_COLLAPSED_KEY = 'requel_sidebar_collapsed';
+
+describe('LayoutComponent top bar (issue #154)', () => {
+  function createFixture() {
+    TestBed.configureTestingModule({
+      imports: [LayoutComponent],
+      providers: [
+        provideNoopAnimations(),
+        provideRouter([]),
+        { provide: AuthService, useValue: { user: signal(null), logout: vi.fn() } },
+        { provide: EventStreamService, useValue: { connect: vi.fn(), isConnected: () => false, connectionState: () => 'idle', events$: EMPTY } }
+      ]
+    });
+    TestBed.overrideComponent(LayoutComponent, {
+      remove: { imports: [SidebarNavComponent, AppearanceMenuComponent] },
+      add: { imports: [SidebarNavStubComponent, AppearanceMenuStubComponent] }
+    });
+    const fixture = TestBed.createComponent(LayoutComponent);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  beforeEach(() => localStorage.removeItem(SIDEBAR_COLLAPSED_KEY));
+  afterEach(() => localStorage.removeItem(SIDEBAR_COLLAPSED_KEY));
+
+  it('renders the top-bar regions: sidebar toggle, account menu, breadcrumb', () => {
+    const el: HTMLElement = createFixture().nativeElement;
+    expect(el.querySelector('[data-testid="sidebar-toggle"]')).toBeTruthy();
+    // The disabled "Search (coming soon)" placeholder was removed (#223, T3).
+    expect(el.querySelector('[data-testid="header-search"]')).toBeNull();
+    expect(el.querySelector('.account-trigger')).toBeTruthy();
+    // Breadcrumb region is reserved (filled dynamically in the #128 step).
+    expect(el.querySelector('[data-testid="breadcrumb-region"]')).toBeTruthy();
+  });
+
+  it('hides the back button at the shell root', () => {
+    const el: HTMLElement = createFixture().nativeElement;
+    // provideRouter([]) leaves the url at '/', so showBack() is false.
+    expect(el.querySelector('[data-testid="back-button"]')).toBeNull();
+  });
+
+  it('collapses the sidebar and persists the choice when the toggle is clicked', () => {
+    const fixture = createFixture();
+    const el: HTMLElement = fixture.nativeElement;
+    const aside = el.querySelector<HTMLElement>('#app-sidebar')!;
+    const toggle = el.querySelector<HTMLButtonElement>('[data-testid="sidebar-toggle"]')!;
+
+    expect(aside.hidden).toBe(false);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+
+    toggle.click();
+    fixture.detectChanges();
+
+    expect(aside.hidden).toBe(true);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(localStorage.getItem(SIDEBAR_COLLAPSED_KEY)).toBe('true');
+  });
+
+  it('seeds the collapsed state from localStorage', () => {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, 'true');
+    const el: HTMLElement = createFixture().nativeElement;
+    const aside = el.querySelector<HTMLElement>('#app-sidebar')!;
+    expect(aside.hidden).toBe(true);
+    expect(el.querySelector('[data-testid="sidebar-toggle"]')!.getAttribute('aria-expanded'))
+      .toBe('false');
+  });
+
+  describe('narrow windows (#390)', () => {
+    let listeners: ((e: MediaQueryListEvent) => void)[];
+    let matches: boolean;
+    const original = window.matchMedia;
+
+    beforeEach(() => {
+      listeners = [];
+      matches = true;
+      window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+        get matches() { return matches; },
+        media: query,
+        addEventListener: (_: string, l: (e: MediaQueryListEvent) => void) => listeners.push(l),
+        removeEventListener: vi.fn()
+      })) as unknown as typeof window.matchMedia;
+    });
+    afterEach(() => { window.matchMedia = original; });
+
+    it('starts collapsed whatever the stored preference', () => {
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, 'false');
+      const el: HTMLElement = createFixture().nativeElement;
+      expect(el.querySelector<HTMLElement>('#app-sidebar')!.hidden).toBe(true);
+    });
+
+    it('does not persist a toggle made while narrow', () => {
+      const fixture = createFixture();
+      fixture.nativeElement.querySelector('[data-testid="sidebar-toggle"]').click();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('#app-sidebar').hidden).toBe(false);
+      expect(localStorage.getItem(SIDEBAR_COLLAPSED_KEY)).toBeNull();
+    });
+
+    it('collapses when the window narrows and restores the preference when it widens', () => {
+      matches = false;
+      const fixture = createFixture();
+      const aside = (): HTMLElement => fixture.nativeElement.querySelector('#app-sidebar');
+      expect(aside().hidden).toBe(false);
+
+      matches = true;
+      listeners.forEach(l => l({ matches: true } as MediaQueryListEvent));
+      fixture.detectChanges();
+      expect(aside().hidden).toBe(true);
+
+      matches = false;
+      listeners.forEach(l => l({ matches: false } as MediaQueryListEvent));
+      fixture.detectChanges();
+      expect(aside().hidden).toBe(false);
+    });
+  });
+
+  it('exposes the sidebar as a landmark region the toggle controls', () => {
+    const el: HTMLElement = createFixture().nativeElement;
+    const toggle = el.querySelector('[data-testid="sidebar-toggle"]')!;
+    expect(toggle.getAttribute('aria-controls')).toBe('app-sidebar');
+    expect(el.querySelector('#app-sidebar')).toBeTruthy();
+  });
+
+  // Regression guard (dirty-guard.e2e.ts): every artifact editor has its own
+  // <p-button label="Back">, and the e2e drives it with
+  // getByRole('button', { name: 'Back' }) - a case-insensitive SUBSTRING match.
+  // If the top-bar back button's accessible name contains "back" it becomes a
+  // second match and the click hits a strict-mode violation. So the global
+  // button must be named distinctly (browser-history back, not "back to list").
+  it('names the top-bar back button without the substring "back"', async () => {
+    TestBed.configureTestingModule({
+      imports: [LayoutComponent],
+      providers: [
+        provideNoopAnimations(),
+        provideRouter([{ path: 'somewhere', component: RouteStubComponent }]),
+        { provide: AuthService, useValue: { user: signal(null), logout: vi.fn() } },
+        { provide: EventStreamService, useValue: { connect: vi.fn(), isConnected: () => false, connectionState: () => 'idle', events$: EMPTY } }
+      ]
+    });
+    TestBed.overrideComponent(LayoutComponent, {
+      remove: { imports: [SidebarNavComponent, AppearanceMenuComponent] },
+      add: { imports: [SidebarNavStubComponent, AppearanceMenuStubComponent] }
+    });
+    const router = TestBed.inject(Router);
+    const fixture = TestBed.createComponent(LayoutComponent);
+    await router.navigateByUrl('/somewhere');   // off the shell root → showBack() is true
+    fixture.detectChanges();
+
+    const back = fixture.nativeElement.querySelector('[data-testid="back-button"]');
+    expect(back, 'back button should render off the shell root').toBeTruthy();
+    const name = (back.getAttribute('aria-label') ?? '').toLowerCase();
+    expect(name.length).toBeGreaterThan(0);
+    expect(name).not.toContain('back');
+  });
+});
+
+
+// ----- #145 live-update announcements ---------------------------------------
+describe('LayoutComponent live-update announcements (issue #145)', () => {
+  function createFixture(
+    state: WritableSignal<StreamConnectionState>,
+    announce: (msg: string) => void
+  ) {
+    TestBed.configureTestingModule({
+      imports: [LayoutComponent],
+      providers: [
+        provideNoopAnimations(),
+        provideRouter([]),
+        { provide: AuthService, useValue: { user: signal(null), logout: vi.fn() } },
+        {
+          provide: EventStreamService,
+          useValue: {
+            connect: vi.fn(),
+            isConnected: () => state() === 'open',
+            connectionState: state,
+            events$: EMPTY
+          }
+        },
+        { provide: AnnouncerService, useValue: { announce } }
+      ]
+    });
+    TestBed.overrideComponent(LayoutComponent, {
+      remove: { imports: [SidebarNavComponent, AppearanceMenuComponent] },
+      add: { imports: [SidebarNavStubComponent, AppearanceMenuStubComponent] }
+    });
+    const fixture = TestBed.createComponent(LayoutComponent);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('announces "interrupted" on degraded and "restored" when it returns to open', () => {
+    const state = signal<StreamConnectionState>('open');
+    const announce = vi.fn();
+    const fixture = createFixture(state, announce);
+
+    state.set('degraded');
+    fixture.detectChanges();
+    expect(announce).toHaveBeenCalledWith('Live updates interrupted. Reconnecting.');
+
+    announce.mockClear();
+    state.set('open');
+    fixture.detectChanges();
+    expect(announce).toHaveBeenCalledWith('Live updates restored.');
+  });
+
+  it('announces session expiry (and not "restored") when the session expires', () => {
+    const state = signal<StreamConnectionState>('open');
+    const announce = vi.fn();
+    const fixture = createFixture(state, announce);
+
+    state.set('expired');
+    fixture.detectChanges();
+    expect(announce).toHaveBeenCalledWith('Session expired. Please sign in again.');
+  });
+
+  it('stays silent on initial establishment and the transient closed blip', () => {
+    const state = signal<StreamConnectionState>('connecting');
+    const announce = vi.fn();
+    const fixture = createFixture(state, announce);
+
+    state.set('open');   // initial establishment - no prior interruption
+    fixture.detectChanges();
+    state.set('closed'); // transient blip before a retry
+    fixture.detectChanges();
+    expect(announce).not.toHaveBeenCalled();
+  });
+});
+
+
+// ----- #276 permission invalidation over SSE --------------------------------
+
+/**
+ * The shell owns the permission listener because the person whose permissions changed is usually
+ * not the person who changed them, and may be looking at any screen. The event carries no
+ * permission data — it only says "re-fetch" — so the service asks the server what this user may do
+ * now and every derived control follows.
+ */
+describe('LayoutComponent permission invalidation (issue #276)', () => {
+  let events$: Subject<StreamEventEnvelope>;
+  let refresh: ReturnType<typeof vi.fn>;
+  let connect: ReturnType<typeof vi.fn>;
+
+  function createFixture() {
+    events$ = new Subject<StreamEventEnvelope>();
+    refresh = vi.fn().mockResolvedValue(undefined);
+    connect = vi.fn();
+
+    TestBed.configureTestingModule({
+      imports: [LayoutComponent],
+      providers: [
+        provideNoopAnimations(),
+        provideRouter([]),
+        { provide: AuthService, useValue: { user: signal(null), logout: vi.fn() } },
+        {
+          provide: EventStreamService,
+          useValue: { connect, isConnected: () => true, connectionState: () => 'open', events$ }
+        },
+        { provide: PermissionService, useValue: { refresh } }
+      ]
+    });
+    TestBed.overrideComponent(LayoutComponent, {
+      remove: { imports: [SidebarNavComponent, AppearanceMenuComponent] },
+      add: { imports: [SidebarNavStubComponent, AppearanceMenuStubComponent] }
+    });
+    const fixture = TestBed.createComponent(LayoutComponent);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('subscribes to the permission broadcast alongside the project one', () => {
+    createFixture();
+    expect(connect).toHaveBeenCalledWith(['Project:0', 'Permissions:0']);
+  });
+
+  it('re-fetches permissions when a Permissions event arrives', () => {
+    createFixture();
+    events$.next({ eventType: 'Data', targetType: 'Permissions', targetId: 0, payload: { type: 'refresh' } });
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores events for other targets', () => {
+    createFixture();
+    events$.next({ eventType: 'Data', targetType: 'Project', targetId: 0, payload: { type: 'refresh' } });
+    events$.next({ eventType: 'Data', targetType: 'Goal', targetId: 7, payload: { type: 'refresh' } });
+    expect(refresh).not.toHaveBeenCalled();
+  });
+});

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,7 +45,17 @@ import com.rreganjr.requel.user.UserRepository;
  */
 @Controller("copyGoalCommand")
 @Scope("prototype")
-public class CopyGoalCommandImpl extends AbstractEditProjectCommand implements CopyGoalCommand {
+public class CopyGoalCommandImpl extends AbstractEditProjectCommand implements CopyGoalCommand, com.rreganjr.requel.project.ProjectScopedCommand, com.rreganjr.platform.command.AuthorizableCommand {
+
+	@Override
+	public com.rreganjr.requel.project.Project getProject() {
+		return (originalGoal != null && originalGoal.getProjectOrDomain() instanceof com.rreganjr.requel.project.Project p) ? p : null;
+	}
+
+	@Override
+	public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+		return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission(com.rreganjr.requel.project.Goal.class, "Edit");
+	}
 
 	private Goal originalGoal;
 	private Goal newGoal;
@@ -80,7 +90,8 @@ public class CopyGoalCommandImpl extends AbstractEditProjectCommand implements C
 	}
 
 	public void setNewGoalName(String newGoalName) {
-		this.newGoalName = newGoalName;
+		// #398: names are saved trimmed, as the lookups by name expect.
+		this.newGoalName = (newGoalName == null) ? null : newGoalName.trim();
 	}
 
 	@Override

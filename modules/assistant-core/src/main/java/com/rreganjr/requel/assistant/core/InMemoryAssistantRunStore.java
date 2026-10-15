@@ -1,0 +1,175 @@
+/*
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+package com.rreganjr.requel.assistant.core;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+import com.rreganjr.requel.assistant.api.AnalysisRequest;
+
+/**
+ * In-memory {@link AssistantRunStore} kept for unit tests that don't load a
+ * Spring context. The production wiring is
+ * {@link com.rreganjr.requel.assistant.core.persistence.JpaAssistantRunStore};
+ * this class is no longer a {@code @Component} since Phase 2.
+ */
+public class InMemoryAssistantRunStore implements AssistantRunStore {
+
+	private final Clock clock;
+	private final Map<UUID, AssistantRunRecord> runs = new ConcurrentHashMap<UUID, AssistantRunRecord>();
+
+	public InMemoryAssistantRunStore() {
+		this(Clock.systemUTC());
+	}
+
+	InMemoryAssistantRunStore(Clock clock) {
+		this.clock = clock;
+	}
+
+	@Override
+	public AssistantRunRecord queueRun(AnalysisRequest request) {
+		UUID runId = UUID.randomUUID();
+		Instant now = clock.instant();
+		AssistantRunRecord record = new AssistantRunRecord(runId, request,
+				AssistantRunStatus.QUEUED, now, now, null);
+		runs.put(runId, record);
+		return record;
+	}
+
+	@Override
+	public void markRunning(UUID runId) {
+		update(runId, AssistantRunStatus.RUNNING, null);
+	}
+
+	@Override
+	public void markSucceeded(UUID runId) {
+		update(runId, AssistantRunStatus.SUCCEEDED, null);
+	}
+
+	@Override
+	public void markPartial(UUID runId, String summary) {
+		update(runId, AssistantRunStatus.SUCCEEDED, summary);
+	}
+
+	/** #262: redactions recorded per run, for tests. */
+	private final java.util.Map<UUID, java.util.Map.Entry<Integer, java.util.List<String>>> redactions =
+			new java.util.concurrent.ConcurrentHashMap<>();
+
+	@Override
+	public void recordRedactions(UUID runId, int count, java.util.List<String> categories) {
+		redactions.put(runId, java.util.Map.entry(count,
+				categories == null ? java.util.List.of() : java.util.List.copyOf(categories)));
+	}
+
+	/** #260: definitions and unverified-evidence counts recorded per run, for tests. */
+	private final java.util.Map<UUID, List<String>> definitions =
+			new java.util.concurrent.ConcurrentHashMap<>();
+	private final java.util.Map<UUID, Integer> evidenceUnverified =
+			new java.util.concurrent.ConcurrentHashMap<>();
+
+	@Override
+	public void recordDefinitions(UUID runId, String keys, String versions, String sources) {
+		definitions.put(runId, List.of(String.valueOf(keys), String.valueOf(versions),
+				String.valueOf(sources)));
+	}
+
+	/** #260: [keys, versions, sources] recorded for a run, if any. */
+	public java.util.Optional<List<String>> definitions(UUID runId) {
+		return java.util.Optional.ofNullable(definitions.get(runId));
+	}
+
+	@Override
+	public void recordEvidenceUnverified(UUID runId, int count) {
+		evidenceUnverified.put(runId, count);
+	}
+
+	private final java.util.Map<UUID, Integer> vocabularyMisses =
+			new java.util.concurrent.ConcurrentHashMap<>();
+
+	@Override
+	public void recordVocabularyMisses(UUID runId, int count) {
+		vocabularyMisses.put(runId, count);
+	}
+
+	/** #263: the vocabulary-miss count recorded for a run, if any. */
+	public java.util.Optional<Integer> vocabularyMisses(UUID runId) {
+		return java.util.Optional.ofNullable(vocabularyMisses.get(runId));
+	}
+
+	/** #260: the unverified-evidence count recorded for a run, if any. */
+	public java.util.Optional<Integer> evidenceUnverified(UUID runId) {
+		return java.util.Optional.ofNullable(evidenceUnverified.get(runId));
+	}
+
+	/** #355: result summaries recorded per run, for tests. */
+	private final java.util.Map<UUID, String> resultSummaries =
+			new java.util.concurrent.ConcurrentHashMap<>();
+
+	@Override
+	public void recordResultSummary(UUID runId, String summary) {
+		if (summary == null || summary.isBlank()) {
+			resultSummaries.remove(runId);
+		} else {
+			resultSummaries.put(runId, summary);
+		}
+	}
+
+	/** #355: the result summary recorded for a run, if any. */
+	public java.util.Optional<String> resultSummary(UUID runId) {
+		return java.util.Optional.ofNullable(resultSummaries.get(runId));
+	}
+
+	/** #262: the redactions recorded for a run, if any. */
+	public java.util.Optional<java.util.Map.Entry<Integer, java.util.List<String>>> redactions(
+			UUID runId) {
+		return java.util.Optional.ofNullable(redactions.get(runId));
+	}
+
+	@Override
+	public void markSkipped(UUID runId, String reason) {
+		update(runId, AssistantRunStatus.SKIPPED, reason);
+	}
+
+	@Override
+	public void markCancelled(UUID runId, String reason) {
+		update(runId, AssistantRunStatus.CANCELLED, reason);
+	}
+
+	@Override
+	public void markFailed(UUID runId, Throwable failure) {
+		update(runId, AssistantRunStatus.FAILED, failure.getMessage());
+	}
+
+	@Override
+	public Optional<AssistantRunRecord> findRun(UUID runId) {
+		return Optional.ofNullable(runs.get(runId));
+	}
+
+	private void update(UUID runId, AssistantRunStatus status, String errorSummary) {
+		runs.computeIfPresent(runId, (id, record) -> record.withStatus(status, clock.instant(),
+				errorSummary));
+	}
+}

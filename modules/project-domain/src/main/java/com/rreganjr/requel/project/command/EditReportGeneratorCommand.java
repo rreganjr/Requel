@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,4 +40,12 @@ public interface EditReportGeneratorCommand extends EditTextEntityCommand {
 	 * @return
 	 */
 	public ReportGenerator getReportGenerator();
+
+	/**
+	 * Issue #275: on create only, link the new generator to a bundled template
+	 * ({@link com.rreganjr.requel.project.ReportGenerator#getBuiltinKey()}). Ignored on edit.
+	 */
+	default void setBuiltinKey(String builtinKey) {
+		throw new UnsupportedOperationException("setBuiltinKey");
+	}
 }

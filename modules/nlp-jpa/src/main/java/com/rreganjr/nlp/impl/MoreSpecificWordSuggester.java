@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,8 +60,11 @@ public class MoreSpecificWordSuggester implements NLPProcessor<Collection<NLPTex
 
 	@Override
 	public Collection<NLPText> process(NLPText text) {
+		// Issue #268: a word with no sense (a modal such as "should", flagged as a weak word)
+		// has no hyponyms. Asking the repository anyway throws inside its transaction, which
+		// marks the caller's transaction rollback-only and fails the whole assistant run.
 		if (text.is(GrammaticalStructureLevel.WORD) && text.hasText()
-				&& !text.is(PartOfSpeech.PUNCTUATION)) {
+				&& !text.is(PartOfSpeech.PUNCTUATION) && text.getDictionaryWordSense() != null) {
 			List<NLPText> results = new ArrayList<NLPText>();
 			for (Sense sense : dictionaryRepository.findMoreSpecificWords(text
 					.getDictionaryWordSense(), 5)) {

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,8 +31,13 @@ import com.rreganjr.platform.identity.User;
 public interface EditCommand extends Command {
 
 	/**
+	 * @return the user making the change to the object being edited
+	 */
+	User getEditedBy();
+
+	/**
 	 * @param editedBy -
 	 *            the user making the change to the object being edited
 	 */
-	public void setEditedBy(User editedBy);
+	void setEditedBy(User editedBy);
 }

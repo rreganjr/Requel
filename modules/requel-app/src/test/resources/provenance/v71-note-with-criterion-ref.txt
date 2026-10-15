@@ -1,0 +1,13 @@
+Auto-generated from a source tracker item. Do not edit the block below — it is used by Requel to reconcile this goal on re-runs.
+
+```requel-provenance
+{
+  "v" : 1,
+  "client" : "claude-desktop",
+  "sourceSystem" : "jira",
+  "sourceRef" : "CON-3685",
+  "sourceUrl" : "https://platformq.atlassian.net/browse/CON-3685",
+  "criterionRef" : "AC-3",
+  "criterionHash" : "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+}
+```

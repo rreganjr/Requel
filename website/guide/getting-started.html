@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Getting started &mdash; Requel 2.0 user guide</title>
+<meta name="description" content="Log in to Requel 2.0, find your way around the screen, change your password, and add users and their roles." />
+<link rel="icon" type="image/png" href="../images/logo_robot.png" />
+<link rel="stylesheet" href="../site.css" />
+</head>
+<body class="guide">
+
+<header class="brand">
+  <div class="brand-inner">
+    <img src="../images/logo_robot.png" alt="" />
+    <div>
+      <h1><a href="../index.html">Requel</a></h1>
+      <p>User guide for Requel 2.0</p>
+    </div>
+  </div>
+</header>
+
+<nav class="guide-nav" aria-label="User guide">
+  <ul>
+    <li><a href="index.html">Contents</a></li>
+    <li><a href="getting-started.html" aria-current="page">Getting started</a></li>
+    <li><a href="projects.html">Projects</a></li>
+    <li><a href="requirements.html">Requirements</a></li>
+    <li><a href="stakeholders.html">Stakeholders</a></li>
+    <li><a href="issues.html">Issues and discussion</a></li>
+    <li><a href="ai-review.html">AI review</a></li>
+    <li><a href="reports.html">Reports</a></li>
+    <li><a href="integrations.html">API, MCP and CLI</a></li>
+  </ul>
+</nav>
+
+<main>
+  <h1>Getting started</h1>
+  <p class="lead">Log in, learn the layout, and set up the people who will use Requel.</p>
+  <section id="log-in">
+    <h2>Log in</h2>
+    <p>Open Requel in a browser (for a new install, <code>http://localhost:8080/</code>) and log in
+      with your username and password.</p>
+    <figure class="shot">
+      <img src="../images/guide/login.png" alt="The Requel login page with username and password fields." loading="lazy" />
+    </figure>
+    <div class="note">A new install has one user, <strong>admin</strong>, with the password
+      <strong>admin</strong>. Change it as soon as you log in (see below).</div>
+  </section>
+
+  <section id="layout">
+    <h2>Find your way around</h2>
+    <figure class="shot">
+      <img src="../images/guide/projects.png" alt="The Requel window: a blue top bar, a sidebar with Admin and Projects sections, and the project list." loading="lazy" />
+      <figcaption>The top bar, the sidebar, and the page you are on.</figcaption>
+    </figure>
+    <ul>
+      <li><strong>Top bar.</strong> The menu button hides or shows the sidebar. The arrow goes back a
+        page, and the breadcrumb shows where you are. The palette button sets the theme (light,
+        dark or your system's) and the accent colour. <strong>Menu</strong> holds
+        <em>Settings</em>, <em>Edit Account</em> and <em>Logout</em>.</li>
+      <li><strong>Sidebar, Projects.</strong> <em>New</em>, <em>Import</em> and <em>List</em>, then a
+        tree of your recent projects. Open a project to jump to its stakeholders, goals, stories,
+        actors, scenarios, use cases, glossary, dictionary, reports and open issues; each shows how
+        many it has.</li>
+      <li><strong>Sidebar, Admin.</strong> Only system administrators see it: users, tags, the
+        installation dictionary and maintenance.</li>
+    </ul>
+    <p>Pages update by themselves when someone else, or an assistant, changes what you are looking
+      at.</p>
+  </section>
+
+  <section id="account">
+    <h2>Change your password and details</h2>
+    <p>Choose <strong>Menu &rarr; Edit Account</strong>. Change your name, email, phone or
+      organization, or type a new password twice, then <strong>Save</strong>.</p>
+    <figure class="shot">
+      <img src="../images/guide/account.png" alt="The Edit Account page with name, email, phone, organization and new password fields." loading="lazy" />
+    </figure>
+  </section>
+
+  <section id="settings">
+    <h2>Settings</h2>
+    <p><strong>Menu &rarr; Settings</strong> sets how many projects the sidebar lists and hides
+      projects nobody has touched for a while (three months by default). If you are allowed API
+      tokens, they are managed here too (see <a href="integrations.html#tokens">API, MCP and
+      CLI</a>).</p>
+  </section>
+
+  <section id="users">
+    <h2>Add users (administrators)</h2>
+    <p>Under <strong>Admin</strong>, <em>Create User</em> adds an account and <em>List Users</em>
+      finds and edits existing ones. Give each user a username, name, email and password, and pick
+      their roles:</p>
+    <table class="ref">
+      <thead><tr><th>Role</th><th>What it allows</th></tr></thead>
+      <tbody>
+        <tr><td>Project</td><td>Working on projects as a stakeholder. With <code>createProjects</code>
+          the user can also create and import projects; with <code>manageApiTokens</code> they can make
+          personal access tokens for scripts and AI clients.</td></tr>
+        <tr><td>System Admin</td><td>The Admin section: users, global tags, the installation
+          dictionary and maintenance.</td></tr>
+        <tr><td>Assistant</td><td>For the automated assistants&rsquo; own accounts. People don&rsquo;t
+          need it.</td></tr>
+      </tbody>
+    </table>
+    <figure class="shot">
+      <img src="../images/guide/user-editor.png" alt="Editing the admin user: account fields and the Roles and Permissions checkboxes." loading="lazy" />
+    </figure>
+    <p>System administrators see every project. Other users see the projects they are
+      <a href="stakeholders.html">stakeholders</a> on, and what they can change in each is set on
+      that project.</p>
+  </section>
+
+  <section id="admin">
+    <h2>Other admin pages</h2>
+    <dl>
+      <dt>Global Tags and Tag Categories</dt>
+      <dd>Tags every project can use, and categories that group them (for example
+        <code>priority</code> with the values <code>must</code>, <code>should</code>,
+        <code>could</code>). See <a href="requirements.html#tags">Tags</a>.</dd>
+      <dt>Installation Dictionary</dt>
+      <dd>Words the spell checker accepts in every project, such as product names.</dd>
+      <dt>Maintenance</dt>
+      <dd><em>Repair project stakeholders</em> gives a project&rsquo;s creator back their stakeholder
+        entry and full permissions if they lost them. It only adds what is missing, so it is safe to
+        run again.</dd>
+    </dl>
+  </section>
+
+  <nav class="pager" aria-label="Previous and next page">
+    <a class="prev" href="index.html">&larr; Contents</a>
+    <a class="next" href="projects.html">Projects &rarr;</a>
+  </nav>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <p>The screenshots show the sample project
+      (<a href="https://github.com/rreganjr/Requel/blob/master/doc/samples/Requel.xml">Requel.xml</a>)
+      and are retaken for each release by <code>scripts/guide-screenshots.mjs</code>.</p>
+    <p>Requel is free software, released under the
+      <a href="https://github.com/rreganjr/Requel/blob/master/LICENSE">GNU General Public License v3</a>.
+      Found a mistake in this guide? <a href="https://github.com/rreganjr/Requel/issues">Open an issue</a>.</p>
+  </div>
+</footer>
+
+</body>
+</html>

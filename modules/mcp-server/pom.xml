@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.rreganjr.requel</groupId>
+        <artifactId>Requel-parent</artifactId>
+        <version>2.0.0</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>mcp-server</artifactId>
+    <packaging>jar</packaging>
+    <name>Requel MCP Server</name>
+    <description>MCP JSON-RPC tools and resources for Requel: read tools over the gateway QueryGateway, plus opt-in write tools over the CommandGateway.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>service-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>gateway-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>service-impl</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <!-- AnnotationAction / EntityRef for the draftAnnotation tool, which
+                 returns an annotation draft (not persisted) for the applicator. -->
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>assistant-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <!-- Spring AI MCP server over Spring MVC (SSE / Streamable HTTP). Version managed by the
+             spring-ai-bom (1.1.7) imported in the root POM. Provides the MCP transport + tool
+             registration; tools are supplied as a ToolCallbackProvider (RequelMcpServerConfig).
+             The hand-rolled JSON-RPC server is kept alongside during the transition (issue #69
+             Slice 4b). -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

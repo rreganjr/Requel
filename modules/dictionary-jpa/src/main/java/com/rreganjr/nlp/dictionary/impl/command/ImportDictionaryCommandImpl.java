@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,10 +22,6 @@ package com.rreganjr.nlp.dictionary.impl.command;
 
 import java.io.InputStream;
 
-import jakarta.persistence.NoResultException;
-import jakarta.xml.bind.JAXBContext;
-import jakarta.xml.bind.Unmarshaller;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
@@ -35,6 +31,9 @@ import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.nlp.dictionary.UnmarshallerListener;
 import com.rreganjr.nlp.dictionary.Word;
 import com.rreganjr.nlp.dictionary.command.ImportDictionaryCommand;
+
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.Unmarshaller;
 
 /**
  * @author ron
@@ -83,11 +82,10 @@ public class ImportDictionaryCommandImpl extends AbstractDictionaryCommand imple
 			Dictionary dictionary = (Dictionary) unmarshaller.unmarshal(getInputStream());
 			for (Word word : dictionary.getWords()) {
 				try {
-					getDictionaryRepository().persist(word);
-					// Word existingWord =
-					// wordNetRepository.getWord(word.getLemma());
-				} catch (NoResultException e) {
-					getDictionaryRepository().persist(word);
+					// Import always creates new rows (issue #76): persist() would route the
+					// id-bearing, just-unmarshalled Word to merge(), which Hibernate 6.6 turns
+					// into a stale 0-row update because the row is absent in a fresh DB.
+					getDictionaryRepository().create(word);
 				} catch (Exception e) {
 					log.error("could not save word '" + word.getLemma() + "': " + e, e);
 					throw e;

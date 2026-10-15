@@ -1,0 +1,1344 @@
+/*
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+package com.rreganjr.requel.service;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rreganjr.AbstractIntegrationTestCase;
+import com.rreganjr.requel.annotation.Annotation;
+import com.rreganjr.requel.project.*;
+import com.rreganjr.requel.annotation.command.*;
+import com.rreganjr.requel.project.command.*;
+import com.rreganjr.requel.project.impl.StakeholderPermissionImpl;
+import com.rreganjr.requel.user.User;
+import com.rreganjr.requel.user.command.EditUserCommand;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * Full-stack authorization integration tests.
+ *
+ * Extends {@link AbstractIntegrationTestCase} for the full Spring context + H2 baseline
+ * (admin, project, assistant users; seeded stakeholder permissions). Adds
+ * {@code @AutoConfigureMockMvc} to layer MockMvc on top for HTTP dispatch.
+ *
+ * <h2>TDD note</h2>
+ * Tests asserting <b>403</b> will FAIL initially because no project command
+ * implements {@link com.rreganjr.platform.command.AuthorizableCommand} yet —
+ * the {@code AuthorizingCommandHandler} skips non-authorizable commands, so every
+ * permitted and non-permitted user gets 200. Implementing {@code AuthorizableCommand}
+ * on each project command is what makes those tests go green.
+ *
+ * Tests asserting <b>401</b> pass immediately — Spring Security rejects
+ * unauthenticated requests before any command code runs.
+ *
+ * <h2>Fixture</h2>
+ * {@code @BeforeAll} creates a single shared test project and four test users with
+ * distinct stakeholder permission sets. JWT tokens are obtained via
+ * {@code POST /api/auth/login} and reused across all {@code @Test} methods.
+ *
+ * | Persona        | Stakeholder permissions                        |
+ * |----------------|------------------------------------------------|
+ * | test-editor    | all [Edit] permissions (Project, Goal, ...)    |
+ * | test-deleter   | all [Delete] permissions (no Edit)             |
+ * | test-granter   | Goal[Grant] only                               |
+ * | test-noaccess  | not added as a stakeholder at all              |
+ */
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+public class AuthorizationIT extends AbstractIntegrationTestCase {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private com.rreganjr.requel.project.IgnoredFindingStore ignoredFindingStore;
+
+    // JWT tokens stored once in @BeforeAll and reused in @Test methods
+    private String adminToken;
+    private String editorToken;
+    private String deleterToken;
+    private String granterToken;
+    private String noAccessToken;
+
+    // Stored so @Test helper methods can create fixture entities via the editor user
+    // (admin has no project permissions after the fixture strips the creator grants)
+    private String editorUsername;
+
+    // Project and entity IDs needed for delete/edit commands
+    private String testProjectName;
+    private Long goalId;
+    private Integer goalVersion;
+    private Long actorId;
+    private Integer actorVersion;
+    private Long storyId;
+    private Integer storyVersion;
+
+    // -------------------------------------------------------------------------
+    // Fixture setup
+    // -------------------------------------------------------------------------
+
+    @BeforeAll
+    void setUpFixture() throws Exception {
+        // Baseline initializers normally run via @BeforeEach, but @BeforeAll fires
+        // before any @BeforeEach. Ensure admin/project users and seeded permissions
+        // are in place before building the test fixture.
+        initializeBaselineData();
+
+        User admin = getUserRepository().findUserByUsername("admin");
+
+        // 1. Create a test project owned by admin
+        long ts = System.currentTimeMillis();
+        testProjectName = "auth-test-" + ts;
+        EditProjectCommand projectCmd = getProjectCommandFactory().newEditProjectCommand();
+        projectCmd.setEditedBy(admin);
+        projectCmd.setName(testProjectName);
+        projectCmd.setText("authorization integration test project");
+        projectCmd.setOrganizationName("AuthTestOrg-" + ts);
+        projectCmd = getCommandHandler().execute(projectCmd);
+        Project testProject = projectCmd.getProject();
+
+        // 2. Create test users via EditUser command as admin (must happen before
+        //    stripping admin's permissions — EditUserCommand requires SystemAdminUserRole)
+        editorUsername = "test-editor-" + ts;
+        String deleterUsername = "test-deleter-" + ts;
+        String granterUsername = "test-granter-" + ts;
+        String noAccessUsername = "test-noaccess-" + ts;
+        createUser(editorUsername, "test-editor");
+        createUser(deleterUsername, "test-deleter");
+        createUser(granterUsername, "test-granter");
+        createUser(noAccessUsername, "test-noaccess");
+
+        // 3. Add stakeholders (admin still has all creator permissions — needed to run
+        //    EditUserStakeholderCommand before Stakeholder[Edit] is enforced by auth)
+        Set<String> allEditPermissions = buildPermissionKeys(StakeholderPermissionType.Edit,
+                Project.class, Goal.class, Actor.class, Story.class, UseCase.class,
+                Scenario.class, GlossaryTerm.class, Stakeholder.class,
+                ReportGenerator.class, Annotation.class);
+        addStakeholder(testProject, editorUsername, allEditPermissions);
+
+        Set<String> allDeletePermissions = buildPermissionKeys(StakeholderPermissionType.Delete,
+                Goal.class, Actor.class, Story.class, UseCase.class,
+                Scenario.class, GlossaryTerm.class, Stakeholder.class,
+                ReportGenerator.class, Annotation.class);
+        // Note: Project[Delete] exists (issue #240) but is intentionally NOT granted to
+        // the deleter persona here, so deleter-level tests keep their meaning.
+        addStakeholder(testProject, deleterUsername, allDeletePermissions);
+
+        addStakeholder(testProject, granterUsername,
+                Set.of(StakeholderPermissionImpl.generatePermissionKey(
+                        Goal.class, StakeholderPermissionType.Grant)));
+
+        // "project" user as a no-permissions stakeholder (edit target for stakeholder tests)
+        addStakeholder(testProject, "project", java.util.Set.of());
+
+        // 4. test-noaccess is NOT added as a stakeholder
+
+        // 5. Create fixture entities while admin still has all creator permissions.
+        //    Using admin here keeps setup simple; authorization is tested via HTTP below.
+        EditGoalCommand goalCmd = getProjectCommandFactory().newEditGoalCommand();
+        goalCmd.setEditedBy(admin);
+        goalCmd.setGoalContainer(testProject);
+        goalCmd.setName("auth-test-goal");
+        goalCmd.setText("goal for authorization testing");
+        goalCmd = getCommandHandler().execute(goalCmd);
+        goalId = goalCmd.getGoal().getId();
+        goalVersion = goalCmd.getGoal().getVersion();
+
+        EditActorCommand actorCmd = getProjectCommandFactory().newEditActorCommand();
+        actorCmd.setEditedBy(admin);
+        actorCmd.setActorContainer(testProject);
+        actorCmd.setName("auth-test-actor");
+        actorCmd.setText("actor for authorization testing");
+        actorCmd = getCommandHandler().execute(actorCmd);
+        actorId = actorCmd.getActor().getId();
+        actorVersion = actorCmd.getActor().getVersion();
+
+        EditStoryCommand storyCmd = getProjectCommandFactory().newEditStoryCommand();
+        storyCmd.setEditedBy(admin);
+        storyCmd.setStoryContainer(testProject);
+        storyCmd.setName("auth-test-story");
+        storyCmd.setText("story for authorization testing");
+        storyCmd.setStoryTypeName(StoryType.Success.name());
+        storyCmd = getCommandHandler().execute(storyCmd);
+        storyId = storyCmd.getStory().getId();
+        storyVersion = storyCmd.getStory().getVersion();
+
+        // 6. Strip admin's auto-granted creator permissions. Tests asserting admin cannot
+        //    perform project operations depend on admin being a no-permission stakeholder.
+        //    This must happen AFTER entity creation (above) and stakeholder setup, since
+        //    both require admin to have project permissions to execute commands.
+        UserStakeholder adminStakeholder = getProjectRepository()
+                .findStakeholderByProjectOrDomainAndUser(testProject, admin);
+        EditUserStakeholderCommand stripCmd = getProjectCommandFactory().newEditUserStakeholderCommand();
+        stripCmd.setEditedBy(admin);
+        stripCmd.setProjectOrDomain(testProject);
+        stripCmd.setUsername("admin");
+        stripCmd.setStakeholder(adminStakeholder);
+        stripCmd.setStakeholderPermissions(java.util.Set.of());
+        getCommandHandler().execute(stripCmd);
+
+        // 8. Obtain JWT tokens via the login endpoint
+        adminToken = loginAndGetToken("admin", "admin");
+        editorToken = loginAndGetToken(editorUsername, "test-editor");
+        deleterToken = loginAndGetToken(deleterUsername, "test-deleter");
+        granterToken = loginAndGetToken(granterUsername, "test-granter");
+        noAccessToken = loginAndGetToken(noAccessUsername, "test-noaccess");
+    }
+
+    // -------------------------------------------------------------------------
+    // Unauthenticated (401) — these pass immediately; no AuthorizableCommand needed
+    // -------------------------------------------------------------------------
+
+    /**
+     * Issue #260: the assistant identities cannot log in. The legacy {@code assistant} user used
+     * to ship with the password {@code assistant}; now it holds the assistant role, which
+     * {@code UserImpl.isPassword} refuses whatever the password is.
+     */
+    @Test
+    void theAssistantUserCannotLogIn() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("username", "assistant", "password", "assistant"))))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("username", "assistant-legacy-lexical",
+                                        "password", "assistant"))))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void unauthenticatedEditGoalReturnsUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/commands/EditGoal")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editGoalJson("new-goal-unauth")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void unauthenticatedDeleteGoalReturnsUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/commands/DeleteGoal")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(deleteGoalJson(goalId, goalVersion)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void unauthenticatedEditStoryReturnsUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/commands/EditStory")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editStoryJson("new-story-unauth")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void unauthenticatedDeleteActorReturnsUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/commands/DeleteActor")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(deleteActorJson(actorId, actorVersion)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    // -------------------------------------------------------------------------
+    // EditGoal — requires Goal[Edit] stakeholder permission
+    // SystemAdminUserRole does NOT grant project access; admin needs Goal[Edit] as
+    // a stakeholder to edit goals — same rule as any other user.
+    // TDD: editor→200, deleter→403, granter→403, noaccess→403, admin(no perms)→403
+    // Initially: the 403 cases return 200 (no AuthorizableCommand)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void adminWithoutGoalEditPermissionCannotEditGoal() throws Exception {
+        // Admin is a stakeholder on the project (added at creation) but has no
+        // Goal[Edit] permission — project access requires explicit stakeholder grants.
+        mockMvc.perform(post("/api/commands/EditGoal")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editGoalJson("admin-goal-attempt")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void editorCanEditGoal() throws Exception {
+        mockMvc.perform(post("/api/commands/EditGoal")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editGoalJson("editor-goal-" + System.currentTimeMillis())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void deleterCannotEditGoal() throws Exception {
+        mockMvc.perform(post("/api/commands/EditGoal")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editGoalJson("deleter-goal-attempt")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void granterCannotEditGoal() throws Exception {
+        mockMvc.perform(post("/api/commands/EditGoal")
+                        .header("Authorization", "Bearer " + granterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editGoalJson("granter-goal-attempt")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void noAccessCannotEditGoal() throws Exception {
+        mockMvc.perform(post("/api/commands/EditGoal")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editGoalJson("noaccess-goal-attempt")))
+                .andExpect(status().isForbidden());
+    }
+
+    // -------------------------------------------------------------------------
+    // DeleteGoal — requires Goal[Delete]
+    // SystemAdminUserRole does NOT grant project access — same as for Edit.
+    // TDD: admin(no perms)→403, editor→403, deleter→200, granter→403, noaccess→403
+    // Initially: all 403 cases return 200 (no AuthorizableCommand)
+    //
+    // Note: each delete test needs a fresh goal because delete is destructive.
+    // Admin creates these goals in @Test methods directly via CommandHandler.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void adminWithoutPermissionsCannotDeleteGoal() throws Exception {
+        Long id = createGoalForDeleteTest("admin-cannot-delete-goal-" + System.currentTimeMillis());
+        mockMvc.perform(post("/api/commands/DeleteGoal")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(deleteGoalJson(id, 0)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void deleterCanDeleteGoal() throws Exception {
+        Long id = createGoalForDeleteTest("deleter-deletes-goal-" + System.currentTimeMillis());
+        // #296: DeleteGoal now checks version, and the assistant's analysis of the new goal can
+        // move it past 0, so send the version the goal is at.
+        mockMvc.perform(post("/api/commands/DeleteGoal")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(deleteGoalJson(id, currentGoalVersion(id))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void editorCannotDeleteGoal() throws Exception {
+        Long id = createGoalForDeleteTest("editor-cannot-delete-goal-" + System.currentTimeMillis());
+        mockMvc.perform(post("/api/commands/DeleteGoal")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(deleteGoalJson(id, 0)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void noAccessCannotDeleteGoal() throws Exception {
+        Long id = createGoalForDeleteTest("noaccess-cannot-delete-goal-" + System.currentTimeMillis());
+        mockMvc.perform(post("/api/commands/DeleteGoal")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(deleteGoalJson(id, 0)))
+                .andExpect(status().isForbidden());
+    }
+
+    // -------------------------------------------------------------------------
+    // EditStory — requires Story[Edit]
+    // -------------------------------------------------------------------------
+
+    @Test
+    void editorCanEditStory() throws Exception {
+        mockMvc.perform(post("/api/commands/EditStory")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editStoryJson("editor-story-" + System.currentTimeMillis())))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void deleterCannotEditStory() throws Exception {
+        mockMvc.perform(post("/api/commands/EditStory")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editStoryJson("deleter-story-attempt")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void noAccessCannotEditStory() throws Exception {
+        mockMvc.perform(post("/api/commands/EditStory")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editStoryJson("noaccess-story-attempt")))
+                .andExpect(status().isForbidden());
+    }
+
+    /**
+     * Ordering guard for #171. DTO bean validation runs in {@code ValidatingCommandHandler}, which
+     * sits INSIDE {@code AuthorizingCommandHandler}, so a caller without {@code Story[Edit]} is
+     * refused before the payload is inspected — 403, and no field names disclosed.
+     *
+     * <p>If validation is ever moved back outside authorization (it started in
+     * {@code ApiCommandFactory.newCommand}, which runs before the handler chain entirely), this
+     * returns 422 with {@code name} and its message, telling a caller with no access what the input
+     * DTO looks like. That regression is invisible to every other test here, because they all send
+     * payloads that are valid.
+     */
+    @Test
+    void noAccessWithInvalidPayloadStillReturnsForbidden() throws Exception {
+        String invalidPayload = objectMapper.writeValueAsString(Map.of(
+                "projectName", testProjectName,
+                "name", "   ",  // violates @NotBlank on EditStoryInput.name
+                "text", "authorization test story",
+                "storyTypeName", "Success"));
+
+        mockMvc.perform(post("/api/commands/EditStory")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidPayload))
+                .andExpect(status().isForbidden());
+    }
+
+    // -------------------------------------------------------------------------
+    // DeleteActor — requires Actor[Delete]
+    // -------------------------------------------------------------------------
+
+    @Test
+    void deleterCanDeleteActor() throws Exception {
+        Long id = createActorForDeleteTest("deleter-deletes-actor-" + System.currentTimeMillis());
+        // #296: DeleteActor now checks version; send the one the actor is at (see deleterCanDeleteGoal).
+        mockMvc.perform(post("/api/commands/DeleteActor")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(deleteActorJson(id, currentActorVersion(id))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void editorCannotDeleteActor() throws Exception {
+        Long id = createActorForDeleteTest("editor-cannot-delete-actor-" + System.currentTimeMillis());
+        mockMvc.perform(post("/api/commands/DeleteActor")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(deleteActorJson(id, 0)))
+                .andExpect(status().isForbidden());
+    }
+
+    // -------------------------------------------------------------------------
+    // EditUserStakeholder — requires Stakeholder[Edit]
+    // SystemAdminUserRole does NOT grant project access — stakeholder permissions only.
+    // TDD: editor→200, admin(no perms)→403, granter→403, noaccess→403
+    // Initially: the 403 cases return 200 (no AuthorizableCommand)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void editorCanEditUserStakeholder() throws Exception {
+        mockMvc.perform(post("/api/commands/EditUserStakeholder")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editUserStakeholderJson("project")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void adminWithoutPermissionsCannotEditUserStakeholder() throws Exception {
+        // Admin has no Stakeholder[Edit] permission on the project — project access
+        // is entirely stakeholder-permission-based, not role-based.
+        mockMvc.perform(post("/api/commands/EditUserStakeholder")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editUserStakeholderJson("project")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void granterCannotEditUserStakeholder() throws Exception {
+        // Goal[Grant] does not satisfy Stakeholder[Edit]
+        mockMvc.perform(post("/api/commands/EditUserStakeholder")
+                        .header("Authorization", "Bearer " + granterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editUserStakeholderJson("project")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void noAccessCannotEditUserStakeholder() throws Exception {
+        mockMvc.perform(post("/api/commands/EditUserStakeholder")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editUserStakeholderJson("project")))
+                .andExpect(status().isForbidden());
+    }
+
+    // -------------------------------------------------------------------------
+    // EditProject — requires Project[Edit]
+    // SystemAdminUserRole does NOT grant project access — stakeholder permissions only.
+    // TDD: editor→200, admin(no perms)→403, deleter→403, noaccess→403
+    // Initially: the 403 cases return 200 (no AuthorizableCommand)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void adminWithoutPermissionsCannotEditProject() throws Exception {
+        // Admin created the project but has no Project[Edit] stakeholder permission —
+        // project access requires explicit grants regardless of system role.
+        mockMvc.perform(post("/api/commands/EditProject")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editProjectJson()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void editorCanEditProject() throws Exception {
+        mockMvc.perform(post("/api/commands/EditProject")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editProjectJson()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void deleterCannotEditProject() throws Exception {
+        // Deleter has no Project[Edit] permission (and there's no Project[Delete])
+        mockMvc.perform(post("/api/commands/EditProject")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editProjectJson()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void noAccessCannotEditProject() throws Exception {
+        mockMvc.perform(post("/api/commands/EditProject")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editProjectJson()))
+                .andExpect(status().isForbidden());
+    }
+
+    // -------------------------------------------------------------------------
+    // DeleteProject — requires Project[Delete] (issue #240)
+    // The deleter and no-access personas lack Project[Delete] (deleter has no
+    // Project[Edit], so the #240 backfill never grants it Delete; no-access is not a
+    // stakeholder at all), so both are refused (403) and the shared fixture project is
+    // untouched. NOTE: the editor persona holds Project[Edit], so the backfill DOES
+    // grant it Project[Delete] - it can delete, and is deliberately not tested here.
+    // The success path is covered by admin deleting a throwaway project it created.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void deleterCannotDeleteProject() throws Exception {
+        mockMvc.perform(post("/api/commands/DeleteProject")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(deleteProjectJson(testProjectName)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void noAccessCannotDeleteProject() throws Exception {
+        mockMvc.perform(post("/api/commands/DeleteProject")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(deleteProjectJson(testProjectName)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminCanDeleteOwnProjectViaGateway() throws Exception {
+        // Admin creates a throwaway project (creator auto-holds Project[Delete]) and
+        // deletes it through the gateway — exercises the DeleteProject registrar binder,
+        // DeleteProjectInput deserialization, and the full command dispatch. No version
+        // sent -> the optimistic-lock check is skipped, so this is a clean success.
+        User admin = getUserRepository().findUserByUsername("admin");
+        String throwaway = "auth-del-gw-" + System.currentTimeMillis();
+        EditProjectCommand create = getProjectCommandFactory().newEditProjectCommand();
+        create.setEditedBy(admin);
+        create.setName(throwaway);
+        create.setText("gateway delete coverage");
+        create.setOrganizationName("AuthDelGwOrg-" + throwaway);
+        getCommandHandler().execute(create);
+
+        mockMvc.perform(post("/api/commands/DeleteProject")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(deleteProjectJson(throwaway)))
+                .andExpect(status().isOk());
+    }
+
+    // -------------------------------------------------------------------------
+    // EditUser — requires SystemAdminUserRole (not a stakeholder permission)
+    // This is the only project command gated on a system role, not a project permission.
+    // TDD: admin→200, editor(project user only)→403
+    // Initially: editor returns 200 (no AuthorizableCommand on EditUser)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void adminCanEditAnotherUser() throws Exception {
+        // Admin has SystemAdminUserRole — the only role that permits user management.
+        mockMvc.perform(post("/api/commands/EditUser")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editUserJson("project")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void nonAdminCannotEditAnotherUser() throws Exception {
+        // Editor has only ProjectUserRole — no SystemAdminUserRole — so they cannot
+        // manage users regardless of any project stakeholder permissions.
+        mockMvc.perform(post("/api/commands/EditUser")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editUserJson("project")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void userCanEditOwnAccount() throws Exception {
+        mockMvc.perform(post("/api/commands/EditUser")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editUserJson(editorUsername)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    // -------------------------------------------------------------------------
+    // Additional release-plan coverage
+    // -------------------------------------------------------------------------
+
+    @Test
+    void editorCanEditGlossaryTerm() throws Exception {
+        mockMvc.perform(post("/api/commands/EditGlossaryTerm")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editGlossaryTermJson("term-" + System.currentTimeMillis())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void noAccessCannotEditGlossaryTerm() throws Exception {
+        mockMvc.perform(post("/api/commands/EditGlossaryTerm")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editGlossaryTermJson("blocked-term-" + System.currentTimeMillis())))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void editorCanEditReportGenerator() throws Exception {
+        mockMvc.perform(post("/api/commands/EditReportGenerator")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editReportGeneratorJson("report-" + System.currentTimeMillis())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void noAccessCannotEditReportGenerator() throws Exception {
+        mockMvc.perform(post("/api/commands/EditReportGenerator")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editReportGeneratorJson("blocked-report-" + System.currentTimeMillis())))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void editorCanEditIssue() throws Exception {
+        mockMvc.perform(post("/api/commands/EditIssue")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editIssueJson("Goal", goalId, "issue-" + System.currentTimeMillis())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void noAccessCannotEditIssue() throws Exception {
+        mockMvc.perform(post("/api/commands/EditIssue")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editIssueJson("Goal", goalId, "blocked issue")))
+                .andExpect(status().isForbidden());
+    }
+
+    // -------------------------------------------------------------------------
+    // ResolveIssue — requires Annotation[Edit] (issue #305)
+    // Resolving is an annotation write, so it reuses the permission the other
+    // annotation commands require rather than adding a permission type of its own.
+    // The deleter case is the sharp one: Annotation[Delete] is not Annotation[Edit],
+    // so holding it does not let you dismiss a finding.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void editorCanResolveIssue() throws Exception {
+        long[] ids = createIssueWithPosition("resolve-allowed");
+        mockMvc.perform(post("/api/commands/ResolveIssue")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(resolveIssueJson(ids[0], ids[1])))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void deleterWithoutAnnotationEditCannotResolveIssue() throws Exception {
+        long[] ids = createIssueWithPosition("resolve-deleter");
+        mockMvc.perform(post("/api/commands/ResolveIssue")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(resolveIssueJson(ids[0], ids[1])))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void granterCannotResolveIssue() throws Exception {
+        long[] ids = createIssueWithPosition("resolve-granter");
+        mockMvc.perform(post("/api/commands/ResolveIssue")
+                        .header("Authorization", "Bearer " + granterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(resolveIssueJson(ids[0], ids[1])))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void noAccessCannotResolveIssue() throws Exception {
+        long[] ids = createIssueWithPosition("resolve-noaccess");
+        mockMvc.perform(post("/api/commands/ResolveIssue")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(resolveIssueJson(ids[0], ids[1])))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminWithoutAnnotationEditCannotResolveIssue() throws Exception {
+        long[] ids = createIssueWithPosition("resolve-admin");
+        mockMvc.perform(post("/api/commands/ResolveIssue")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(resolveIssueJson(ids[0], ids[1])))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void unauthenticatedProjectQueryReturnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/projects/" + testProjectName))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void unauthenticatedGoalRelationTypesReturnsUnauthorized() throws Exception {
+        // Issue #257: the vocabulary needs no project access, but still needs a signed-in caller.
+        mockMvc.perform(get("/api/projects/goal-relation-types"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void userWithNoProjectAccessCanReadGoalRelationTypes() throws Exception {
+        // Issue #257: the same for every project, so any signed-in caller may read it.
+        mockMvc.perform(get("/api/projects/goal-relation-types")
+                        .header("Authorization", "Bearer " + noAccessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(7));
+    }
+
+    @Test
+    void stakeholderCanGetProject() throws Exception {
+        mockMvc.perform(get("/api/projects/" + testProjectName)
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value(testProjectName));
+    }
+
+    @Test
+    void noAccessCannotGetProject() throws Exception {
+        mockMvc.perform(get("/api/projects/" + testProjectName)
+                        .header("Authorization", "Bearer " + noAccessToken))
+                .andExpect(status().isForbidden());
+    }
+
+    // -------------------------------------------------------------------------
+    // Dictionary (#319): the project list needs project access, its writes Project[Edit];
+    // the installation list and its writes need the administrator role.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void editorCanAddListAndRemoveAProjectDictionaryWord() throws Exception {
+        String lemma = "authdictword" + System.nanoTime();
+        MvcResult added = mockMvc.perform(post("/api/commands/AddProjectDictionaryWord")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "projectName", testProjectName, "lemma", lemma))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.entity.lemma").value(lemma))
+                .andReturn();
+        long wordId = objectMapper.readTree(added.getResponse().getContentAsString())
+                .path("entity").path("id").asLong();
+
+        mockMvc.perform(get("/api/projects/" + testProjectName + "/dictionary")
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.lemma == '" + lemma + "')].id").value(
+                        org.hamcrest.Matchers.contains((int) wordId)));
+
+        mockMvc.perform(post("/api/commands/DeleteProjectDictionaryWord")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "projectName", testProjectName, "wordId", wordId))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/projects/" + testProjectName + "/dictionary")
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.lemma == '" + lemma + "')]").isEmpty());
+    }
+
+    // Ignored findings (#320): the list needs project access, removing one Project[Edit].
+    @Test
+    void editorCanListAndRemoveAnIgnoredFindingButADeleterCannotRemoveIt() throws Exception {
+        Project project = getProjectRepository().findProjectByName(testProjectName);
+        String subject = "authignore" + System.nanoTime();
+        long ignoredId = ignoredFindingStore.record(new com.rreganjr.requel.project.IgnoredFindingStore.Spec(
+                project.getId(), "Goal", goalId, "legacy-lexical", "unknown-word", "Name",
+                "unknown-word:Name:" + subject, subject, null), null).getId();
+
+        mockMvc.perform(get("/api/projects/" + testProjectName + "/ignored-findings")
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.subject == '" + subject + "')].id").value(
+                        org.hamcrest.Matchers.contains((int) ignoredId)));
+
+        mockMvc.perform(post("/api/commands/DeleteIgnoredFinding")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "projectName", testProjectName, "ignoredFindingId", ignoredId))))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/commands/DeleteIgnoredFinding")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "projectName", testProjectName, "ignoredFindingId", ignoredId))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/projects/" + testProjectName + "/ignored-findings")
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.subject == '" + subject + "')]").isEmpty());
+    }
+
+    // Issue #268: re-running analysis writes issues on the caller's behalf, so it needs
+    // Annotation[Edit]. The deleter has Annotation[Delete] only.
+    @Test
+    void analyzeProjectNeedsAnnotationEdit() throws Exception {
+        String body = objectMapper.writeValueAsString(Map.of("projectName", testProjectName));
+        mockMvc.perform(post("/api/commands/AnalyzeProject")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/commands/AnalyzeProject")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/commands/AnalyzeProject")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+    }
+
+    // Issue #268: switching a project's assistants is a project edit (Project[Edit]); the list
+    // is readable by anyone with project access.
+    @Test
+    void editProjectAssistantSettingNeedsProjectEdit() throws Exception {
+        String off = objectMapper.writeValueAsString(Map.of("projectName", testProjectName,
+                "assistantId", "legacy-lexical-complexity", "enabled", false));
+        mockMvc.perform(post("/api/commands/EditProjectAssistantSetting")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(off))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/commands/EditProjectAssistantSetting")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(off))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/projects/" + testProjectName + "/assistants")
+                        .header("Authorization", "Bearer " + deleterToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(4))
+                .andExpect(jsonPath("$[?(@.assistantId == 'legacy-lexical-complexity')].enabled")
+                        .value(org.hamcrest.Matchers.contains(false)))
+                .andExpect(jsonPath("$[?(@.assistantId == 'legacy-lexical')].enabled")
+                        .value(org.hamcrest.Matchers.contains(true)));
+        mockMvc.perform(get("/api/projects/" + testProjectName + "/assistants")
+                        .header("Authorization", "Bearer " + noAccessToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/projects/no-such-project-268/assistants")
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isNotFound());
+
+        String on = objectMapper.writeValueAsString(Map.of("projectName", testProjectName,
+                "assistantId", "legacy-lexical-complexity", "enabled", true));
+        mockMvc.perform(post("/api/commands/EditProjectAssistantSetting")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(on))
+                .andExpect(status().isOk());
+    }
+
+    // Issue #262: a project's AI data-handling settings are a project edit (Project[Edit]); the
+    // read is open to anyone with project access, and every setting starts on.
+    @Test
+    void editProjectDataHandlingSettingNeedsProjectEdit() throws Exception {
+        String off = objectMapper.writeValueAsString(Map.of("projectName", testProjectName,
+                "key", "redaction.phone", "enabled", false));
+        mockMvc.perform(post("/api/commands/EditProjectDataHandlingSetting")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(off))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/commands/EditProjectDataHandlingSetting")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(off))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/projects/" + testProjectName + "/data-handling")
+                        .header("Authorization", "Bearer " + deleterToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.externalProviderAllowed").value(true))
+                .andExpect(jsonPath("$.redaction.phone").value(false))
+                .andExpect(jsonPath("$.redaction.email").value(true));
+        mockMvc.perform(get("/api/projects/" + testProjectName + "/data-handling")
+                        .header("Authorization", "Bearer " + noAccessToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/commands/EditProjectDataHandlingSetting")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("projectName",
+                                testProjectName, "key", "redaction.passport", "enabled", false))))
+                .andExpect(status().is4xxClientError());
+
+        String on = objectMapper.writeValueAsString(Map.of("projectName", testProjectName,
+                "key", "redaction.phone", "enabled", true));
+        mockMvc.perform(post("/api/commands/EditProjectDataHandlingSetting")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(on))
+                .andExpect(status().isOk());
+    }
+
+    // Issue #355: the review read has the POST's checks - project access, a reviewable type, an
+    // existing entity - and is 204 for an entity that has never been reviewed.
+    @Test
+    void reviewReadNeedsProjectAccess() throws Exception {
+        mockMvc.perform(get("/api/ai/reviews").param("entityType", "Goal")
+                        .param("entityId", goalId.toString())
+                        .header("Authorization", "Bearer " + deleterToken))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/ai/reviews").param("entityType", "Goal")
+                        .param("entityId", goalId.toString())
+                        .header("Authorization", "Bearer " + noAccessToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/ai/reviews").param("entityType", "Project")
+                        .param("entityId", goalId.toString())
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/ai/reviews").param("entityType", "Goal")
+                        .param("entityId", "987654321")
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/ai/reviews").param("entityType", "Goal")
+                        .param("entityId", goalId.toString()))
+                .andExpect(status().isUnauthorized());
+        // The POST had the same gap: both were 500s, the global handler being scoped elsewhere.
+        mockMvc.perform(post("/api/ai/reviews").param("entityType", "Goal")
+                        .param("entityId", goalId.toString())
+                        .header("Authorization", "Bearer " + noAccessToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/ai/reviews").param("entityType", "Project")
+                        .param("entityId", goalId.toString())
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deleterCannotAddAProjectDictionaryWord() throws Exception {
+        mockMvc.perform(post("/api/commands/AddProjectDictionaryWord")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "projectName", testProjectName, "lemma", "authdictrefused"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void aWordWithASpaceIsAValidationErrorOnLemma() throws Exception {
+        mockMvc.perform(post("/api/commands/AddProjectDictionaryWord")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "projectName", testProjectName, "lemma", "two words"))))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.violations[0].field").value("lemma"));
+    }
+
+    /**
+     * #398: a user without an organization reached the insert, failed on the NOT NULL column,
+     * and came back as "The username conflicts with an existing User".
+     */
+    @Test
+    void aNewUserWithoutAnOrganizationIsAValidationErrorOnOrganizationName() throws Exception {
+        java.util.Map<String, Object> user = new java.util.HashMap<>();
+        user.put("username", "noorg" + System.currentTimeMillis());
+        user.put("password", "Pw-12345");
+        user.put("repassword", "Pw-12345");
+        user.put("name", "No Org");
+        user.put("emailAddress", "noorg@example.com");
+        user.put("organizationName", "");
+        user.put("userRoleNames", java.util.Set.of("ProjectUserRole"));
+        mockMvc.perform(post("/api/commands/EditUser")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.violations[0].field").value("organizationName"))
+                .andExpect(jsonPath("$.violations[0].message").value("organization is required."));
+    }
+
+    @Test
+    void noAccessCannotListTheProjectDictionary() throws Exception {
+        mockMvc.perform(get("/api/projects/" + testProjectName + "/dictionary")
+                        .header("Authorization", "Bearer " + noAccessToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void theProjectReportsItsDictionaryWordCount() throws Exception {
+        mockMvc.perform(get("/api/projects/" + testProjectName)
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dictionaryWordCount").isNumber());
+    }
+
+    @Test
+    void adminCanAddListAndRemoveAnInstallationWord() throws Exception {
+        String lemma = "authinstallword" + System.nanoTime();
+        MvcResult added = mockMvc.perform(post("/api/commands/AddInstallDictionaryWord")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("lemma", lemma))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entity.lemma").value(lemma))
+                .andReturn();
+        long wordId = objectMapper.readTree(added.getResponse().getContentAsString())
+                .path("entity").path("id").asLong();
+        try {
+            mockMvc.perform(get("/api/admin/dictionary")
+                            .header("Authorization", "Bearer " + adminToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$[?(@.lemma == '" + lemma + "')]").isNotEmpty());
+        } finally {
+            mockMvc.perform(post("/api/commands/DeleteInstallDictionaryWord")
+                            .header("Authorization", "Bearer " + adminToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("wordId", wordId))))
+                    .andExpect(status().isOk());
+        }
+    }
+
+    @Test
+    void editorCannotListOrAddInstallationWords() throws Exception {
+        mockMvc.perform(get("/api/admin/dictionary")
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/commands/AddInstallDictionaryWord")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "lemma", "authinstallrefused"))))
+                .andExpect(status().isForbidden());
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers — fixture creation
+    // -------------------------------------------------------------------------
+
+    private void createUser(String username, String password) throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        EditUserCommand cmd = getUserCommandFactory().newEditUserCommand();
+        cmd.setEditedBy(admin);
+        cmd.setUsername(username);
+        cmd.setPassword(password);
+        cmd.setRepassword(password);
+        cmd.setName(username);
+        cmd.setEmailAddress(username + "@example.com");
+        cmd.setPhoneNumber("");
+        cmd.setOrganizationName("AuthTestOrg");
+        cmd.addUserRoleName("ProjectUserRole");
+        getCommandHandler().execute(cmd);
+    }
+
+    private void addStakeholder(Project project, String username,
+                                Set<String> permissionKeys) throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        EditUserStakeholderCommand cmd = getProjectCommandFactory().newEditUserStakeholderCommand();
+        cmd.setEditedBy(admin);
+        cmd.setProjectOrDomain(project);
+        cmd.setUsername(username);
+        cmd.setStakeholderPermissions(permissionKeys);
+        getCommandHandler().execute(cmd);
+    }
+
+    private Long createGoalForDeleteTest(String name) throws Exception {
+        // Use the editor (who has Goal[Edit]) — admin has no project permissions after setup.
+        Project project = getProjectRepository().findProjectByName(testProjectName);
+        User editor = getUserRepository().findUserByUsername(editorUsername);
+        EditGoalCommand cmd = getProjectCommandFactory().newEditGoalCommand();
+        cmd.setEditedBy(editor);
+        cmd.setGoalContainer(project);
+        cmd.setName(name);
+        cmd.setText("delete target");
+        cmd = getCommandHandler().execute(cmd);
+        return cmd.getGoal().getId();
+    }
+
+    private int currentGoalVersion(Long id) throws Exception {
+        return getProjectRepository().findProjectByName(testProjectName).getGoals().stream()
+                .filter(g -> g.getId().equals(id)).findFirst().orElseThrow().getVersion();
+    }
+
+    private int currentActorVersion(Long id) throws Exception {
+        return getProjectRepository().findProjectByName(testProjectName).getActors().stream()
+                .filter(a -> a.getId().equals(id)).findFirst().orElseThrow().getVersion();
+    }
+
+    private Long createActorForDeleteTest(String name) throws Exception {
+        // Use the editor (who has Actor[Edit]) — admin has no project permissions after setup.
+        Project project = getProjectRepository().findProjectByName(testProjectName);
+        User editor = getUserRepository().findUserByUsername(editorUsername);
+        EditActorCommand cmd = getProjectCommandFactory().newEditActorCommand();
+        cmd.setEditedBy(editor);
+        cmd.setActorContainer(project);
+        cmd.setName(name);
+        cmd.setText("delete target");
+        cmd = getCommandHandler().execute(cmd);
+        return cmd.getActor().getId();
+    }
+
+    private String loginAndGetToken(String username, String password) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("username", username, "password", password))))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
+        return body.get("token").asText();
+    }
+
+    @SafeVarargs
+    private static Set<String> buildPermissionKeys(StakeholderPermissionType type,
+                                                   Class<?>... entityTypes) {
+        return java.util.Arrays.stream(entityTypes)
+                .map(c -> StakeholderPermissionImpl.generatePermissionKey(c, type))
+                .collect(Collectors.toSet());
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers — JSON request bodies
+    // -------------------------------------------------------------------------
+
+    private String editGoalJson(String name) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "projectName", testProjectName,
+                "name", name,
+                "text", "authorization test goal"));
+    }
+
+    /**
+     * A fresh issue and one position on it, authored by the editor (who holds
+     * Annotation[Edit]; admin holds nothing once the fixture strips its creator grants).
+     * Fresh per test because resolving marks the issue resolved, and a shared one would make
+     * the tests order-dependent. The project is the annotatable, which keeps the fixture
+     * independent of the goal and still gives the resolver a project to authorize against.
+     */
+    private long[] createIssueWithPosition(String label) throws Exception {
+        Project project = getProjectRepository().findProjectByName(testProjectName);
+        User editor = getUserRepository().findUserByUsername(editorUsername);
+        String unique = label + "-" + System.nanoTime();
+
+        EditIssueCommand issueCmd = getAnnotationCommandFactory().newEditIssueCommand();
+        issueCmd.setEditedBy(editor);
+        issueCmd.setGroupingObject(project);
+        issueCmd.setAnnotatable(project);
+        issueCmd.setText(unique);
+        issueCmd.setMustBeResolved(false);
+        issueCmd = getCommandHandler().execute(issueCmd);
+
+        EditPositionCommand positionCmd = getAnnotationCommandFactory().newEditPositionCommand();
+        positionCmd.setEditedBy(editor);
+        positionCmd.setIssue(issueCmd.getIssue());
+        positionCmd.setText(unique + " position");
+        positionCmd = getCommandHandler().execute(positionCmd);
+
+        return new long[] { issueCmd.getIssue().getId(), positionCmd.getPosition().getId() };
+    }
+
+    private String resolveIssueJson(long issueId, long positionId) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "projectName", testProjectName,
+                "issueId", issueId,
+                "positionId", positionId));
+    }
+
+    private String deleteGoalJson(Long id, Integer version) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "projectName", testProjectName,
+                "goalId", id,
+                "version", version));
+    }
+
+    private String editStoryJson(String name) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "projectName", testProjectName,
+                "name", name,
+                "text", "authorization test story",
+                "storyTypeName", "Success"));
+    }
+
+    private String deleteActorJson(Long id, Integer version) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "projectName", testProjectName,
+                "actorId", id,
+                "version", version));
+    }
+
+    private String editUserStakeholderJson(String username) throws Exception {
+        // A non-null version signals an edit (not create). Send the stakeholder's current
+        // persisted version so the optimistic-lock check passes (issue #108); fall back to 0
+        // when no stakeholder exists yet (create path, where the version is ignored).
+        Integer version = 0;
+        try {
+            Project project = getProjectRepository().findProjectByName(testProjectName);
+            User user = getUserRepository().findUserByUsername(username);
+            version = getProjectRepository()
+                    .findStakeholderByProjectOrDomainAndUser(project, user).getVersion();
+        } catch (Exception noExistingStakeholder) {
+            // no existing stakeholder for this user on the project — treat as a create
+        }
+        return objectMapper.writeValueAsString(Map.of(
+                "projectName", testProjectName,
+                "username", username,
+                "permissionKeys", java.util.List.of(),
+                "version", version));
+    }
+
+    private String editProjectJson() throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "projectName", testProjectName,
+                "name", testProjectName,
+                "description", "updated description"));
+    }
+
+    private String deleteProjectJson(String projectName) throws Exception {
+        // version omitted -> null -> optimistic-lock check skipped
+        return objectMapper.writeValueAsString(Map.of("projectName", projectName));
+    }
+
+    private String editUserJson(String username) throws Exception {
+        // Edit the named user — sets minimal fields to satisfy validation. Send the user's
+        // current persisted version so the optimistic-lock check passes (issue #108).
+        int version = getUserRepository().findUserByUsername(username).getVersion();
+        return objectMapper.writeValueAsString(Map.of(
+                "username", username,
+                "version", version,
+                "name", username,
+                "emailAddress", username + "@example.com",
+                "phoneNumber", "",
+                "organizationName", "AuthTestOrg",
+                "userRoleNames", java.util.Set.of("ProjectUserRole")));
+    }
+
+    private String editGlossaryTermJson(String name) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "projectName", testProjectName,
+                "name", name,
+                "text", "authorization glossary term"));
+    }
+
+    private String editReportGeneratorJson(String name) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "projectName", testProjectName,
+                "name", name,
+                "text", "<xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\"><xsl:template match=\"/\"><output/></xsl:template></xsl:stylesheet>"));
+    }
+
+    private String editIssueJson(String entityType, Long entityId, String text) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "projectName", testProjectName,
+                "entityType", entityType,
+                "entityId", entityId,
+                "text", text,
+                "mustBeResolved", true));
+    }
+}

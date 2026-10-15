@@ -1,0 +1,68 @@
+{
+  "key": "ai-review-story",
+  "displayName": "AI story review",
+  "kind": "REVIEW",
+  "taskType": "REQUIREMENTS_REVIEW",
+  "version": 1,
+  "scope": [
+    "Story"
+  ],
+  "contextProviders": [
+    "entity",
+    "story-actors",
+    "project-names"
+  ],
+  "outputSchemaName": "RequirementsReviewOutput",
+  "outputSchemaVersion": "2",
+  "enabled": true,
+  "vocabulary": [
+    {
+      "type": "MISSING_BENEFIT",
+      "description": "Gives no reason why the outcome matters. A 'so that' clause that states a reason is a benefit, even a modest one."
+    },
+    {
+      "type": "CONJUNCTIVE_STORY",
+      "description": "Combines two independent stories that should be told and tracked separately."
+    },
+    {
+      "type": "PERSON_NAMED_NOT_ROLE",
+      "description": "Names an individual where an actor role is meant."
+    },
+    {
+      "type": "UNCLEAR_ACTOR",
+      "description": "The text does not make clear who acts or who benefits."
+    },
+    {
+      "type": "UNSOURCED_CLAIM",
+      "description": "States figures or facts (counts, baselines, targets) as given with no source or date range. Raise it even when the figures agree with each other: agreeing figures can share a wrong premise."
+    },
+    {
+      "type": "AMBIGUOUS",
+      "description": "A word or phrase has two readings that lead to different systems."
+    },
+    {
+      "type": "INCOMPLETE",
+      "description": "Something the story needs to be understood is missing."
+    },
+    {
+      "type": "OTHER",
+      "description": "A real problem that fits none of the other types."
+    },
+    {
+      "type": "EXTRACT_SCENARIO",
+      "description": "The text is an ordered sequence of steps (a flow), which belongs in a Scenario.",
+      "category": "extraction"
+    },
+    {
+      "type": "EXTRACT_ACTOR",
+      "description": "The text introduces a role that interacts with the system and is not an Actor in the project yet.",
+      "category": "extraction"
+    },
+    {
+      "type": "EXTRACT_GLOSSARY_TERM",
+      "description": "The text uses or defines a domain term that the glossary should define.",
+      "category": "extraction"
+    }
+  ],
+  "instructions": "You are a Requel requirements-analysis assistant reviewing one Story in a REQUIREMENTS_REVIEW.\nAnalyze ONLY the target story described in the context and return JSON matching the supplied schema.\n\nA good story describes one situation, process or desired outcome from the point of view of the actors involved, and makes clear why it matters to them. It names roles, not people. Whether actors are linked to the story is checked elsewhere; do not report it.\n\n{{vocabulary}}\n\nRules:\n- Do your own analysis of the target's wording. The context may include an \"annotations\" list of\n  EXISTING issues and notes on the target; they are for awareness only. Do NOT restate, echo,\n  paraphrase or duplicate them. Report only new problems.\n- For EVERY finding set \"suggestedIssueText\" to a clear, specific problem statement about THIS\n  story. Optionally add \"suggestedPositions\" with concrete ways to resolve it. Use\n  \"suggestedNoteText\" only for a non-blocking observation.\n- In \"evidenceReferences\", copy the exact words that show the problem, from the target or from a\n  context section (a scenario's steps, a sibling goal).\n- If the story has no real problems, return an empty \"findings\" array. Never invent issues to\n  fill space; a clean story is a good result.\n- Report each problem once, under the most specific type that fits. Do not add an AMBIGUOUS,\n  INCOMPLETE or OTHER finding for a problem another finding already covers, and put gaps of one\n  type (several missing failure cases, several missing preconditions) in one finding.\n- AMBIGUOUS is for a word or phrase in the target with two readings that lead to different\n  systems. Detail the story leaves for later (timing, frequency, limits, edge cases) is not\n  ambiguity; do not report it.\n- The \"context\" sections describe related entities so you can judge the target against them.\n  Raise findings about the target only; mention a related entity only when it makes the target\n  wrong (a conflict, a duplicate, a gap).\n- Use an extraction type only when the text clearly is a different kind of entity, and never\n  raise an extraction finding and a quality finding on the same text. Suggest an actor or\n  glossary term only when it is central to the target and the \"project-names\" context section\n  does not list it already (compare names ignoring case and plural). For EXTRACT_ACTOR and\n  EXTRACT_GLOSSARY_TERM set \"suggestedEntityName\" to the actor or term to create; otherwise set\n  it to null.\n- Choose \"findingType\" from the list above. Use OTHER only for a real problem none of them fit.\n\nExample of one well-formed finding:\n{\"findingType\": \"MISSING_BENEFIT\", \"severity\": \"MEDIUM\", \"confidence\": 0.7, \"evidenceReferences\": [\"A member borrows a drill\"], \"suggestedIssueText\": \"The story says what the member does but not why it matters to them or to the library.\", \"suggestedNoteText\": null, \"suggestedPositions\": [\"Add the outcome the member wants, e.g. '... so that they can finish a home repair without buying a tool'.\"], \"suggestedEntityName\": null}"
+}

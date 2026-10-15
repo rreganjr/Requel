@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -32,13 +33,20 @@ import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.project.Actor;
-import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.Scenario;
+import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.DeleteUseCaseCommand;
+import com.rreganjr.requel.project.command.DeleteScenarioCommand;
+import com.rreganjr.requel.project.command.DeleteScenarioStepCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.command.RemoveActorFromActorContainerCommand;
 import com.rreganjr.requel.project.command.RemoveGoalFromGoalContainerCommand;
@@ -55,8 +63,13 @@ import com.rreganjr.requel.user.UserRepository;
  */
 @Controller("deleteUseCaseCommand")
 @Scope("prototype")
-public class DeleteUseCaseCommandImpl extends AbstractEditProjectCommand implements
-		DeleteUseCaseCommand {
+public class DeleteUseCaseCommandImpl extends AbstractDeleteProjectEntityCommand implements
+		DeleteUseCaseCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.UseCase.class, "Delete");
+	}
 
 	private UseCase usecase;
 
@@ -89,22 +102,21 @@ public class DeleteUseCaseCommandImpl extends AbstractEditProjectCommand impleme
 	@Override
 	public void execute() throws Exception {
 		UseCase usecase = getRepository().get(getUseCase());
+		// #296: refuse before touching anything if the caller read an older version.
+		refuseStaleDelete(UseCase.class, usecase, usecase.getVersion());
 		User editedBy = getRepository().get(getEditedBy());
 		Set<Annotation> annotations = new HashSet<Annotation>(usecase.getAnnotations());
 		for (Annotation annotation : annotations) {
-			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = getAnnotationCommandFactory()
-					.newRemoveAnnotationFromAnnotatableCommand();
+			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = CascadeAuthorizable.cascade(this,
+					getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand());
 			removeAnnotationFromAnnotatableCommand.setEditedBy(editedBy);
 			removeAnnotationFromAnnotatableCommand.setAnnotatable(usecase);
 			removeAnnotationFromAnnotatableCommand.setAnnotation(annotation);
 			getCommandHandler().execute(removeAnnotationFromAnnotatableCommand);
 		}
 		// remove this entity as a referer to any terms
-		for (GlossaryTerm term : usecase.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(usecase)) {
-				term.getReferers().remove(usecase);
-			}
-		}
+		// #386: by native delete; removing from the @ManyToAny referers set fails in Hibernate.
+		getProjectRepository().removeGlossaryTermReferer(null, usecase);
 		Set<Actor> actors = new HashSet<Actor>(usecase.getActors());
 		actors.add(usecase.getPrimaryActor());
 		for (Actor actor : actors) {
@@ -113,6 +125,8 @@ public class DeleteUseCaseCommandImpl extends AbstractEditProjectCommand impleme
 			removeActorFromActorContainerCommand.setActor(actor);
 			removeActorFromActorContainerCommand.setActorContainer(usecase);
 			removeActorFromActorContainerCommand.setEditedBy(getEditedBy());
+			// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+			CascadeAuthorizable.cascade(this, removeActorFromActorContainerCommand);
 			getCommandHandler().execute(removeActorFromActorContainerCommand);
 		}
 		Set<Goal> goals = new HashSet<Goal>(usecase.getGoals());
@@ -122,6 +136,8 @@ public class DeleteUseCaseCommandImpl extends AbstractEditProjectCommand impleme
 			removeGoalFromGoalContainerCommand.setGoal(goal);
 			removeGoalFromGoalContainerCommand.setGoalContainer(usecase);
 			removeGoalFromGoalContainerCommand.setEditedBy(getEditedBy());
+			// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+			CascadeAuthorizable.cascade(this, removeGoalFromGoalContainerCommand);
 			getCommandHandler().execute(removeGoalFromGoalContainerCommand);
 		}
 		Set<Story> stories = new HashSet<Story>(usecase.getStories());
@@ -131,15 +147,93 @@ public class DeleteUseCaseCommandImpl extends AbstractEditProjectCommand impleme
 			removeStoryFromStoryContainerCommand.setStory(story);
 			removeStoryFromStoryContainerCommand.setStoryContainer(usecase);
 			removeStoryFromStoryContainerCommand.setEditedBy(getEditedBy());
+			// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+			CascadeAuthorizable.cascade(this, removeStoryFromStoryContainerCommand);
 			getCommandHandler().execute(removeStoryFromStoryContainerCommand);
 		}
+		// #247: capture the use-case's own scenarios (primary + additional) before deleting it.
+		// They are NOT in project.getScenarios(), so the DeleteProject cascade never removes them;
+		// left behind they (and their steps) orphan rows in the `scenarios` table that still
+		// reference the project via projectordomain_id -> pods and block delete(project).
+		Set<Scenario> ownedScenarios = new HashSet<Scenario>();
+		if (usecase.getScenario() != null) {
+			ownedScenarios.add(usecase.getScenario());
+		}
+		ownedScenarios.addAll(usecase.getAdditionalScenarios());
+
 		for (Scenario scenario : getProjectRepository().findScenariosUsedByUseCase(usecase)) {
 			// TODO: add command RemoveUsecaseFromScenario
 			scenario.getUsingUseCases().remove(usecase);
 		}
-		// TODO: delete the main scenario?
+		// delete the use-case first: removing the use-case row also removes its own
+		// use_cases.scenario_id FK value and its usecase_scenarios join rows, so the orphaned
+		// scenarios below can then be deleted without FK conflicts.
 		usecase.getProjectOrDomain().getUseCases().remove(usecase);
+		// #247: clear any annotation link committed since this entity was loaded.
+		removeAllAnnotationsBeforeDelete(usecase, editedBy);
 		getRepository().delete(usecase);
+		// #247: flush so the use-case row (and its usecase_scenarios / usecase_* join rows)
+		// are gone before the owned scenarios' lazy getUsingUseCases() collections load
+		// below - a collection initialization does not auto-flush, so without this the
+		// just-removed use case would still be "using" its scenario and every owned scenario
+		// would be skipped as shared, leaving exactly the orphans this ticket is about.
+		getRepository().flush();
+
+		// #247: now delete the orphaned scenarios that belonged only to this use-case, together
+		// with their steps. Scenario- and step-rows share the `scenarios` table (single-table
+		// inheritance) and the same pods FK, so both must go. Mirror the DeleteProject walk:
+		// gather each owned scenario plus any nested scenario-steps, delete plain steps first,
+		// then the scenarios. Skip a scenario still referenced as another use-case's primary
+		// (shared).
+		Set<Step> ownedScenariosAndSteps = new HashSet<Step>();
+		java.util.Deque<Scenario> toExamine = new java.util.ArrayDeque<Scenario>();
+		for (Scenario ownedScenario : ownedScenarios) {
+			Scenario managedScenario = getRepository().get(ownedScenario);
+			boolean sharedAsPrimary = false;
+			for (UseCase using : managedScenario.getUsingUseCases()) {
+				if (!using.equals(usecase)) {
+					sharedAsPrimary = true;
+					break;
+				}
+			}
+			if (!sharedAsPrimary && ownedScenariosAndSteps.add(managedScenario)) {
+				toExamine.add(managedScenario);
+			}
+		}
+		while (!toExamine.isEmpty()) {
+			Scenario current = toExamine.pop();
+			for (Step step : current.getSteps()) {
+				if (ownedScenariosAndSteps.add(step) && step instanceof Scenario nested) {
+					toExamine.add(nested);
+				}
+			}
+		}
+		for (Step step : ownedScenariosAndSteps) {
+			if (!(step instanceof Scenario)) {
+				DeleteScenarioStepCommand deleteStepCommand = getProjectCommandFactory()
+						.newDeleteScenarioStepCommand();
+				deleteStepCommand.setScenarioStep(step);
+				deleteStepCommand.setEditedBy(getEditedBy());
+				CascadeAuthorizable.cascade(this, deleteStepCommand);
+				getCommandHandler().execute(deleteStepCommand);
+			}
+		}
+		for (Step step : ownedScenariosAndSteps) {
+			if (step instanceof Scenario scenario) {
+				DeleteScenarioCommand deleteScenarioCommand = getProjectCommandFactory()
+						.newDeleteScenarioCommand();
+				deleteScenarioCommand.setScenario(scenario);
+				deleteScenarioCommand.setEditedBy(getEditedBy());
+				CascadeAuthorizable.cascade(this, deleteScenarioCommand);
+				getCommandHandler().execute(deleteScenarioCommand);
+			}
+		}
+	}
+
+	@Override
+	public Project getProject() {
+		if (usecase != null && usecase.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 
 }

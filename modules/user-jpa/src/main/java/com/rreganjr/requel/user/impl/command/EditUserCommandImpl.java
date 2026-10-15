@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationException;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresSystemRole;
+import com.rreganjr.platform.exception.EntityExceptionActionType;
+import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.validator.EntityValidationException;
 import com.rreganjr.requel.user.impl.AbstractUserRole;
 import com.rreganjr.requel.user.Organization;
@@ -48,7 +54,7 @@ import com.rreganjr.requel.user.impl.UserImpl;
  */
 @Component("editUserCommand")
 @Scope("prototype")
-public class EditUserCommandImpl extends AbstractUserCommand implements EditUserCommand {
+public class EditUserCommandImpl extends AbstractUserCommand implements EditUserCommand, AuthorizableCommand {
 
 	private User user;
 	private String username;
@@ -60,8 +66,10 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 	private String organizationName;
 	private Boolean editable = Boolean.TRUE;
 	private Set<String> userRoleNames = new HashSet<String>();
+	private boolean userRolesProvided = false;
 	private Map<String, Set<String>> userRolePermissionNames = new HashMap<String, Set<String>>();
 	private User editedBy;
+	private Integer expectedVersion;
 
 	/**
 	 * @param userRepository
@@ -76,11 +84,27 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 	 */
 	@Override
 	public void execute() {
+		boolean isAdmin = getEditedBy() != null && getEditedBy().hasRole(SystemAdminUserRole.class);
 		UserImpl userImpl = (UserImpl) getUser();
 		if (userImpl == null) {
+			// Only admins can create new users; null editedBy = system bootstrap (initializers)
+			if (!isAdmin && getEditedBy() != null) {
+				throw new AuthorizationException("Only administrators can create user accounts.");
+			}
 			userImpl = createUser();
 		} else {
-			userImpl = updateUser(userImpl);
+			// Non-admins can only edit their own account
+			if (!isAdmin && !userImpl.getUsername().equals(getEditedBy().getUsername())) {
+				throw new AuthorizationException("You can only edit your own account.");
+			}
+			// Enforce the caller-supplied optimistic-lock version on update (issue #108).
+			userImpl = getUserRepository().get(userImpl);
+			if (getExpectedVersion() != null
+					&& getExpectedVersion().intValue() != userImpl.getVersion()) {
+				throw EntityLockException.staleEntity(User.class, userImpl,
+						EntityExceptionActionType.Updating);
+			}
+			userImpl = updateUser(userImpl, isAdmin);
 		}
 		setUser(userImpl);
 	}
@@ -104,7 +128,7 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 		}
 	}
 
-	private UserImpl updateUser(UserImpl userImpl) {
+	private UserImpl updateUser(UserImpl userImpl, boolean isAdmin) {
 		Organization organization = getOrCreateOrganization(getOrganizationName());
 		userImpl.setName(getName());
 		if (!StringUtils.isEmpty(getPassword())) {
@@ -117,19 +141,24 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 		userImpl.setEmailAddress(getEmailAddress());
 		userImpl.setPhoneNumber(getPhoneNumber());
 		userImpl.setOrganization(organization);
-		if (getEditedBy().hasRole(SystemAdminUserRole.class)) {
+		if (isAdmin) {
 			userImpl.setUsername(getUsername());
 			userImpl.setEditable(getEditable());
-			updateRoles(userImpl);
+			if (userRolesProvided) {
+				updateRoles(userImpl);
+			}
 		}
 		return getUserRepository().merge(userImpl);
 	}
 
 	private Organization getOrCreateOrganization(String organizationName) {
+		if (organizationName == null || organizationName.isBlank()) {
+			return null;
+		}
 		try {
-			return getUserRepository().findOrganizationByName(getOrganizationName());
+			return getUserRepository().findOrganizationByName(organizationName);
 		} catch (NoSuchOrganizationException e) {
-			return getUserRepository().persist(new OrganizationImpl(getOrganizationName()));
+			return getUserRepository().persist(new OrganizationImpl(organizationName));
 		}
 	}
 
@@ -232,10 +261,12 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 
 	public void setUserRoleNames(Set<String> userRoleNames) {
 		this.userRoleNames = userRoleNames;
+		this.userRolesProvided = true;
 	}
 
 	public void addUserRoleName(String userRoleName) {
 		userRoleNames.add(userRoleName);
+		this.userRolesProvided = true;
 	}
 
 	protected Map<String, Set<String>> getUserRolePermissionNames() {
@@ -258,7 +289,41 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 		this.editedBy = editedBy;
 	}
 
-	protected User getEditedBy() {
+	/**
+	 * Satisfies {@link com.rreganjr.platform.command.EditCommand#setEditedBy} via
+	 * {@link AuthorizableCommand}. The cast is safe: the HTTP dispatch path always
+	 * sets a {@code com.rreganjr.requel.user.User} via CurrentUserCommandHandler.
+	 */
+	@Override
+	public void setEditedBy(com.rreganjr.platform.identity.User editedBy) {
+		this.editedBy = (User) editedBy;
+	}
+
+	public User getEditedBy() {
 		return editedBy;
+	}
+
+	@Override
+	public void setExpectedVersion(Integer expectedVersion) {
+		this.expectedVersion = expectedVersion;
+	}
+
+	protected Integer getExpectedVersion() {
+		return expectedVersion;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		// Bootstrap: null editedBy = system initializer call (AdminUserInitializer, etc.) — skip auth.
+		// execute() enforces the same rule: null editedBy is the only non-admin path allowed to create users.
+		if (editedBy == null) {
+			return null;
+		}
+		// Own-account edits require only authentication — return null to skip the role check.
+		// Editing another account (or creating a new user) requires SystemAdminUserRole.
+		if (user != null && user.getUsername().equals(editedBy.getUsername())) {
+			return null;
+		}
+		return new RequiresSystemRole(SystemAdminUserRole.class);
 	}
 }

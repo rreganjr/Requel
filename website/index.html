@@ -1,49 +1,204 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
-	<head>
-		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
-		<meta name="description" content="SourceForge presents the Requel project. Requel is an open source application. SourceForge provides the world's largest selection of Open Source Software. Requel is a Web-based requirements engineering system that supports collaboration among all stakeholders and provides automated assistance to validate requirements and suggest improvements. It supports requirements as goals, stories, and use-cases." />
-		<meta name="keywords" content="Open Source, Software, Development, Developers, Projects, Downloads, OSTG, VA Software, SF.net, SourceForge, GNU General Public License (GPL), 3 - Alpha, Developers, Management, Quality Assurance, Collaborative development tools, Web-based, Java, Requel,requel" />
-		<title>SourceForge.net: Requel - Colaborative Requirements Tool</title>
-		<style type="text/css">
-		.title {
-			text-align: center;
-		}
-		#screenShot {
-			text-align: center;
-		}
-		#ft {
-			text-align: center;
-		}
-		</style> 
-	</head>
-	<body>
-		<h1 class="title"><img src="./images/Title_335x83.png"/></h1>
-		<h2 class="title">the Collaborative Requirements Elicitation System</h2>
-		<div id="intro">
-		<h2>Intro</h2>
-		<p>Poor requirements have been cited as the primary cause of software project failures and cost overruns. Fredrick Brooks tells us that "The hardest single part of building a software system is deciding precisely what to build."</p>
-		<p>What causes poor quality requirements and why is it so hard to acquiring requirements that are understandable, unambiguous, precise, and complete? One of the key problems in identifying requirements is a lack of stakeholder involvement. All stakeholders, including users, managers, and developers, need to be involved during requirements acquisition. Another problem is the high level of detail necessary to implement software. Most people don't think about the intricacies of the tasks they perform at a conscious level.</p> 
-		<p>Requel is a requirements engineering system that supports collaboration among business and technical stakeholders and provides automated assistance to validate requirements and suggest improvements. It is a Web-based application to facilitate a distributed team of users. It supports collaboration with a semi-structured discussion and negotiation mechanism. It assists users by applying natural language processing to the requirements to detect and report ambiguity and complexity. It identifies potential significant terms in the requirements to assist in build a glossary and making the requirements more understandable and consistent.</p>
-		</div>
-		<div>Requel is the results from a master’s thesis at Harvard University. The ThesisFinal.pdf document in the download section includes background information about the project and a user guide.
-		<p><div id="screenShot"><img src="./images/screen_login.png" width="416" hieght="216"/></div></p>
-		<div id="links">
-        	<p><strong><a href="spec.html">Example Requirements Output</a></strong></p>
-        	<p><strong><a href="http://sourceforge.net/project/platformdownload.php?group_id=259442">Download Requel files</a></strong></p>
-			<p><strong><a href="http://sourceforge.net/projects/requel/">Project detail and discuss</a></strong></p>
-			<p><strong><a href="http://sourceforge.net/support/getsupport.php?group_id=259442">Get support</a></strong></p>
-			<p><strong><a href="http://sourceforge.net/project/project_donations.php?group_id=259442" class="donate" title="Donate to this project"></strong></p>
-		</div>
-		<div id="ft">
-			<p>
-				<a href="http://sourceforge.net/">Project Web Hosted by <img src="http://sflogo.sourceforge.net/sflogo.php?group_id=259442&amp;type=3" alt="SourceForge.net" /></a>
-            </p>
-            <p>
-				<a href="http://sourceforge.net/about">About</a> - 
-                <a href="http://sourceforge.net/tos/tos.php">Legal</a> - 
-				<a href="http://sourceforge.net/support">Help</a>
-            </p>
-        </div>
-	</body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Requel — the Collaborative Requirements Elicitation System</title>
+<meta name="description" content="Requel is a web-based requirements engineering system that supports collaboration among all stakeholders and provides automated assistance to validate requirements and suggest improvements. It models requirements as goals, stories, actors, scenarios, and use-cases." />
+<link rel="icon" type="image/png" href="./images/logo_robot.png" />
+<link rel="stylesheet" href="./site.css" />
+</head>
+<body>
+
+<header class="brand">
+  <div class="brand-inner">
+    <img src="./images/logo_robot.png" alt="" />
+    <div>
+      <h1>Requel</h1>
+      <p>the Collaborative Requirements Elicitation System</p>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <div class="status">
+    <span class="tag">Released</span>
+    <span class="msg">Requel 2.0.0 is out. Get the jars from
+      <a href="https://github.com/rreganjr/Requel/releases/tag/v2.0.0">Releases</a> or run the
+      <a href="https://hub.docker.com/r/rreganjr/requel">rreganjr/requel</a> image; see
+      <a href="https://github.com/rreganjr/Requel/blob/master/doc/guides/INSTALL.md">Installing and running</a>.</span>
+  </div>
+
+  <section>
+    <h2>What Requel is</h2>
+    <div class="card">
+      <p>Poor requirements have been cited as the primary cause of software project failures and cost
+        overruns. Frederick Brooks tells us that &ldquo;The hardest single part of building a software
+        system is deciding precisely what to build.&rdquo;</p>
+      <p>What causes poor quality requirements, and why is it so hard to acquire requirements that are
+        understandable, unambiguous, precise, and complete? One of the key problems in identifying
+        requirements is a lack of stakeholder involvement. All stakeholders &mdash; including users,
+        managers, and developers &mdash; need to be involved during requirements acquisition. Another
+        problem is the high level of detail necessary to implement software. Most people don&rsquo;t
+        think about the intricacies of the tasks they perform at a conscious level.</p>
+      <p>Requel is a web-based requirements engineering system that supports collaboration among
+        business and technical stakeholders and provides automated assistance to validate requirements
+        and suggest improvements. It models requirements as goals, stories, actors, scenarios, and
+        use-cases, with an IBIS-style annotation and discussion layer for raising issues, proposing
+        solutions, and tracking decisions. It applies natural language processing to the requirements
+        to detect and report ambiguity and complexity, and identifies potentially significant terms to
+        assist in building a glossary and making the requirements more understandable and consistent.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>What&rsquo;s new in 2.0</h2>
+    <div class="card">
+      <ul class="features">
+        <li><strong>A new web UI.</strong> The Echo2 server-side UI is replaced by an Angular
+          single-page app, bundled into the same jar, with live refresh when other people or the
+          assistants change something.</li>
+        <li><strong>An API.</strong> Everything the UI does goes through
+          <code>POST /api/commands/{type}</code> and <code>GET /api/&hellip;</code>, with personal
+          access tokens for scripts.</li>
+        <li><strong>AI requirements review.</strong> Assistants review goals, stories, use cases and
+          scenarios and raise issues you can discuss and resolve. Use OpenAI, Anthropic, Gemini or a
+          local model (Ollama); projects can write their own review definitions.</li>
+        <li><strong>MCP server and <code>requel-cli</code>.</strong> AI clients (Claude, VS Code and
+          others) can read and edit a project over MCP with OAuth sign-in; the CLI does the same from
+          a terminal.</li>
+        <li><strong>Stakeholder permissions that hang together.</strong> Permissions granted together
+          are shown together, deletes that remove owned items are explained, and granting needs
+          Grant.</li>
+        <li><strong>Also:</strong> tags, report templates, project delete, links from requirements
+          to their sources (tickets, documents), actors on stories, and an audit log of every
+          command.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>User guide</h2>
+    <p>How to use Requel 2.0, with screenshots of the sample project.</p>
+    <div class="links">
+      <a class="tile" href="./guide/index.html">
+        <span class="title">Contents and concepts</span>
+        <span class="desc">How Requel models requirements, and where to find each topic.</span>
+      </a>
+      <a class="tile" href="./guide/getting-started.html">
+        <span class="title">Getting started</span>
+        <span class="desc">Log in, find your way around, add users.</span>
+      </a>
+      <a class="tile" href="./guide/projects.html">
+        <span class="title">Projects</span>
+        <span class="desc">Create, import, export and delete projects; the overview.</span>
+      </a>
+      <a class="tile" href="./guide/requirements.html">
+        <span class="title">Requirements</span>
+        <span class="desc">Goals, stories, actors, use cases, scenarios, glossary and tags.</span>
+      </a>
+      <a class="tile" href="./guide/stakeholders.html">
+        <span class="title">Stakeholders</span>
+        <span class="desc">Who is on a project and what each person may change.</span>
+      </a>
+      <a class="tile" href="./guide/issues.html">
+        <span class="title">Issues and discussion</span>
+        <span class="desc">Notes, issues, positions and arguments; the built-in checks.</span>
+      </a>
+      <a class="tile" href="./guide/ai-review.html">
+        <span class="title">AI review</span>
+        <span class="desc">Reviews, policies and corpus analysis, and what leaves your server.</span>
+      </a>
+      <a class="tile" href="./guide/reports.html">
+        <span class="title">Reports</span>
+        <span class="desc">Specifications and tickets from XSLT templates.</span>
+      </a>
+      <a class="tile" href="./guide/integrations.html">
+        <span class="title">API, MCP and CLI</span>
+        <span class="desc">Tokens, the REST API, AI clients and <code>requel-cli</code>.</span>
+      </a>
+      <a class="tile" href="https://github.com/rreganjr/Requel/blob/master/doc/guides/INSTALL.md">
+        <span class="title">Installing and running</span>
+        <span class="desc">Docker Compose, Docker or the jar; upgrading; settings.</span>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>Project links</h2>
+    <div class="links">
+      <a class="tile" href="https://github.com/rreganjr/Requel">
+        <span class="title">Source code</span>
+        <span class="desc">The GitHub repository and how to build from source.</span>
+      </a>
+      <a class="tile" href="https://github.com/rreganjr/Requel/issues">
+        <span class="title">Issues and discussion</span>
+        <span class="desc">Report a problem, request a feature, or follow what is being worked on.</span>
+      </a>
+      <a class="tile" href="https://github.com/rreganjr/Requel/releases">
+        <span class="title">Releases</span>
+        <span class="desc">Published versions and release notes.</span>
+      </a>
+      <a class="tile" href="./spec.html">
+        <span class="title">Example requirements output</span>
+        <span class="desc">A sample requirements document generated by Requel from a project.</span>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>Project file schema</h2>
+    <div class="card">
+      <p>Requel projects can be exported to and imported from XML. Exported files carry an
+        <code>xsi:schemaLocation</code> pointing at the published schema below, so an export can be
+        validated against the same definition the build uses.</p>
+      <div class="links">
+        <a class="tile" href="./integration/2.0/project.xsd">
+          <span class="title">project.xsd &mdash; 2.0</span>
+          <span class="desc">Current schema, used by Requel 2.0 exports.</span>
+        </a>
+        <a class="tile" href="./integration/1.0/project.xsd">
+          <span class="title">project.xsd &mdash; 1.0</span>
+          <span class="desc">Legacy schema, kept so older exports still resolve.</span>
+        </a>
+      </div>
+      <p class="muted" style="margin-top: var(--rq-space-4);">An example project file that can be
+        imported:
+        <a href="https://raw.githubusercontent.com/rreganjr/Requel/master/doc/samples/Requel.xml">Requel.xml</a>.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Background</h2>
+    <div class="card">
+      <p>Requel began as a master&rsquo;s thesis project at the Harvard Extension School (ALM, 2009).
+        The thesis covers the background on requirements engineering and why it matters. The 2009
+        user guide describes Requel 1.0; for 2.0 see the <a href="./guide/index.html">user
+        guide</a> above.</p>
+      <div class="links">
+        <a class="tile" href="https://github.com/rreganjr/Requel/raw/master/doc/archive/2009-thesis/ThesisFinalColor.pdf">
+          <span class="title">Thesis document (PDF)</span>
+          <span class="desc">Harvard ALM, 2009 &mdash; background and design rationale.</span>
+        </a>
+        <a class="tile" href="https://github.com/rreganjr/Requel/raw/master/doc/archive/2009-thesis/UserGuide.pdf">
+          <span class="title">Requel 1.0 user guide (PDF)</span>
+          <span class="desc">2009. The concepts still hold; the screens and setup (chapter 5) are
+            from 1.0.</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <p>Requel is free software, released under the
+      <a href="https://github.com/rreganjr/Requel/blob/master/LICENSE">GNU General Public License v3</a>.</p>
+    <p>Hosted on <a href="https://github.com/rreganjr/Requel">GitHub</a>.</p>
+  </div>
+</footer>
+
+</body>
 </html>

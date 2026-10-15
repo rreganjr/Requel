@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,10 +25,18 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.AbstractCommandFactory;
+import com.rreganjr.requel.project.command.EditProjectDictionaryWordCommand;
+import com.rreganjr.requel.project.command.AddInstallDictionaryWordCommand;
+import com.rreganjr.requel.project.command.AddProjectDictionaryWordCommand;
+import com.rreganjr.requel.project.command.DeleteInstallDictionaryWordCommand;
+import com.rreganjr.requel.project.command.DeleteProjectDictionaryWordCommand;
 import com.rreganjr.command.CommandFactoryStrategy;
 import com.rreganjr.requel.project.command.AddActorToActorContainerCommand;
 import com.rreganjr.requel.project.command.AddGoalToGoalContainerCommand;
+import com.rreganjr.requel.project.command.AddScenarioToUseCaseCommand;
 import com.rreganjr.requel.project.command.AddStoryToStoryContainerCommand;
+import com.rreganjr.requel.project.command.RemoveScenarioFromUseCaseCommand;
+import com.rreganjr.requel.project.command.SetPrimaryScenarioOnUseCaseCommand;
 import com.rreganjr.requel.project.command.ConvertStepToScenarioCommand;
 import com.rreganjr.requel.project.command.CopyActorCommand;
 import com.rreganjr.requel.project.command.CopyGoalCommand;
@@ -40,6 +48,7 @@ import com.rreganjr.requel.project.command.DeleteActorCommand;
 import com.rreganjr.requel.project.command.DeleteGlossaryTermCommand;
 import com.rreganjr.requel.project.command.DeleteGoalCommand;
 import com.rreganjr.requel.project.command.DeleteGoalRelationCommand;
+import com.rreganjr.requel.project.command.DeleteProjectCommand;
 import com.rreganjr.requel.project.command.DeleteReportGeneratorCommand;
 import com.rreganjr.requel.project.command.DeleteScenarioCommand;
 import com.rreganjr.requel.project.command.DeleteScenarioStepCommand;
@@ -49,6 +58,7 @@ import com.rreganjr.requel.project.command.DeleteUseCaseCommand;
 import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.EditAddActorToProjectPositionCommand;
 import com.rreganjr.requel.project.command.EditAddWordToGlossaryPositionCommand;
+import com.rreganjr.requel.project.command.AddGlossaryTermRefererCommand;
 import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditGoalRelationCommand;
@@ -60,6 +70,7 @@ import com.rreganjr.requel.project.command.EditScenarioStepCommand;
 import com.rreganjr.requel.project.command.EditStoryCommand;
 import com.rreganjr.requel.project.command.EditUseCaseCommand;
 import com.rreganjr.requel.project.command.EditUserStakeholderCommand;
+import com.rreganjr.requel.project.command.RepairProjectStakeholdersCommand;
 import com.rreganjr.requel.project.command.ExportProjectCommand;
 import com.rreganjr.requel.project.command.GenerateReportCommand;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
@@ -95,6 +106,12 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	}
 
 	@Override
+	public DeleteProjectCommand newDeleteProjectCommand() {
+		return (DeleteProjectCommand) getCreationStrategy().newInstance(
+				DeleteProjectCommandImpl.class);
+	}
+
+	@Override
 	public ExportProjectCommand newExportProjectCommand() {
 		return (ExportProjectCommand) getCreationStrategy().newInstance(
 				ExportProjectCommandImpl.class);
@@ -104,6 +121,12 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	public ImportProjectCommand newImportProjectCommand() {
 		return (ImportProjectCommand) getCreationStrategy().newInstance(
 				ImportProjectStreamingCommandImpl.class);
+	}
+
+	@Override
+	public RepairProjectStakeholdersCommand newRepairProjectStakeholdersCommand() {
+		return (RepairProjectStakeholdersCommand) getCreationStrategy().newInstance(
+				RepairProjectStakeholdersCommandImpl.class);
 	}
 
 	@Override
@@ -180,6 +203,136 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 				EditGlossaryTermCommandImpl.class);
 	}
 
+	public EditProjectDictionaryWordCommand newEditDictionaryWordCommand() {
+		return (EditProjectDictionaryWordCommand) getCreationStrategy().newInstance(
+				EditDictionaryWordCommandImpl.class);
+	}
+
+	@Override
+	public AddProjectDictionaryWordCommand newAddProjectDictionaryWordCommand() {
+		return (AddProjectDictionaryWordCommand) getCreationStrategy().newInstance(
+				AddProjectDictionaryWordCommandImpl.class);
+	}
+
+	@Override
+	public DeleteProjectDictionaryWordCommand newDeleteProjectDictionaryWordCommand() {
+		return (DeleteProjectDictionaryWordCommand) getCreationStrategy().newInstance(
+				DeleteProjectDictionaryWordCommandImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.DeleteIgnoredFindingCommand newDeleteIgnoredFindingCommand() {
+		return (com.rreganjr.requel.project.command.DeleteIgnoredFindingCommand) getCreationStrategy()
+				.newInstance(DeleteIgnoredFindingCommandImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.EditProjectAssistantSettingCommand newEditProjectAssistantSettingCommand() {
+		return (com.rreganjr.requel.project.command.EditProjectAssistantSettingCommand) getCreationStrategy()
+				.newInstance(EditProjectAssistantSettingCommandImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.AssistantDefinitionCommand.Create newCreateAssistantDefinitionCommand() {
+		return (com.rreganjr.requel.project.command.AssistantDefinitionCommand.Create) getCreationStrategy()
+				.newInstance(AssistantDefinitionCommandImpl.CreateImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.AssistantDefinitionCommand.Edit newEditAssistantDefinitionCommand() {
+		return (com.rreganjr.requel.project.command.AssistantDefinitionCommand.Edit) getCreationStrategy()
+				.newInstance(AssistantDefinitionCommandImpl.EditImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.AssistantDefinitionCommand.Fork newForkAssistantDefinitionCommand() {
+		return (com.rreganjr.requel.project.command.AssistantDefinitionCommand.Fork) getCreationStrategy()
+				.newInstance(AssistantDefinitionCommandImpl.ForkImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.AssistantDefinitionCommand.Revert newRevertAssistantDefinitionCommand() {
+		return (com.rreganjr.requel.project.command.AssistantDefinitionCommand.Revert) getCreationStrategy()
+				.newInstance(AssistantDefinitionCommandImpl.RevertImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.AssistantDefinitionCommand.Delete newDeleteAssistantDefinitionCommand() {
+		return (com.rreganjr.requel.project.command.AssistantDefinitionCommand.Delete) getCreationStrategy()
+				.newInstance(AssistantDefinitionCommandImpl.DeleteImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.EditProjectDataHandlingSettingCommand newEditProjectDataHandlingSettingCommand() {
+		return (com.rreganjr.requel.project.command.EditProjectDataHandlingSettingCommand) getCreationStrategy()
+				.newInstance(EditProjectDataHandlingSettingCommandImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.RecordSourceCommand newRecordSourceCommand() {
+		return (com.rreganjr.requel.project.command.RecordSourceCommand) getCreationStrategy()
+				.newInstance(RecordSourceCommandImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.LinkSourceCommand newLinkSourceCommand() {
+		return (com.rreganjr.requel.project.command.LinkSourceCommand) getCreationStrategy()
+				.newInstance(LinkSourceCommandImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.UnlinkSourceCommand newUnlinkSourceCommand() {
+		return (com.rreganjr.requel.project.command.UnlinkSourceCommand) getCreationStrategy()
+				.newInstance(UnlinkSourceCommandImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.UpsertFromSourceCommand newUpsertFromSourceCommand() {
+		return (com.rreganjr.requel.project.command.UpsertFromSourceCommand) getCreationStrategy()
+				.newInstance(UpsertFromSourceCommandImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.DeleteSourceCommand newDeleteSourceCommand() {
+		return (com.rreganjr.requel.project.command.DeleteSourceCommand) getCreationStrategy()
+				.newInstance(DeleteSourceCommandImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.AddSourceAuthorityCommand newAddSourceAuthorityCommand() {
+		return (com.rreganjr.requel.project.command.AddSourceAuthorityCommand) getCreationStrategy()
+				.newInstance(AddSourceAuthorityCommandImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.RemoveSourceAuthorityCommand newRemoveSourceAuthorityCommand() {
+		return (com.rreganjr.requel.project.command.RemoveSourceAuthorityCommand) getCreationStrategy()
+				.newInstance(RemoveSourceAuthorityCommandImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.AnalyzeProjectCommand newAnalyzeProjectCommand() {
+		return (com.rreganjr.requel.project.command.AnalyzeProjectCommand) getCreationStrategy()
+				.newInstance(AnalyzeProjectCommandImpl.class);
+	}
+
+	@Override
+	public AddInstallDictionaryWordCommand newAddInstallDictionaryWordCommand() {
+		return (AddInstallDictionaryWordCommand) getCreationStrategy().newInstance(
+				AddInstallDictionaryWordCommandImpl.class);
+	}
+
+	@Override
+	public DeleteInstallDictionaryWordCommand newDeleteInstallDictionaryWordCommand() {
+		return (DeleteInstallDictionaryWordCommand) getCreationStrategy().newInstance(
+				DeleteInstallDictionaryWordCommandImpl.class);
+	}
+
+	public AddGlossaryTermRefererCommand newAddGlossaryTermRefererCommand() {
+		return (AddGlossaryTermRefererCommand) getCreationStrategy().newInstance(
+				AddGlossaryTermRefererCommandImpl.class);
+	}
+
 	public EditAddWordToGlossaryPositionCommand newEditAddWordToGlossaryPositionCommand() {
 		return (EditAddWordToGlossaryPositionCommand) getCreationStrategy().newInstance(
 				EditAddWordToGlossaryPositionCommandImpl.class);
@@ -200,6 +353,21 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	@Override
 	public EditUseCaseCommand newEditUseCaseCommand() {
 		return (EditUseCaseCommand) getCreationStrategy().newInstance(EditUseCaseCommandImpl.class);
+	}
+
+	@Override
+	public AddScenarioToUseCaseCommand newAddScenarioToUseCaseCommand() {
+		return (AddScenarioToUseCaseCommand) getCreationStrategy().newInstance(AddScenarioToUseCaseCommandImpl.class);
+	}
+
+	@Override
+	public RemoveScenarioFromUseCaseCommand newRemoveScenarioFromUseCaseCommand() {
+		return (RemoveScenarioFromUseCaseCommand) getCreationStrategy().newInstance(RemoveScenarioFromUseCaseCommandImpl.class);
+	}
+
+	@Override
+	public SetPrimaryScenarioOnUseCaseCommand newSetPrimaryScenarioOnUseCaseCommand() {
+		return (SetPrimaryScenarioOnUseCaseCommand) getCreationStrategy().newInstance(SetPrimaryScenarioOnUseCaseCommandImpl.class);
 	}
 
 	@Override

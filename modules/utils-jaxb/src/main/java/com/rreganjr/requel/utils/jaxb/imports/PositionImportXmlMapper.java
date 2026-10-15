@@ -1,10 +1,8 @@
 /*
- * $Id: $
- *
- * Copyright 2025 Ron Regan Jr. All Rights Reserved.
- *
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,14 +41,12 @@ public class PositionImportXmlMapper {
                         arg.getText(), arg.getSupportLevel()))
                 .collect(Collectors.toList());
         String text = xml.getText();
-        if (text == null || text.isBlank()) {
-            text = xml.getProposedWord(); // fallback for changeSpellingPosition
-        }
         return PositionImportDraft.builder()
                 .externalId(xml.getId())
                 .createdByExternalId(xml.getCreatedBy())
                 .text(text)
                 .positionType(elementName)
+                .proposedWord(xml.getProposedWord())
                 .argumentExternalIds(new HashSet<>())
                 .arguments(argumentDrafts)
                 .build();

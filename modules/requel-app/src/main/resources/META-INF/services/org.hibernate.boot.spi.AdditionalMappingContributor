@@ -1,1 +1,2 @@
 com.rreganjr.requel.project.impl.config.ProjectAnnotatableMetadataContributor
+com.rreganjr.requel.project.impl.config.TaggableMetadataContributor

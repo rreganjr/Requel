@@ -1,0 +1,80 @@
+/*
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+package com.rreganjr.requel.assistant.core.persistence;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+/**
+ * Spring Data repository for {@link AssistantFindingEntity}.
+ */
+public interface AssistantFindingRepository
+		extends JpaRepository<AssistantFindingEntity, String> {
+
+	/**
+	 * Lookup by idempotency key. The applicator uses this to decide whether a
+	 * new {@code AnnotationAction} produces a fresh finding or updates an
+	 * existing one (touch / supersede / auto-resolve / drop).
+	 */
+	Optional<AssistantFindingEntity> findByIdempotencyKey(String idempotencyKey);
+
+	/**
+	 * Findings whose linked annotation matches; used when annotation events
+	 * fire (e.g. a user manually resolves an issue) so the applicator can mark
+	 * the finding {@code MANUALLY_RESOLVED}.
+	 */
+	List<AssistantFindingEntity> findByAppliedAnnotationId(Long appliedAnnotationId);
+
+	/**
+	 * All findings for an assistant on a target in a given state. Used by the
+	 * applicator to reconcile a run's findings against previously recorded ones
+	 * (auto-resolving stale {@code ACTIVE} findings the new run no longer reports).
+	 */
+	/**
+	 * Issue #268: one assistant's findings in a project in one state, for the project-scoped
+	 * glossary candidate that several entities share.
+	 */
+	List<AssistantFindingEntity> findByAssistantIdAndProjectIdAndState(String assistantId,
+			Long projectId, String state);
+
+	List<AssistantFindingEntity> findByAssistantIdAndTargetTypeAndTargetIdAndState(
+			String assistantId, String targetType, Long targetId, String state);
+
+	/**
+	 * Issue #270: the findings linked to any of {@code appliedAnnotationIds} in one of
+	 * {@code states}, for working out which annotations are stale on which entity. One query per
+	 * read, however many annotations it covers.
+	 */
+	List<AssistantFindingEntity> findByAppliedAnnotationIdInAndStateIn(
+			Collection<Long> appliedAnnotationIds, Collection<String> states);
+
+	/**
+	 * Issue #355: everything one run reported on a target, new or re-seen, oldest first.
+	 */
+	List<AssistantFindingEntity> findByLastSeenRunIdAndTargetTypeAndTargetIdOrderByCreatedAtAscIdAsc(
+			String lastSeenRunId, String targetType, Long targetId);
+
+	/** Issue #266: every finding a run reported, on any target (a corpus run's participants). */
+	List<AssistantFindingEntity> findByLastSeenRunIdOrderByCreatedAtAscIdAsc(String lastSeenRunId);
+}

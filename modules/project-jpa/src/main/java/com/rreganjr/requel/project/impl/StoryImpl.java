@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import jakarta.persistence.UniqueConstraint;
@@ -57,15 +58,16 @@ import org.hibernate.annotations.SortComparator;
 import org.hibernate.annotations.SortNatural;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import org.xml.sax.SAXException;
 import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.tagging.Taggable;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.StoryContainer;
 import com.rreganjr.requel.project.StoryType;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 
-import com.rreganjr.requel.user.UserRepository;
 /**
  * A story describes an interaction with the system as prose.
  * 
@@ -76,11 +78,12 @@ import com.rreganjr.requel.user.UserRepository;
 		"projectordomain_id", "name" }) })
 @XmlRootElement(name = "story", namespace = "http://www.rreganjr.com/requel")
 @XmlType(name = "story", namespace = "http://www.rreganjr.com/requel")
-public class StoryImpl extends AbstractTextEntity implements Story {
+public class StoryImpl extends AbstractTextEntity implements Story, Taggable {
 	static final long serialVersionUID = 0;
 
 	private Set<StoryContainer> referers = new TreeSet<StoryContainer>(StoryContainer.COMPARATOR);
 	private StoryType storyType;
+	private Actor primaryActor;
 	private Set<Goal> goals = new TreeSet<Goal>();
 	private Set<Actor> actors = new TreeSet<Actor>();
 
@@ -108,6 +111,7 @@ public class StoryImpl extends AbstractTextEntity implements Story {
 	@Column(nullable = false, unique = false)
 	@NotEmpty(message = "a unique name is required.")
 	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
+	@Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
 	public String getName() {
 		return super.getName();
 	}
@@ -166,6 +170,21 @@ public class StoryImpl extends AbstractTextEntity implements Story {
 	@Override
 	public void setStoryType(StoryType storyType) {
 		this.storyType = storyType;
+	}
+
+	@Override
+	@XmlIDREF
+	@XmlElement(name = "primaryActorRef", type = ActorImpl.class, namespace = "http://www.rreganjr.com/requel")
+	@ManyToOne(targetEntity = ActorImpl.class, cascade = { CascadeType.MERGE, CascadeType.PERSIST,
+			CascadeType.REFRESH }, optional = true, fetch = FetchType.LAZY)
+	@JoinColumn(name = "primary_actor_id", nullable = true)
+	public Actor getPrimaryActor() {
+		return primaryActor;
+	}
+
+	@Override
+	public void setPrimaryActor(Actor primaryActor) {
+		this.primaryActor = primaryActor;
 	}
 
 	/**

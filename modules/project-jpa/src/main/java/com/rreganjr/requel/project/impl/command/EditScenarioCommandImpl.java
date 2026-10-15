@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,14 +28,13 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
-import com.rreganjr.platform.exception.EntityException;
-import com.rreganjr.platform.exception.EntityExceptionActionType;
-import com.rreganjr.platform.exception.NoSuchEntityException;
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Step;
+import com.rreganjr.requel.project.command.DeleteScenarioStepCommand;
 import com.rreganjr.requel.project.command.EditScenarioCommand;
 import com.rreganjr.requel.project.command.EditScenarioStepCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -92,7 +91,7 @@ public class EditScenarioCommandImpl extends EditScenarioStepCommandImpl impleme
 	@Override
 	public void execute() throws Exception {
 		List<EditScenarioStepCommand> stepEditCommands = new ArrayList<EditScenarioStepCommand>(
-				getStepCommands());
+				getStepCommands() != null ? getStepCommands() : java.util.Collections.emptyList());
 		for (int index = 0; index < stepEditCommands.size(); index++) {
 			EditScenarioStepCommand stepCommand = stepEditCommands.get(index);
 			// disable analysis of the steps as they will get analyzed
@@ -104,28 +103,34 @@ public class EditScenarioCommandImpl extends EditScenarioStepCommandImpl impleme
 		ScenarioImpl scenarioImpl = (ScenarioImpl) getScenario();
 		ProjectOrDomain projectOrDomain = getRepository().get(getProjectOrDomain());
 
-		// check for uniqueness
-		try {
-			Scenario existing = getProjectRepository().findScenarioByProjectOrDomainAndName(
-					projectOrDomain, getName());
-			if (scenarioImpl == null) {
-				throw EntityException.uniquenessConflict(Scenario.class, existing, FIELD_NAME,
-						EntityExceptionActionType.Creating);
-			} else if (!existing.equals(scenarioImpl)) {
-				throw EntityException.uniquenessConflict(Scenario.class, existing, FIELD_NAME,
-						EntityExceptionActionType.Updating);
-			}
-		} catch (NoSuchEntityException e) {
-		}
+		// Issue #254: one guard for both, inherited from EditScenarioStepCommandImpl. The check
+		// that used to live here looked only at scenarios, so a scenario named after an existing
+		// plain step slipped past it and produced the same opaque "ProjectOrDomainEntity" message
+		// the ticket reports for steps. Steps and scenarios share one table and one name
+		// constraint, so the lookup has to span both. Null names are still skipped (issue #251).
+		refuseNameCollision(projectOrDomain, scenarioImpl);
 
-		if (scenarioImpl == null) {
+		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
+		scenarioImpl = checkExpectedVersion(scenarioImpl);
+
+		boolean creating = (scenarioImpl == null);
+		if (creating) {
 			scenarioImpl = getProjectRepository().persist(
 					new ScenarioImpl(projectOrDomain, editedBy, getName(), getText(),
 							getScenarioType()));
 		} else {
-			scenarioImpl.setName(getName());
-			scenarioImpl.setText(getText());
-			scenarioImpl.setType(getScenarioType());
+			if (getName() != null) {
+				scenarioImpl.setName(getName());
+			}
+			// Null leaves the text and type as they are; "" clears the text (issue #316). This
+			// also stops EditUseCaseCommandImpl's nested update, which never sets text, from
+			// wiping the scenario's text on every use-case save.
+			if (getText() != null) {
+				scenarioImpl.setText(getText());
+			}
+			if (getScenarioType() != null) {
+				scenarioImpl.setType(getScenarioType());
+			}
 		}
 		// TODO: merge is failing because the use cases in the
 		// usedByUseCases property are my proxies and hibernate throws an
@@ -136,13 +141,49 @@ public class EditScenarioCommandImpl extends EditScenarioStepCommandImpl impleme
 		}
 
 		scenarioImpl = getProjectRepository().merge(scenarioImpl);
-		scenarioImpl.getSteps().clear();
-		for (EditScenarioStepCommand executedCommand : stepEditCommands) {
-			Step step = executedCommand.getStep();
-			scenarioImpl.getSteps().add(step);
-			step.getUsingScenarios().add(scenarioImpl);
+		// Issue #325: on update, null step commands leave the step list as it is; a list, even an
+		// empty one, replaces it. It used to be replaced unconditionally, so any edit that sent
+		// no steps (a use-case save, a spelling fix) deleted them all.
+		List<Step> droppedSteps = new ArrayList<Step>();
+		if (creating || (getStepCommands() != null)) {
+			List<Step> previousSteps = new ArrayList<Step>(scenarioImpl.getSteps());
+			scenarioImpl.getSteps().clear();
+			for (EditScenarioStepCommand executedCommand : stepEditCommands) {
+				Step step = executedCommand.getStep();
+				scenarioImpl.getSteps().add(step);
+				step.getUsingScenarios().add(scenarioImpl);
+			}
+			for (Step previous : previousSteps) {
+				// A dropped sub-scenario is a standalone scenario and stays.
+				if (!(previous instanceof Scenario) && !scenarioImpl.getSteps().contains(previous)
+						&& !droppedSteps.contains(previous)) {
+					previous.getUsingScenarios().remove(scenarioImpl);
+					droppedSteps.add(previous);
+				}
+			}
 		}
 		setScenario(getProjectRepository().merge(scenarioImpl));
+		deleteUnusedSteps(droppedSteps, (Scenario) getScenario(), editedBy);
+	}
+
+	/**
+	 * Issue #325: a plain step dropped from the list used to stay in the table, attached to no
+	 * scenario, still holding its name in the shared step/scenario unique key and blocking
+	 * DeleteProject on MySQL. Delete it unless another scenario still uses it. The delete is a
+	 * step of this edit, authorized by Scenario[Edit] (#75): the step was this scenario's alone.
+	 */
+	private void deleteUnusedSteps(List<Step> droppedSteps, Scenario scenario, User editedBy)
+			throws Exception {
+		for (Step step : droppedSteps) {
+			if (!getProjectRepository().isStepUsedByAnotherScenario(step, scenario)) {
+				DeleteScenarioStepCommand command = getProjectCommandFactory()
+						.newDeleteScenarioStepCommand();
+				command.setScenarioStep(step);
+				command.setEditedBy(editedBy);
+				CascadeAuthorizable.cascade(this, command);
+				getCommandHandler().execute(command);
+			}
+		}
 	}
 
 	@Override

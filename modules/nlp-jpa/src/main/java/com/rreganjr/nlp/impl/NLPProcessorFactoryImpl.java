@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
 import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 import org.apache.log4j.Logger;
 import org.springframework.beans.BeansException;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.annotation.Scope;
@@ -49,6 +50,7 @@ import com.rreganjr.nlp.impl.wsd.WordnetWSD;
  * 
  * @author ron
  */
+@ConditionalOnProperty(name = "requel.nlp.enabled", havingValue = "true", matchIfMissing = true)
 @Component("nlpProcessorFactory")
 @Scope("singleton")
 public class NLPProcessorFactoryImpl implements NLPProcessorFactory, ApplicationContextAware {
@@ -193,7 +195,18 @@ public class NLPProcessorFactoryImpl implements NLPProcessorFactory, Application
 
 	@Override
 	public NLPProcessor<Collection<NLPText>> getSimilarWordFinder() {
-		return newInstance(SpellingSuggester.class);
+		return getSimilarWordFinder(null);
+	}
+
+	/**
+	 * {@code newInstance} goes through {@code createBean}, so every call returns a fresh
+	 * processor — setting the project on it afterwards cannot leak between callers.
+	 */
+	@Override
+	public NLPProcessor<Collection<NLPText>> getSimilarWordFinder(Long projectId) {
+		SpellingSuggester suggester = newInstance(SpellingSuggester.class);
+		suggester.setProjectId(projectId);
+		return suggester;
 	}
 
 	@Override
@@ -203,7 +216,15 @@ public class NLPProcessorFactoryImpl implements NLPProcessorFactory, Application
 
 	@Override
 	public NLPProcessor<Boolean> getSpellingChecker() {
-		return newInstance(SpellingChecker.class);
+		return getSpellingChecker(null);
+	}
+
+	/** @see #getSimilarWordFinder(Long) for why setting the project on the instance is safe. */
+	@Override
+	public NLPProcessor<Boolean> getSpellingChecker(Long projectId) {
+		SpellingChecker checker = newInstance(SpellingChecker.class);
+		checker.setProjectId(projectId);
+		return checker;
 	}
 
 	/**

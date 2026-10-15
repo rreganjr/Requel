@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -31,7 +32,12 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.ReportGenerator;
 import com.rreganjr.requel.project.command.DeleteReportGeneratorCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -48,7 +54,12 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("deleteReportGeneratorCommand")
 @Scope("prototype")
 public class DeleteReportGeneratorCommandImpl extends AbstractEditProjectCommand implements
-		DeleteReportGeneratorCommand {
+		DeleteReportGeneratorCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.ReportGenerator.class, "Delete");
+	}
 
 	private ReportGenerator reportGenerator;
 
@@ -84,15 +95,23 @@ public class DeleteReportGeneratorCommandImpl extends AbstractEditProjectCommand
 		User editedBy = getRepository().get(getEditedBy());
 		Set<Annotation> annotations = new HashSet<Annotation>(reportGenerator.getAnnotations());
 		for (Annotation annotation : annotations) {
-			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = getAnnotationCommandFactory()
-					.newRemoveAnnotationFromAnnotatableCommand();
+			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = CascadeAuthorizable.cascade(this,
+					getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand());
 			removeAnnotationFromAnnotatableCommand.setEditedBy(editedBy);
 			removeAnnotationFromAnnotatableCommand.setAnnotatable(reportGenerator);
 			removeAnnotationFromAnnotatableCommand.setAnnotation(annotation);
 			getCommandHandler().execute(removeAnnotationFromAnnotatableCommand);
 		}
 		reportGenerator.getProjectOrDomain().getReportGenerators().remove(reportGenerator);
+		// #247: clear any annotation link committed since this entity was loaded.
+		removeAllAnnotationsBeforeDelete(reportGenerator, editedBy);
 		getRepository().delete(reportGenerator);
+	}
+
+	@Override
+	public Project getProject() {
+		if (reportGenerator != null && reportGenerator.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 
 }

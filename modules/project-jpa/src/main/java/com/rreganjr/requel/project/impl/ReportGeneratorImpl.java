@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,6 +36,8 @@ import jakarta.validation.constraints.NotEmpty;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ReportGenerator;
 import com.rreganjr.platform.identity.User;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 
 /**
  * Generate a report for the project by transforming the project xml via an
@@ -62,6 +64,23 @@ public class ReportGeneratorImpl extends AbstractTextEntity implements ReportGen
 		super(projectOrDomain, createdBy, name, text);
 	}
 
+	private String builtinKey;
+
+	/**
+	 * Issue #275: see {@link ReportGenerator#getBuiltinKey()}. Exported as the {@code builtin}
+	 * attribute so an import keeps the link to the bundled template.
+	 */
+	@Override
+	@Column(name = "builtin_key", length = 64, nullable = true)
+	@XmlAttribute(name = "builtin", required = false)
+	public String getBuiltinKey() {
+		return builtinKey;
+	}
+
+	public void setBuiltinKey(String builtinKey) {
+		this.builtinKey = builtinKey;
+	}
+
 	protected ReportGeneratorImpl() {
 		super();
 		// for reflection (hibernate, jaxb, etc.)
@@ -71,6 +90,7 @@ public class ReportGeneratorImpl extends AbstractTextEntity implements ReportGen
 	@Column(nullable = false, unique = false)
 	@NotEmpty(message = "a unique name is required.")
 	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
+	@Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
 	public String getName() {
 		return super.getName();
 	}

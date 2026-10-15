@@ -1,10 +1,8 @@
 /*
- * $Id: $
- *
- * Copyright 2025 Ron Regan Jr. All Rights Reserved.
- *
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,11 +45,25 @@ public class AnnotationImportXml {
     @XmlAttribute(name = "mustBeResolved")
     private Boolean mustBeResolved;
 
+    // Issue #271: an issue's severity. Absent in files exported before #271.
+    @XmlAttribute(name = "severity")
+    private String severity;
+
     @XmlAttribute(name = "word")
     private String word;
 
     @XmlAttribute(name = "propertyName")
     private String annotatablePropertyName;
+
+    // Issue #320: the export writes an issue's resolution; import used to drop it.
+    @XmlAttribute(name = "resolvedByPosition")
+    private String resolvedByPosition;
+
+    @XmlAttribute(name = "resolvedByUser")
+    private String resolvedByUser;
+
+    @XmlAttribute(name = "dateResolved")
+    private String dateResolved;
 
     @XmlElementWrapper(name = "positions", namespace = "http://www.rreganjr.com/requel")
     @XmlElement(name = "positionRef", namespace = "http://www.rreganjr.com/requel")
@@ -61,13 +73,17 @@ public class AnnotationImportXml {
     @XmlElement(name = "annotatableRef", namespace = "http://www.rreganjr.com/requel")
     private List<String> annotatableRefs = new ArrayList<>();
 
-    // differentiate by element name externally (lexicalIssue vs note)
+    // differentiate by element name externally (issue, lexicalIssue or note)
     public String getId() { return id; }
     public String getCreatedBy() { return createdBy; }
     public String getText() { return text; }
     public Boolean getMustBeResolved() { return mustBeResolved; }
+    public String getSeverity() { return severity; }
     public String getWord() { return word; }
     public String getAnnotatablePropertyName() { return annotatablePropertyName; }
     public List<String> getPositionRefs() { return positionRefs; }
     public List<String> getAnnotatableRefs() { return annotatableRefs; }
+    public String getResolvedByPosition() { return resolvedByPosition; }
+    public String getResolvedByUser() { return resolvedByUser; }
+    public String getDateResolved() { return dateResolved; }
 }

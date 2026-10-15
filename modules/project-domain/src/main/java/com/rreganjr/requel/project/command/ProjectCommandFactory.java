@@ -1,9 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
- * 
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,6 +33,12 @@ public interface ProjectCommandFactory extends CommandFactory {
 	public EditProjectCommand newEditProjectCommand();
 
 	/**
+	 * @return a new DeleteProjectCommand for deleting a project and all of its
+	 *         contents (issue #240).
+	 */
+	public DeleteProjectCommand newDeleteProjectCommand();
+
+	/**
 	 * @return a new ExportProjectCommand for exporting a project to xml.
 	 */
 	public ExportProjectCommand newExportProjectCommand();
@@ -43,6 +48,12 @@ public interface ProjectCommandFactory extends CommandFactory {
 	 *         existing project from xml.
 	 */
 	public ImportProjectCommand newImportProjectCommand();
+
+	/**
+	 * @return a new RepairProjectStakeholdersCommand for restoring creator
+	 *         stakeholder rows lost by older project-creating paths (issue #256).
+	 */
+	public RepairProjectStakeholdersCommand newRepairProjectStakeholdersCommand();
 
 	/**
 	 * @return a new EditStakeholderCommand for creating or editing a
@@ -120,6 +131,129 @@ public interface ProjectCommandFactory extends CommandFactory {
 	public EditGlossaryTermCommand newEditGlossaryTermCommand();
 
 	/**
+	 * Moved here from {@code DictionaryCommandFactory} by issue #312: the command is authorized
+	 * against the project whose dictionary it writes, so its implementation has to live where a
+	 * {@code Project} is visible, and {@code dictionary-jpa} is below {@code project-domain} in the
+	 * module graph.
+	 *
+	 * @return a new EditDictionaryWordCommand for adding a word to a project's dictionary.
+	 */
+	public EditProjectDictionaryWordCommand newEditDictionaryWordCommand();
+
+	/**
+	 * @return a new command adding a word to a project's dictionary from its Dictionary page,
+	 *         gated on {@code Project[Edit]} (issue #319).
+	 */
+	public AddProjectDictionaryWordCommand newAddProjectDictionaryWordCommand();
+
+	/**
+	 * @return a new command removing one word from a project's dictionary, gated on
+	 *         {@code Project[Edit]} (issue #319).
+	 */
+	public DeleteProjectDictionaryWordCommand newDeleteProjectDictionaryWordCommand();
+
+	/**
+	 * @return a new command that stops ignoring an assistant finding; requires
+	 *         {@code Project[Edit]} (issue #320).
+	 */
+	public DeleteIgnoredFindingCommand newDeleteIgnoredFindingCommand();
+
+	/**
+	 * @return a new command that re-runs the assistants on every text entity of a project;
+	 *         requires {@code Annotation[Edit]} (issue #268).
+	 */
+	public AnalyzeProjectCommand newAnalyzeProjectCommand();
+
+	/**
+	 * @return a new command switching one of a project's assistants on or off; requires
+	 *         {@code Project[Edit]} (issue #268).
+	 */
+	public EditProjectAssistantSettingCommand newEditProjectAssistantSettingCommand();
+
+	/** Issue #264: create one of the project's own assistant definitions. */
+	public AssistantDefinitionCommand.Create newCreateAssistantDefinitionCommand();
+
+	/** Issue #264: edit one of the project's assistant definitions. */
+	public AssistantDefinitionCommand.Edit newEditAssistantDefinitionCommand();
+
+	/** Issue #264: copy a bundled assistant definition into the project. */
+	public AssistantDefinitionCommand.Fork newForkAssistantDefinitionCommand();
+
+	/** Issue #264: drop the project's copy of a bundled assistant definition. */
+	public AssistantDefinitionCommand.Revert newRevertAssistantDefinitionCommand();
+
+	/** Issue #264: delete one of the project's own assistant definitions. */
+	public AssistantDefinitionCommand.Delete newDeleteAssistantDefinitionCommand();
+
+	/**
+	 * @return a new command switching one of a project's data-handling settings (remote AI
+	 *         providers, redaction categories) on or off; requires {@code Project[Edit]}
+	 *         (issue #262).
+	 */
+	public EditProjectDataHandlingSettingCommand newEditProjectDataHandlingSettingCommand();
+
+	/**
+	 * @return a new command creating or updating a project's external source; requires
+	 *         {@code Project[Edit]} (issue #272).
+	 */
+	public RecordSourceCommand newRecordSourceCommand();
+
+	/**
+	 * @return a new command linking an entity to a fragment of a source; requires the entity's
+	 *         {@code Edit} (issue #272).
+	 */
+	public LinkSourceCommand newLinkSourceCommand();
+
+	/**
+	 * @return a new command removing an entity's link to a source; requires the entity's
+	 *         {@code Edit} (issue #272).
+	 */
+	public UnlinkSourceCommand newUnlinkSourceCommand();
+
+	/**
+	 * @return a new command creating or updating an entity from a fragment of a source, raising a
+	 *         conflict instead of overwriting a Requel edit; requires the entity's {@code Edit}
+	 *         (issue #272).
+	 */
+	public UpsertFromSourceCommand newUpsertFromSourceCommand();
+
+	/**
+	 * @return a new command deleting a project source that nothing was derived from; requires
+	 *         {@code Project[Edit]} (issue #273).
+	 */
+	public DeleteSourceCommand newDeleteSourceCommand();
+
+	/**
+	 * @return a new command recording that one source defers to another; requires
+	 *         {@code Project[Edit]} (issue #273).
+	 */
+	public AddSourceAuthorityCommand newAddSourceAuthorityCommand();
+
+	/**
+	 * @return a new command removing a "defers to" edge between sources; requires
+	 *         {@code Project[Edit]} (issue #273).
+	 */
+	public RemoveSourceAuthorityCommand newRemoveSourceAuthorityCommand();
+
+	/**
+	 * @return a new command adding an installation-wide dictionary word; administrators only
+	 *         (issue #319).
+	 */
+	public AddInstallDictionaryWordCommand newAddInstallDictionaryWordCommand();
+
+	/**
+	 * @return a new command removing an installation-wide dictionary word; administrators only
+	 *         (issue #319).
+	 */
+	public DeleteInstallDictionaryWordCommand newDeleteInstallDictionaryWordCommand();
+
+	/**
+	 * @return a new AddGlossaryTermRefererCommand for recording that an entity mentions an
+	 *         existing glossary term, without the caller needing GlossaryTerm[Edit] (#302).
+	 */
+	public AddGlossaryTermRefererCommand newAddGlossaryTermRefererCommand();
+
+	/**
 	 * @return a new EditAddWordToGlossaryPositionCommand for creating or
 	 *         editing a position for adding a term to the project glossary.
 	 */
@@ -141,6 +275,12 @@ public interface ProjectCommandFactory extends CommandFactory {
 	 * @return a new EditUseCaseCommand for creating or editing a usecase.
 	 */
 	public EditUseCaseCommand newEditUseCaseCommand();
+
+	public AddScenarioToUseCaseCommand newAddScenarioToUseCaseCommand();
+
+	public RemoveScenarioFromUseCaseCommand newRemoveScenarioFromUseCaseCommand();
+
+	public SetPrimaryScenarioOnUseCaseCommand newSetPrimaryScenarioOnUseCaseCommand();
 
 	/**
 	 * @return a new EditScenarioCommand for creating or editing a scenario.

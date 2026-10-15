@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -28,13 +29,17 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.project.Actor;
-import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.StoryContainer;
 import com.rreganjr.requel.project.command.DeleteStoryCommand;
@@ -54,8 +59,8 @@ import com.rreganjr.requel.user.UserRepository;
  */
 @Controller("deleteStoryCommand")
 @Scope("prototype")
-public class DeleteStoryCommandImpl extends AbstractEditProjectCommand implements
-		DeleteStoryCommand {
+public class DeleteStoryCommandImpl extends AbstractDeleteProjectEntityCommand implements
+		DeleteStoryCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	private Story story;
 
@@ -87,25 +92,26 @@ public class DeleteStoryCommandImpl extends AbstractEditProjectCommand implement
 	@Override
 	public void execute() throws Exception {
 		Story story = getRepository().get(getStory());
+		// #296: refuse before touching anything if the caller read an older version.
+		refuseStaleDelete(Story.class, story, story.getVersion());
 		User editedBy = getRepository().get(getEditedBy());
 		Set<Annotation> annotations = new HashSet<Annotation>(story.getAnnotations());
 		for (Annotation annotation : annotations) {
-			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = getAnnotationCommandFactory()
-					.newRemoveAnnotationFromAnnotatableCommand();
+			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = CascadeAuthorizable.cascade(this,
+					getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand());
 			removeAnnotationFromAnnotatableCommand.setEditedBy(editedBy);
 			removeAnnotationFromAnnotatableCommand.setAnnotatable(story);
 			removeAnnotationFromAnnotatableCommand.setAnnotation(annotation);
 			getCommandHandler().execute(removeAnnotationFromAnnotatableCommand);
 		}
 		// remove this entity as a referrer to any terms
-		for (GlossaryTerm term : story.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(story)) {
-				term.getReferers().remove(story);
-			}
-		}
+		// #386: by native delete; removing from the @ManyToAny referers set fails in Hibernate.
+		getProjectRepository().removeGlossaryTermReferer(null, story);
 		for (Actor actor : story.getActors()) {
 			RemoveActorFromActorContainerCommand removeActorFromActorContainerCommand = getProjectCommandFactory().newRemoveActorFromActorContainerCommand();
 			removeActorFromActorContainerCommand.setEditedBy(editedBy);
+			// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+			CascadeAuthorizable.cascade(this, removeActorFromActorContainerCommand);
 			removeActorFromActorContainerCommand.setActor(actor);
 			removeActorFromActorContainerCommand.setActorContainer(story);
 			getCommandHandler().execute(removeActorFromActorContainerCommand);
@@ -113,6 +119,8 @@ public class DeleteStoryCommandImpl extends AbstractEditProjectCommand implement
 		for (Goal goal : story.getGoals()) {
 			RemoveGoalFromGoalContainerCommand removeGoalFromGoalContainerCommand = getProjectCommandFactory().newRemoveGoalFromGoalContainerCommand();
 			removeGoalFromGoalContainerCommand.setEditedBy(editedBy);
+			// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+			CascadeAuthorizable.cascade(this, removeGoalFromGoalContainerCommand);
 			removeGoalFromGoalContainerCommand.setGoal(goal);
 			removeGoalFromGoalContainerCommand.setGoalContainer(story);
 			getCommandHandler().execute(removeGoalFromGoalContainerCommand);
@@ -121,12 +129,40 @@ public class DeleteStoryCommandImpl extends AbstractEditProjectCommand implement
 		for (StoryContainer storyContainer : storyReferers) {
 			RemoveStoryFromStoryContainerCommand removeStoryFromStoryContainerCommand = getProjectCommandFactory().newRemoveStoryFromStoryContainerCommand();
 			removeStoryFromStoryContainerCommand.setEditedBy(editedBy);
+			// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+			CascadeAuthorizable.cascade(this, removeStoryFromStoryContainerCommand);
 			removeStoryFromStoryContainerCommand.setStory(story);
 			removeStoryFromStoryContainerCommand.setStoryContainer(storyContainer);
 			getCommandHandler().execute(removeStoryFromStoryContainerCommand);
 		}
+		// Clean up primary actor's @ManyToAny join-table row using direct SQL to avoid
+		// loading the collection (which may contain stale rows for deleted entities).
+		if (story.getPrimaryActor() != null) {
+			getProjectRepository().removeActorContainerFromActorJoinTable(
+					story.getPrimaryActor().getId(), story.getId(), "com.rreganjr.requel.project.Story");
+			// #247: like RemoveActorFromActorContainer, reload the actor after the native
+			// delete so its @ManyToAny referers no longer hold this (about to be removed) story
+			// - a stale element would make DeleteActor later merge() a removed container.
+			Actor primaryActor = getRepository().get(story.getPrimaryActor());
+			if (getRepository() instanceof com.rreganjr.repository.jpa.AbstractJpaRepository jpaRepo
+					&& jpaRepo.getEntityManager().contains(primaryActor)) {
+				jpaRepo.getEntityManager().refresh(primaryActor);
+			}
+		}
 		story.getProjectOrDomain().getStories().remove(story);
+		// #247: clear any annotation link committed since this entity was loaded.
+		removeAllAnnotationsBeforeDelete(story, editedBy);
 		getRepository().delete(story);
 	}
 
+	@Override
+	public Project getProject() {
+		if (story != null && story.getProjectOrDomain() instanceof Project project) return project;
+		return null;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(Story.class, "Delete");
+	}
 }

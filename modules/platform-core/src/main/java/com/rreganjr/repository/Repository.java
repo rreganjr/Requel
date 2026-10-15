@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -79,6 +79,23 @@ public interface Repository {
 	 * @throws EntityException
 	 */
 	public void delete(Object entity) throws EntityException;
+
+	/**
+	 * take an exclusive database lock on the row backing the supplied entity,
+	 * blocking until it is available, and return the attached entity.
+	 * <p>
+	 * Used to serialize a cascading delete against concurrent writers that reach
+	 * the same rows by a different path. The lock is held until the surrounding
+	 * transaction ends. Both sides of such a race must take this lock on the same
+	 * entity <em>first</em>, before touching anything the other side also touches,
+	 * or the two orderings deadlock. See issue #279.
+	 *
+	 * @param <T>
+	 * @param entity
+	 * @return the attached, locked entity.
+	 * @throws EntityException
+	 */
+	public <T> T lockForUpdate(T entity) throws EntityException;
 
 	/**
 	 * force the repository to sync up any pending work, without actually ending

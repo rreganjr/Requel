@@ -1,0 +1,10 @@
+Auto-generated from a source tracker item. Do not edit the block below — it is used by Requel to reconcile this goal on re-runs.
+
+```requel-provenance
+{
+  "v" : 1,
+  "sourceSystem" : "jira",
+  "sourceRef" : "CON-3686",
+  "criterionHash" : "60303ae22b998861bce3b28f33eec1be758a213c86c93c076dbe9f558c11c752"
+}
+```

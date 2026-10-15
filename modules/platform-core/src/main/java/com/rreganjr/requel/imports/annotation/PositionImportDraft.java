@@ -1,10 +1,8 @@
 /*
- * $Id: $
- *
- * Copyright 2025 Ron Regan Jr. All Rights Reserved.
- *
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +22,6 @@ package com.rreganjr.requel.imports.annotation;
 
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 
 public class PositionImportDraft {
@@ -32,6 +29,7 @@ public class PositionImportDraft {
     private final String createdByExternalId;
     private final String text;
     private final String positionType;
+    private final String proposedWord;
     private final Set<String> argumentExternalIds;
     private final java.util.List<ArgumentDraft> arguments;
 
@@ -40,6 +38,7 @@ public class PositionImportDraft {
         this.createdByExternalId = builder.createdByExternalId;
         this.text = builder.text;
         this.positionType = builder.positionType;
+        this.proposedWord = builder.proposedWord;
         this.argumentExternalIds = Collections.unmodifiableSet(new HashSet<>(builder.argumentExternalIds));
         this.arguments = java.util.List.copyOf(builder.arguments);
     }
@@ -65,6 +64,10 @@ public class PositionImportDraft {
         return positionType;
     }
 
+    public String getProposedWord() {
+        return proposedWord;
+    }
+
     public Set<String> getArgumentExternalIds() {
         return argumentExternalIds;
     }
@@ -80,6 +83,7 @@ public class PositionImportDraft {
         private String createdByExternalId;
         private String text;
         private String positionType;
+        private String proposedWord;
         private Set<String> argumentExternalIds = new HashSet<>();
         private java.util.List<ArgumentDraft> arguments = new java.util.ArrayList<>();
 
@@ -94,6 +98,9 @@ public class PositionImportDraft {
         }
         public Builder positionType(String positionType) {
             this.positionType = positionType; return this;
+        }
+        public Builder proposedWord(String proposedWord) {
+            this.proposedWord = proposedWord; return this;
         }
         public Builder argumentExternalIds(Set<String> ids) {
             if (ids != null) this.argumentExternalIds.addAll(ids);
@@ -114,7 +121,6 @@ public class PositionImportDraft {
             return this;
         }
         public PositionImportDraft build() {
-            Objects.requireNonNull(text, "position text is required");
             return new PositionImportDraft(this);
         }
     }

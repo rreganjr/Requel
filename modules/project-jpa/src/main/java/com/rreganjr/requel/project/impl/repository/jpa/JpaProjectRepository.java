@@ -1,9 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
- * 
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,6 +50,7 @@ import com.rreganjr.repository.jpa.GenericPropertyValueExceptionAdapter;
 import com.rreganjr.repository.jpa.InvalidStateExceptionAdapter;
 import com.rreganjr.repository.jpa.OptimisticLockExceptionAdapter;
 import com.rreganjr.platform.exception.NoSuchEntityException;
+import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.NoSuchPositionException;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
@@ -65,6 +65,7 @@ import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.StakeholderPermission;
 import com.rreganjr.requel.project.StakeholderPermissionType;
 import com.rreganjr.requel.project.Story;
+import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.EditProjectCommand;
@@ -127,14 +128,33 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
                 AddGlossaryTermPosition.class, AddActorPosition.class);
 	}
 
+	@Override
+	public <T> T findById(Class<T> entityType, Long id) throws NoSuchEntityException {
+		// Entity names follow the "<Interface>Impl" convention (e.g. GoalImpl,
+		// StoryImpl, ProjectImpl), so the impl class need not be imported here.
+		String entityName = entityType.getSimpleName() + "Impl";
+		try {
+			Query query = getEntityManager()
+					.createQuery("select e from " + entityName + " as e where e.id = :id");
+			query.setParameter("id", id);
+			return entityType.cast(query.getSingleResult());
+		} catch (NoResultException e) {
+			throw NoSuchEntityException.byQuery(entityType, new String[] { "id" },
+					new Object[] { id });
+		} catch (EntityException e) {
+			throw e;
+		} catch (Exception e) {
+			throw convertException(e, entityType, null, EntityExceptionActionType.Reading);
+		}
+	}
+
 	public Project findProjectByName(String name) throws NoSuchProjectException {
 		try {
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(project) from ProjectImpl as project where project.name like :name");
-			query.setParameter("name", name.trim());
-			return (Project) query.getSingleResult();
+							"select object(project) from ProjectImpl as project where project.name = :name");
+			return (Project) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchProjectException.forName(name);
 		} catch (Exception e) {
@@ -149,10 +169,9 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(goal) from GoalImpl as goal where goal.projectOrDomain = :projectOrDomain and goal.name like :name");
+							"select object(goal) from GoalImpl as goal where goal.projectOrDomain = :projectOrDomain and goal.name = :name");
 			query.setParameter("projectOrDomain", pod);
-			query.setParameter("name", name.trim());
-			return (Goal) query.getSingleResult();
+			return (Goal) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchEntityException.byQuery(Goal.class, new String[] { "project", "name" },
 					new Object[] { pod, name });
@@ -168,10 +187,9 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(scenario) from ScenarioImpl as scenario where scenario.projectOrDomain = :projectOrDomain and scenario.name like :name");
+							"select object(scenario) from ScenarioImpl as scenario where scenario.projectOrDomain = :projectOrDomain and scenario.name = :name");
 			query.setParameter("projectOrDomain", pod);
-			query.setParameter("name", name.trim());
-			return (Scenario) query.getSingleResult();
+			return (Scenario) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchEntityException.byQuery(Scenario.class, new String[] { "project", "name" },
 					new Object[] { pod, name });
@@ -181,12 +199,67 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 	}
 
 	@Override
+	public Step findStepByProjectOrDomainAndName(ProjectOrDomain pod, String name)
+			throws NoSuchEntityException {
+		try {
+			Query query = getEntityManager()
+					.createQuery(
+							// Issue #254: equality, not "like". With no wildcards in the value the two
+							// behave the same, but a name containing % or _ matched OTHER entities
+							// — and this finder now backs a uniqueness guard, so a false match
+							// refuses a legitimate name. Same defect and same fix as #284's
+							// findPosition.
+							"select object(step) from StepImpl as step where step.projectOrDomain = :projectOrDomain and step.name = :name");
+			query.setParameter("projectOrDomain", pod);
+			return (Step) singleResultByName(query, name);
+		} catch (NoResultException e) {
+			throw NoSuchEntityException.byQuery(Step.class, new String[] { "project", "name" },
+					new Object[] { pod, name });
+		} catch (Exception e) {
+			throw convertException(e, Step.class, null, EntityExceptionActionType.Reading);
+		}
+	}
+
+	@Override
+	public Set<UserStakeholder> findUserStakeholdersWithPermission(StakeholderPermission permission) {
+		Query query = getEntityManager().createQuery(
+				"select s from UserStakeholderImpl s where :permission member of s.stakeholderPermissions");
+		query.setParameter("permission", permission);
+		return new HashSet<UserStakeholder>(query.getResultList());
+	}
+
+	@Override
+	public Set<Step> findStepsByProjectOrDomain(ProjectOrDomain projectOrDomain) {
+		try {
+			Query query = getEntityManager().createQuery(
+					"select step from StepImpl step where step.projectOrDomain = :projectOrDomain");
+			query.setParameter("projectOrDomain", projectOrDomain);
+			return new HashSet<Step>(query.getResultList());
+		} catch (Exception e) {
+			throw convertException(e, Step.class, null, EntityExceptionActionType.Reading);
+		}
+	}
+
+	@Override
+	public boolean isStepUsedByAnotherScenario(Step step, Scenario except) {
+		try {
+			Query query = getEntityManager().createQuery(
+					"select count(s) from ScenarioImpl s where :step member of s.steps and s <> :except");
+			query.setParameter("step", step);
+			query.setParameter("except", except);
+			return ((Number) query.getSingleResult()).longValue() > 0;
+		} catch (Exception e) {
+			throw convertException(e, Step.class, null, EntityExceptionActionType.Reading);
+		}
+	}
+
+	@Override
 	public Set<Scenario> findScenariosUsedByUseCase(UseCase usecase) {
 		try {
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(scenario) from ScenarioImpl as scenario inner join scenario.usingUseCases as useCases where :usecase in useCases");
+							"select s from ScenarioImpl s where :usecase member of s.usingUseCases");
 			query.setParameter("usecase", usecase);
 			return new HashSet<Scenario>(query.getResultList());
 		} catch (NoResultException e) {
@@ -203,10 +276,9 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(stakeholder) from NonUserStakeholderImpl as stakeholder where stakeholder.projectOrDomain = :projectOrDomain and stakeholder.name like :name and stakeholder.user is null");
+							"select object(stakeholder) from NonUserStakeholderImpl as stakeholder where stakeholder.projectOrDomain = :projectOrDomain and stakeholder.name = :name and stakeholder.user is null");
 			query.setParameter("projectOrDomain", projectOrDomain);
-			query.setParameter("name", name.trim());
-			return (NonUserStakeholder) query.getSingleResult();
+			return (NonUserStakeholder) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchEntityException.byQuery(Scenario.class, new String[] { "project", "name" },
 					new Object[] { projectOrDomain, name });
@@ -253,6 +325,32 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 		}
 	}
 
+	@SuppressWarnings("unchecked")
+	public java.util.List<Project> findAllProjects() {
+		try {
+			// TODO: use named query so it can be configured externally
+			Query query = getEntityManager().createQuery(
+					"select object(project) from ProjectImpl as project order by project.name");
+			return query.getResultList();
+		} catch (Exception e) {
+			throw convertException(e, Project.class, null, EntityExceptionActionType.Reading);
+		}
+	}
+
+	@Override
+	public Set<Project> findActiveProjects(User user) {
+		try {
+			// #323: a query rather than role.getActiveProjects(), so the caller neither needs the
+			// user to be managed nor pays to initialize the collection on it.
+			Query query = getEntityManager().createQuery(
+					"select p from ProjectUserRole r join r.activeProjects p where r.user = :user");
+			query.setParameter("user", user);
+			return new TreeSet<Project>(query.getResultList());
+		} catch (Exception e) {
+			throw convertException(e, Project.class, null, EntityExceptionActionType.Reading);
+		}
+	}
+
 	public Set<StakeholderPermission> findAvailableStakeholderPermissions() {
 		try {
 			// TODO: use named query so it can be configured externally
@@ -265,6 +363,22 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 		}
 	}
 
+	/**
+	 * @see com.rreganjr.requel.project.ProjectRepository#findAssistantStakeholderPermissions()
+	 */
+	@Override
+	public Set<StakeholderPermission> findAssistantStakeholderPermissions() {
+		// findStakeholderPermission throws when a row is absent, which is the behaviour this
+		// needs: returning a short set would hand the assistant fewer permissions than it
+		// needs and reproduce #302 somewhere new.
+		Set<StakeholderPermission> permissions = new TreeSet<StakeholderPermission>();
+		permissions.add(findStakeholderPermission(Annotation.class,
+				StakeholderPermissionType.Edit));
+		permissions.add(findStakeholderPermission(Annotation.class,
+				StakeholderPermissionType.Delete));
+		return permissions;
+	}
+
 	@Override
 	public GlossaryTerm findGlossaryTermForProjectOrDomain(ProjectOrDomain projectOrDomain,
 			String name) {
@@ -274,9 +388,8 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 					"select object(term) from GlossaryTermImpl as term "
 							+ "where term.name = :name and "
 							+ "term.projectOrDomain = :projectOrDomain");
-			query.setParameter("name", name.trim());
 			query.setParameter("projectOrDomain", projectOrDomain);
-			return (GlossaryTerm) query.getSingleResult();
+			return (GlossaryTerm) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchGlossaryTermException.forProjectOrDomainWithName(projectOrDomain, name);
 		} catch (Exception e) {
@@ -303,6 +416,52 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 			return new HashSet<GlossaryTerm>(query.getResultList());
 		} catch (Exception e) {
 			throw convertException(e, GlossaryTerm.class, null, EntityExceptionActionType.Reading);
+		}
+	}
+
+	@Override
+	public void removeGlossaryTermReferer(GlossaryTerm term, ProjectOrDomainEntity referer) {
+		try {
+			Set<GlossaryTerm> affected = term != null ? Set.of(term)
+					: findGlossaryTermsForProjectOrDomainEntity(referer);
+			getEntityManager().flush();
+			Query delete = getEntityManager().createNativeQuery("DELETE FROM terms_referers"
+					+ " WHERE referer_type = :entityType AND referer_id = :entityId"
+					+ (term != null ? " AND term_id = :termId" : ""));
+			delete.setParameter("entityType",
+					referer.getProjectOrDomainEntityInterface().getName());
+			delete.setParameter("entityId", getId(referer));
+			if (term != null) {
+				delete.setParameter("termId", getId(term));
+			}
+			delete.executeUpdate();
+			refreshTerms(affected);
+		} catch (Exception e) {
+			throw convertException(e, GlossaryTerm.class, null, EntityExceptionActionType.Updating);
+		}
+	}
+
+	@Override
+	public void removeAllGlossaryTermReferers(GlossaryTerm term) {
+		try {
+			getEntityManager().flush();
+			getEntityManager().createNativeQuery("DELETE FROM terms_referers WHERE term_id = :termId")
+					.setParameter("termId", getId(term))
+					.executeUpdate();
+			refreshTerms(Set.of(term));
+		} catch (Exception e) {
+			throw convertException(e, GlossaryTerm.class, null, EntityExceptionActionType.Updating);
+		}
+	}
+
+	/** Reload managed terms so their referers match the rows just deleted. */
+	private void refreshTerms(Set<GlossaryTerm> terms) {
+		for (GlossaryTerm term : terms) {
+			Object managed = getEntityManager().contains(term) ? term
+					: getEntityManager().find(GlossaryTermImpl.class, getId(term));
+			if (managed != null) {
+				getEntityManager().refresh(managed);
+			}
 		}
 	}
 
@@ -353,10 +512,9 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(actor) from ActorImpl as actor where actor.projectOrDomain = :projectOrDomain and actor.name like :name");
+							"select object(actor) from ActorImpl as actor where actor.projectOrDomain = :projectOrDomain and actor.name = :name");
 			query.setParameter("projectOrDomain", projectOrDomain);
-			query.setParameter("name", name.trim());
-			return (Actor) query.getSingleResult();
+			return (Actor) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchActorException.forProjectOrDomainWithName(projectOrDomain, name);
 		} catch (Exception e) {
@@ -371,10 +529,9 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(story) from StoryImpl as story where story.projectOrDomain = :projectOrDomain and story.name like :name");
+							"select object(story) from StoryImpl as story where story.projectOrDomain = :projectOrDomain and story.name = :name");
 			query.setParameter("projectOrDomain", projectOrDomain);
-			query.setParameter("name", name.trim());
-			return (Story) query.getSingleResult();
+			return (Story) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchActorException.forProjectOrDomainWithName(projectOrDomain, name);
 		} catch (Exception e) {
@@ -389,10 +546,9 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(usecase) from UseCaseImpl as usecase where usecase.projectOrDomain = :projectOrDomain and usecase.name like :name");
+							"select object(usecase) from UseCaseImpl as usecase where usecase.projectOrDomain = :projectOrDomain and usecase.name = :name");
 			query.setParameter("projectOrDomain", projectOrDomain);
-			query.setParameter("name", name.trim());
-			return (UseCase) query.getSingleResult();
+			return (UseCase) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchActorException.forProjectOrDomainWithName(projectOrDomain, name);
 		} catch (Exception e) {
@@ -409,8 +565,7 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 					.createQuery(
 							"select object(reportGenerator) from ReportGeneratorImpl as reportGenerator where reportGenerator.projectOrDomain = :projectOrDomain and reportGenerator.name = :name");
 			query.setParameter("projectOrDomain", projectOrDomain);
-			query.setParameter("name", name.trim());
-			return (ReportGenerator) query.getSingleResult();
+			return (ReportGenerator) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchEntityException.byQuery(Scenario.class, new String[] { "project", "name" },
 					new Object[] { projectOrDomain, name });
@@ -419,4 +574,100 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 		}
 	}
 
+	@Override
+	public void removeGoalContainerFromGoalJoinTable(Long goalId, Long goalContainerId,
+			String goalContainerType) {
+		// #386: by type too; goalcontainer_id is shared across container types.
+		getEntityManager()
+				.createNativeQuery("DELETE FROM goals_goalcontainers WHERE goal_id = :goalId"
+						+ " AND goalcontainer_id = :containerId AND goalcontainer_type = :containerType")
+				.setParameter("goalId", goalId)
+				.setParameter("containerId", goalContainerId)
+				.setParameter("containerType", goalContainerType)
+				.executeUpdate();
+	}
+
+	@Override
+	public void addGoalContainerToGoalJoinTable(Long goalId, Long goalContainerId, String goalContainerType) {
+		getEntityManager()
+				.createNativeQuery(
+						"INSERT IGNORE INTO goals_goalcontainers (goal_id, goalcontainer_id, goalcontainer_type) VALUES (:goalId, :containerId, :containerType)")
+				.setParameter("goalId", goalId)
+				.setParameter("containerId", goalContainerId)
+				.setParameter("containerType", goalContainerType)
+				.executeUpdate();
+	}
+
+	@Override
+	public void removeActorContainerFromActorJoinTable(Long actorId, Long actorContainerId,
+			String actorContainerType) {
+		// #386: by type too; actorcontainer_id is shared across container types.
+		getEntityManager()
+				.createNativeQuery("DELETE FROM actor_actorcontainers WHERE actor_id = :actorId"
+						+ " AND actorcontainer_id = :containerId AND actorcontainer_type = :containerType")
+				.setParameter("actorId", actorId)
+				.setParameter("containerId", actorContainerId)
+				.setParameter("containerType", actorContainerType)
+				.executeUpdate();
+	}
+
+	@Override
+	public void addActorContainerToActorJoinTable(Long actorId, Long actorContainerId, String actorContainerType) {
+		getEntityManager()
+				.createNativeQuery(
+						"INSERT IGNORE INTO actor_actorcontainers (actor_id, actorcontainer_id, actorcontainer_type) VALUES (:actorId, :containerId, :containerType)")
+				.setParameter("actorId", actorId)
+				.setParameter("containerId", actorContainerId)
+				.setParameter("containerType", actorContainerType)
+				.executeUpdate();
+	}
+
+	@Override
+	public void removeStoryContainerFromStoryJoinTable(Long storyId, Long storyContainerId,
+			String storyContainerType) {
+		// #386: by type too; storycontainer_id is shared across container types.
+		getEntityManager()
+				.createNativeQuery("DELETE FROM story_storycontainers WHERE story_id = :storyId"
+						+ " AND storycontainer_id = :containerId AND storycontainer_type = :containerType")
+				.setParameter("storyId", storyId)
+				.setParameter("containerId", storyContainerId)
+				.setParameter("containerType", storyContainerType)
+				.executeUpdate();
+	}
+
+	@Override
+	public void addStoryContainerToStoryJoinTable(Long storyId, Long storyContainerId, String storyContainerType) {
+		getEntityManager()
+				.createNativeQuery(
+						"INSERT IGNORE INTO story_storycontainers (story_id, storycontainer_id, storycontainer_type) VALUES (:storyId, :containerId, :containerType)")
+				.setParameter("storyId", storyId)
+				.setParameter("containerId", storyContainerId)
+				.setParameter("containerType", storyContainerType)
+				.executeUpdate();
+	}
+
+
+	/**
+	 * Runs a lookup by name: the query's {@code :name} parameter is the name as given, and if
+	 * nothing matches, the name trimmed.
+	 *
+	 * <p>#398: the lookups used to trim the name and match it with LIKE. A name saved with a
+	 * trailing space ("Goal ") could then never be found, LIKE doesn't pad, so relating that goal
+	 * failed with "no goal found"; and {@code _} and {@code %} in a name were wildcards. Names
+	 * are now saved trimmed and matched with {@code =}; trying the name as given first still
+	 * finds one saved with spaces before that.
+	 */
+	private Object singleResultByName(Query query, String name) {
+		query.setParameter("name", name);
+		try {
+			return query.getSingleResult();
+		} catch (NoResultException e) {
+			String trimmed = name.trim();
+			if (trimmed.equals(name)) {
+				throw e;
+			}
+			query.setParameter("name", trimmed);
+			return query.getSingleResult();
+		}
+	}
 }

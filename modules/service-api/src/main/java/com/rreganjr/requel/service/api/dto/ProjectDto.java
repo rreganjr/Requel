@@ -1,0 +1,46 @@
+/*
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+package com.rreganjr.requel.service.api.dto;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public record ProjectDto(
+        Long id,
+        int version,
+        String name,
+        String description,
+        String organizationName,
+        String createdBy,
+        String status,
+        int stakeholderCount,
+        int goalCount,
+        int storyCount,
+        int actorCount,
+        int useCaseCount,
+        int scenarioCount,
+        int glossaryTermCount,
+        int reportGeneratorCount,
+        // Words in the project's own dictionary (issue #319); installation words are not counted.
+        int dictionaryWordCount,
+        boolean canDelete
+) {
+}

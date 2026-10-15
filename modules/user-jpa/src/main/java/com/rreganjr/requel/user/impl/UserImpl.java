@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009, 2018 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,6 +56,7 @@ import com.rreganjr.requel.user.*;
 import org.apache.commons.lang3.StringUtils;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -70,6 +71,7 @@ import com.rreganjr.requel.user.exception.NoSuchUserException;
 import com.rreganjr.requel.user.exception.UserEntityException;
 import com.rreganjr.requel.user.JAXBOrganizedEntityPatcher;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
+import com.rreganjr.validator.ValidationLimits;
 
 /**
  * @author ron
@@ -170,8 +172,9 @@ public class UserImpl implements User, Serializable {
 		this.id = id;
 	}
 
+	@Override
 	@Version
-	protected int getVersion() {
+	public int getVersion() {
 		return version;
 	}
 
@@ -180,6 +183,7 @@ public class UserImpl implements User, Serializable {
 	}
 
 	@XmlElement(name = "name", defaultValue = "", required = true, namespace = "http://www.rreganjr.com/requel")
+	@Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
 	public String getName() {
 		return name;
 	}
@@ -191,6 +195,7 @@ public class UserImpl implements User, Serializable {
 	@Column(unique = true, nullable = false)
 	@NotEmpty(message = "username is required.")
 	@XmlElement(name = "username", required = true, namespace = "http://www.rreganjr.com/requel")
+	@Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
 	public String getUsername() {
 		return username;
 	}
@@ -210,6 +215,12 @@ public class UserImpl implements User, Serializable {
 
 	@Transient
 	public boolean isPassword(String password) {
+		// Issue #260: an assistant identity writes annotations; it never logs in. Every login path
+		// (REST, the OAuth2 form, LoginCommand) checks the password here, so refusing here closes
+		// them all - including the original account, created with the password "assistant".
+		if (com.rreganjr.platform.identity.User.isAssistant(this)) {
+			return false;
+		}
 		boolean matches;
 		// because validation rules could change between when a user set their password and when they login don't check
 		// the validity, but do check for length to insulate from DOS attacks that try to pass invalid huge passwords.
@@ -352,6 +363,7 @@ public class UserImpl implements User, Serializable {
 	}
 
 	@XmlElementRef(type = OrganizationImpl.class, namespace = "http://www.rreganjr.com/requel")
+	@NotNull(message = "organization is required.")
 	@ManyToOne(targetEntity = OrganizationImpl.class, cascade = { CascadeType.MERGE,
 			CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.EAGER, optional = false)
 	public Organization getOrganization() {
@@ -377,8 +389,10 @@ public class UserImpl implements User, Serializable {
 
 	@XmlElementWrapper(name = "userRoles", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRef(type = AbstractUserRole.class)
+	// #247: no REFRESH cascade into the roles - a ProjectUserRole's activeProjects fans out
+	// to every project the user is on (see AbstractProjectOrDomainEntity.getProjectOrDomain).
 	@OneToMany(targetEntity = AbstractUserRole.class, cascade = { CascadeType.MERGE,
-			CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.EAGER)
+			CascadeType.PERSIST }, fetch = FetchType.EAGER)
 	@JoinTable(name = "users_user_roles", joinColumns = { @JoinColumn(name = "user_id") },
             inverseJoinColumns = { @JoinColumn(name = "role_id") })
 	@Size(min = 1, message = "one or more roles must be selected.")
@@ -401,6 +415,11 @@ public class UserImpl implements User, Serializable {
 	@Transient
 	public <T extends Role> T getRoleForType(Class<T> userRoleType)
 			throws NoSuchRoleForUserException {
+		// null on a no-args (Hibernate) instance before its roles load; #260 asks hasRole from
+		// isPassword, which can run on one.
+		if (getUserRoles() == null) {
+			throw NoSuchRoleForUserException.forUserRoleTypeName(this, userRoleType);
+		}
 		for (UserRole role : getUserRoles()) {
 			if (userRoleType.isAssignableFrom(role.getClass())) {
 				return userRoleType.cast(role);

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,6 +48,13 @@ public interface Issue extends Annotation {
 	 * @return if the issue is resolved, the date it was resolve.
 	 */
 	public Date getResolvedDate();
+
+	/**
+	 * @return how much the issue matters; never null for a persisted issue. An issue created
+	 *         without one gets its kind's default ({@code MEDIUM}, or {@code LOW} for a lexical
+	 *         issue). Issue #271.
+	 */
+	public IssueSeverity getSeverity();
 
 	/**
 	 * Resolve this issue with the given position and user. The resolved date is

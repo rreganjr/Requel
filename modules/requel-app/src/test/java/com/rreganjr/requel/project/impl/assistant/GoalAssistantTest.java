@@ -1,10 +1,8 @@
 /*
- * $Id: $
- *
- * Copyright 2025 Ron Regan Jr. All Rights Reserved.
- *
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,18 +28,23 @@ import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.platform.identity.User;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.junit4.SpringRunner;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * Test the GoalAssistant
  * 
  * @author ron
  */
-@RunWith(SpringRunner.class)
 public class GoalAssistantTest extends AbstractIntegrationTestCase {
+
+	private AssistantTaskRunner assistantTaskRunner;
+
+	@Autowired
+	protected void setAssistantTaskRunner(AssistantTaskRunner assistantTaskRunner) {
+		this.assistantTaskRunner = assistantTaskRunner;
+	}
 
 	/**
 	 * Test the goal assistant with a spelling error in the goal name.
@@ -85,10 +88,36 @@ public class GoalAssistantTest extends AbstractIntegrationTestCase {
 		// assertEquals(1, goal.getAnnotations().size());
 		for (Annotation annotation : goal.getAnnotations()) {
 			if ((annotation instanceof Issue) && annotation.getText().contains("'groal'")) {
-				Assert.assertEquals(
+				assertEquals(
 						"The word 'groal' in the goal name is not recognized and may be spelled incorrectly.",
 						annotation.getText());
 			}
 		}
+	}
+
+	@Test
+	public void testAssistantTaskRunnerAnalyzesDetachedGoal() throws Exception {
+		ensureDictionaryLoaded();
+		long uniqueifier = System.currentTimeMillis();
+		String projectName = "Test Project " + uniqueifier;
+		String organizationName = "Test Organization " + uniqueifier;
+		User creator = getUserRepository().findUserByUsername("project");
+		EditProjectCommand editProjectCommand = getProjectCommandFactory().newEditProjectCommand();
+		editProjectCommand.setEditedBy(creator);
+		editProjectCommand.setName(projectName);
+		editProjectCommand.setOrganizationName(organizationName);
+		editProjectCommand = getCommandHandler().execute(editProjectCommand);
+		Project project = editProjectCommand.getProject();
+
+		EditGoalCommand editGoalCommand = getProjectCommandFactory().newEditGoalCommand();
+		editGoalCommand.setEditedBy(creator);
+		editGoalCommand.setGoalContainer(project);
+		editGoalCommand.setName("Test groal " + uniqueifier);
+		editGoalCommand.setText("new content must be distinguished "
+				+ "from archive content with a tag or other visual marker.");
+		editGoalCommand = getCommandHandler().execute(editGoalCommand);
+		Goal goal = editGoalCommand.getGoal();
+
+		assertDoesNotThrow(() -> assistantTaskRunner.analyzeGoal(goal));
 	}
 }

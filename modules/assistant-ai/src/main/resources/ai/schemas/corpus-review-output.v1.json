@@ -1,0 +1,83 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "One-paragraph summary of the relationships found."
+    },
+    "findings": {
+      "type": "array",
+      "description": "Findings about relationships between entities of the set, each naming every entity it is about.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "findingType": {
+            "type": "string",
+            "description": "Stable finding category from the definition's vocabulary."
+          },
+          "participants": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "string"
+            },
+            "description": "The entities the finding is about, as Type:id refs from the index: at least two."
+          },
+          "severity": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              null
+            ],
+            "description": "Relative severity, or null if unspecified."
+          },
+          "confidence": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Model confidence 0.0-1.0, or null."
+          },
+          "evidenceReferences": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Short quotes from the participants' text that show the relationship."
+          },
+          "suggestedIssueText": {
+            "type": "string",
+            "description": "The issue to raise: what the relationship is and why it matters, naming the participants."
+          },
+          "suggestedPositions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Proposed ways to resolve it."
+          }
+        },
+        "required": [
+          "findingType",
+          "participants",
+          "severity",
+          "confidence",
+          "evidenceReferences",
+          "suggestedIssueText",
+          "suggestedPositions"
+        ]
+      }
+    }
+  },
+  "required": [
+    "summary",
+    "findings"
+  ]
+}

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,10 +28,17 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.ActorContainer;
+import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.command.RemoveActorFromActorContainerCommand;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
+import com.rreganjr.requel.project.impl.repository.jpa.JpaProjectRepository;
 import com.rreganjr.requel.user.UserRepository;
 
 /**
@@ -40,7 +47,12 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("removeActorFromActorContainerCommand")
 @Scope("prototype")
 public class RemoveActorFromActorContainerCommandImpl extends AbstractEditProjectCommand implements
-		RemoveActorFromActorContainerCommand {
+		RemoveActorFromActorContainerCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.Actor.class, "Edit");
+	}
 
 	/**
 	 * @param assistantManager
@@ -83,13 +95,38 @@ public class RemoveActorFromActorContainerCommandImpl extends AbstractEditProjec
 	public void execute() {
 		Actor removedActor = getProjectRepository().get(getActor());
 		ActorContainer removingContainer = getProjectRepository().get(getActorContainer());
-		removedActor.getReferers().remove(removingContainer);
-		removingContainer.getActors().remove(removedActor);
 
-		// replaced the supplied objects with the updated objects for retrieval.
-		removedActor = getRepository().merge(removedActor);
-		removingContainer = getRepository().merge(removingContainer);
+		// Hibernate 6.5 bug: @ManyToAny collection removal generates invalid SQL for the
+		// actor_actorcontainers join table. Use a native DELETE instead.
+		JpaProjectRepository jpaRepo = (JpaProjectRepository) getProjectRepository();
+		jakarta.persistence.PersistenceUnitUtil puu = jpaRepo.getEntityManager()
+				.getEntityManagerFactory().getPersistenceUnitUtil();
+		Long actorId = (Long) puu.getIdentifier(removedActor);
+		Long containerId = (Long) puu.getIdentifier(removingContainer);
+		jpaRepo.removeActorContainerFromActorJoinTable(actorId, containerId,
+				AddActorToActorContainerCommandImpl.actorContainerDiscriminator(removingContainer));
+		jpaRepo.getEntityManager().refresh(removedActor);
+
+		// #247: inside a cascade the container may already have been removed in this
+		// transaction (its @ManyToAny referer row was left behind by an earlier native detach),
+		// in which case get() handed back the removed instance. Mutating and merge()-ing a removed
+		// entity makes Hibernate re-persist it, and the commit then fails with
+		// "persistent instance references an unsaved transient instance". The join row is gone
+		// either way, so leave the removed container alone.
+		if (jpaRepo.getEntityManager().contains(removingContainer)) {
+			removingContainer.getActors().remove(removedActor);
+			removingContainer = getRepository().merge(removingContainer);
+		}
 		setActor(removedActor);
 		setActorContainer(removingContainer);
+	}
+
+	@Override
+	public Project getProject() {
+		if (actorContainer instanceof Project project) return project;
+		if (actorContainer instanceof ProjectOrDomainEntity pode
+				&& pode.getProjectOrDomain() instanceof Project project) return project;
+		if (actor != null && actor.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 }

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +20,21 @@
  */
 package com.rreganjr.requel.project.impl;
 
+import java.util.Comparator;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.hibernate.annotations.SortNatural;
+
 import com.rreganjr.platform.identity.User;
+import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.tagging.Taggable;
+import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.ProjectOrDomain;
+import com.rreganjr.requel.project.Scenario;
+import com.rreganjr.requel.project.Story;
+import com.rreganjr.requel.project.UseCase;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -35,6 +46,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.xml.bind.annotation.XmlAttribute;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlElementWrapper;
@@ -43,18 +55,9 @@ import jakarta.xml.bind.annotation.XmlIDREF;
 import jakarta.xml.bind.annotation.XmlRootElement;
 import jakarta.xml.bind.annotation.XmlTransient;
 import jakarta.xml.bind.annotation.XmlType;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 
-import org.hibernate.annotations.SortNatural;
-import jakarta.validation.constraints.NotEmpty;
-import org.xml.sax.SAXException;
-import com.rreganjr.requel.project.Actor;
-import com.rreganjr.requel.project.Goal;
-import com.rreganjr.requel.project.ProjectOrDomain;
-import com.rreganjr.requel.project.Scenario;
-import com.rreganjr.requel.project.Story;
-import com.rreganjr.requel.project.UseCase;
-
-import com.rreganjr.requel.user.UserRepository;
 /**
  * @author ron
  */
@@ -63,14 +66,15 @@ import com.rreganjr.requel.user.UserRepository;
 		"projectordomain_id", "name" }) })
 @XmlRootElement(name = "usecase", namespace = "http://www.rreganjr.com/requel")
 @XmlType(name = "usecase", namespace = "http://www.rreganjr.com/requel")
-public class UseCaseImpl extends AbstractTextEntity implements UseCase {
+public class UseCaseImpl extends AbstractTextEntity implements UseCase, Taggable {
 	static final long serialVersionUID = 0L;
 
 	private Actor primaryActor;
-	private Set<Goal> goals = new TreeSet<Goal>();
-	private Set<Actor> actors = new TreeSet<Actor>();
-	private Set<Story> stories = new TreeSet<Story>();
+	private Set<Goal> goals = new TreeSet<>();
+	private Set<Actor> actors = new TreeSet<>();
+	private Set<Story> stories = new TreeSet<>();
 	private Scenario scenario;
+	private Set<Scenario> additionalScenarios = new TreeSet<>(Comparator.comparing(Scenario::getName, Comparator.nullsLast(Comparator.naturalOrder())));
 
 	/**
 	 * Create a use case.
@@ -99,6 +103,7 @@ public class UseCaseImpl extends AbstractTextEntity implements UseCase {
 	@Column(nullable = false, unique = false)
 	@NotEmpty(message = "a unique name is required.")
 	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
+	@Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
 	public String getName() {
 		return super.getName();
 	}
@@ -222,6 +227,41 @@ public class UseCaseImpl extends AbstractTextEntity implements UseCase {
 
 	public void setScenario(Scenario scenario) {
 		this.scenario = scenario;
+	}
+
+	@Override
+	@XmlTransient
+	@ManyToMany(targetEntity = ScenarioImpl.class, cascade = { CascadeType.MERGE,
+			CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.LAZY)
+	@JoinTable(name = "usecase_scenarios",
+			joinColumns = @JoinColumn(name = "usecase_id"),
+			inverseJoinColumns = @JoinColumn(name = "scenario_id"))
+	public Set<Scenario> getAdditionalScenarios() {
+		return additionalScenarios;
+	}
+
+	public void setAdditionalScenarios(Set<Scenario> additionalScenarios) {
+		this.additionalScenarios = additionalScenarios;
+	}
+
+	/**
+	 * Issue #275: the additional scenarios in the XML export, which dropped them before (the JPA
+	 * property is {@code @XmlTransient}), so an export/import round trip lost them and an emitted
+	 * document could not place them under their use case. Sorted by id so the export is stable.
+	 */
+	@Transient
+	@XmlIDREF
+	@XmlElementWrapper(name = "additionalScenarios", namespace = "http://www.rreganjr.com/requel")
+	@XmlElement(name = "scenarioRef", type = ScenarioImpl.class, namespace = "http://www.rreganjr.com/requel")
+	public java.util.List<Scenario> getExportAdditionalScenarios() {
+		java.util.List<Scenario> sorted = new java.util.ArrayList<>(getAdditionalScenarios());
+		sorted.sort(java.util.Comparator.comparing(Scenario::getId,
+				java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())));
+		return sorted;
+	}
+
+	public void setExportAdditionalScenarios(java.util.List<Scenario> scenarios) {
+		// export only: the streaming import reads additionalScenarios itself
 	}
 
 	@Override

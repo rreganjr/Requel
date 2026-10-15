@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,13 +29,17 @@ import org.springframework.stereotype.Controller;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
+import com.rreganjr.validator.EntityValidationException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.ProjectOrDomain;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.ScenarioType;
 import com.rreganjr.requel.project.UseCase;
+import com.rreganjr.requel.project.command.AnalysisRequestSource;
 import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.EditScenarioCommand;
 import com.rreganjr.requel.project.command.EditScenarioStepCommand;
@@ -53,7 +57,17 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editUseCaseCommand")
 @Scope("prototype")
 public class EditUseCaseCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
-		EditUseCaseCommand {
+		EditUseCaseCommand, AnalysisRequestSource, com.rreganjr.requel.project.ProjectScopedCommand, com.rreganjr.platform.command.AuthorizableCommand {
+
+	@Override
+	public com.rreganjr.requel.project.Project getProject() {
+		return (getProjectOrDomain() instanceof com.rreganjr.requel.project.Project p) ? p : null;
+	}
+
+	@Override
+	public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+		return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission(com.rreganjr.requel.project.UseCase.class, "Edit");
+	}
 
 	private UseCase usecase;
 	private String primaryActorName;
@@ -115,33 +129,46 @@ public class EditUseCaseCommandImpl extends AbstractEditProjectOrDomainEntityCom
 		User editedBy = getRepository().get(getEditedBy());
 		UseCaseImpl usecaseImpl = (UseCaseImpl) getUseCase();
 
-		// check for uniqueness
-		try {
-			UseCase existing = getProjectRepository().findUseCaseByProjectOrDomainAndName(
-					projectOrDomain, getName());
-			if (usecaseImpl == null) {
-				throw EntityException.uniquenessConflict(UseCase.class, existing, FIELD_NAME,
-						EntityExceptionActionType.Creating);
-			} else if (!existing.equals(usecaseImpl)) {
-				throw EntityException.uniquenessConflict(UseCase.class, existing, FIELD_NAME,
-						EntityExceptionActionType.Updating);
+		// check for uniqueness (skip when name is absent — edit-only-description scenario)
+		if (getName() != null && !getName().trim().isEmpty()) {
+			try {
+				UseCase existing = getProjectRepository().findUseCaseByProjectOrDomainAndName(
+						projectOrDomain, getName());
+				if (usecaseImpl == null) {
+					throw EntityException.uniquenessConflict(UseCase.class, existing, FIELD_NAME,
+							EntityExceptionActionType.Creating);
+				} else if (!existing.equals(usecaseImpl)) {
+					throw EntityException.uniquenessConflict(UseCase.class, existing, FIELD_NAME,
+							EntityExceptionActionType.Updating);
+				}
+			} catch (NoSuchEntityException e) {
 			}
-		} catch (NoSuchEntityException e) {
 		}
 
-		Actor primaryActor;
-		try {
-			primaryActor = getProjectRepository().findActorByProjectOrDomainAndName(
-					projectOrDomain, getPrimaryActorName());
-		} catch (NoSuchActorException e) {
-			EditActorCommand editActorCommand = getProjectCommandFactory().newEditActorCommand();
-			editActorCommand.setName(getPrimaryActorName());
-			editActorCommand.setActorContainer(projectOrDomain);
-			editActorCommand.setEditedBy(editedBy);
-			editActorCommand.setProjectOrDomain(projectOrDomain);
-			// don't analyze the actor because it only has a name at this point.
-			editActorCommand.setAnalysisEnabled(false);
-			primaryActor = getCommandHandler().execute(editActorCommand).getActor();
+		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
+		usecaseImpl = checkExpectedVersion(usecaseImpl);
+
+		// Issue #325: a use case must have a primary actor (usecases.primary_actor_id is NOT
+		// NULL), so a blank name is refused rather than cleared. Null leaves it as it is.
+		if (getPrimaryActorName() != null && getPrimaryActorName().trim().isEmpty()) {
+			throw EntityValidationException.validationFailed(UseCase.class, "primaryActorName",
+					"a use case needs a primary actor");
+		}
+		Actor primaryActor = null;
+		if (getPrimaryActorName() != null && !getPrimaryActorName().trim().isEmpty()) {
+			try {
+				primaryActor = getProjectRepository().findActorByProjectOrDomainAndName(
+						projectOrDomain, getPrimaryActorName());
+			} catch (NoSuchActorException e) {
+				EditActorCommand editActorCommand = getProjectCommandFactory().newEditActorCommand();
+				editActorCommand.setName(getPrimaryActorName());
+				editActorCommand.setActorContainer(projectOrDomain);
+				editActorCommand.setEditedBy(editedBy);
+				editActorCommand.setProjectOrDomain(projectOrDomain);
+				// don't analyze the actor because it only has a name at this point.
+				editActorCommand.setAnalysisEnabled(false);
+				primaryActor = getCommandHandler().execute(editActorCommand).getActor();
+			}
 		}
 
 		if (usecaseImpl == null) {
@@ -159,6 +186,7 @@ public class EditUseCaseCommandImpl extends AbstractEditProjectOrDomainEntityCom
 					new UseCaseImpl(projectOrDomain, primaryActor, editedBy, getName(), getText(),
 							editScenarioCommand.getScenario()));
 		} else {
+			String previousName = usecaseImpl.getName();
 			if (getName() != null) {
 				usecaseImpl.setName(getName());
 			}
@@ -173,17 +201,37 @@ public class EditUseCaseCommandImpl extends AbstractEditProjectOrDomainEntityCom
 				}
 				usecaseImpl.setPrimaryActor(primaryActor);
 			}
-			EditScenarioCommand editScenarioCommand = getProjectCommandFactory()
-					.newEditScenarioCommand();
-			editScenarioCommand.setScenario(getRepository().get(usecaseImpl.getScenario()));
-			editScenarioCommand.setEditedBy(editedBy);
-			editScenarioCommand.setName(getName());
-			editScenarioCommand.setProjectOrDomain(projectOrDomain);
-			editScenarioCommand.setScenarioTypeName(ScenarioType.Primary.name());
-			editScenarioCommand.setStepCommands(getStepCommands());
-			// the scenario will be analyzed when the use case is analyzed.
-			editScenarioCommand.setAnalysisEnabled(false);
-			editScenarioCommand = getCommandHandler().execute(editScenarioCommand);
+			// Issue #325: this nested edit used to run on every save with the use case's name and
+			// the caller's step list, so a UI save (which sends no steps) wiped the primary
+			// scenario's steps and renamed it back to the use-case name. It now runs only when
+			// there is something to do: steps were supplied, the use case has no primary scenario
+			// yet (the editor's "create primary scenario" relies on this), or the use case was
+			// renamed and its scenario still carried the old name.
+			Scenario scenario = getRepository().get(usecaseImpl.getScenario());
+			boolean renamed = (getName() != null) && !getName().equals(previousName);
+			boolean syncName = renamed && (scenario != null)
+					&& scenario.getName().equals(previousName);
+			if ((scenario == null) || (getStepCommands() != null) || syncName) {
+				EditScenarioCommand editScenarioCommand = getProjectCommandFactory()
+						.newEditScenarioCommand();
+				editScenarioCommand.setScenario(scenario);
+				editScenarioCommand.setEditedBy(editedBy);
+				editScenarioCommand.setProjectOrDomain(projectOrDomain);
+				if (scenario == null) {
+					editScenarioCommand.setName(usecaseImpl.getName());
+					editScenarioCommand.setScenarioTypeName(ScenarioType.Primary.name());
+				} else if (syncName) {
+					editScenarioCommand.setName(getName());
+				}
+				editScenarioCommand.setStepCommands(getStepCommands());
+				// the scenario will be analyzed when the use case is analyzed.
+				editScenarioCommand.setAnalysisEnabled(false);
+				editScenarioCommand = getCommandHandler().execute(editScenarioCommand);
+				if (usecaseImpl.getScenario() == null) {
+					usecaseImpl.setScenario(editScenarioCommand.getScenario());
+					usecaseImpl = getProjectRepository().merge(usecaseImpl);
+				}
+			}
 		}
 		if (projectOrDomain != null) {
 			projectOrDomain.getUseCases().add(usecaseImpl);
@@ -194,10 +242,32 @@ public class EditUseCaseCommandImpl extends AbstractEditProjectOrDomainEntityCom
 		setUseCase(usecaseImpl);
 	}
 
+	/**
+	 * Legacy fallback. The UseCase path is migrated to the assistant SPI (issue #43):
+	 * the command-handler layer detects {@link AnalysisRequestSource} and dispatches
+	 * through {@code AnalysisRequestDispatcher}, so this method is normally not
+	 * invoked for use cases. It is retained as a safe fallback.
+	 *
+	 * <p>
+	 * Note: the legacy {@code analyzeUseCase} also cascaded analysis to the use
+	 * case's primary actor and scenario. Under the SPI's per-target model those
+	 * entities are analyzed when they themselves are edited, so the cascade is not
+	 * reproduced.
+	 */
 	@Override
 	public void invokeAnalysis() {
 		if (isAnalysisEnabled()) {
 			getAssistantManager().analyzeUseCase(getUseCase());
 		}
+	}
+
+	@Override
+	public ProjectOrDomainEntity getAnalysisTarget() {
+		return getUseCase();
+	}
+
+	@Override
+	public User getAnalysisTriggeredBy() {
+		return getEditedBy();
 	}
 }

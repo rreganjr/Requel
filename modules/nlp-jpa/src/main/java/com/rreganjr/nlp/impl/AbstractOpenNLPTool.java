@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,6 +29,9 @@ import org.apache.log4j.Logger;
 import opennlp.tools.ml.maxent.GISModel;
 import opennlp.tools.ml.maxent.io.BinaryGISModelReader;
 import opennlp.tools.ml.maxent.io.GISModelReader;
+import opennlp.tools.postag.POSModel;
+import opennlp.tools.postag.POSTagFormat;
+import opennlp.tools.postag.POSTaggerME;
 
 import com.rreganjr.nlp.dictionary.NLPProcessor;
 
@@ -63,5 +66,14 @@ public abstract class AbstractOpenNLPTool<T> implements NLPProcessor<T> {
 			return (GISModel)modelReader.getModel();
 		}
 		throw new IOException("Could not read model file " + modelFile + ", unknown type.");
+	}
+
+	/**
+	 * Build a POS tagger that emits Penn Treebank tags. OpenNLP 2.x taggers default to Universal
+	 * Dependencies tags ({@code DET}, {@code NOUN}), while {@code ParseTag.tagOf} expects Penn
+	 * ({@code DT}, {@code NN}) (#314).
+	 */
+	protected static POSTaggerME newPosTagger(POSModel model) {
+		return new POSTaggerME(model, POSTagFormat.PENN);
 	}
 }

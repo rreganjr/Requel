@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@ package com.rreganjr.platform.bootstrap;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -33,6 +35,8 @@ import org.springframework.stereotype.Component;
 @Component("databaseInitializer")
 @Scope("prototype")
 public class DatabaseInitializer {
+
+	private static final Logger log = LoggerFactory.getLogger(DatabaseInitializer.class);
 
 	private final Set<SystemInitializer> entityInitializers;
 
@@ -52,7 +56,20 @@ public class DatabaseInitializer {
 	 */
 	public void initialize() {
 		for (SystemInitializer initializer : entityInitializers) {
-			initializer.initialize();
+			try {
+				initializer.initialize();
+			} catch (FatalInitializationException e) {
+				// The initializer has established its work was asked for and could not be done.
+				// Let it stop the boot rather than leaving a broken system running (issue #288).
+				log.error("System initializer {} failed fatally; aborting initialization",
+						initializer.getClass().getSimpleName(), e);
+				throw e;
+			} catch (RuntimeException e) {
+				// Don't let one failing initializer abort the rest of the chain (e.g. user
+				// seeding ordered after it). Log and continue so the system still bootstraps.
+				log.error("System initializer {} failed; continuing with remaining initializers",
+						initializer.getClass().getSimpleName(), e);
+			}
 		}
 	}
 }

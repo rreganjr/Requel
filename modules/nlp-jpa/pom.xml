@@ -7,13 +7,13 @@
     <parent>
         <groupId>com.rreganjr.requel</groupId>
         <artifactId>Requel-parent</artifactId>
-        <version>1.2.0</version>
+        <version>2.0.0</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
     <artifactId>nlp-jpa</artifactId>
     <name>Requel NLP JPA</name>
-    <description>NLP processing tools and models (OpenNLP/Stanford) used by assistants.</description>
+    <description>NLP processing tools (OpenNLP/Stanford) used by assistants. The models and dictionary data they read come from requel-nlp-data (see modules/nlp-data).</description>
 
     <dependencies>
         <dependency>
@@ -27,16 +27,30 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!--
+          NLP data (#193): the nlp/... classpath tree the OpenNLP classes here and the dictionary
+          initializers in dictionary-jpa read. The type=pom dependency orders modules/nlp-data,
+          which fetches and installs the data jar, ahead of this module; the runtime one puts the
+          data on the classpath and in requel-app's fat jar (BOOT-INF/lib). See
+          doc/guides/NLP_DATA.md.
+        -->
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>nlp-data</artifactId>
+            <version>${project.version}</version>
+            <type>pom</type>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>requel-nlp-data</artifactId>
+            <version>${requel.nlp-data.version}</version>
+            <scope>runtime</scope>
+        </dependency>
         <!-- OpenNLP -->
         <dependency>
             <groupId>org.apache.opennlp</groupId>
             <artifactId>opennlp-tools</artifactId>
             <version>2.5.9</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.opennlp</groupId>
-            <artifactId>opennlp-maxent</artifactId>
-            <version>3.0.3</version>
         </dependency>
 
         <!-- Stanford CoreNLP (parser, NER, etc.) -->
@@ -44,12 +58,30 @@
             <groupId>edu.stanford.nlp</groupId>
             <artifactId>stanford-corenlp</artifactId>
             <version>4.5.6</version>
+            <!-- CoreNLP pulls in XOM, and XOM pulls in xercesImpl. Xerces registers itself as the
+                 JAXP DocumentBuilderFactory, and it rejects the JAXP 1.5 accessExternalDTD attribute
+                 that OpenNLP 2.x's XmlUtil sets, so every POSTaggerME construction threw
+                 IllegalArgumentException (#314). Nothing in Requel uses Xerces directly; with it
+                 excluded, JAXP resolves to the JDK's built-in parser. requel-app declares CoreNLP
+                 directly too and carries the same exclusion. -->
+            <exclusions>
+                <exclusion>
+                    <groupId>xerces</groupId>
+                    <artifactId>xercesImpl</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>edu.stanford.nlp</groupId>
             <artifactId>stanford-corenlp</artifactId>
             <version>4.5.6</version>
             <classifier>models</classifier>
+            <exclusions>
+                <exclusion>
+                    <groupId>xerces</groupId>
+                    <artifactId>xercesImpl</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- XPath used by VerbNet parsers -->

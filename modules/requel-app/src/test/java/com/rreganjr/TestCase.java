@@ -1,6 +1,22 @@
 /*
- * $Id: TestCase.java,v 1.4 2008/08/24 04:13:42 rregan Exp $
- * Copyright (c) 2008 Ron Regan Jr. All Rights Reserved.
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
  */
 package com.rreganjr;
 
@@ -10,36 +26,92 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 
-import junit.framework.AssertionFailedError;
+import org.junit.jupiter.api.Assertions;
+import org.opentest4j.AssertionFailedError;
 
 /**
+ * Base class for unit tests that extends JUnit 5 assertion coverage to
+ * subclasses while preserving the custom byte[]/Collection/Map overloads.
+ * <p>
+ * The bridge overloads below are required because Java resolves inherited
+ * static methods before consulting {@code import static} declarations.  Without
+ * them, any call to {@code assertEquals(String, String)} inside a subclass
+ * would fail to resolve because the compiler finds the custom
+ * {@code assertEquals(byte[], byte[])} overload first and reports a type
+ * mismatch rather than falling through to the Assertions import.
+ * </p>
  * @author ron
  */
-public abstract class TestCase extends junit.framework.TestCase {
+public abstract class TestCase {
 
-	public TestCase() {
-		super();
-	}
+    // -----------------------------------------------------------------
+    // JUnit 5 bridge overloads — prevents custom overloads from shadowing
+    // the standard assertion methods that subclasses expect to inherit.
+    // -----------------------------------------------------------------
 
-	public TestCase(String name) {
-		super(name);
-	}
-
-	@Override
-	protected void setUp() throws Exception {
-		super.setUp();
-	}
-
-	@Override
-	protected void tearDown() throws Exception {
-		super.tearDown();
-	}
+    public static void assertEquals(Object expected, Object actual) {
+        Assertions.assertEquals(expected, actual);
+    }
+    public static void assertEquals(Object expected, Object actual, String message) {
+        Assertions.assertEquals(expected, actual, message);
+    }
+    public static void assertEquals(long expected, long actual) {
+        Assertions.assertEquals(expected, actual);
+    }
+    public static void assertEquals(long expected, long actual, String message) {
+        Assertions.assertEquals(expected, actual, message);
+    }
+    public static void assertEquals(int expected, int actual) {
+        Assertions.assertEquals(expected, actual);
+    }
+    public static void assertNotEquals(Object unexpected, Object actual) {
+        Assertions.assertNotEquals(unexpected, actual);
+    }
+    public static void assertNotEquals(long unexpected, long actual) {
+        Assertions.assertNotEquals(unexpected, actual);
+    }
+    public static void assertTrue(boolean condition) {
+        Assertions.assertTrue(condition);
+    }
+    public static void assertTrue(boolean condition, String message) {
+        Assertions.assertTrue(condition, message);
+    }
+    public static void assertFalse(boolean condition) {
+        Assertions.assertFalse(condition);
+    }
+    public static void assertFalse(boolean condition, String message) {
+        Assertions.assertFalse(condition, message);
+    }
+    public static void assertNull(Object object) {
+        Assertions.assertNull(object);
+    }
+    public static void assertNull(Object object, String message) {
+        Assertions.assertNull(object, message);
+    }
+    public static void assertNotNull(Object object) {
+        Assertions.assertNotNull(object);
+    }
+    public static void assertNotNull(Object object, String message) {
+        Assertions.assertNotNull(object, message);
+    }
+    public static void assertSame(Object expected, Object actual) {
+        Assertions.assertSame(expected, actual);
+    }
+    public static void assertNotSame(Object unexpected, Object actual) {
+        Assertions.assertNotSame(unexpected, actual);
+    }
+    public static void assertNotSame(Object unexpected, Object actual, String message) {
+        Assertions.assertNotSame(unexpected, actual, message);
+    }
+    public static void fail(String message) {
+        Assertions.fail(message);
+    }
 
 	/**
 	 * Test whether two byte arrays are equal by comparing the byte value of
 	 * each array element in the 'expected' array to the coresponding array
 	 * element in the 'actual'.
-	 * 
+	 *
 	 * @param expected
 	 * @param actual
 	 * @throws AssertionFailedError
@@ -69,7 +141,7 @@ public abstract class TestCase extends junit.framework.TestCase {
 
 	/**
 	 * Test whether two collections contain the same values.
-	 * 
+	 *
 	 * @param expected
 	 * @param actual
 	 * @throws AssertionFailedError
@@ -153,7 +225,7 @@ public abstract class TestCase extends junit.framework.TestCase {
 	/**
 	 * Test whether the actual collection contains all the entries in the
 	 * expected collection, although the actual may contain more.
-	 * 
+	 *
 	 * @param expected
 	 * @param actual
 	 * @throws AssertionFailedError
@@ -179,7 +251,7 @@ public abstract class TestCase extends junit.framework.TestCase {
 
 	/**
 	 * Test whether a collection contains an expected value.
-	 * 
+	 *
 	 * @param expected
 	 * @param actual
 	 * @throws AssertionFailedError
@@ -195,7 +267,7 @@ public abstract class TestCase extends junit.framework.TestCase {
 	/**
 	 * assert that the keys and values in the 'expected' map are exactly equal
 	 * to the keys and values in the 'actual' map.
-	 * 
+	 *
 	 * @param expected
 	 * @param actual
 	 * @throws AssertionFailedError
@@ -242,7 +314,7 @@ public abstract class TestCase extends junit.framework.TestCase {
 	/**
 	 * assert that the keys and values in the 'expected' map are also in the
 	 * 'actual' map, but the 'actual' map may contain more properties.
-	 * 
+	 *
 	 * @param expected
 	 * @param actual
 	 * @throws AssertionFailedError
@@ -288,7 +360,7 @@ public abstract class TestCase extends junit.framework.TestCase {
 
 	/**
 	 * Test that the supplied map contains the supplied key
-	 * 
+	 *
 	 * @param key
 	 * @param map
 	 * @throws AssertionFailedError

@@ -16,7 +16,7 @@
 		http://www.springframework.org/schema/aop https://www.springframework.org/schema/aop/spring-aop.xsd">
 
 	<aop:aspectj-autoproxy/>
-	
+
 	<!-- DomainObjectWrapper configuration -->
 	<!--
 	 * Entity types may be configured with a timeout period to determine if

@@ -1,10 +1,8 @@
 /*
- * $Id: $
- *
- * Copyright 2025 Ron Regan Jr. All Rights Reserved.
- *
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +21,7 @@
 package com.rreganjr.requel.annotation.imports;
 
 import com.rreganjr.requel.annotation.Annotation;
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.annotation.impl.IssueImpl;
 import com.rreganjr.requel.annotation.impl.NoteImpl;
 import com.rreganjr.requel.annotation.impl.PositionImpl;
@@ -34,9 +33,13 @@ import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import java.util.List;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
 public class AnnotationAssembler implements AggregateAssembler<AnnotationImportDraft, Annotation> {
+
+    private static final Logger log = LoggerFactory.getLogger(AnnotationAssembler.class);
 
     private final UserRepository userRepository;
     private final User defaultCreatedBy;
@@ -77,11 +80,13 @@ public class AnnotationAssembler implements AggregateAssembler<AnnotationImportD
             } else {
                 issue = new IssueImpl(groupingObject, draft.getText(), draft.isMustBeResolved(), createdBy);
             }
+            restoreSeverity(issue, draft);
             draft.getPositionExternalIds().forEach(posId -> unitOfWork.resolve(PositionImpl.class, posId)
                     .ifPresent(p -> {
                         issue.getPositions().add(p);
                         p.getIssues().add(issue);
                     }));
+            restoreResolution(issue, draft, unitOfWork, createdBy);
             attachAnnotatables(issue, draft);
             annotation = issue;
         } else {
@@ -90,6 +95,50 @@ public class AnnotationAssembler implements AggregateAssembler<AnnotationImportD
         }
         unitOfWork.register(Annotation.class, draft.getExternalId(), annotation);
         return annotation;
+    }
+
+    /**
+     * Issue #271: re-apply the exported severity. A file without one (exported before #271) keeps
+     * the kind's default the constructor set. An unknown value is logged and also keeps the
+     * default: an import restores what was exported and should not fail on one attribute.
+     */
+    private void restoreSeverity(IssueImpl issue, AnnotationImportDraft draft) {
+        if (draft.getSeverity() == null) {
+            return;
+        }
+        Optional<IssueSeverity> severity = IssueSeverity.parse(draft.getSeverity());
+        if (severity.isPresent()) {
+            issue.setSeverity(severity.get());
+        } else {
+            log.warn("import: issue {} has unknown severity '{}'; using the default {}",
+                    draft.getExternalId(), draft.getSeverity(), issue.getSeverity());
+        }
+    }
+
+    /**
+     * Issue #320: re-apply the resolution the export recorded. Positions are imported before
+     * annotations, so {@code resolvedByPosition} is already in the unit of work. The resolving
+     * user falls back to the issue's creator the way {@link #resolveCreatedBy} does. A position
+     * that isn't in the file leaves the issue open rather than failing the import.
+     */
+    private void restoreResolution(IssueImpl issue, AnnotationImportDraft draft,
+            ImportUnitOfWork unitOfWork, User fallbackUser) {
+        String positionId = draft.getResolvedByPositionExternalId();
+        if (!StringUtils.hasText(positionId)) {
+            return;
+        }
+        Optional<PositionImpl> position = unitOfWork.resolve(PositionImpl.class, positionId);
+        if (position.isEmpty()) {
+            log.warn("import: issue {} was resolved by position {}, which is not in the file;"
+                    + " importing it unresolved", draft.getExternalId(), positionId);
+            return;
+        }
+        User resolvedBy = fallbackUser;
+        if (StringUtils.hasText(draft.getResolvedByUserExternalId())) {
+            resolvedBy = unitOfWork.resolve(User.class, draft.getResolvedByUserExternalId())
+                    .orElse(fallbackUser);
+        }
+        issue.restoreResolution(position.get(), resolvedBy, draft.getResolvedDate());
     }
 
     private User resolveCreatedBy(AnnotationImportDraft draft, ImportUnitOfWork unitOfWork) {

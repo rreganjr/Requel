@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -68,7 +68,7 @@ public class AdminUserInitializer extends AbstractSystemInitializer {
 				command.setPassword("admin");
 				command.setRepassword("admin");
 				command.setName("System Administrator");
-				command.setEmailAddress("rreganjr@users.sourceforge.net");
+				command.setEmailAddress("admin@requel.invalid");
 				command.setOrganizationName("Requel");
 				command.addUserRoleName(SystemAdminUserRole.getRoleName(SystemAdminUserRole.class));
 				commandHandler.execute(command);

@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,11 +54,14 @@ import jakarta.validation.constraints.NotEmpty;
 import org.xml.sax.SAXException;
 
 import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.tagging.Taggable;
 import com.rreganjr.requel.project.ActorContainer;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 /**
  * @author ron
  */
@@ -67,7 +70,7 @@ import com.rreganjr.requel.user.UserRepository;
 		"projectordomain_id", "name" }) })
 @XmlRootElement(name = "actor", namespace = "http://www.rreganjr.com/requel")
 @XmlType(name = "actor", namespace = "http://www.rreganjr.com/requel")
-public class ActorImpl extends AbstractTextEntity implements Actor {
+public class ActorImpl extends AbstractTextEntity implements Actor, Taggable {
 	static final long serialVersionUID = 0L;
 
 	private Set<ActorContainer> referers = new TreeSet<ActorContainer>(ActorContainer.COMPARATOR);
@@ -92,6 +95,7 @@ public class ActorImpl extends AbstractTextEntity implements Actor {
 	@Column(nullable = false, unique = false)
 	@NotEmpty(message = "a unique name is required.")
 	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
+	@Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
 	public String getName() {
 		return super.getName();
 	}

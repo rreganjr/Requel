@@ -1,0 +1,46 @@
+/*
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+package com.rreganjr.requel.assistant.ai;
+
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+
+/**
+ * Binds {@link AiProperties}. The provider-client wiring lives in
+ * {@link com.rreganjr.requel.assistant.ai.spring.SpringAiClientConfiguration} so that
+ * property-binding tests can load this class without pulling in a {@code ChatClient.Builder}.
+ */
+@Configuration
+@EnableConfigurationProperties(AiProperties.class)
+public class AiConfiguration {
+
+	/**
+	 * Issue #262: whether the configured provider is local or remote. Read from the Environment
+	 * (not {@code @Value}, see #293) so test property sources apply.
+	 */
+	@Bean
+	public AiProviderLocality aiProviderLocality(AiProperties properties, Environment environment) {
+		return AiProviderLocality.classify(properties.getProvider(),
+				environment.getProperty("spring.ai.openai.base-url"));
+	}
+}

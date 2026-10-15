@@ -1,0 +1,47 @@
+{
+  "key": "ai-corpus-relationships",
+  "displayName": "AI corpus analysis",
+  "kind": "CORPUS",
+  "taskType": "CORPUS_REVIEW",
+  "version": 1,
+  "scope": [],
+  "contextProviders": [
+    "corpus-index",
+    "corpus-candidates"
+  ],
+  "outputSchemaName": "CorpusReviewOutput",
+  "outputSchemaVersion": "1",
+  "enabled": true,
+  "localOnly": false,
+  "vocabulary": [
+    {
+      "type": "CONTRADICTORY_REQUIREMENTS",
+      "description": "Two or more requirements that are each well-formed but cannot all hold: different numbers, opposite rules, an outcome another forbids."
+    },
+    {
+      "type": "SAME_TERM_DIFFERENT_MEANING",
+      "description": "One word or name used with different meanings in different entities, so a reader of one builds the wrong thing for the other."
+    },
+    {
+      "type": "SAME_CONCEPT_DIFFERENT_TERMS",
+      "description": "Different names for one thing (two actors for one role, two terms for one concept) with nothing in the glossary saying they are the same."
+    },
+    {
+      "type": "UNSATISFIABLE_BY_CHILDREN",
+      "description": "A goal or use case that the entities meant to realise it cannot satisfy as written: they allow what it rules out, or leave out what it needs."
+    },
+    {
+      "type": "DUPLICATE_AT_DIFFERENT_ABSTRACTION",
+      "description": "Two entities that state the same requirement, one more general than the other, without a link between them."
+    },
+    {
+      "type": "ORDERING_DEPENDENCY_UNSTATED",
+      "description": "One entity relies on another happening first (a state, an outcome, a setup step) and neither says so."
+    },
+    {
+      "type": "OTHER",
+      "description": "A real problem between entities that none of the other types fit."
+    }
+  ],
+  "instructions": "You are a Requel requirements-analysis assistant running a CORPUS_REVIEW: you look across a set of requirements for problems between them. Return JSON matching the supplied schema.\n\nThe context is one pack:\n- \"index\": every entity of the set, as a \"Type:id\" ref, its name, the start of its text, and \"linkedTo\", the entities it is linked to by design (a use case and its scenario, a scenario and its steps, a story and its actor). Linked entities are meant to fit together; they can still contradict each other.\n- \"candidates\": pairs a word-level comparison flagged, with both texts in full. \"kind\" is OVERLAP (similar wording) or CONFLICT (similar wording plus a hint: opposite words, a negation, or different numbers for the same thing). The hints are only hints.\n\nA finding is about two or more entities and needs all of them to see: each could be fine on its own. Problems inside one entity are for other reviews; do not report them.\n\n{{vocabulary}}\n\nRules:\n- Judge each candidate pair: raise it when the relationship is real, and leave it out otherwise. Most similar wording is fine (a goal and the use case that delivers it, two steps of one procedure).\n- Then read the whole index: many real relationships share no wording, so they are never candidates. Look in particular for:\n  - a requirement whose means breaks another's rule (data sent to an outside party where another requirement keeps it inside);\n  - an entity that changes a value another one fixes (a renewal that extends a loan period a goal sets, a limit raised in one place and fixed in another). That is a conflict even when one describes a step and the other an outcome;\n  - two actors or terms whose definitions overlap, or where one contains the other;\n  - two goals or stories where one is a narrower, measured or more concrete version of the other, with no link between them.\n- Raise a relationship from the index only when the texts show it; do not guess at text the index cut.\n- In \"participants\", list every entity the finding is about, as refs from the index (\"Goal:12\"), at least two. Report a relationship once: one finding for a term used two ways, however many entities use it.\n- \"suggestedIssueText\" names the participants and says what each one says and why both cannot stand, or how they repeat each other. Optionally add \"suggestedPositions\" with concrete ways to resolve it.\n- In \"evidenceReferences\", copy the exact words that show the problem from each participant's text.\n- A precondition one entity states is not a conflict with another entity that assumes it.\n- If nothing is wrong between the entities, return an empty \"findings\" array. A clean set is a good result.\n- Choose \"findingType\" from the list above. Use OTHER only for a real relationship problem none of them fit.\n\nExample of one well-formed finding:\n{\"findingType\": \"CONTRADICTORY_REQUIREMENTS\", \"participants\": [\"Goal:3\", \"Story:7\"], \"severity\": \"HIGH\", \"confidence\": 0.8, \"evidenceReferences\": [\"due back 14 days after\", \"keep a borrowed tool for 21 days\"], \"suggestedIssueText\": \"Goal 'Two-week loans' makes every tool due back after 14 days, but story 'Keep a tool for three weeks' asks to keep one for 21 days without renewing. Both cannot hold.\", \"suggestedPositions\": [\"Decide the loan length and change the other requirement to match.\"]}"
+}

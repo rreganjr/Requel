@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
 
 import org.hibernate.Hibernate;
@@ -68,7 +69,16 @@ public class AbstractJpaRepository extends AbstractRepository {
 			}
 			Object id = getId(target);
 			if (id != null) {
-				return entityManager.merge(target);
+				// Detached, id-bearing entity. If the row exists this is an update -> merge. If
+				// the row is absent (an id carried from an import or a stale cross-context cache),
+				// Hibernate 6.6's merge issues a 0-row UPDATE and throws StaleObjectStateException;
+				// insert it as new instead (IDENTITY ids regenerate, assigned/natural keys kept).
+				// See issue #76.
+				if (entityManager.find(target.getClass(), id) != null) {
+					return entityManager.merge(target);
+				}
+				insertNew(target);
+				return target;
 			}
 			entityManager.persist(target);
 			return target;
@@ -76,6 +86,42 @@ public class AbstractJpaRepository extends AbstractRepository {
 			log.warn(e, e);
 			throw convertException(e, entity.getClass(), entity, EntityExceptionActionType.Creating);
 		}
+	}
+
+	/**
+	 * Import semantics: always INSERT a new row graph for the supplied (typically just-
+	 * deserialized) entity, regardless of any id it carries. {@link #persist(Object)} routes
+	 * id-bearing entities to {@code merge()}; under Hibernate 6.6 a merge of a detached entity
+	 * whose row is absent (e.g. an IDENTITY entity carrying an id used only for XML
+	 * cross-references) becomes a 0-row UPDATE and throws StaleObjectStateException. This forces
+	 * an insert of the whole cascade graph: IDENTITY ids are (re)generated, assigned/natural keys
+	 * (e.g. composite ids) are kept. See issue #76.
+	 *
+	 * <p>Uses Hibernate's legacy insert-graph primitive, deprecated-for-removal in Hibernate 7 —
+	 * revisit when upgrading past 6.x.
+	 */
+	public <T> T create(T entity) throws EntityException {
+		if (entity == null) {
+			return null;
+		}
+		try {
+			insertNew(entity);
+			return entity;
+		} catch (Exception e) {
+			log.warn(e, e);
+			throw convertException(e, entity.getClass(), entity, EntityExceptionActionType.Creating);
+		}
+	}
+
+	/**
+	 * Insert a new row (graph) for a detached/transient entity, (re)generating IDENTITY ids and
+	 * keeping assigned/natural keys. Uses Hibernate's legacy insert primitive (deprecated-for-
+	 * removal in Hibernate 7 — revisit then). Shared by {@link #create(Object)} and the
+	 * absent-row branch of {@link #persist(Object)}.
+	 */
+	@SuppressWarnings("deprecation")
+	private void insertNew(Object target) {
+		entityManager.unwrap(org.hibernate.Session.class).save(target);
 	}
 
 	/**
@@ -155,6 +201,34 @@ public class AbstractJpaRepository extends AbstractRepository {
 		} catch (Exception e) {
 			log.warn(e, e);
 			throw convertException(e, entity.getClass(), entity, EntityExceptionActionType.Deleting);
+		}
+	}
+
+	/**
+	 * Take a {@code PESSIMISTIC_WRITE} (SELECT ... FOR UPDATE) lock on the entity's row,
+	 * blocking until it is granted or the database's own lock-wait timeout fires.
+	 * <p>
+	 * {@link #attach(EntityManager, Object)} does the unwrapping: the argument arrives here
+	 * as a CGLIB entity proxy (this class is advised by {@code DomainObjectWrappingAdvice}),
+	 * and Hibernate must be handed the raw entity. Locking the proxy would fail (#279).
+	 */
+	@Override
+	public <T> T lockForUpdate(T entity) throws EntityException {
+		if (entity == null) {
+			return null;
+		}
+		try {
+			T attached = attach(entityManager, entity);
+			// attach() returns the detached original (with a warning) when the row is gone.
+			// There is nothing to gate in that case, and locking a detached instance would
+			// throw; leave the caller to fail on its own terms, exactly as it did before.
+			if (entityManager.contains(attached)) {
+				entityManager.lock(attached, LockModeType.PESSIMISTIC_WRITE);
+			}
+			return attached;
+		} catch (Exception e) {
+			log.warn(e, e);
+			throw convertException(e, entity.getClass(), entity, EntityExceptionActionType.Reading);
 		}
 	}
 

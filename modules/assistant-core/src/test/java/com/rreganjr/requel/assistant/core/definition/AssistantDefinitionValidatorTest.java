@@ -1,0 +1,310 @@
+/*
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+package com.rreganjr.requel.assistant.core.definition;
+
+import static com.rreganjr.requel.assistant.core.definition.Definitions.fallback;
+import static com.rreganjr.requel.assistant.core.definition.Definitions.project;
+import static com.rreganjr.requel.assistant.core.definition.Definitions.review;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.junit.jupiter.api.Test;
+
+/** #260: what a definition must meet to be saved or seeded. */
+class AssistantDefinitionValidatorTest {
+
+	private final AssistantDefinitionValidator validator = new AssistantDefinitionValidator(1000);
+
+	@Test
+	void aWellFormedDefinitionPasses() {
+		assertThatCode(() -> validator.validate(fallback("default"), List.of()))
+				.doesNotThrowAnyException();
+		assertThatCode(() -> validator.validate(review("goals", Set.of("Goal", "Story")),
+				List.of(fallback("default")))).doesNotThrowAnyException();
+	}
+
+	@Test
+	void anUnknownEntityTypeIsRejected() {
+		assertThatThrownBy(() -> validator.validate(review("x", Set.of("Goal", "Widget")),
+				List.of()))
+				.isInstanceOf(InvalidAssistantDefinitionException.class)
+				.hasMessageContaining("unknown entity type(s) in scope: [Widget]");
+	}
+
+	@Test
+	void anUnknownContextProviderIsRejected() {
+		AssistantDefinition d = withProviders(fallback("x"), List.of("entity", "siblings"));
+		assertThatThrownBy(() -> validator.validate(d, List.of()))
+				.hasMessageContaining("unknown context provider(s): [siblings]");
+	}
+
+	@Test
+	void theRegisteredProvidersAreTheOnesAccepted() {
+		AssistantDefinitionValidator registered = new AssistantDefinitionValidator(1000,
+				Set.of("entity", "goal-relations"));
+		AssistantDefinition d = withProviders(fallback("x"), List.of("entity", "goal-siblings"));
+		assertThatThrownBy(() -> registered.validate(d, List.of()))
+				.hasMessageContaining("unknown context provider(s): [goal-siblings]")
+				.hasMessageContaining("(known: [entity, goal-relations])");
+	}
+
+	@Test
+	void theBuiltInProvidersAreAcceptedWithoutARegistry() {
+		AssistantDefinition d = withProviders(fallback("x"), List.of("entity", "goal-relations",
+				"goal-siblings", "goal-stakeholders", "usecase-scenarios", "scenario-usecases",
+				"step-sequence", "story-actors", "actor-references"));
+		assertThatCode(() -> validator.validate(d, List.of())).doesNotThrowAnyException();
+	}
+
+	@Test
+	void contextBudgetsMustNameAUsedProviderBePositiveAndFitTheCap() {
+		AssistantDefinition ok = withBudgets(
+				withProviders(fallback("x"), List.of("entity", "goal-siblings")),
+				Map.of("goal-siblings", 2000));
+		assertThatCode(() -> validator.validate(ok, List.of())).doesNotThrowAnyException();
+
+		AssistantDefinition bad = withBudgets(
+				withProviders(fallback("y"), List.of("entity", "goal-siblings")),
+				Map.of("goal-relations", 10, "goal-siblings", 0, "entity", 5));
+		assertThatThrownBy(() -> validator.validate(bad, List.of()))
+				.hasMessageContaining("contextBudgets names goal-relations")
+				.hasMessageContaining("contextBudgets names entity")
+				.hasMessageContaining("contextBudgets.goal-siblings must be positive");
+
+		AssistantDefinition tooBig = withBudgets(
+				withProviders(fallback("z"), List.of("entity", "goal-siblings")),
+				Map.of("goal-siblings", 4001));
+		assertThatThrownBy(() -> validator.validate(tooBig, List.of()))
+				.hasMessageContaining("contextBudgets total 4001 characters is over the input cap of 4000");
+	}
+
+	@Test
+	void aVocabularyCategoryMustBeQualityOrExtraction() {
+		AssistantDefinition f = fallback("x");
+		AssistantDefinition bad = new AssistantDefinition(f.key(), f.displayName(), f.kind(),
+				f.taskType(), f.scope(), f.contextProviders(), f.instructions(),
+				List.of(new VocabularyEntry("A", "a"), new VocabularyEntry("B", "b", "nonsense")),
+				f.outputSchemaName(), f.outputSchemaVersion(), f.enabled(), f.version(), f.source(),
+				f.projectId(), f.forkedFromVersion(), f.executorBean());
+		assertThatThrownBy(() -> validator.validate(bad, List.of()))
+				.hasMessageContaining("vocabulary type B has unknown category nonsense");
+		assertThat(new VocabularyEntry("A", "a", null).category()).isEqualTo("quality");
+	}
+
+	/** #265: a policy pairs with POLICY_REVIEW and its schema; many may share a scope. */
+	@Test
+	void aPolicyServesThePolicyTaskAndNeverCollides() {
+		AssistantDefinition everywhere = Definitions.policy("p1", Set.of());
+		AssistantDefinition goals = Definitions.policy("p2", Set.of("Goal"));
+		validator.validate(everywhere, List.of(Definitions.policy("p0", Set.of()), goals));
+		validator.validate(goals, List.of(everywhere, Definitions.policy("p3", Set.of("Goal"))));
+
+		AssistantDefinition f = fallback("x");
+		AssistantDefinition onReviewTask = new AssistantDefinition("p4", "P", DefinitionKind.POLICY,
+				f.taskType(), Set.of(), f.contextProviders(), f.instructions(), f.vocabulary(),
+				f.outputSchemaName(), f.outputSchemaVersion(), true, 1, DefinitionSource.BUNDLED,
+				null, null, null);
+		assertThatThrownBy(() -> validator.validate(onReviewTask, List.of()))
+				.hasMessageContaining("a POLICY definition serves task POLICY_REVIEW")
+				.hasMessageContaining("uses the PolicyReviewOutput output schema");
+
+		AssistantDefinition reviewOnPolicyTask = new AssistantDefinition("r", "R",
+				DefinitionKind.REVIEW, AssistantDefinition.POLICY_REVIEW, Set.of(),
+				f.contextProviders(), f.instructions(), f.vocabulary(),
+				AssistantDefinition.POLICY_OUTPUT_SCHEMA, "1", true, 1, DefinitionSource.BUNDLED,
+				null, null, null);
+		assertThatThrownBy(() -> validator.validate(reviewOnPolicyTask, List.of()))
+				.hasMessageContaining("task POLICY_REVIEW is for POLICY definitions")
+				.hasMessageContaining("output schema is for POLICY definitions");
+	}
+
+	/** #266: a corpus definition pairs with CORPUS_REVIEW, scopes set kinds, reads the corpus. */
+	@Test
+	void aCorpusDefinitionServesTheCorpusTaskOverSetKinds() {
+		AssistantDefinition f = fallback("x");
+		AssistantDefinition corpus = corpus("c1", Set.of("PROJECT", "GOAL"),
+				List.of("corpus-index", "corpus-candidates"));
+		assertThatCode(() -> validator.validate(corpus, List.of())).doesNotThrowAnyException();
+
+		assertThatThrownBy(() -> validator.validate(corpus("c2", Set.of("Goal"),
+				List.of("corpus-index", "entity")), List.of()))
+				.hasMessageContaining("unknown set kind(s) in scope: [Goal]")
+				.hasMessageContaining("unknown context provider(s): [entity]");
+
+		AssistantDefinition reviewWithCorpusContext = withProviders(f,
+				List.of("entity", "corpus-index"));
+		assertThatThrownBy(() -> validator.validate(reviewWithCorpusContext, List.of()))
+				.hasMessageContaining("unknown context provider(s): [corpus-index]");
+
+		AssistantDefinition reviewOnCorpusTask = new AssistantDefinition("r", "R",
+				DefinitionKind.REVIEW, AssistantDefinition.CORPUS_REVIEW, Set.of(),
+				f.contextProviders(), f.instructions(), f.vocabulary(),
+				AssistantDefinition.CORPUS_OUTPUT_SCHEMA, "1", true, 1, DefinitionSource.BUNDLED,
+				null, null, null);
+		assertThatThrownBy(() -> validator.validate(reviewOnCorpusTask, List.of()))
+				.hasMessageContaining("task CORPUS_REVIEW is for CORPUS definitions")
+				.hasMessageContaining("output schema is for CORPUS definitions");
+
+		assertThatThrownBy(() -> validator.validate(corpus("c3", Set.of("PROJECT"),
+				List.of("corpus-index")), List.of(corpus("c4", Set.of("PROJECT"),
+						List.of("corpus-index")))))
+				.hasMessageContaining("scope [PROJECT] collides with definition c4");
+	}
+
+	/** #264: every problem names its field, so the API can report it against the control. */
+	@Test
+	void eachProblemNamesItsField() {
+		AssistantDefinition bad = new AssistantDefinition("", " ", DefinitionKind.REVIEW, TASK_X,
+				Set.of("Planet"), List.of(), "", List.of(), "Free", "9", true, 1,
+				DefinitionSource.PROJECT, null, null, null);
+
+		InvalidAssistantDefinitionException e = (InvalidAssistantDefinitionException)
+				org.assertj.core.api.Assertions.catchThrowable(() -> validator.validate(bad,
+						List.of()));
+
+		assertThat(e.fieldProblems()).extracting(
+				com.rreganjr.requel.project.InvalidDefinitionException.Problem::field)
+				.contains("key", "displayName", "scope", "contextProviders", "vocabulary",
+						"outputSchema", "instructions", "projectId");
+		assertThat(e.problems()).hasSameSizeAs(e.fieldProblems());
+	}
+
+	/** #264: a project author can't change what a definition is, nor name a bean. */
+	@Test
+	void aProjectEditKeepsItsKindTaskAndSchema() {
+		AssistantDefinition stored = project(review("goals", Set.of("Goal")), 5L);
+		AssistantDefinition changed = new AssistantDefinition("goals", "Goals",
+				DefinitionKind.POLICY, AssistantDefinition.POLICY_REVIEW, Set.of("Goal"),
+				List.of("entity"), "x", stored.vocabulary(), AssistantDefinition.POLICY_OUTPUT_SCHEMA,
+				"1", true, 2, DefinitionSource.PROJECT, 5L, null, "someBean");
+
+		assertThat(AssistantDefinitionValidator.projectProblems(changed, stored, null, Set.of(),
+				0, 50, null)).extracting(
+						com.rreganjr.requel.project.InvalidDefinitionException.Problem::field)
+				.containsExactly("executorBean", "kind", "taskType", "outputSchema");
+		assertThat(AssistantDefinitionValidator.projectProblems(stored, stored, null, Set.of(), 0,
+				50, null)).isEmpty();
+		assertThat(AssistantDefinitionValidator.PROJECT_KEY.matcher("house-style").matches())
+				.isTrue();
+		assertThat(AssistantDefinitionValidator.PROJECT_KEY.matcher("-x").matches()).isFalse();
+	}
+
+	private static final String TASK_X = "REQUIREMENTS_REVIEW";
+
+	private static AssistantDefinition corpus(String key, Set<String> scope,
+			List<String> providers) {
+		AssistantDefinition f = fallback("x");
+		return new AssistantDefinition(key, "C", DefinitionKind.CORPUS,
+				AssistantDefinition.CORPUS_REVIEW, scope, providers, f.instructions(),
+				f.vocabulary(), AssistantDefinition.CORPUS_OUTPUT_SCHEMA, "1", true, 1,
+				DefinitionSource.BUNDLED, null, null, null);
+	}
+
+	@Test
+	void vocabularySchemaAndInstructionsAreChecked() {
+		AssistantDefinition f = fallback("x");
+		AssistantDefinition bad = new AssistantDefinition(f.key(), f.displayName(), f.kind(),
+				f.taskType(), f.scope(), f.contextProviders(), "x".repeat(4001), List.of(),
+				"OtherOutput", "9", true, 1, DefinitionSource.BUNDLED, null, null, null);
+		InvalidAssistantDefinitionException e = (InvalidAssistantDefinitionException) org.assertj
+				.core.api.Assertions.catchThrowable(() -> validator.validate(bad, List.of()));
+		assertThat(e.problems()).anyMatch(p -> p.contains("vocabulary is empty"))
+				.anyMatch(p -> p.contains("output schema OtherOutput v9"))
+				.anyMatch(p -> p.contains("instructions are 4001 characters"));
+	}
+
+	@Test
+	void aRepeatedVocabularyTypeIsRejected() {
+		AssistantDefinition f = fallback("x");
+		AssistantDefinition bad = new AssistantDefinition(f.key(), f.displayName(), f.kind(),
+				f.taskType(), f.scope(), f.contextProviders(), f.instructions(),
+				List.of(new VocabularyEntry("A", "a"), new VocabularyEntry("A", "again")),
+				f.outputSchemaName(), f.outputSchemaVersion(), true, 1, DefinitionSource.BUNDLED,
+				null, null, null);
+		assertThatThrownBy(() -> validator.validate(bad, List.of()))
+				.hasMessageContaining("vocabulary type A is listed twice");
+	}
+
+	@Test
+	void twoFallbacksInOneTaskCollide() {
+		assertThatThrownBy(() -> validator.validate(fallback("second"),
+				List.of(fallback("first"))))
+				.hasMessageContaining("already has a fallback definition (first)");
+	}
+
+	@Test
+	void twoSpecificDefinitionsOnOneTypeCollide() {
+		assertThatThrownBy(() -> validator.validate(review("b", Set.of("Goal", "Actor")),
+				List.of(review("a", Set.of("Goal", "Story")))))
+				.hasMessageContaining("scope [Goal] collides with definition a");
+	}
+
+	@Test
+	void theDefinitionBeingReplacedIsNotACollision() {
+		assertThatCode(() -> validator.validate(fallback("default"), List.of(fallback("default"))))
+				.doesNotThrowAnyException();
+		// A project definition overriding the bundled one with the same key.
+		assertThatCode(() -> validator.validate(project(fallback("default"), 7L),
+				List.of(fallback("default")))).doesNotThrowAnyException();
+	}
+
+	@Test
+	void anotherTasksDefinitionsNeverCollide() {
+		AssistantDefinition f = fallback("other");
+		AssistantDefinition otherTask = new AssistantDefinition(f.key(), f.displayName(), f.kind(),
+				"OTHER_TASK", f.scope(), f.contextProviders(), f.instructions(), f.vocabulary(),
+				f.outputSchemaName(), f.outputSchemaVersion(), true, 1, DefinitionSource.BUNDLED,
+				null, null, null);
+		assertThatCode(() -> validator.validate(otherTask, List.of(fallback("default"))))
+				.doesNotThrowAnyException();
+	}
+
+	@Test
+	void ownershipMustMatchTheSource() {
+		AssistantDefinition f = fallback("x");
+		AssistantDefinition orphan = new AssistantDefinition(f.key(), f.displayName(), f.kind(),
+				f.taskType(), f.scope(), f.contextProviders(), f.instructions(), f.vocabulary(),
+				f.outputSchemaName(), f.outputSchemaVersion(), true, 1, DefinitionSource.PROJECT,
+				null, null, null);
+		assertThatThrownBy(() -> validator.validate(orphan, List.of()))
+				.hasMessageContaining("a PROJECT definition needs an owning project");
+	}
+
+	private static AssistantDefinition withBudgets(AssistantDefinition f,
+			Map<String, Integer> budgets) {
+		return new AssistantDefinition(f.key(), f.displayName(), f.kind(), f.taskType(), f.scope(),
+				f.contextProviders(), f.instructions(), f.vocabulary(), f.outputSchemaName(),
+				f.outputSchemaVersion(), f.enabled(), f.version(), f.source(), f.projectId(),
+				f.forkedFromVersion(), f.executorBean(), budgets);
+	}
+
+	private static AssistantDefinition withProviders(AssistantDefinition f, List<String> providers) {
+		return new AssistantDefinition(f.key(), f.displayName(), f.kind(), f.taskType(), f.scope(),
+				providers, f.instructions(), f.vocabulary(), f.outputSchemaName(),
+				f.outputSchemaVersion(), f.enabled(), f.version(), f.source(), f.projectId(),
+				f.forkedFromVersion(), f.executorBean());
+	}
+}

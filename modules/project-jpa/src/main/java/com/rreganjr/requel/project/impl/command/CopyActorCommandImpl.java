@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,12 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.command.CopyActorCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.ActorImpl;
@@ -44,7 +49,13 @@ import com.rreganjr.requel.user.UserRepository;
  */
 @Controller("copyActorCommand")
 @Scope("prototype")
-public class CopyActorCommandImpl extends AbstractEditProjectCommand implements CopyActorCommand {
+public class CopyActorCommandImpl extends AbstractEditProjectCommand
+		implements CopyActorCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.Actor.class, "Edit");
+	}
 
 	private Actor originalActor;
 	private Actor newActor;
@@ -79,7 +90,8 @@ public class CopyActorCommandImpl extends AbstractEditProjectCommand implements 
 	}
 
 	public void setNewActorName(String newActorName) {
-		this.newActorName = newActorName;
+		// #398: names are saved trimmed, as the lookups by name expect.
+		this.newActorName = (newActorName == null) ? null : newActorName.trim();
 	}
 
 	@Override
@@ -123,6 +135,15 @@ public class CopyActorCommandImpl extends AbstractEditProjectCommand implements 
 		}
 		newActor = getProjectRepository().merge(newActor);
 		setNewActor(newActor);
+	}
+
+	@Override
+	public Project getProject() {
+		// Prefer the persisted newActor if execute already ran; fall back to
+		// the original. Either way we walk to the Project so SSE broadcasts.
+		if (newActor != null && newActor.getProjectOrDomain() instanceof Project project) return project;
+		if (originalActor != null && originalActor.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 
 	private String generateNewActorName(String originalName) {

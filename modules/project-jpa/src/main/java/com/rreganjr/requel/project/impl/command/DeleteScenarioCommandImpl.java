@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -31,8 +32,12 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
-import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.DeleteScenarioCommand;
@@ -49,8 +54,13 @@ import com.rreganjr.requel.user.UserRepository;
  */
 @Controller("deleteScenarioCommand")
 @Scope("prototype")
-public class DeleteScenarioCommandImpl extends AbstractEditProjectCommand implements
-		DeleteScenarioCommand {
+public class DeleteScenarioCommandImpl extends AbstractDeleteProjectEntityCommand implements
+		DeleteScenarioCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.Scenario.class, "Delete");
+	}
 
 	private Scenario scenario;
 
@@ -83,22 +93,21 @@ public class DeleteScenarioCommandImpl extends AbstractEditProjectCommand implem
 	@Override
 	public void execute() throws Exception {
 		Scenario scenario = getRepository().get(getScenario());
+		// #296: refuse before touching anything if the caller read an older version.
+		refuseStaleDelete(Scenario.class, scenario, scenario.getVersion());
 		User editedBy = getRepository().get(getEditedBy());
 		Set<Annotation> annotations = new HashSet<Annotation>(scenario.getAnnotations());
 		for (Annotation annotation : annotations) {
-			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = getAnnotationCommandFactory()
-					.newRemoveAnnotationFromAnnotatableCommand();
+			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = CascadeAuthorizable.cascade(this,
+					getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand());
 			removeAnnotationFromAnnotatableCommand.setEditedBy(editedBy);
 			removeAnnotationFromAnnotatableCommand.setAnnotatable(scenario);
 			removeAnnotationFromAnnotatableCommand.setAnnotation(annotation);
 			getCommandHandler().execute(removeAnnotationFromAnnotatableCommand);
 		}
 		// remove this entity as a referer to any terms
-		for (GlossaryTerm term : scenario.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(scenario)) {
-				term.getReferers().remove(scenario);
-			}
-		}
+		// #386: by native delete; removing from the @ManyToAny referers set fails in Hibernate.
+		getProjectRepository().removeGlossaryTermReferer(null, scenario);
 		Set<Scenario> scenarioReferers = new HashSet<Scenario>(scenario.getUsingScenarios());
 		for (Scenario scenarioReferer : scenarioReferers) {
 			scenarioReferer.getSteps().remove(scenario);
@@ -108,8 +117,23 @@ public class DeleteScenarioCommandImpl extends AbstractEditProjectCommand implem
 			// TODO: delete the usecase or set a new empty scenario on the
 			// usecase.
 		}
+		// #247: a scenario may also be an ADDITIONAL (alternative/exception) scenario of any
+		// use case in the project (usecase_scenarios, owned by the use case, no inverse
+		// mapping). Those join rows carry an FK to the scenario row, so detach it from every
+		// such use case before the delete, or MySQL refuses the delete.
+		for (UseCase usecase : scenario.getProjectOrDomain().getUseCases()) {
+			usecase.getAdditionalScenarios().remove(scenario);
+		}
 		scenario.getProjectOrDomain().getScenarios().remove(scenario);
+		// #247: clear any annotation link committed since this entity was loaded.
+		removeAllAnnotationsBeforeDelete(scenario, editedBy);
 		getRepository().delete(scenario);
+	}
+
+	@Override
+	public Project getProject() {
+		if (scenario != null && scenario.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 
 }

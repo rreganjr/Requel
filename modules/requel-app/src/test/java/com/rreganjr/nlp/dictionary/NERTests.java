@@ -1,18 +1,31 @@
 /*
- * $Id: NERTests.java,v 1.1 2008/12/14 04:05:35 rregan Exp $
- * Copyright (c) 2008 Ron Regan Jr. All Rights Reserved.
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
  */
-
 package com.rreganjr.nlp.dictionary;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.nlp.impl.StanfordNameEntityRecognizer;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.junit4.SpringRunner;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 
 /**
@@ -22,8 +35,7 @@ import org.springframework.test.context.junit4.SpringRunner;
  * TODO: maybe because "Virgin Mobile USA's" is the full match and because it has USA it
  * TODO: thinks it is a location?
  */
-@Ignore("Named entity recognizer relies on legacy models and is currently broken; skipping until NLP stack is refreshed.")
-@RunWith(SpringRunner.class)
+@Disabled("Named entity recognizer relies on legacy models and is currently broken; skipping until NLP stack is refreshed.")
 public class NERTests extends AbstractIntegrationTestCase {
 
 	private StanfordNameEntityRecognizer nameEntityRecognizer;
@@ -31,15 +43,8 @@ public class NERTests extends AbstractIntegrationTestCase {
 	private Sense locationSense;
 	private Sense organizationSense;
 
-	/**
-	 */
-	public NERTests() {
-		super();
-	}
-
-	@Before
+	@BeforeEach
 	public void onSetUp() throws Exception {
-		super.onSetUp();
 		ensureDictionaryLoaded();
 		nameEntityRecognizer = new StanfordNameEntityRecognizer(getDictionaryRepository());
 		Word personWord = getDictionaryRepository().findWord("person", PartOfSpeech.NOUN);
@@ -60,17 +65,17 @@ public class NERTests extends AbstractIntegrationTestCase {
 		nameEntityRecognizer.process(text);
 		for (NLPText word : text.getLeaves()) {
 			if (word.getText().equals("Nellymoser")) {
-				Assert.assertEquals(personSense, word.getDictionaryWordSense());
+				assertEquals(personSense, word.getDictionaryWordSense());
 			} else if (word.getText().equals("Virgin")) {
-				Assert.assertEquals(organizationSense, word.getDictionaryWordSense());
+				assertEquals(organizationSense, word.getDictionaryWordSense());
 			} else if (word.getText().equals("Mobile")) {
-				Assert.assertEquals(organizationSense, word.getDictionaryWordSense());
+				assertEquals(organizationSense, word.getDictionaryWordSense());
 			} else if (word.getText().equals("USA")) {
-				Assert.assertEquals(organizationSense, word.getDictionaryWordSense());
+				assertEquals(organizationSense, word.getDictionaryWordSense());
 			} else if (word.getText().equals("EVDO")) {
-				Assert.assertEquals(organizationSense, word.getDictionaryWordSense());
+				assertEquals(organizationSense, word.getDictionaryWordSense());
 			} else {
-				Assert.assertNull(word.getDictionaryWordSense());
+				assertNull(word.getDictionaryWordSense());
 			}
 		}
 	}
@@ -82,11 +87,11 @@ public class NERTests extends AbstractIntegrationTestCase {
 		nameEntityRecognizer.process(text);
 		for (NLPText word : text.getLeaves()) {
 			if (word.getText().equals("Nellymoser")) {
-				Assert.assertEquals(personSense, word.getDictionaryWordSense());
+				assertEquals(personSense, word.getDictionaryWordSense());
 			} else if (word.getText().equals("VMU")) {
-				Assert.assertEquals(organizationSense, word.getDictionaryWordSense());
+				assertEquals(organizationSense, word.getDictionaryWordSense());
 			} else {
-				Assert.assertNull(word.getDictionaryWordSense());
+				assertNull(word.getDictionaryWordSense());
 			}
 		}
 	}
@@ -98,15 +103,15 @@ public class NERTests extends AbstractIntegrationTestCase {
 		nameEntityRecognizer.process(text);
 		for (NLPText word : text.getLeaves()) {
 			if (word.getText().equals("John")) {
-				Assert.assertEquals(personSense, word.getDictionaryWordSense());
+				assertEquals(personSense, word.getDictionaryWordSense());
 			} else if (word.getText().equals("Nellymoser")) {
-				Assert.assertEquals(personSense, word.getDictionaryWordSense());
+				assertEquals(personSense, word.getDictionaryWordSense());
 			} else if (word.getText().equals("Arlington")) {
 				// assertEquals(locationSense, word.getDictionaryWordSense());
 			} else if (word.getText().equals("Massachusetts")) {
 				// assertEquals(locationSense, word.getDictionaryWordSense());
 			} else {
-				Assert.assertNull(word.getDictionaryWordSense());
+				assertNull(word.getDictionaryWordSense());
 			}
 		}
 	}

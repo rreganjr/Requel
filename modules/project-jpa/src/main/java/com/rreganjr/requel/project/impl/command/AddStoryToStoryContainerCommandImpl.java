@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025, 2026 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,12 +26,23 @@ import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
+import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.StoryContainer;
 import com.rreganjr.requel.project.command.AddStoryToStoryContainerCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
+import com.rreganjr.requel.project.impl.ActorImpl;
+import com.rreganjr.requel.project.impl.GoalImpl;
+import com.rreganjr.requel.project.impl.ProjectImpl;
+import com.rreganjr.requel.project.impl.UseCaseImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
+import com.rreganjr.requel.project.impl.repository.jpa.JpaProjectRepository;
 import com.rreganjr.requel.user.UserRepository;
 
 /**
@@ -40,7 +51,12 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("addStoryToStoryContainerCommand")
 @Scope("prototype")
 public class AddStoryToStoryContainerCommandImpl extends AbstractEditProjectCommand implements
-		AddStoryToStoryContainerCommand {
+		AddStoryToStoryContainerCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.Story.class, "Edit");
+	}
 
 	/**
 	 * @param assistantManager
@@ -81,15 +97,42 @@ public class AddStoryToStoryContainerCommandImpl extends AbstractEditProjectComm
 
 	@Override
 	public void execute() {
-		Story addedStory = getRepository().get(getStory());
-		StoryContainer addingContainer = getRepository().get(getStoryContainer());
-		addedStory.getReferers().add(addingContainer);
-		addingContainer.getStories().add(addedStory);
+		Story addedStory = getProjectRepository().get(getStory());
+		StoryContainer addingContainer = getProjectRepository().get(getStoryContainer());
 
-		// replaced the supplied objects with the updated objects for retrieval.
-		addedStory = getRepository().merge(addedStory);
+		// Hibernate 6.5 bug: @ManyToAny collection insertion generates invalid SQL for the
+		// story_storycontainers join table. Use a native INSERT instead.
+		JpaProjectRepository jpaRepo = (JpaProjectRepository) getProjectRepository();
+		jakarta.persistence.PersistenceUnitUtil puu = jpaRepo.getEntityManager()
+				.getEntityManagerFactory().getPersistenceUnitUtil();
+		Long storyId = (Long) puu.getIdentifier(addedStory);
+		Long containerId = (Long) puu.getIdentifier(addingContainer);
+		jpaRepo.addStoryContainerToStoryJoinTable(storyId, containerId, storyContainerDiscriminator(addingContainer));
+		jpaRepo.getEntityManager().refresh(addedStory);
+
+		addingContainer.getStories().add(addedStory);
 		addingContainer = getRepository().merge(addingContainer);
 		setStory(addedStory);
 		setStoryContainer(addingContainer);
+	}
+
+	@Override
+	public Project getProject() {
+		// StoryContainer is Project, Actor, Goal, or UseCase. Project is direct;
+		// the others are ProjectOrDomainEntity so getProjectOrDomain walks back
+		// to the Project.
+		if (storyContainer instanceof Project project) return project;
+		if (storyContainer instanceof ProjectOrDomainEntity pode
+				&& pode.getProjectOrDomain() instanceof Project project) return project;
+		if (story != null && story.getProjectOrDomain() instanceof Project project) return project;
+		return null;
+	}
+
+	static String storyContainerDiscriminator(StoryContainer container) {
+		if (container instanceof ProjectImpl)  return "com.rreganjr.requel.project.Project";
+		if (container instanceof ActorImpl)    return "com.rreganjr.requel.project.Actor";
+		if (container instanceof GoalImpl)     return "com.rreganjr.requel.project.Goal";
+		if (container instanceof UseCaseImpl)  return "com.rreganjr.requel.project.UseCase";
+		throw new IllegalStateException("Unknown StoryContainer type: " + container.getClass().getName());
 	}
 }

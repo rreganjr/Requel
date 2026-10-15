@@ -1,0 +1,20 @@
+panel:GoalEditorPanel[a]
+userCommandFactory:UserCommandFactory[a]
+/editUserCommand:EditUserCommand[a]
+ch2:RetryOnLockFailuresCommandHandler[a]
+ch3:ExceptionMappingCommandHandler[a]
+ch4:DefaultCommandHandler[a]
+
+panel:panel.save()
+[c:try]
+panel:userCommandFactory.newUserEditCommand()
+userCommandFactory:editUserCommand.new()
+panel:ch2.execute(editCommand)
+[c:try retry on lock failure]
+ch2:ch3.execute(editCommand)
+[c:transaction]
+ch3:ch4.execute(editCommand)
+ch4:editUserCommand.execute()
+[/c]
+[/c]
+[/c]

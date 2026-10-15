@@ -1,10 +1,8 @@
 /*
- * $Id: $
- *
- * Copyright 2025 Ron Regan Jr. All Rights Reserved.
- *
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,10 +19,6 @@
  *
  */
 package com.rreganjr.requel.project.impl.command;
-
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.requel.user.User;
@@ -51,18 +45,15 @@ import com.rreganjr.requel.user.impl.repository.init.ProjectUserInitializer;
 import com.rreganjr.requel.user.command.UserCommandFactory;
 import com.rreganjr.requel.user.command.EditUserCommand;
 import com.rreganjr.requel.project.ProjectUserRole;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.junit4.SpringRunner;
 
 /**
  * Integration test that exercises the StAX-based streaming import using the
  * large example project stored under doc/samples/Requel.xml.
  */
-@RunWith(SpringRunner.class)
 public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCase {
-
 
     @Autowired
     private ProjectUserInitializer projectUserInitializer;
@@ -90,58 +81,57 @@ public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCa
         }
 
         Project imported = command.getProject();
-        assertNotNull("import produced a project", imported);
-        org.junit.Assert.assertEquals(projectName, imported.getName());
+        assertNotNull(imported, "import produced a project");
+        assertEquals(projectName, imported.getName());
 
-        org.junit.Assert.assertEquals("expected actor count", 4, imported.getActors().size());
+        assertEquals(4, imported.getActors().size(), "expected actor count");
         assertActorAnnotations(imported, "Automated Assistant", 14);
         assertActorAnnotations(imported, "Interactive User", 6);
 
-        org.junit.Assert.assertEquals("expected goal count", 10, imported.getGoals().size());
+        assertEquals(10, imported.getGoals().size(), "expected goal count");
         assertTrue(imported.getGoals().stream()
                 .map(Goal::getName)
                 .anyMatch("Collaborative Elicitation of Requirements"::equals));
 
-        org.junit.Assert.assertEquals("expected story count", 6, imported.getStories().size());
+        assertEquals(6, imported.getStories().size(), "expected story count");
         assertTrue(imported.getStories().stream()
                 .map(Story::getName)
                 .anyMatch("Rich creates a new project"::equals));
 
-        org.junit.Assert.assertEquals("expected use case count", 2, imported.getUseCases().size());
+        assertEquals(2, imported.getUseCases().size(), "expected use case count");
         UseCase createProject = imported.getUseCases().stream()
                 .filter(uc -> "A user creates a new project".equals(uc.getName()))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("use case UC_1 not imported"));
-        org.junit.Assert.assertEquals("primary actor wired", "System Admin",
-                createProject.getPrimaryActor().getName());
+        assertEquals("System Admin", createProject.getPrimaryActor().getName(),
+                "primary actor wired");
         Scenario referencedScenario = createProject.getScenario();
-        assertNotNull("scenario resolved for use case", referencedScenario);
-        org.junit.Assert.assertEquals("test top level scenario", referencedScenario.getName());
-        assertFalse("stories linked to use case", createProject.getStories().isEmpty());
+        assertNotNull(referencedScenario, "scenario resolved for use case");
+        assertEquals("Create a new project", referencedScenario.getName());
+        assertFalse(createProject.getStories().isEmpty(), "stories linked to use case");
 
-        org.junit.Assert.assertEquals("stakeholder count", 4, imported.getStakeholders().size());
+        assertEquals(4, imported.getStakeholders().size(), "stakeholder count");
 
         Set<Annotation> annotations = ((ProjectImpl) imported).getAllProjectEntityAnnotations();
-        org.junit.Assert.assertEquals("annotation count", 265, annotations.size());
+        assertEquals(258, annotations.size(), "annotation count");
         long lexicalIssueCount = annotations.stream().filter(a -> a instanceof LexicalIssue).count();
-        org.junit.Assert.assertEquals("lexical issue count", 145, lexicalIssueCount);
+        assertEquals(143, lexicalIssueCount, "lexical issue count");
 
-        LexicalIssue underpants = annotations.stream()
+        LexicalIssue members = annotations.stream()
                 .filter(a -> a instanceof LexicalIssue)
                 .map(a -> (LexicalIssue) a)
-                .filter(l -> "The phrase \"the underpants\" is a potential glossary term, actor, or domain object/property"
+                .filter(l -> "The phrase \"the members\" is a potential glossary term, actor, or domain object/property"
                         .equals(l.getText()))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("missing lexical issue ANN_395"));
-        org.junit.Assert.assertEquals("lexical issue retains position refs", 3,
-                underpants.getPositions().size());
+        assertEquals(3, members.getPositions().size(), "lexical issue retains position refs");
 
         Position glossaryPosition = getAnnotationRepository()
                 .findPosition(imported, "Add \"the project elements\" to the project glossary.");
         assertNotNull(glossaryPosition);
-        org.junit.Assert.assertEquals("position text retained",
-                "Add \"the project elements\" to the project glossary.", glossaryPosition.getText());
-        assertTrue("position has no arguments", glossaryPosition.getArguments().isEmpty());
+        assertEquals("Add \"the project elements\" to the project glossary.",
+                glossaryPosition.getText(), "position text retained");
+        assertTrue(glossaryPosition.getArguments().isEmpty(), "position has no arguments");
     }
 
     /**
@@ -167,13 +157,116 @@ public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCa
                 .filter(s -> s instanceof UserStakeholder us && us.matchesUser(creator))
                 .map(s -> (UserStakeholder) s)
                 .findFirst();
-        assertTrue("importing user added as stakeholder", maybeStakeholder.isPresent());
+        assertTrue(maybeStakeholder.isPresent(), "importing user added as stakeholder");
 
         UserStakeholder stakeholder = maybeStakeholder.get();
         int granted = stakeholder.getStakeholderPermissions().size();
         int available = getProjectRepository().findAvailableStakeholderPermissions().size();
-        org.junit.Assert.assertTrue("available stakeholder permissions should be seeded", available > 0);
-        org.junit.Assert.assertEquals("importing user receives full stakeholder permissions", available, granted);
+        assertTrue(available > 0, "available stakeholder permissions should be seeded");
+        assertEquals(available, granted, "importing user receives full stakeholder permissions");
+    }
+
+    /**
+     * Issue #398: an imported user stakeholder keeps the project permissions the file gives it.
+     * The importer read only the stakeholder's user, so everyone but the importer and the
+     * assistant came back with none. In the sample, admin holds 29.
+     */
+    @Test
+    public void importedUserStakeholdersKeepTheirPermissions() throws Exception {
+        projectUserInitializer.initialize();
+        ensureAssistantHasProjectRole();
+        String sample = Files.readString(resolveSampleXml());
+        java.util.regex.Matcher adminBlock = java.util.regex.Pattern
+                .compile("<user-stakeholder [^>]*>(?:(?!</user-stakeholder>).)*<username>admin</username>",
+                        java.util.regex.Pattern.DOTALL)
+                .matcher(sample);
+        assertTrue(adminBlock.find(), "the sample has admin as a stakeholder");
+        java.util.Set<String> expected = new java.util.TreeSet<>();
+        java.util.regex.Matcher permission = java.util.regex.Pattern
+                .compile("<projectPermission entityType=\"([^\"]+)\" permissionType=\"([^\"]+)\"/>")
+                .matcher(adminBlock.group());
+        while (permission.find()) {
+            expected.add(permission.group(1) + "[" + permission.group(2) + "]");
+        }
+        assertFalse(expected.isEmpty(), "admin holds permissions in the sample");
+
+        Project imported = importXml(sample, "Import Kept Permissions " + System.currentTimeMillis());
+        User admin = getUserRepository().findUserByUsername("admin");
+        UserStakeholder stakeholder = imported.getStakeholders().stream()
+                .filter(s -> s instanceof UserStakeholder us && us.matchesUser(admin))
+                .map(s -> (UserStakeholder) s)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("admin imported as a stakeholder"));
+        java.util.Set<String> granted = new java.util.TreeSet<>();
+        stakeholder.getStakeholderPermissions().forEach(p -> granted.add(p.getPermissionKey()));
+        assertEquals(expected, granted, "admin keeps exactly the permissions in the file");
+    }
+
+    /**
+     * The import path used to route the assistant through the same grant loop as the creator,
+     * so an imported project gave it every permission while a UI-created one gave it none
+     * (issue #302). It now holds its own set, whichever way the project arrived.
+     */
+    @Test
+    public void importedAssistantGetsOnlyTheAssistantPermissionSet() throws Exception {
+        ImportProjectCommand command = (ImportProjectCommand) applicationContext.getBean("importProjectCommand");
+        projectUserInitializer.initialize();
+        ensureAssistantHasProjectRole();
+        User creator = getUserRepository().findUserByUsername("project");
+        User assistant = getUserRepository().findUserByUsername("assistant");
+
+        command.setEditedBy(creator);
+        command.setAnalysisEnabled(false);
+        command.setName("Import Assistant Perms Test " + System.currentTimeMillis());
+        try (InputStream inputStream = Files.newInputStream(resolveSampleXml())) {
+            command.setInputStream(inputStream);
+            command = getCommandHandler().execute(command);
+        }
+
+        Project imported = command.getProject();
+        Optional<UserStakeholder> maybeAssistant = imported.getStakeholders().stream()
+                .filter(s -> s instanceof UserStakeholder us && us.matchesUser(assistant))
+                .map(s -> (UserStakeholder) s)
+                .findFirst();
+        assertTrue(maybeAssistant.isPresent(), "assistant added as stakeholder on import");
+
+        assertEquals(getProjectRepository().findAssistantStakeholderPermissions(),
+                maybeAssistant.get().getStakeholderPermissions(),
+                "an imported assistant holds exactly the assistant set, not the full matrix");
+    }
+
+    /**
+     * Issue #379: with no rename, the project takes the file's {@code <name>}; a taken name gets
+     * " (1)"; a rename wins over the file; a file without a name falls back to "Imported Project".
+     * The name in the sample comes after {@code <actors>}, as in the 1.0.x exports.
+     */
+    @Test
+    public void importTakesTheProjectNameFromTheFile() throws Exception {
+        projectUserInitializer.initialize();
+        ensureAssistantHasProjectRole();
+        String sample = Files.readString(resolveSampleXml());
+        String fileName = "Named In File " + System.currentTimeMillis();
+        String named = sample.replaceFirst("\n    <name>Requel</name>", "\n    <name>" + fileName + "</name>");
+        assertNotEquals(sample, named, "the sample's project-level <name> was found");
+
+        assertEquals(fileName, importXml(named, null).getName());
+        assertEquals(fileName + " (1)", importXml(named, null).getName(), "a taken name gets a suffix");
+        String rename = "Renamed " + System.currentTimeMillis();
+        assertEquals(rename, importXml(named, rename).getName(), "the rename wins");
+        assertEquals(fileName + " (2)", importXml(named, "  ").getName(), "a blank rename is no rename");
+
+        String unnamed = sample.replaceFirst("\n    <name>Requel</name>", "");
+        assertTrue(importXml(unnamed, null).getName().startsWith("Imported Project"),
+                "no name in the file falls back to Imported Project");
+    }
+
+    private Project importXml(String xml, String rename) throws Exception {
+        ImportProjectCommand command = (ImportProjectCommand) applicationContext.getBean("importProjectCommand");
+        command.setEditedBy(getUserRepository().findUserByUsername("project"));
+        command.setAnalysisEnabled(false);
+        command.setName(rename);
+        command.setInputStream(new java.io.ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        return getCommandHandler().execute(command).getProject();
     }
 
     private void ensureAssistantHasProjectRole() throws Exception {
@@ -193,9 +286,9 @@ public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCa
         Optional<Actor> actor = project.getActors().stream()
                 .filter(a -> actorName.equals(a.getName()))
                 .findFirst();
-        assertTrue("Actor " + actorName + " imported", actor.isPresent());
-        org.junit.Assert.assertEquals("annotation count for " + actorName,
-                expectedAnnotationCount, actor.get().getAnnotations().size());
+        assertTrue(actor.isPresent(), "Actor " + actorName + " imported");
+        assertEquals(expectedAnnotationCount, actor.get().getAnnotations().size(),
+                "annotation count for " + actorName);
     }
 
     private Path resolveSampleXml() {

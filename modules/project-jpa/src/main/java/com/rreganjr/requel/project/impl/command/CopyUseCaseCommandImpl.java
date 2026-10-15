@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,12 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.CopyScenarioCommand;
@@ -48,7 +53,12 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("copyUseCaseCommand")
 @Scope("prototype")
 public class CopyUseCaseCommandImpl extends AbstractEditProjectCommand implements
-		CopyUseCaseCommand {
+		CopyUseCaseCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.UseCase.class, "Edit");
+	}
 
 	private UseCase originalUseCase;
 	private UseCase newUseCase;
@@ -80,7 +90,8 @@ public class CopyUseCaseCommandImpl extends AbstractEditProjectCommand implement
 	}
 
 	public void setNewUseCaseName(String newUseCaseName) {
-		this.newUseCaseName = newUseCaseName;
+		// #398: names are saved trimmed, as the lookups by name expect.
+		this.newUseCaseName = (newUseCaseName == null) ? null : newUseCaseName.trim();
 	}
 
 	@Override
@@ -137,6 +148,13 @@ public class CopyUseCaseCommandImpl extends AbstractEditProjectCommand implement
 		}
 		newUseCase = getProjectRepository().merge(newUseCase);
 		setNewUseCase(newUseCase);
+	}
+
+	@Override
+	public Project getProject() {
+		if (newUseCase != null && newUseCase.getProjectOrDomain() instanceof Project project) return project;
+		if (originalUseCase != null && originalUseCase.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 
 	private String generateNewUseCaseName(String originalName) {

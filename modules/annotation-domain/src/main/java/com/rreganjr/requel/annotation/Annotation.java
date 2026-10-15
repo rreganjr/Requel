@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,6 +32,20 @@ import com.rreganjr.platform.domain.Describable;
  * @author ron
  */
 public interface Annotation extends Comparable<Annotation>, CreatedEntity, Describable {
+
+	/**
+	 * @return the persistent identity of this annotation, or {@code null}
+	 *         for transient instances that have not been persisted yet.
+	 */
+	public Long getId();
+
+	/**
+	 * @return the optimistic-lock version; incremented on each
+	 *         user-initiated modification. Used by edit commands to detect
+	 *         concurrent writes and by the assistant applicator to detect
+	 *         stale snapshots before applying findings.
+	 */
+	public int getVersion();
 
 	/**
 	 * @return an object used as a context for a group of annotations.
@@ -67,4 +81,15 @@ public interface Annotation extends Comparable<Annotation>, CreatedEntity, Descr
 	 * @return a message appropriate for the state of the annotation.
 	 */
 	public String getStatusMessage();
+
+	/**
+	 * Provenance label for this annotation: {@code "HUMAN"} or {@code null} for user-created
+	 * annotations, {@code "ASSISTANT:<assistantId>"} for ones created by the assistant result
+	 * applicator. Used (among other things) to keep machine-generated annotations out of the
+	 * context packs fed to AI assistants, so they analyze the requirement rather than echo
+	 * existing automated findings.
+	 *
+	 * @return the source label, or {@code null} for human-created annotations.
+	 */
+	public String getSource();
 }

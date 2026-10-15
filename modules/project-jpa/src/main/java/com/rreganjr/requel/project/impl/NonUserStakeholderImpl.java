@@ -1,9 +1,8 @@
 /*
- * $Id: $
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
- * 
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,11 +35,14 @@ import jakarta.xml.bind.annotation.XmlType;
 import org.xml.sax.SAXException;
 
 import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.tagging.Taggable;
 import com.rreganjr.requel.project.NonUserStakeholder;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 /**
  * A stakeholder that is not a user.
  * 
@@ -50,7 +52,7 @@ import com.rreganjr.requel.user.UserRepository;
 @DiscriminatorValue(value = "com.rreganjr.requel.project.NonUserStakeholder")
 @XmlRootElement(name = "nonuser-stakeholder", namespace = "http://www.rreganjr.com/requel")
 @XmlType(name = "nonuser-stakeholder", namespace = "http://www.rreganjr.com/requel")
-public class NonUserStakeholderImpl extends AbstractStakeholder implements NonUserStakeholder {
+public class NonUserStakeholderImpl extends AbstractStakeholder implements NonUserStakeholder, Taggable {
 	static final long serialVersionUID = 0L;
 
 	private String text;
@@ -73,6 +75,7 @@ public class NonUserStakeholderImpl extends AbstractStakeholder implements NonUs
 	@Override
 	@Column(nullable = true, unique = false)
 	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
+	@Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
 	public String getName() {
 		return super.getName();
 	}

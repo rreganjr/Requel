@@ -1,5 +1,5 @@
 FROM eclipse-temurin:17-jre-jammy
-LABEL maintainer=rreganjr@users.sourceforge.net
+LABEL maintainer="11188410+rreganjr@users.noreply.github.com"
 VOLUME /tmp
 ARG JAR_FILE
 COPY ${JAR_FILE} /app.jar

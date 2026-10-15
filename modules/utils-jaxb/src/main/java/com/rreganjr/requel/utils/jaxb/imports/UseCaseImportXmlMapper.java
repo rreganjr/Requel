@@ -1,10 +1,8 @@
 /*
- * $Id: $
- *
- * Copyright 2025 Ron Regan Jr. All Rights Reserved.
- *
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,6 +37,7 @@ public class UseCaseImportXmlMapper {
                 .description(xml.getText())
                 .primaryActorExternalId(xml.getPrimaryActorRef())
                 .scenarioExternalId(xml.getScenarioRef())
+                .additionalScenarioExternalIds(xml.getAdditionalScenarioRefs())
                 .storyExternalIds(new HashSet<>(xml.getStoryRefs()))
                 .goalExternalIds(new HashSet<>(xml.getGoalRefs()))
                 .actorExternalIds(new HashSet<>(xml.getActorRefs()))

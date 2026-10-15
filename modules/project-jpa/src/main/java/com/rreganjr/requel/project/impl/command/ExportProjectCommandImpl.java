@@ -1,8 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,6 +49,7 @@ import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.AddActorPosition;
 import com.rreganjr.requel.project.impl.AddGlossaryTermPosition;
 import com.rreganjr.requel.project.impl.ProjectImpl;
+import com.rreganjr.requel.project.impl.TagAssignmentXml;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
 import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 import com.rreganjr.requel.user.UserRepository;
@@ -73,6 +74,7 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 		List<Class<?>> classes = new ArrayList<Class<?>>();
 		classes.add(ProjectImpl.class); // project entites are found by
 		// reachability
+		classes.add(TagAssignmentXml.class);
 		classes.add(AbstractAnnotation.class);
 		classes.add(NoteImpl.class);
 		classes.add(IssueImpl.class);
@@ -82,17 +84,25 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 		classes.add(SystemAdminUserRole.class);
 		classes.add(ProjectUserRole.class);
 		classes.add(DomainAdminUserRole.class);
+		// Issue #260: assistant identities are stakeholders, so their role is exported too.
+		classes.add(com.rreganjr.requel.user.impl.AssistantUserRole.class);
 		classes.add(PositionImpl.class);
 		classes.add(ChangeSpellingPosition.class);
 		classes.add(AddWordToDictionaryPosition.class);
+		classes.add(com.rreganjr.requel.annotation.impl.IgnorePosition.class);
 		classes.add(AddGlossaryTermPosition.class);
 		classes.add(AddActorPosition.class);
+		// Issue #313: the project's own dictionary words, reachable from
+		// AbstractProjectOrDomain.getDictionaryWords().
+		classes.add(com.rreganjr.nlp.dictionary.ProjectDictionaryWord.class);
 		CLASSES_FOR_JAXB = classes.toArray(new Class<?>[classes.size()]);
 	}
 
 	private Project project;
 	private OutputStream outputStream;
     private final JaxbAdapterConfigurer jaxbAdapterConfigurer;
+    private final com.rreganjr.requel.tagging.TagExportProvider tagExportProvider;
+    private final com.rreganjr.nlp.dictionary.DictionaryRepository dictionaryRepository;
 
 	/**
 	 * @param assistantManager
@@ -107,10 +117,114 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 		UserRepository userRepository, ProjectRepository projectRepository,
 		ProjectCommandFactory projectCommandFactory,
 		AnnotationCommandFactory annotationCommandFactory, CommandHandler commandHandler,
-		JaxbAdapterConfigurer jaxbAdapterConfigurer) {
+		JaxbAdapterConfigurer jaxbAdapterConfigurer,
+		com.rreganjr.requel.tagging.TagExportProvider tagExportProvider,
+		com.rreganjr.nlp.dictionary.DictionaryRepository dictionaryRepository) {
 		super(assistantManager, userRepository, projectRepository, projectCommandFactory,
 			annotationCommandFactory, commandHandler);
         this.jaxbAdapterConfigurer = jaxbAdapterConfigurer;
+        this.tagExportProvider = tagExportProvider;
+        this.dictionaryRepository = dictionaryRepository;
+	}
+
+	/**
+	 * Issue #320: one carrier per ignored finding whose entity is still in the project. The entity
+	 * and the resolved issue are referenced by IDREF, so the file never carries a database id.
+	 */
+	private java.util.List<com.rreganjr.requel.project.impl.IgnoredFindingXml> exportIgnoredFindings(
+			ProjectImpl projectImpl) {
+		java.util.List<com.rreganjr.requel.project.impl.IgnoredFindingXml> carriers =
+				new java.util.ArrayList<>();
+		if (getIgnoredFindingStore() == null) {
+			return carriers;
+		}
+		java.util.Map<String, Object> entities = new java.util.HashMap<>();
+		java.util.Map<Long, Object> annotations = new java.util.HashMap<>();
+		for (com.rreganjr.requel.annotation.Annotation annotation : projectImpl.getAnnotations()) {
+			annotations.put(annotation.getId(), annotation);
+		}
+		for (com.rreganjr.requel.project.ProjectOrDomainEntity entity : projectImpl
+				.getProjectEntities()) {
+			entities.put(entity.getProjectOrDomainEntityInterface().getSimpleName() + ":"
+					+ entity.getId(), entity);
+			for (com.rreganjr.requel.annotation.Annotation annotation : entity.getAnnotations()) {
+				annotations.put(annotation.getId(), annotation);
+			}
+		}
+		for (com.rreganjr.requel.project.IgnoredFinding ignored : getIgnoredFindingStore()
+				.list(projectImpl.getId())) {
+			Object entity = entities.get(ignored.getTargetType() + ":" + ignored.getTargetId());
+			if (entity == null) {
+				continue;
+			}
+			carriers.add(new com.rreganjr.requel.project.impl.IgnoredFindingXml(
+					ignored.getTargetType(), entity, ignored.getAssistantId(),
+					ignored.getFindingType(), ignored.getPropertyName(), ignored.getKeySuffix(),
+					ignored.getSubject(), annotations.get(ignored.getAnnotationId()),
+					ignored.getCreatedBy() == null ? null : ignored.getCreatedBy().getUsername(),
+					ignored.getDateCreated() == null ? null
+							: com.rreganjr.requel.utils.DateUtils.standardDateAndTime
+									.format(ignored.getDateCreated())));
+		}
+		return carriers;
+	}
+
+	/**
+	 * Issue #272: one carrier per source, each with its links to entities still in the project,
+	 * referenced by IDREF.
+	 */
+	private java.util.List<com.rreganjr.requel.project.impl.ExternalSourceXml> exportExternalSources(
+			ProjectImpl projectImpl) {
+		java.util.List<com.rreganjr.requel.project.impl.ExternalSourceXml> carriers =
+				new java.util.ArrayList<>();
+		if (getProvenanceStore() == null) {
+			return carriers;
+		}
+		java.util.Map<String, com.rreganjr.requel.project.ProjectOrDomainEntity> entities =
+				new java.util.HashMap<>();
+		for (com.rreganjr.requel.project.ProjectOrDomainEntity entity : projectImpl
+				.getProjectEntities()) {
+			entities.put(entity.getProjectOrDomainEntityInterface().getSimpleName() + ":"
+					+ entity.getId(), entity);
+		}
+		java.util.List<com.rreganjr.requel.project.SourceAuthorityEdge> edges = getProvenanceStore()
+				.authorityEdges(projectImpl.getId());
+		for (com.rreganjr.requel.project.ExternalSource source : getProvenanceStore()
+				.listSources(projectImpl.getId())) {
+			com.rreganjr.requel.project.impl.ExternalSourceXml carrier =
+					new com.rreganjr.requel.project.impl.ExternalSourceXml(source.getSystem(),
+							source.getExternalId(),
+							source.getLocatorType() == null ? null : source.getLocatorType().name(),
+							source.getLocator(), source.getTitle(), source.getKind(),
+							source.getContentHash(), format(source.getLastIngestedAt()));
+			carrier.setNote(source.getNote());
+			for (com.rreganjr.requel.project.SourceAuthorityEdge edge : edges) {
+				if (edge.getSubordinate().getId().equals(source.getId())) {
+					carrier.getDefersTo().add(new com.rreganjr.requel.project.impl.SourceAuthorityXml(
+							edge.getSuperior().getSystem(), edge.getSuperior().getExternalId(),
+							edge.getNote()));
+				}
+			}
+			for (com.rreganjr.requel.project.EntitySourceLink link : getProvenanceStore()
+					.linksForSource(source.getId())) {
+				com.rreganjr.requel.project.ProjectOrDomainEntity entity = entities
+						.get(link.getTargetType() + ":" + link.getTargetId());
+				if (entity == null) {
+					continue;
+				}
+				carrier.getLinks().add(new com.rreganjr.requel.project.impl.SourceLinkXml(
+						link.getRelation().name(), link.getTargetType(), entity,
+						link.getFragment(), link.getFragmentHash(), link.getSourceHashSeen(),
+						link.getEntityFingerprint(), format(link.getIngestedAt())));
+			}
+			carriers.add(carrier);
+		}
+		return carriers;
+	}
+
+	private static String format(java.util.Date date) {
+		return date == null ? null
+				: com.rreganjr.requel.utils.DateUtils.standardDateAndTime.format(date);
 	}
 
 	/**
@@ -136,14 +250,114 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 	@Override
 	public void execute() {
 		try {
+			// Enrich the project's transient <tags> block from the tagging SPI (issue #112,
+			// Phase 5). Uses only strings + an IDREF, so this command never references a tag JPA
+			// type — tagging stays a strict leaf.
+			if (project instanceof ProjectImpl projectImpl) {
+				java.util.Set<TagAssignmentXml> tagXmls = new java.util.HashSet<>();
+				for (com.rreganjr.requel.tagging.TagExportAssignment assignment
+						: tagExportProvider.exportAssignmentsFor(projectImpl)) {
+					tagXmls.add(new TagAssignmentXml(
+							assignment.entityType(), assignment.entity(), assignment.token()));
+				}
+				projectImpl.setExportTagAssignments(tagXmls);
+
+				// Issue #313: the project's own dictionary words, read from the repository that
+				// owns them. Same carrier pattern as the tags above and for the same reason —
+				// nothing on the entity is mapped to project_dictionary_words, so there is no
+				// Hibernate copy that could be stale.
+				projectImpl.setDictionaryWords(new java.util.TreeSet<>(
+						dictionaryRepository.findProjectWords(projectImpl.getId())));
+
+				// Issue #320: the project's ignored findings, from the store that owns them.
+				projectImpl.setExportIgnoredFindings(exportIgnoredFindings(projectImpl));
+
+				// Issue #272: the project's external sources and their entity links.
+				projectImpl.setExportExternalSources(exportExternalSources(projectImpl));
+
+				// Issue #275: which annotations are stale on which entities (#270).
+				staleMarked = markStale(projectImpl);
+			}
+
 			JAXBContext context = JAXBContext.newInstance(CLASSES_FOR_JAXB);
 			Marshaller marshaller = context.createMarshaller();
 			marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
-			marshaller.setProperty(Marshaller.JAXB_SCHEMA_LOCATION, "http://www.rreganjr.com/requel http://requel.sourceforge.net/integration/1.0/project.xsd");
+			// Exports advertise the 2.0 schema (issue #171), published in-repo at
+			// website/integration/2.0/project.xsd and byte-identical to the copy the round-trip ITs
+			// validate against (asserted by ProjectSchemaNameLengthTest).
+			//
+			// The 1.0 copy this replaces is frozen: it predates annotationRef, primaryActorRef and the
+			// password fields, and does not compile as a schema at all (non-deterministic content
+			// model), so exports were advertising a hint no consumer could act on. Documents already
+			// in the wild still reference 1.0, which is why that file stays where it is.
+			//
+			// Published by .github/workflows/pages.yml, which deploys website/ to GitHub Pages on
+			// pushes to master. That the publish is automated is the point: 1.0 rotted because
+			// uploading it to requel.sourceforge.net was a manual step nobody repeated.
+			marshaller.setProperty(Marshaller.JAXB_SCHEMA_LOCATION, "http://www.rreganjr.com/requel https://rreganjr.github.io/Requel/integration/2.0/project.xsd");
 			jaxbAdapterConfigurer.configure(marshaller);
 			marshaller.marshal(project, getOutputStream());
 		} catch (Exception e) {
-			log.error(e, e);
+			log.error("Could not export project XML", e);
+			throw new IllegalStateException("Could not export project XML", e);
+		} finally {
+			for (com.rreganjr.requel.annotation.impl.AbstractAnnotation annotation : staleMarked) {
+				annotation.setExportStaleOn(null);
+			}
 		}
+	}
+
+	private java.util.List<com.rreganjr.requel.annotation.impl.AbstractAnnotation> staleMarked =
+			java.util.List.of();
+
+	private com.rreganjr.requel.annotation.spi.AnnotationFreshness annotationFreshness =
+			com.rreganjr.requel.annotation.spi.AnnotationFreshness.NONE;
+
+	/** Issue #275: optional, as the other stores are; nothing is stale without the assistant module. */
+	@Autowired(required = false)
+	public void setAnnotationFreshness(
+			com.rreganjr.requel.annotation.spi.AnnotationFreshness annotationFreshness) {
+		this.annotationFreshness = annotationFreshness == null
+				? com.rreganjr.requel.annotation.spi.AnnotationFreshness.NONE
+				: annotationFreshness;
+	}
+
+	/**
+	 * Issue #275: one staleness lookup for every entity of the project (sub-scenarios and shared
+	 * steps included), then each stale annotation carries the entities it is stale on, sorted by
+	 * type and id so the attribute is byte-stable.
+	 *
+	 * @return the annotations marked, to clear after the marshal
+	 */
+	private java.util.List<com.rreganjr.requel.annotation.impl.AbstractAnnotation> markStale(
+			ProjectImpl projectImpl) {
+		java.util.Set<com.rreganjr.requel.project.ProjectOrDomainEntity> entities =
+				new java.util.LinkedHashSet<>(projectImpl.getProjectEntities());
+		for (Object step : projectImpl.getAllScenariosAndSteps()) {
+			if (step instanceof com.rreganjr.requel.project.ProjectOrDomainEntity entity) {
+				entities.add(entity);
+			}
+		}
+		java.util.List<com.rreganjr.requel.project.ProjectOrDomainEntity> ordered =
+				new java.util.ArrayList<>(entities);
+		ordered.sort(java.util.Comparator
+				.comparing((com.rreganjr.requel.project.ProjectOrDomainEntity e) -> e
+						.getProjectOrDomainEntityInterface().getSimpleName())
+				.thenComparing(com.rreganjr.requel.project.ProjectOrDomainEntity::getId,
+						java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())));
+		com.rreganjr.requel.annotation.spi.AnnotationFreshness.StaleAnnotations stale =
+				annotationFreshness.staleAnnotations(ordered);
+		java.util.Map<com.rreganjr.requel.annotation.impl.AbstractAnnotation, java.util.List<Object>> marks =
+				new java.util.LinkedHashMap<>();
+		for (com.rreganjr.requel.project.ProjectOrDomainEntity entity : ordered) {
+			for (com.rreganjr.requel.annotation.Annotation annotation : entity.getAnnotations()) {
+				if (annotation instanceof com.rreganjr.requel.annotation.impl.AbstractAnnotation impl
+						&& stale.isStale(entity, annotation)) {
+					marks.computeIfAbsent(impl, a -> new java.util.ArrayList<>()).add(entity);
+				}
+			}
+		}
+		marks.forEach((annotation, on) -> annotation.setExportStaleOn(on));
+		return new java.util.ArrayList<>(marks.keySet());
 	}
 }

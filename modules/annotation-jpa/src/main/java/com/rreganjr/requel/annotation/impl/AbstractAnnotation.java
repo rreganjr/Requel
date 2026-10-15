@@ -1,9 +1,8 @@
 /*
- * $Id$
- * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
- * 
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
+ *
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +25,16 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.hibernate.annotations.Any;
+import org.hibernate.annotations.AnyDiscriminator;
+import org.hibernate.annotations.AnyKeyJavaClass;
+import org.hibernate.annotations.ManyToAny;
+
+import com.rreganjr.platform.identity.User;
+import com.rreganjr.requel.annotation.Annotatable;
+import com.rreganjr.requel.annotation.Annotation;
+import com.rreganjr.requel.user.impl.UserImpl;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorColumn;
@@ -38,6 +47,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
@@ -55,16 +65,6 @@ import jakarta.xml.bind.annotation.XmlType;
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import org.hibernate.annotations.Any;
-import org.hibernate.annotations.AnyDiscriminator;
-import org.hibernate.annotations.AnyKeyJavaClass;
-import org.hibernate.annotations.ManyToAny;
-
-import com.rreganjr.requel.annotation.Annotatable;
-import com.rreganjr.requel.annotation.Annotation;
-import com.rreganjr.platform.identity.User;
-import com.rreganjr.requel.user.impl.UserImpl;
-
 /**
  * @author ron
  */
@@ -80,10 +80,13 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 	private Object groupingObject;
 	private String text;
 	private String type;
-	private Set<Annotatable> annotatables = new HashSet<Annotatable>();
+	private Set<Annotatable> annotatables = new HashSet<>();
+	private java.util.List<Object> exportStaleOn;
 	// private Set<Annotation> annotations = new TreeSet<Annotation>();
 	private User createdBy;
 	private Date dateCreated = new Date();
+	private String source;
+	private String assistantIdempotencyKey;
 	private int version = 1; // start at 1 so hibernate recognizes the new
 
 	// instance as the initial value and not stale.
@@ -98,6 +101,23 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 
 	protected AbstractAnnotation() {
 		// for hibernate
+	}
+
+	/**
+	 * Issue #275: export-only. The entities this annotation is stale on (#270: the entity changed
+	 * since the finding behind it was raised), written as the {@code staleOn} IDREFS attribute and
+	 * omitted when there are none. Set by the export for the length of one marshal; never read on
+	 * import, because staleness is always derived.
+	 */
+	@Transient
+	@XmlAttribute(name = "staleOn", required = false)
+	@XmlIDREF
+	public java.util.List<Object> getExportStaleOn() {
+		return exportStaleOn == null || exportStaleOn.isEmpty() ? null : exportStaleOn;
+	}
+
+	public void setExportStaleOn(java.util.List<Object> exportStaleOn) {
+		this.exportStaleOn = exportStaleOn;
 	}
 
 	@Override
@@ -152,7 +172,8 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 	}
 
 	@Version
-	protected int getVersion() {
+	@Override
+	public int getVersion() {
 		return version;
 	}
 
@@ -171,7 +192,12 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
     @AnyKeyJavaClass(Long.class)
 	@JoinTable(name = "annotation_annotatable",
 			joinColumns = @JoinColumn(name = "annotation_id"),
-			inverseJoinColumns = @JoinColumn(name = "annotatable_id")
+			inverseJoinColumns = @JoinColumn(name = "annotatable_id"),
+			// #247: mirrors Flyway V16 so schema-generated (H2) databases match MySQL. Deletes by
+			// annotated entity (DELETE ... WHERE annotatable_id = ?) must be index-range scans;
+			// without this they full-scan and X-lock the whole join table under InnoDB.
+			indexes = @Index(name = "idx_annotation_annotatable_annotatable",
+					columnList = "annotatable_id, annotatable_type")
 	)
 	public Set<Annotatable> getAnnotatables() {
 		return annotatables;
@@ -241,7 +267,9 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 		return true;
 	}
 
-	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.PERSIST, CascadeType.REFRESH }, optional = false)
+	// #323: no REFRESH cascade up to the user - a refresh reloads the entity and what it owns,
+	// nothing above it (the user's roles reach every project the user is on).
+	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.PERSIST }, optional = false)
     @XmlIDREF()
     @XmlAttribute(name = "createdBy")
     public User getCreatedBy() {
@@ -261,6 +289,39 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 
 	protected void setDateCreated(Date dateCreated) {
 		this.dateCreated = dateCreated;
+	}
+
+	/**
+	 * Provenance label for this annotation: {@code "HUMAN"} (or {@code null}) for
+	 * user-created annotations, {@code "ASSISTANT:<assistantId>"} for ones created
+	 * by the assistant result applicator. Drives source labeling in the UI and the
+	 * "untouched" detection used by assistant finding cleanup, without joining the
+	 * assistant tables. DB-only (not part of the project XML schema).
+	 */
+	@Column(name = "source", length = 100)
+	@XmlTransient
+	public String getSource() {
+		return source;
+	}
+
+	public void setSource(String source) {
+		this.source = source;
+	}
+
+	/**
+	 * Duplicates the {@code AssistantFinding} idempotency key on the annotation row
+	 * for fast reverse lookup (finding -> annotation) and source labeling.
+	 * {@code null} for human-created annotations. DB-only (not part of the project
+	 * XML schema).
+	 */
+	@Column(name = "assistant_idempotency_key", length = 255)
+	@XmlTransient
+	public String getAssistantIdempotencyKey() {
+		return assistantIdempotencyKey;
+	}
+
+	public void setAssistantIdempotencyKey(String assistantIdempotencyKey) {
+		this.assistantIdempotencyKey = assistantIdempotencyKey;
 	}
 
 	/**

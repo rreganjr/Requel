@@ -1,0 +1,40 @@
+/*
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+package com.rreganjr.requel.service.api.dto;
+
+import com.rreganjr.requel.service.api.CommandDescription;
+import jakarta.validation.constraints.NotBlank;
+
+/**
+ * Input for deleting a whole project by name (issue #240). {@code version}
+ * carries the caller's optimistic-lock expectation (issue #108).
+ */
+@CommandDescription("Permanently deletes a whole project, selected by projectName, and everything"
+        + " in it: use cases, scenarios and steps, stories, actors, goals and their relations,"
+        + " glossary terms, reports, stakeholders, teams, the project dictionary, ignored findings"
+        + " and annotations. User accounts are kept; only their membership of the project goes."
+        + " Pass version to have the delete refused if the project changed since you read it. This"
+        + " cannot be undone.")
+public record DeleteProjectInput(
+        @NotBlank String projectName,
+        Integer version
+) {
+}
