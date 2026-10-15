@@ -71,6 +71,6 @@ intended are recorded, with a reason, in `scripts/doc-link-allow.tsv`.
 | Folder | Contents | Files |
 |---|---|---|
 | [backlog](work/backlog/) | proposals, not yet scheduled | 7 |
-| [2.0](work/2.0/INDEX.md) | release 2.0 | 117 |
+| [2.0](work/2.0/INDEX.md) | release 2.0 | 174 |
 
 <!-- END INDEX -->
