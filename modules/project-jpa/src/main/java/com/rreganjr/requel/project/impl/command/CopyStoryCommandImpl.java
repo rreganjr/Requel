@@ -88,7 +88,8 @@ public class CopyStoryCommandImpl extends AbstractEditProjectCommand
 	}
 
 	public void setNewStoryName(String newStoryName) {
-		this.newStoryName = newStoryName;
+		// #398: names are saved trimmed, as the lookups by name expect.
+		this.newStoryName = (newStoryName == null) ? null : newStoryName.trim();
 	}
 
 	@Override

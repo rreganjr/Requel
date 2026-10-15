@@ -26,6 +26,7 @@ import com.rreganjr.requel.service.api.FromEntityProperty;
 import com.rreganjr.validator.ValidationLimits;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 
 /**
  * Input DTO for the EditUser command. Used for both creating and updating users.
@@ -45,7 +46,11 @@ public record EditUserInput(
         @Email
         String emailAddress,
         String phoneNumber,
+        // #398: every user belongs to an organization (users.organization_id is NOT NULL).
+        // Without this a missing one reached the insert and came back as a username conflict.
+        @NotBlank(message = "organization is required.")
         @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
+        @FromEntityProperty("organization")
         String organizationName,
         Boolean editable,
         @FromEntityProperty("roles")

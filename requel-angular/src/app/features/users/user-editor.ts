@@ -45,6 +45,7 @@ import {
   atLeastOne,
   clearServerErrors,
   firstErrorMessage,
+  notBlank,
   passwordsMatch,
 } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH, PASSWORD_MAX_LENGTH } from '../../shared/validation-limits';
@@ -269,9 +270,10 @@ export class UserEditorComponent implements OnInit, DirtyCheckable {
         validators: [Validators.required, Validators.maxLength(ARTIFACT_NAME_MAX_LENGTH)],
         nonNullable: true,
       }),
-      emailAddress: new FormControl('', { validators: Validators.email, nonNullable: true }),
+      emailAddress: new FormControl('', { validators: [Validators.required, Validators.email], nonNullable: true }),
       phoneNumber: new FormControl('', { nonNullable: true }),
-      organizationName: new FormControl('', { nonNullable: true }),
+      // Required by the server (#398): a user without an organization can't be saved.
+      organizationName: new FormControl('', { validators: notBlank(), nonNullable: true }),
       password: new FormControl('', { nonNullable: true }),
       repassword: new FormControl('', { nonNullable: true }),
       userRoleNames: new FormControl<string[]>([], { validators: atLeastOne(), nonNullable: true }),

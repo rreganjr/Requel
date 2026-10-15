@@ -110,9 +110,10 @@ public class JpaUserRepository extends AbstractJpaRepository implements UserRepo
 
 	public User findUserByUsername(String username) throws NoSuchUserException {
 		try {
+			// #398: = not LIKE, so _ and % in a username aren't wildcards.
 			// TODO: use named query so it can be configured externally
             Query query = getEntityManager().createQuery(
-                    "select object(user) from UserImpl as user where user.username like :username");
+                    "select object(user) from UserImpl as user where user.username = :username");
             query.setParameter("username", username);
 			return (User) query.getSingleResult();
 		} catch (NoResultException e) {
@@ -172,7 +173,7 @@ public class JpaUserRepository extends AbstractJpaRepository implements UserRepo
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(organization) from OrganizationImpl as organization where name like :name");
+							"select object(organization) from OrganizationImpl as organization where name = :name");
 			query.setParameter("name", name);
 			return (Organization) query.getSingleResult();
 		} catch (NoResultException e) {

@@ -90,7 +90,8 @@ public class CopyUseCaseCommandImpl extends AbstractEditProjectCommand implement
 	}
 
 	public void setNewUseCaseName(String newUseCaseName) {
-		this.newUseCaseName = newUseCaseName;
+		// #398: names are saved trimmed, as the lookups by name expect.
+		this.newUseCaseName = (newUseCaseName == null) ? null : newUseCaseName.trim();
 	}
 
 	@Override

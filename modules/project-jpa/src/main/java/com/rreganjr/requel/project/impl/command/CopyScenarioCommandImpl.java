@@ -88,7 +88,8 @@ public class CopyScenarioCommandImpl extends AbstractEditProjectCommand implemen
 	}
 
 	public void setNewScenarioName(String newScenarioName) {
-		this.newScenarioName = newScenarioName;
+		// #398: names are saved trimmed, as the lookups by name expect.
+		this.newScenarioName = (newScenarioName == null) ? null : newScenarioName.trim();
 	}
 
 	@Override

@@ -167,6 +167,42 @@ public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCa
     }
 
     /**
+     * Issue #398: an imported user stakeholder keeps the project permissions the file gives it.
+     * The importer read only the stakeholder's user, so everyone but the importer and the
+     * assistant came back with none. In the sample, admin holds 29.
+     */
+    @Test
+    public void importedUserStakeholdersKeepTheirPermissions() throws Exception {
+        projectUserInitializer.initialize();
+        ensureAssistantHasProjectRole();
+        String sample = Files.readString(resolveSampleXml());
+        java.util.regex.Matcher adminBlock = java.util.regex.Pattern
+                .compile("<user-stakeholder [^>]*>(?:(?!</user-stakeholder>).)*<username>admin</username>",
+                        java.util.regex.Pattern.DOTALL)
+                .matcher(sample);
+        assertTrue(adminBlock.find(), "the sample has admin as a stakeholder");
+        java.util.Set<String> expected = new java.util.TreeSet<>();
+        java.util.regex.Matcher permission = java.util.regex.Pattern
+                .compile("<projectPermission entityType=\"([^\"]+)\" permissionType=\"([^\"]+)\"/>")
+                .matcher(adminBlock.group());
+        while (permission.find()) {
+            expected.add(permission.group(1) + "[" + permission.group(2) + "]");
+        }
+        assertFalse(expected.isEmpty(), "admin holds permissions in the sample");
+
+        Project imported = importXml(sample, "Import Kept Permissions " + System.currentTimeMillis());
+        User admin = getUserRepository().findUserByUsername("admin");
+        UserStakeholder stakeholder = imported.getStakeholders().stream()
+                .filter(s -> s instanceof UserStakeholder us && us.matchesUser(admin))
+                .map(s -> (UserStakeholder) s)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("admin imported as a stakeholder"));
+        java.util.Set<String> granted = new java.util.TreeSet<>();
+        stakeholder.getStakeholderPermissions().forEach(p -> granted.add(p.getPermissionKey()));
+        assertEquals(expected, granted, "admin keeps exactly the permissions in the file");
+    }
+
+    /**
      * The import path used to route the assistant through the same grant loop as the creator,
      * so an imported project gave it every permission while a UI-created one gave it none
      * (issue #302). It now holds its own set, whichever way the project arrived.

@@ -48,6 +48,9 @@ import org.junit.jupiter.api.Test;
  */
 public class GoalRelationCommandTest extends AbstractIntegrationTestCase {
 
+	@org.springframework.beans.factory.annotation.Autowired
+	private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
 	// -------------------------------------------------------------------------
 	// Helpers
 	// -------------------------------------------------------------------------
@@ -115,6 +118,48 @@ public class GoalRelationCommandTest extends AbstractIntegrationTestCase {
 		}
 		Goal hub = getProjectRepository().findGoalByProjectOrDomainAndName(project, "Hub");
 		assertEquals(GoalRelationType.values().length, hub.getRelationsFromThisGoal().size());
+	}
+
+	/**
+	 * #398: a goal named with a trailing space was saved with it, but the lookup by name trims
+	 * and used LIKE (which doesn't pad), so the goal could never be related.
+	 */
+	@Test
+	public void aGoalNamedWithATrailingSpaceIsSavedTrimmedAndCanBeRelated() throws Exception {
+		Project project = createProject("GoalRelation-trailing-space");
+		Goal trailing = createGoal(project, "Trailing ");
+		createGoal(project, "Other");
+		assertEquals("Trailing", trailing.getName(), "the name is saved trimmed");
+
+		relate(project, null, "Trailing ", "Other", "Supports");
+		relate(project, null, "Other", "Trailing", "DependsOn");
+		Goal found = getProjectRepository().findGoalByProjectOrDomainAndName(project, "Trailing ");
+		assertEquals(1, found.getRelationsFromThisGoal().size());
+		assertEquals(1, found.getRelationsToThisGoal().size());
+	}
+
+	/** #398: a goal saved with a trailing space before names were trimmed is still found. */
+	@Test
+	public void aGoalSavedWithATrailingSpaceIsStillFound() throws Exception {
+		Project project = createProject("GoalRelation-legacy-space");
+		Goal legacy = createGoal(project, "Legacy");
+		createGoal(project, "Newer");
+		jdbcTemplate.update("update goals set name = ? where id = ?", "Legacy ", legacy.getId());
+
+		relate(project, null, "Legacy ", "Newer", "Supports");
+		assertEquals("Legacy ", getProjectRepository().findGoalByProjectOrDomainAndName(project, "Legacy ").getName());
+	}
+
+	/** #398: with LIKE, _ in a name was a wildcard, so "a_b" also matched "axb". */
+	@Test
+	public void anUnderscoreInAGoalNameIsNotAWildcard() throws Exception {
+		Project project = createProject("GoalRelation-underscore");
+		createGoal(project, "a_b");
+		createGoal(project, "axb");
+
+		GoalRelation relation = relate(project, null, "a_b", "axb", "Supports");
+		assertEquals("a_b", relation.getFromGoal().getName());
+		assertEquals("axb", relation.getToGoal().getName());
 	}
 
 	@Test

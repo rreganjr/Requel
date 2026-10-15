@@ -71,6 +71,7 @@ describe('UserEditorComponent', () => {
       username: 'newuser',
       name: 'New User',
       emailAddress: 'new@example.com',
+      organizationName: 'Requel',
       password: 'hunter2',
       repassword: 'hunter2',
       userRoleNames: ['ProjectUserRole'],
@@ -152,7 +153,7 @@ describe('UserEditorComponent', () => {
       expect(comp.form.valid).toBe(true);
     });
 
-    it.each(['username', 'name'] as const)('requires %s', async field => {
+    it.each(['username', 'name', 'emailAddress', 'organizationName'] as const)('requires %s', async field => {
       fixture.detectChanges();
       await flush();
       fillNewUser({ [field]: '' });

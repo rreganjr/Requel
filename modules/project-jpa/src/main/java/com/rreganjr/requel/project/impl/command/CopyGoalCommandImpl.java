@@ -90,7 +90,8 @@ public class CopyGoalCommandImpl extends AbstractEditProjectCommand implements C
 	}
 
 	public void setNewGoalName(String newGoalName) {
-		this.newGoalName = newGoalName;
+		// #398: names are saved trimmed, as the lookups by name expect.
+		this.newGoalName = (newGoalName == null) ? null : newGoalName.trim();
 	}
 
 	@Override
