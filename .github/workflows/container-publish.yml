@@ -146,24 +146,35 @@ jobs:
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
-      - name: Push versioned image
-        env:
-          VERSION: ${{ steps.ver.outputs.version }}
-        run: docker push "${DOCKER_IMAGE}:${VERSION}"
+      # Publish a multi-platform image (#396): linux/amd64 for servers and Intel Macs,
+      # linux/arm64 for Apple Silicon and ARM servers, so neither runs under emulation.
+      # The Dockerfile only copies the platform-neutral jar onto eclipse-temurin (itself
+      # multi-arch), so the arm64 half needs no compiling under QEMU. It is built from the
+      # same jar the amd64 smoke test above ran; buildx pushes both under one tag. A final
+      # release (no dash after the patch number, e.g. v2.0.0, not v2.0.0-rc1 or
+      # v0.0.0-test1) also moves :latest.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-      # Move :latest only when the tag is a final release — i.e. no
-      # suffix after the patch number. Catches `-rc` (release plan
-      # convention) plus any other dash-suffixed test or pre-release
-      # tag (e.g. `v0.0.0-test1`, `v2.0.0-beta1`). Stricter than the
-      # original plan §10.2 spec (`-rc`-only check), but safer against
-      # accidental :latest churn from throwaway test tags.
-      - name: Push :latest for final releases
-        if: ${{ !contains(github.ref_name, '-') }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Push multi-platform image
         env:
           VERSION: ${{ steps.ver.outputs.version }}
+          FINAL: ${{ !contains(github.ref_name, '-') }}
         run: |
-          docker tag "${DOCKER_IMAGE}:${VERSION}" "${DOCKER_IMAGE}:latest"
-          docker push "${DOCKER_IMAGE}:latest"
+          POM_VERSION=$(mvn -pl modules/requel-app help:evaluate \
+                       -Dexpression=project.version -q -DforceStdout)
+          JAR="modules/requel-app/target/requel-app-${POM_VERSION}.jar"
+          test -f "${JAR}" || { echo "missing ${JAR}"; exit 1; }
+          TAGS=(-t "${DOCKER_IMAGE}:${VERSION}")
+          if [ "${FINAL}" = "true" ]; then
+            TAGS+=(-t "${DOCKER_IMAGE}:latest")
+          fi
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            --build-arg "JAR_FILE=${JAR}" "${TAGS[@]}" --push .
+          docker buildx imagetools inspect "${DOCKER_IMAGE}:${VERSION}"
 
       - name: Log out of Docker Hub
         if: always()

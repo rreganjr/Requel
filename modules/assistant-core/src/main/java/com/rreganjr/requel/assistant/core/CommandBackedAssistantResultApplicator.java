@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -799,17 +800,34 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	 * unrecognised value from a model is logged and treated as absent, so one bad reply doesn't
 	 * drop a real finding. The finding row still records the raw value.
 	 */
-	private static IssueSeverity issueSeverity(AnnotationAction action) {
+	static IssueSeverity issueSeverity(AnnotationAction action) {
 		String raw = action.severity();
 		if (raw == null || raw.isBlank()) {
 			return null;
 		}
-		return IssueSeverity.parse(raw).orElseGet(() -> {
-			log.warn("assistant action {} sent unknown severity '{}'; using the default",
-					action.actionKey(), raw);
-			return null;
-		});
+		return IssueSeverity.parse(raw)
+				.or(() -> Optional.ofNullable(SEVERITY_SYNONYMS.get(raw.strip().toUpperCase(Locale.ROOT))))
+				.orElseGet(() -> {
+					log.warn("assistant action {} sent unknown severity '{}'; using the default",
+							action.actionKey(), raw);
+					return null;
+				});
 	}
+
+	/**
+	 * #396: words models use for severity instead of the schema's LOW/MEDIUM/HIGH (qwen2.5:3b on
+	 * Ollama sent MODERATE and MAJOR). Only here, for assistant output; the API and import still
+	 * accept only the three names.
+	 */
+	private static final Map<String, IssueSeverity> SEVERITY_SYNONYMS = Map.of(
+			"MINOR", IssueSeverity.LOW,
+			"TRIVIAL", IssueSeverity.LOW,
+			"MODERATE", IssueSeverity.MEDIUM,
+			"MED", IssueSeverity.MEDIUM,
+			"NORMAL", IssueSeverity.MEDIUM,
+			"MAJOR", IssueSeverity.HIGH,
+			"SEVERE", IssueSeverity.HIGH,
+			"CRITICAL", IssueSeverity.HIGH);
 
 	private AppliedAction applyPosition(AnnotationAction action, User editedBy,
 			Map<String, Object> createdByActionKey) throws Exception {

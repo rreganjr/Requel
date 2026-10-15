@@ -84,12 +84,21 @@ public final class ReviewResultMapper {
 	/** #266: a corpus finding's participants, {@code Type:id}, in the draft's metadata. */
 	public static final String PARTICIPANTS = "participants";
 
+	/** #396: the run summary recorded when the model returned findings but no summary. */
+	public static final String NO_SUMMARY = "(The model returned findings without a summary.)";
+
+	private static boolean isBlank(String text) {
+		return text == null || text.isBlank();
+	}
+
 	/** Requel-side validation of the structured output, whichever client produced it. */
 	public static void validate(ReviewResult result) throws AiAnalysisException {
 		if (result == null) {
 			throw new AiAnalysisException("structured output was null");
 		}
-		if (result.summary() == null || result.summary().isBlank()) {
+		// #396: a reply with findings but no summary keeps its findings (small local models often
+		// leave the summary out); toResponse records NO_SUMMARY. With neither, it fails as before.
+		if (isBlank(result.summary()) && (result.findings() == null || result.findings().isEmpty())) {
 			throw new AiAnalysisException("structured output missing summary");
 		}
 		if (result.findings() != null) {
@@ -109,7 +118,8 @@ public final class ReviewResultMapper {
 	public AiAnalysisResponse toResponse(ReviewResult result, AiUsage usage,
 			Map<String, Object> providerMetadata) {
 		JsonNode structuredOutput = objectMapper.valueToTree(result);
-		return new AiAnalysisResponse(result.summary(), structuredOutput, findings(result),
+		String summary = isBlank(result.summary()) ? NO_SUMMARY : result.summary();
+		return new AiAnalysisResponse(summary, structuredOutput, findings(result),
 				messages(result), usage, providerMetadata);
 	}
 

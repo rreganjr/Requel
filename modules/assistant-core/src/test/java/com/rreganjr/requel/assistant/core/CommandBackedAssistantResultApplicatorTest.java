@@ -910,4 +910,25 @@ class CommandBackedAssistantResultApplicatorTest {
 				new UserRef(11L, "assistant"), EntityRef.of("Project", 7L), Locale.US,
 				Clock.systemUTC(), Map.of());
 	}
+
+	/** #396: models send MODERATE/MAJOR and the like; map them, keep the three names, drop the rest. */
+	@Test
+	void severitySynonymsFromAModelMapToTheThreeSeverities() {
+		java.util.function.Function<String, com.rreganjr.requel.annotation.IssueSeverity> sev = raw ->
+				CommandBackedAssistantResultApplicator.issueSeverity(new AnnotationAction("k",
+						AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE, EntityRef.of("Goal", 1L), null,
+						"text", raw, null, List.of(), Map.of()));
+		org.assertj.core.api.Assertions.assertThat(sev.apply("MODERATE"))
+				.isEqualTo(com.rreganjr.requel.annotation.IssueSeverity.MEDIUM);
+		org.assertj.core.api.Assertions.assertThat(sev.apply(" major "))
+				.isEqualTo(com.rreganjr.requel.annotation.IssueSeverity.HIGH);
+		org.assertj.core.api.Assertions.assertThat(sev.apply("Critical"))
+				.isEqualTo(com.rreganjr.requel.annotation.IssueSeverity.HIGH);
+		org.assertj.core.api.Assertions.assertThat(sev.apply("minor"))
+				.isEqualTo(com.rreganjr.requel.annotation.IssueSeverity.LOW);
+		org.assertj.core.api.Assertions.assertThat(sev.apply("HIGH"))
+				.isEqualTo(com.rreganjr.requel.annotation.IssueSeverity.HIGH);
+		org.assertj.core.api.Assertions.assertThat(sev.apply("urgent-ish")).isNull();
+		org.assertj.core.api.Assertions.assertThat(sev.apply(null)).isNull();
+	}
 }
