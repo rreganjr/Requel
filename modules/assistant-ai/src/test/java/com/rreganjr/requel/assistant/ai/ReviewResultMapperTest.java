@@ -60,6 +60,20 @@ class ReviewResultMapperTest {
 	}
 
 	@Test
+	void findingsWithoutASummaryAreKept() throws AiAnalysisException {
+		// #396: qwen2.5:3b on Ollama left the summary out; the findings were still real.
+		ReviewResult result = new ReviewResult(null,
+				List.of(new Finding("AMBIGUOUS", "MEDIUM", 0.7, List.of("fast"), "Vague.", null,
+						List.of())),
+				List.of());
+		ReviewResultMapper.validate(result);
+		AiAnalysisResponse response = new ReviewResultMapper(new ObjectMapper())
+				.toResponse(result, AiUsage.noop("test", Duration.ZERO), Map.of());
+		assertThat(response.summary()).isEqualTo(ReviewResultMapper.NO_SUMMARY);
+		assertThat(response.findings()).hasSize(1);
+	}
+
+	@Test
 	void validateRejectsBlankFindingType() {
 		ReviewResult result = new ReviewResult("ok",
 				List.of(new Finding("  ", "LOW", null, List.of(), null, null, List.of())),

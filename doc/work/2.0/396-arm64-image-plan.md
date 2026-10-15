@@ -1,4 +1,4 @@
-# #396: publish the Docker image for linux/arm64 too, plan
+# #396: rc5 acceptance fixes (arm64 image, stale UI after upgrade, lenient AI replies), plan
 
 Issue: https://github.com/rreganjr/Requel/issues/396 · branch `396-arm64-image` · epic #375 · found by #378 on rc5.
 
@@ -24,3 +24,28 @@ Issue: https://github.com/rreganjr/Requel/issues/396 · branch `396-arm64-image`
 - The real test is rc6:
   - `docker buildx imagetools inspect rreganjr/requel:2.0.0-rc6` lists both platforms;
   - `docker compose up` on an Apple Silicon Mac pulls the arm64 image with no warning, and Requel starts and logs in.
+
+## Folded in from the rc5 Ollama pass
+
+### Blank page after an upgrade
+
+Spring Boot served the UI with no `Cache-Control` and the jar's 1980 entry time as `Last-Modified`. Chrome therefore kept `index.html` for years by heuristic. After moving from an older Requel to rc5 on the same port, it showed the old page, which asks for `main-<oldhash>.js`. The new jar 404s that file, so the page was blank until the cache was cleared. `/login?x` worked because that URL wasn't cached.
+
+- `StaticCacheHeadersFilter` (service-impl, `config`), GET and HEAD only, skipping `/api/`, `/actuator/`, `/oauth2/`, `/connect/`, `/.well-known/`, `/userinfo` and `/login/`:
+  - Angular content-hashed files (`-XXXXXXXX.ext`) get `public, max-age=31536000, immutable`.
+  - Everything else the UI serves (`/`, `/index.html`, the routes `SpaController` forwards, `favicon.ico`) gets `no-cache`.
+- `spring.web.resources.cache.use-last-modified=false`. With the 1980 date, a revalidation of a changed `index.html` got a 304.
+- Test: `StaticCacheHeadersIT` covers the UI routes (no-cache), a hashed file (a year, no `Last-Modified`), an unhashed file (no-cache, no `Last-Modified`), and the API left alone.
+
+### AI replies from small models
+
+`qwen2.5:3b` on Ollama sometimes ignored the output schema:
+
+- **No `summary`:** the whole run failed with "structured output missing summary", findings and all (6 runs).
+- **Severities outside `LOW|MEDIUM|HIGH`:** `MODERATE` and `MAJOR`. These were kept, but at the kind's default severity.
+
+The fixes:
+
+- `ReviewResultMapper.validate` fails a missing summary only when there are no findings either. `toResponse` records `NO_SUMMARY` ("(The model returned findings without a summary.)") as the run summary. Test: `ReviewResultMapperTest.findingsWithoutASummaryAreKept`.
+- `CommandBackedAssistantResultApplicator.issueSeverity` maps synonyms for assistant output only: `MINOR` and `TRIVIAL` to LOW; `MODERATE`, `MED` and `NORMAL` to MEDIUM; `MAJOR`, `SEVERE` and `CRITICAL` to HIGH. Anything else is still logged and left at the default. The API and import still accept only the three names. Test: `severitySynonymsFromAModelMapToTheThreeSeverities`.
+
