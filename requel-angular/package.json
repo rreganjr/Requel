@@ -46,7 +46,7 @@
     "axe-core": "^4.12.1",
     "eslint": "^9.39.5",
     "jsdom": "^28.0.0",
-    "monocart-reporter": "^2.0.0",
+    "monocart-reporter": "^2.14.1",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.68.0",
