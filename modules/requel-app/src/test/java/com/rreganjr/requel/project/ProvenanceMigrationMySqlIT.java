@@ -101,24 +101,24 @@ public class ProvenanceMigrationMySqlIT {
 					+ " FROM external_sources WHERE project_id = " + PROJECT
 					+ " ORDER BY external_id", 4);
 			assertEquals(2, sources.size(), "one source per ticket");
-			assertArrayEquals(new String[] { "jira", "CON-3685", "URL",
-					"https://platformq.atlassian.net/browse/CON-3685" }, sources.get(0));
-			assertArrayEquals(new String[] { "jira", "CON-3686", null, null }, sources.get(1));
+			assertArrayEquals(new String[] { "jira", "PROJ-1234", "URL",
+					"https://tracker.example.com/browse/PROJ-1234" }, sources.get(0));
+			assertArrayEquals(new String[] { "jira", "PROJ-1235", null, null }, sources.get(1));
 
 			List<String[]> links = rows(c, "SELECT l.target_id, s.external_id, l.fragment,"
 					+ " l.fragment_key, l.fragment_hash, l.entity_fingerprint, l.relation,"
 					+ " l.target_type FROM entity_source_links l"
 					+ " JOIN external_sources s ON s.id = l.source_id ORDER BY l.target_id", 8);
 			assertEquals(3, links.size());
-			assertArrayEquals(new String[] { "" + withRef, "CON-3685", "AC-3", "AC-3",
+			assertArrayEquals(new String[] { "" + withRef, "PROJ-1234", "AC-3", "AC-3",
 					"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", null,
 					"DERIVED_FROM", "Goal" }, links.get(0));
-			assertArrayEquals(new String[] { "" + withoutRef, "CON-3686", "hash:60303ae22b99",
+			assertArrayEquals(new String[] { "" + withoutRef, "PROJ-1235", "hash:60303ae22b99",
 					"hash:60303ae22b99",
 					"60303ae22b998861bce3b28f33eec1be758a213c86c93c076dbe9f558c11c752", null,
 					"DERIVED_FROM", "Goal" }, links.get(1));
 			assertEquals("AC-4", links.get(2)[2]);
-			assertEquals("CON-3685", links.get(2)[1]);
+			assertEquals("PROJ-1234", links.get(2)[1]);
 
 			assertFalse(exists(c, "SELECT 1 FROM annotations WHERE id = " + withRefNote),
 					"a converted note is deleted");
@@ -137,10 +137,10 @@ public class ProvenanceMigrationMySqlIT {
 			// External ids and fragments compare exactly (binary collation).
 			try (Statement s = c.createStatement()) {
 				s.executeUpdate("INSERT INTO external_sources (project_id, source_system, external_id)"
-						+ " VALUES (" + PROJECT + ", 'jira', 'con-3685')");
+						+ " VALUES (" + PROJECT + ", 'jira', 'proj-1234')");
 			}
 			assertEquals(3, rows(c, "SELECT id FROM external_sources", 1).size(),
-					"con-3685 is a different source from CON-3685");
+					"proj-1234 is a different source from PROJ-1234");
 		}
 	}
 

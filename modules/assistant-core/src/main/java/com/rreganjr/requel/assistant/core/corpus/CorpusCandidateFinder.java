@@ -110,7 +110,7 @@ public class CorpusCandidateFinder {
 
 	/**
 	 * The thresholds and the synonym weight. The defaults are the #266 checkpoint's, from the eval
-	 * fixture and the roundtable project: see doc/work/2.0/266-corpus-analyses-plan.md.
+	 * fixture and a real project: see doc/work/2.0/266-corpus-analyses-plan.md.
 	 */
 	public record Settings(double overlapThreshold, double conflictThreshold,
 			double synonymWeight) {

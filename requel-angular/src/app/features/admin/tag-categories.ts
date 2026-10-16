@@ -52,7 +52,7 @@ import { InlineErrorComponent } from '../../shared/app-inline-error';
         <legend>Add tag category</legend>
         <p class="hint" id="tag-category-slug-hint" data-testid="tag-category-slug-hint">
           Names and values are saved as slugs: lower-cased, with runs of spaces or punctuation
-          collapsed to single hyphens. 'Source' is saved as 'source', and 'CON-3685' as 'con-3685'.
+          collapsed to single hyphens. 'Source' is saved as 'source', and 'PROJ-1234' as 'proj-1234'.
         </p>
         <div class="add-row">
         <input pInputText formControlName="name" placeholder="category name"

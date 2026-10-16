@@ -28,7 +28,7 @@ export interface ExternalSourceDto {
   id: number;
   /** Lower-cased source family, e.g. `jira`. */
   system: string;
-  /** The source's own identifier, exactly as recorded, e.g. `CON-3685`. */
+  /** The source's own identifier, exactly as recorded, e.g. `PROJ-1234`. */
   externalId: string;
   /** `URL` or `PATH`, or null when the source has no locator. */
   locatorType: 'URL' | 'PATH' | null;

@@ -45,7 +45,7 @@ public interface ExternalSource {
 	/** The lower-cased source family, e.g. {@code jira}. */
 	String getSystem();
 
-	/** The source's own identifier, exactly as given, e.g. {@code CON-3685}. */
+	/** The source's own identifier, exactly as given, e.g. {@code PROJ-1234}. */
 	String getExternalId();
 
 	/** How to read {@link #getLocator()}, or null when there is no locator. */

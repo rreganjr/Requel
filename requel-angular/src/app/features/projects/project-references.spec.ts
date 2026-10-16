@@ -11,7 +11,7 @@ const SOURCES: ProjectSourcesDto = {
       derivedCount: 4, citedByCount: 0,
       defersTo: [{ system: 'doc', externalId: 'RUNBOOK.md', title: 'Runbook' }], outranks: [] },
     { source: { id: 2, system: 'doc', externalId: 'RUNBOOK.md', locatorType: 'URL',
-        locator: 'https://github.example.com/roundtable/RUNBOOK.md', title: 'Runbook',
+        locator: 'https://github.example.com/streaming/RUNBOOK.md', title: 'Runbook',
         contentHash: null, lastIngestedAt: null, kind: 'runbook', note: null },
       derivedCount: 0, citedByCount: 2, defersTo: [],
       outranks: [{ system: 'doc', externalId: 'docs/guide.pdf', title: 'Production Guide' }] },
@@ -62,7 +62,7 @@ describe('ProjectReferencesComponent (#273)', () => {
     const links = el.querySelectorAll('a[data-testid="reference-link"]');
     expect(links.length).toBe(1);
     const a = links[0] as HTMLAnchorElement;
-    expect(a.getAttribute('href')).toBe('https://github.example.com/roundtable/RUNBOOK.md');
+    expect(a.getAttribute('href')).toBe('https://github.example.com/streaming/RUNBOOK.md');
     expect(a.getAttribute('target')).toBe('_blank');
     expect(a.getAttribute('rel')).toBe('noopener noreferrer');
     expect(el.querySelector('[data-testid="reference-path"]')?.textContent).toContain('docs/guide.pdf');

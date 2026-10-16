@@ -8,8 +8,8 @@ const LINKS: EntitySourceLinkDto[] = [
   { id: 1, relation: 'DERIVED_FROM', entityType: 'Goal', entityId: 3, entityName: 'Rooms end',
     fragment: 'AC-4', ingestedAt: '2026-09-29T12:00:00Z', notInLatestSource: true,
     editedSinceIngest: false,
-    source: { id: 10, system: 'jira', externalId: 'CON-3685', locatorType: 'URL',
-      locator: 'https://tracker.example.com/browse/CON-3685', title: null, contentHash: null,
+    source: { id: 10, system: 'jira', externalId: 'PROJ-1234', locatorType: 'URL',
+      locator: 'https://tracker.example.com/browse/PROJ-1234', title: null, contentHash: null,
       lastIngestedAt: null, kind: null, note: null } },
 ];
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # create-gateway-bug-issues.sh
-# Files the six gateway write-surface issues found building the PlatformQ Roundtable
+# Files the six gateway write-surface issues found building a real
 # project. Bodies are sliced from doc/work/backlog/gateway-write-surface-bugs.md on its `---`
 # separators: block 0 is the preamble (not filed), blocks 1..6 are the issues.
 #

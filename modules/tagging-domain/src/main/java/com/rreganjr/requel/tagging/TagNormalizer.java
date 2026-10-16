@@ -25,8 +25,8 @@ import java.util.Locale;
 /**
  * Canonicalizes tag category/value strings on write: trims, lowercases with {@code Locale.ROOT},
  * and collapses runs of non-alphanumeric characters into single hyphens (e.g.
- * {@code " Business Rule "} &rarr; {@code "business-rule"}, {@code "CON-3685"} &rarr;
- * {@code "con-3685"}, {@code "v2.0"} &rarr; {@code "v2-0"}).
+ * {@code " Business Rule "} &rarr; {@code "business-rule"}, {@code "PROJ-1234"} &rarr;
+ * {@code "proj-1234"}, {@code "v2.0"} &rarr; {@code "v2-0"}).
  *
  * <p><strong>The slug is the stored value and the uniqueness key, not a display transform.</strong>
  * {@code tag_category} is unique on {@code (project_id, name)} and {@code tag} carries a

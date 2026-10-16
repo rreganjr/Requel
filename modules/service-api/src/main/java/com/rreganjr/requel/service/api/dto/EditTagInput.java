@@ -34,7 +34,7 @@ import com.rreganjr.requel.service.api.CommandDescription;
         + " or leave it null to create one; a null or blank projectName makes the tag global."
         + " category may be null for a flat tag; value is required. Both category and value are"
         + " stored as slugs: trimmed, lower-cased, and with each run of non-alphanumeric characters"
-        + " collapsed to a single hyphen. \"CON-3685\" is stored as \"con-3685\" and \"v2.0\" as"
+        + " collapsed to a single hyphen. \"PROJ-1234\" is stored as \"proj-1234\" and \"v2.0\" as"
         + " \"v2-0\". The slug is the uniqueness key and the text you supplied is not retained, so"
         + " read the response to see what was stored.",
         authorization = "Annotation[Edit] for a project tag; system administrator for a global"

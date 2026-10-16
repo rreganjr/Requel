@@ -30,7 +30,7 @@ public enum SourceLocatorType {
 	URL,
 
 	/**
-	 * A relative path to a file, e.g. {@code docs/Roundtable-Production-Guide.pdf}: no scheme, not
+	 * A relative path to a file, e.g. {@code docs/Operator-Guide.pdf}: no scheme, not
 	 * absolute, no {@code ..} segment.
 	 */
 	PATH;

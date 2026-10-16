@@ -187,7 +187,7 @@ public class LexicalVagueWordAssistant implements RequelAssistant<TextEntity> {
 
 	/**
 	 * Issue #268: a weak requirements word always is; otherwise only a noun, adjective or adverb
-	 * whose WordNet sense carries little information is. Verbs are never scored: on the roundtable
+	 * whose WordNet sense carries little information is. Verbs are never scored: on a real
 	 * project every verb the information-content test flagged ("be", "says", "creates",
 	 * "covering") was noise.
 	 */

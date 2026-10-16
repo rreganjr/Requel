@@ -8,13 +8,13 @@ const LINKS: EntitySourceLinkDto[] = [
   { id: 1, relation: 'DERIVED_FROM', entityType: 'Goal', entityId: 3, entityName: 'Rooms end',
     fragment: 'AC-4', ingestedAt: '2026-09-29T12:00:00Z', notInLatestSource: false,
     editedSinceIngest: false,
-    source: { id: 10, system: 'jira', externalId: 'CON-3685', locatorType: 'URL',
-      locator: 'https://tracker.example.com/browse/CON-3685', title: null, contentHash: 'v2',
+    source: { id: 10, system: 'jira', externalId: 'PROJ-1234', locatorType: 'URL',
+      locator: 'https://tracker.example.com/browse/PROJ-1234', title: null, contentHash: 'v2',
       lastIngestedAt: null, kind: null, note: null } },
   { id: 2, relation: 'DERIVED_FROM', entityType: 'Goal', entityId: 3, entityName: 'Rooms end',
     fragment: 'p.12', ingestedAt: null, notInLatestSource: true, editedSinceIngest: true,
     source: { id: 11, system: 'doc', externalId: 'guide', locatorType: 'PATH',
-      locator: 'docs/Roundtable-Production-Guide.pdf', title: null, contentHash: null,
+      locator: 'docs/Operator-Guide.pdf', title: null, contentHash: null,
       lastIngestedAt: null, kind: null, note: null } },
 ];
 const CITATION: EntitySourceLinkDto = {
@@ -66,11 +66,11 @@ describe('SourcesSectionComponent (#272)', () => {
     const links = el.querySelectorAll('a[data-testid="source-link"]');
     expect(links.length).toBe(1);
     const a = links[0] as HTMLAnchorElement;
-    expect(a.getAttribute('href')).toBe('https://tracker.example.com/browse/CON-3685');
+    expect(a.getAttribute('href')).toBe('https://tracker.example.com/browse/PROJ-1234');
     expect(a.getAttribute('target')).toBe('_blank');
     expect(a.getAttribute('rel')).toBe('noopener noreferrer');
     expect(el.querySelector('[data-testid="source-path"]')?.textContent)
-      .toContain('docs/Roundtable-Production-Guide.pdf');
+      .toContain('docs/Operator-Guide.pdf');
     expect(el.querySelector('[data-testid="source-id"]')?.textContent?.trim()).toBe('guide');
   });
 

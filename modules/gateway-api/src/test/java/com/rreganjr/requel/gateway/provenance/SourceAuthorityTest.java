@@ -36,34 +36,34 @@ import com.rreganjr.requel.project.SourceAuthority.Winner;
  */
 class SourceAuthorityTest {
 
-    // The roundtable shape: the guide (1) defers to RUNBOOK.md (2), which defers to the repo (3);
+    // A real project's shape: the guide (1) defers to RUNBOOK.md (2), which defers to the repo (3);
     // the review (4) defers to the repo too. The tickets (5) are unordered.
-    private static final List<Edge> ROUNDTABLE = List.of(
+    private static final List<Edge> GUIDE_CHAIN = List.of(
             new Edge(1L, 2L), new Edge(2L, 3L), new Edge(4L, 3L));
 
     @Test
     void aDirectEdgeMakesTheSuperiorWin() {
-        assertThat(SourceAuthority.resolve(ROUNDTABLE, 1L, 2L).winner()).isEqualTo(Winner.B);
-        assertThat(SourceAuthority.resolve(ROUNDTABLE, 2L, 1L).winner()).isEqualTo(Winner.A);
+        assertThat(SourceAuthority.resolve(GUIDE_CHAIN, 1L, 2L).winner()).isEqualTo(Winner.B);
+        assertThat(SourceAuthority.resolve(GUIDE_CHAIN, 2L, 1L).winner()).isEqualTo(Winner.A);
     }
 
     @Test
     void precedenceIsTransitiveAndReportsTheChainFromLoserToWinner() {
-        SourceAuthority.Resolution resolution = SourceAuthority.resolve(ROUNDTABLE, 3L, 1L);
+        SourceAuthority.Resolution resolution = SourceAuthority.resolve(GUIDE_CHAIN, 3L, 1L);
         assertThat(resolution.winner()).isEqualTo(Winner.A);
         assertThat(resolution.chain()).containsExactly(1L, 2L, 3L);
     }
 
     @Test
     void sourcesWithNoChainBetweenThemAreUnordered() {
-        assertThat(SourceAuthority.resolve(ROUNDTABLE, 1L, 4L).winner()).isEqualTo(Winner.NONE);
-        assertThat(SourceAuthority.resolve(ROUNDTABLE, 5L, 3L).winner()).isEqualTo(Winner.NONE);
-        assertThat(SourceAuthority.resolve(ROUNDTABLE, 1L, 4L).chain()).isEmpty();
+        assertThat(SourceAuthority.resolve(GUIDE_CHAIN, 1L, 4L).winner()).isEqualTo(Winner.NONE);
+        assertThat(SourceAuthority.resolve(GUIDE_CHAIN, 5L, 3L).winner()).isEqualTo(Winner.NONE);
+        assertThat(SourceAuthority.resolve(GUIDE_CHAIN, 1L, 4L).chain()).isEmpty();
     }
 
     @Test
     void aSourceComparedWithItselfIsUnordered() {
-        assertThat(SourceAuthority.resolve(ROUNDTABLE, 2L, 2L).winner()).isEqualTo(Winner.NONE);
+        assertThat(SourceAuthority.resolve(GUIDE_CHAIN, 2L, 2L).winner()).isEqualTo(Winner.NONE);
     }
 
     @Test
@@ -77,11 +77,11 @@ class SourceAuthorityTest {
 
     @Test
     void selfEdgesAndEveryCycleLengthAreDetected() {
-        assertThat(SourceAuthority.wouldCycle(ROUNDTABLE, 1L, 1L)).isTrue();
-        assertThat(SourceAuthority.wouldCycle(ROUNDTABLE, 2L, 1L)).isTrue();
-        assertThat(SourceAuthority.wouldCycle(ROUNDTABLE, 3L, 1L)).isTrue();
-        assertThat(SourceAuthority.wouldCycle(ROUNDTABLE, 1L, 3L)).isFalse();
-        assertThat(SourceAuthority.wouldCycle(ROUNDTABLE, 5L, 1L)).isFalse();
+        assertThat(SourceAuthority.wouldCycle(GUIDE_CHAIN, 1L, 1L)).isTrue();
+        assertThat(SourceAuthority.wouldCycle(GUIDE_CHAIN, 2L, 1L)).isTrue();
+        assertThat(SourceAuthority.wouldCycle(GUIDE_CHAIN, 3L, 1L)).isTrue();
+        assertThat(SourceAuthority.wouldCycle(GUIDE_CHAIN, 1L, 3L)).isFalse();
+        assertThat(SourceAuthority.wouldCycle(GUIDE_CHAIN, 5L, 1L)).isFalse();
     }
 
     @Test
@@ -93,8 +93,8 @@ class SourceAuthorityTest {
 
     @Test
     void directSuperiorsAndSubordinates() {
-        assertThat(SourceAuthority.superiorsOf(ROUNDTABLE, 1L)).containsExactly(2L);
-        assertThat(SourceAuthority.subordinatesOf(ROUNDTABLE, 3L)).containsExactly(2L, 4L);
-        assertThat(SourceAuthority.superiorsOf(ROUNDTABLE, 3L)).isEmpty();
+        assertThat(SourceAuthority.superiorsOf(GUIDE_CHAIN, 1L)).containsExactly(2L);
+        assertThat(SourceAuthority.subordinatesOf(GUIDE_CHAIN, 3L)).containsExactly(2L, 4L);
+        assertThat(SourceAuthority.superiorsOf(GUIDE_CHAIN, 3L)).isEmpty();
     }
 }

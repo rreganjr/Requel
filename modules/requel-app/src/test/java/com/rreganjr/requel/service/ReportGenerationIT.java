@@ -143,8 +143,8 @@ public class ReportGenerationIT extends AbstractIntegrationTestCase {
 
 		inTransaction(() -> {
 			ExternalSource ticket = provenanceStore.recordSource(new ProvenanceStore.SourceSpec(
-					project.getId(), "jira", "CON-1", SourceLocatorType.URL,
-					"https://example.com/browse/CON-1", "CON-1", null, "ticket", null), admin)
+					project.getId(), "jira", "PROJ-1", SourceLocatorType.URL,
+					"https://example.com/browse/PROJ-1", "PROJ-1", null, "ticket", null), admin)
 					.source();
 			ExternalSource guide = provenanceStore.recordSource(new ProvenanceStore.SourceSpec(
 					project.getId(), "doc", "guide", SourceLocatorType.PATH, "docs/guide.pdf",
@@ -185,10 +185,10 @@ public class ReportGenerationIT extends AbstractIntegrationTestCase {
 		assertTrue(ticket.contains("- **livestream** — The viewer relay. (see **webinar**)"), ticket);
 		assertTrue(ticket.indexOf("**HIGH** Who holds the second seat?")
 				< ticket.indexOf("**LOW** Is the watch page public?"), ticket);
-		assertTrue(ticket.contains("- **CON-1** (ticket) — jira CON-1, https://example.com/browse/CON-1\n"
+		assertTrue(ticket.contains("- **PROJ-1** (ticket) — jira PROJ-1, https://example.com/browse/PROJ-1\n"
 				+ "  - Defers to: Production Guide (the guide wins)\n"
 				+ "  - Derived: Operators are replaceable (AC1)\n"), ticket);
-		assertTrue(ticket.contains("Sources: Production Guide, CON-1"), ticket);
+		assertTrue(ticket.contains("Sources: Production Guide, PROJ-1"), ticket);
 	}
 
 	@Test

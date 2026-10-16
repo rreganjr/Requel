@@ -119,10 +119,10 @@ class GatewayCommandCatalogImplTest {
     void theTaggingCommandsDescribeTheirNormalization() {
         assertThat(GatewayCommandCatalogImpl.describe(EditTagCategoryInput.class))
                 .contains("slug")
-                .contains("con-3685");
+                .contains("proj-1234");
         assertThat(GatewayCommandCatalogImpl.describe(EditTagInput.class))
                 .contains("slug")
-                .contains("con-3685");
+                .contains("proj-1234");
     }
 
     /** Issue #296: an input-dependent command states its hint, and that wins over derivation. */

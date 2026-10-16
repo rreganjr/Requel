@@ -1,7 +1,7 @@
 # Fixture Room
 
 Project version: abc123def456
-Sources: Production Guide v1.1, CON-3686
+Sources: Production Guide v1.1, PROJ-1235
 
 ## Goals
 
@@ -61,11 +61,11 @@ _No steps recorded._
 - **Production Guide v1.1** (guide) — doc guide, docs/guide.pdf
   - Note: Authoritative for behaviour.
   - Cited by: End a room
-- **CON-3686** (ticket) — jira CON-3686, https://example.com/browse/CON-3686
+- **PROJ-1235** (ticket) — jira PROJ-1235, https://example.com/browse/PROJ-1235
   - Defers to: Production Guide v1.1 (the guide wins on behaviour)
   - Derived: Operators are replaceable (AC1), Viewers stay invisible (AC2)
 
 ## Traceability
 
 Requel project "Fixture Room": 2 goals, 2 actors, 1 use cases, 5 scenarios, 3 steps, 1 stories, 2 glossary terms, 4 open issues (2 stale), 1 advisory issues.
-Sources: Production Guide v1.1, CON-3686.
+Sources: Production Guide v1.1, PROJ-1235.
