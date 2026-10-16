@@ -10,8 +10,8 @@ Every item here was found by building a real project through the gateway and rea
 ## The measurement that motivates this
 
 `getProjectContext` on the roundtable project returns an `openIssues` list. Eight of its entries are
-the substantive findings written during the case study — cross-ticket conflicts, a goal that may be
-unmet in production, a vacuous quantifier. The rest, the large majority, are legacy lexical output
+the substantive findings written during the case study — cross-ticket conflicts, a disposition
+mismatch, a vacuous quantifier. The rest, the large majority, are legacy lexical output
 of this shape:
 
 - `The word "MP4" in the Text is not recognized and may be spelled incorrectly.`
@@ -21,9 +21,8 @@ of this shape:
 - `The phrase "the room" is a potential glossary term, actor, or domain object/property.` (also
   "a person", "the gate", "Conduit", "a session", "an event" — nearly every noun phrase)
 
-Every one carries `mustBeResolved: true`. **A reviewer opening this project cannot see the finding
-that says the admin console may be open to the whole tenant, because it is one row among dozens of
-reports that "be" is vague.** That is the problem this epic exists to fix, and it is not a
+Every one carries `mustBeResolved: true`. **A reviewer opening this project cannot see the most important
+finding, because it is one row among dozens of reports that "be" is vague.** That is the problem this epic exists to fix, and it is not a
 hypothetical — it is the state of the only real project in the system.
 
 ## Scope (child issues)
