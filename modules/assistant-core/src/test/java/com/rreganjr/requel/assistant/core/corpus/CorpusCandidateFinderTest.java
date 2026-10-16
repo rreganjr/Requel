@@ -249,7 +249,7 @@ class CorpusCandidateFinderTest {
 
 	@Test
 	void antonymsAboutDifferentThingsAreNoHint() {
-		// roundtable tuning: "live" and "recording" named different things, not a conflict
+		// tuning on a real project: "live" and "recording" named different things, not a conflict
 		List<Member> members = List.of(
 				goal(1, "Member phone numbers stay private", "Reminders go out by email."),
 				goal(2, "Member phone numbers on file",

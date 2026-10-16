@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test;
 
 import com.rreganjr.requel.assistant.core.context.RedactablePatterns;
 
-/** Issue #268: the spelling exemptions, each from a token the roundtable harness turned up. */
+/** Issue #268: the spelling exemptions, each from a token the #268 harness turned up. */
 class SpellingSkipsTest {
 
 	private static final Set<String> DICTIONARY = Set.of("host", "session", "stream", "production",
@@ -88,7 +88,7 @@ class SpellingSkipsTest {
 		assertThat(reason("DeleteChannel")).isEqualTo("camel-case");
 		assertThat(reason("v1")).isEqualTo("digit");
 		assertThat(reason("h1")).isEqualTo("digit");
-		assertThat(reason("ENTRA_SETUP")).isEqualTo("underscore");
+		assertThat(reason("SSO_SETUP")).isEqualTo("underscore");
 	}
 
 	@Test

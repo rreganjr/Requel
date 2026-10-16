@@ -39,7 +39,7 @@ import jakarta.validation.constraints.Size;
  *                      EditUseCase, EditScenario, EditGlossaryTerm or EditNonUserStakeholder
  * @param input         that command's input, without its id (Requel fills it in)
  * @param system        the source family, e.g. jira
- * @param externalId    the source's own identifier, e.g. CON-3685
+ * @param externalId    the source's own identifier, e.g. PROJ-1234
  * @param locatorType   URL or PATH, with a locator
  * @param locator       an http(s) URL or a relative path; never read by Requel. Only used when
  *                      this call first records the source

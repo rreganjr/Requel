@@ -66,7 +66,7 @@ describe('TagCategoriesComponent — accessibility (issue #138)', () => {
   it('describes both slugged inputs by the normalization hint', async () => {
     const el = (await render()).nativeElement as HTMLElement;
     const hint = el.querySelector('#tag-category-slug-hint');
-    expect(hint?.textContent).toContain('con-3685');
+    expect(hint?.textContent).toContain('proj-1234');
 
     const name = el.querySelector<HTMLInputElement>('[data-testid="tag-category-name"]')!;
     const values = el.querySelector<HTMLInputElement>('[data-testid="tag-category-values"]')!;

@@ -33,7 +33,7 @@ import jakarta.validation.constraints.Size;
  *
  * @param projectName the project
  * @param system      the source family, e.g. jira, github, doc; stored lower-case
- * @param externalId  the source's own identifier, e.g. CON-3685; stored and matched exactly
+ * @param externalId  the source's own identifier, e.g. PROJ-1234; stored and matched exactly
  * @param locatorType URL or PATH; required with a locator
  * @param locator     an http(s) URL, or a relative file path; never read by Requel
  * @param title       a human title, or null to leave it as it is

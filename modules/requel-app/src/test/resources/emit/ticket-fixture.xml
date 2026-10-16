@@ -109,8 +109,8 @@
         <note id="ANN_26"><text>A note.</text></note>
     </annotations>
     <externalSources>
-        <externalSource system="jira" externalId="CON-3686" title="CON-3686" kind="ticket"
-                locatorType="URL" locator="https://example.com/browse/CON-3686">
+        <externalSource system="jira" externalId="PROJ-1235" title="PROJ-1235" kind="ticket"
+                locatorType="URL" locator="https://example.com/browse/PROJ-1235">
             <defersTo system="doc" externalId="guide" note="the guide wins on behaviour" />
             <sourceLink relation="DERIVED_FROM" entityType="Goal" entityRef="GOL_10" fragment="AC2" />
             <sourceLink relation="DERIVED_FROM" entityType="Goal" entityRef="GOL_9" fragment="AC1" />

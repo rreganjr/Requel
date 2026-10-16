@@ -48,7 +48,7 @@ public class TagNormalizerTest {
 		assertEquals("a-b", TagNormalizer.slug("a   b"));
 		assertEquals("a-b", TagNormalizer.slug("a...b"));
 		assertEquals("a-b", TagNormalizer.slug("a _ - . b"));
-		assertEquals("con-3685", TagNormalizer.slug("CON-3685"));
+		assertEquals("proj-1234", TagNormalizer.slug("PROJ-1234"));
 		assertEquals("v2-0", TagNormalizer.slug("v2.0"));
 	}
 

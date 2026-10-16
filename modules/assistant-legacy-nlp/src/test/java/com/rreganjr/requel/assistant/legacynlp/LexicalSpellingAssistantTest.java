@@ -186,9 +186,9 @@ class LexicalSpellingAssistantTest {
 		when(dictionaryRepository.isKnownWord(7L, "hosts")).thenReturn(false);
 		when(dictionaryRepository.isKnownWord(7L, "host")).thenReturn(true);
 
-		String text = "The Zoom host co-hosts the webinar over RTMP into CloudWatch v1 ENTRA_SETUP datalaek";
+		String text = "The Zoom host co-hosts the webinar over RTMP into CloudWatch v1 SSO_SETUP datalaek";
 		List<String> tokens = List.of("Zoom", "co-hosts", "webinar", "RTMP", "CloudWatch", "v1",
-				"ENTRA_SETUP", "datalaek");
+				"SSO_SETUP", "datalaek");
 		AssistantResult result = analyzeUnknownTokens(projectOrDomain, text, tokens);
 
 		assertThat(result.annotationActions()).filteredOn(

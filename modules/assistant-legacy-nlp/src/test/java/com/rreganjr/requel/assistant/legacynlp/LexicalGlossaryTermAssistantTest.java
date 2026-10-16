@@ -145,15 +145,15 @@ class LexicalGlossaryTermAssistantTest {
 
 	@Test
 	void verbPhrasesCoordinationsPossessivesAndIndefinitesAreNotTerms() {
-		used(5, "archives the stream", "stream key and RTMP endpoint", "CON-3685's manual",
+		used(5, "archives the stream", "stream key and RTMP endpoint", "PROJ-1234's manual",
 				"anything else");
 		assertThat(issueWords(analyze("The operator archives the stream.", List.of(dt("The")),
 				phrase(leaves(nns("archives"), dt("the"), nn("stream")))))).isEmpty();
 		assertThat(issueWords(analyze("Rotate the stream key and RTMP endpoint.",
 				List.of(verb("Rotate")), phrase(leaves(nn("stream"), nn("key"), cc("and"),
 						nnp("RTMP"), nn("endpoint")))))).isEmpty();
-		assertThat(issueWords(analyze("Read CON-3685's manual.", List.of(verb("Read")),
-				phrase(leaves(nnp("CON-3685"), pos("'s"), nn("manual")))))).isEmpty();
+		assertThat(issueWords(analyze("Read PROJ-1234's manual.", List.of(verb("Read")),
+				phrase(leaves(nnp("PROJ-1234"), pos("'s"), nn("manual")))))).isEmpty();
 		assertThat(issueWords(analyze("Check anything else.", List.of(verb("Check")),
 				phrase(leaves(nn("anything"), jj("else")))))).isEmpty();
 	}
@@ -192,7 +192,7 @@ class LexicalGlossaryTermAssistantTest {
 
 	@Test
 	void theLettersOfATicketKeyAreNotATerm() {
-		assertThat(issueWords(analyze("See CON-3685 for details.", List.of(verb("See")),
+		assertThat(issueWords(analyze("See PROJ-1234 for details.", List.of(verb("See")),
 				phrase(leaves(nnp("CON")))))).isEmpty();
 	}
 

@@ -731,7 +731,7 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
      * Issue #254 on the surface it was actually reported from. Sending a steps entry whose name is
      * already taken used to fail with "The name conflicts with an existing ProjectOrDomainEntity",
      * naming neither the step nor the entity it hit, and appearing to blame the scenario — which
-     * cost two wrong fixes during the roundtable build before the cause was isolated.
+     * cost two wrong fixes while building a real project before the cause was isolated.
      */
     @Test
     void aStepsEntryWithATakenNameIsRefusedWithAnActionableMessage() throws Exception {

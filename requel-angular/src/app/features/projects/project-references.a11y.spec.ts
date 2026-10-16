@@ -12,7 +12,7 @@ const SOURCES: ProjectSourcesDto = {
       derivedCount: 4, citedByCount: 0,
       defersTo: [{ system: 'doc', externalId: 'RUNBOOK.md', title: 'Runbook' }], outranks: [] },
     { source: { id: 2, system: 'doc', externalId: 'RUNBOOK.md', locatorType: 'URL',
-        locator: 'https://github.example.com/roundtable/RUNBOOK.md', title: 'Runbook',
+        locator: 'https://github.example.com/streaming/RUNBOOK.md', title: 'Runbook',
         contentHash: null, lastIngestedAt: null, kind: 'runbook', note: null },
       derivedCount: 0, citedByCount: 2, defersTo: [],
       outranks: [{ system: 'doc', externalId: 'docs/guide.pdf', title: 'Production Guide' }] },

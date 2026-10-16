@@ -31,9 +31,9 @@ import com.rreganjr.requel.assistant.core.context.RedactablePatterns;
 /**
  * Issue #268: tokens the spelling check leaves alone even though the dictionary doesn't know them,
  * because they are the project's own vocabulary or aren't ordinary words at all. Every rule came
- * from the roundtable project's unknown tokens (the #268 harness): acronyms ({@code MP4},
+ * from a real project's unknown tokens (the #268 harness): acronyms ({@code MP4},
  * {@code RTMP}), CamelCase product names ({@code CloudWatch}), identifiers with a digit or an
- * underscore ({@code v1}, {@code ENTRA_SETUP}) and hyphenated compounds of known words
+ * underscore ({@code v1}, {@code SSO_SETUP}) and hyphenated compounds of known words
  * ({@code co-hosts}, {@code non-production}). Issue #359 adds the fragments of email addresses,
  * URLs and credentials ({@code ops-team@example}, the {@code sk} of an {@code sk-proj-} key).
  */

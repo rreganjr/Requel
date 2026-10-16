@@ -333,9 +333,9 @@ public class EntityProvenanceIT extends AbstractIntegrationTestCase {
 	// ---- AC1: re-ingesting a whole source creates no duplicates ----------------------------------
 
 	@Test
-	void reIngestingARoundtableShapedSourceCreatesNoDuplicates() throws Exception {
+	void reIngestingATwoTicketSourceCreatesNoDuplicates() throws Exception {
 		authenticate(editorUsername);
-		String key = source("roundtable");
+		String key = source("two-tickets");
 		for (int pass = 0; pass < 2; pass++) {
 			for (int ac = 1; ac <= 8; ac++) {
 				upsertGoal(key, "AC-" + ac, "Criterion number " + ac + " holds", null);
@@ -735,7 +735,7 @@ public class EntityProvenanceIT extends AbstractIntegrationTestCase {
 	void noGeneralReadOrContextPackCarriesAReferenceItsNoteOrPrecedence() throws Exception {
 		authenticate(editorUsername);
 		String ts = String.valueOf(System.nanoTime());
-		String key = "ENTRA_SETUP-" + ts;
+		String key = "SSO_SETUP-" + ts;
 		String superior = "RUNBOOK-" + ts;
 		String note = "NOTE-MARKER-" + ts;
 		String edgeNote = "EDGE-MARKER-" + ts;
@@ -780,14 +780,14 @@ public class EntityProvenanceIT extends AbstractIntegrationTestCase {
 		});
 		inTransaction(() -> {
 			ExternalSource guide = provenanceStore.recordSource(new ProvenanceStore.SourceSpec(
-					reported.getId(), "doc", "docs/Roundtable-Production-Guide.pdf",
+					reported.getId(), "doc", "docs/Operator-Guide.pdf",
 					com.rreganjr.requel.project.SourceLocatorType.PATH,
-					"docs/Roundtable-Production-Guide.pdf", "Roundtable Production Guide", null,
+					"docs/Operator-Guide.pdf", "Operator Guide", null,
 					"guide", "Operator procedures <script>alert(1)</script>"), admin).source();
 			ExternalSource runbook = provenanceStore.recordSource(new ProvenanceStore.SourceSpec(
 					reported.getId(), "doc", "RUNBOOK.md",
 					com.rreganjr.requel.project.SourceLocatorType.URL,
-					"https://github.example.com/roundtable/RUNBOOK.md", "Runbook", null, "runbook",
+					"https://github.example.com/streaming/RUNBOOK.md", "Runbook", null, "runbook",
 					null), admin).source();
 			provenanceStore.addAuthority(guide, runbook, "operational detail", admin);
 			provenanceStore.link(new ProvenanceStore.LinkSpec(runbook, SourceLinkRelation.CITES,
@@ -800,10 +800,10 @@ public class EntityProvenanceIT extends AbstractIntegrationTestCase {
 		assertEquals(first, second, "an unchanged project renders byte-identically");
 		assertTrue(first.contains("<h2>Resources</h2>"), first);
 		assertTrue(first.contains("href=\"#resources\""), "a table-of-contents entry: " + first);
-		assertTrue(first.contains("Roundtable Production Guide"), first);
+		assertTrue(first.contains("Operator Guide"), first);
 		assertTrue(first.contains("(guide)"), first);
-		assertTrue(first.contains("<code>docs/Roundtable-Production-Guide.pdf</code>"), first);
-		assertTrue(first.contains("href=\"https://github.example.com/roundtable/RUNBOOK.md\""), first);
+		assertTrue(first.contains("<code>docs/Operator-Guide.pdf</code>"), first);
+		assertTrue(first.contains("href=\"https://github.example.com/streaming/RUNBOOK.md\""), first);
 		assertTrue(first.contains("Defers to: "), first);
 		assertTrue(first.contains("(operational detail)"), first);
 		assertTrue(first.contains("Cited by: "), first);

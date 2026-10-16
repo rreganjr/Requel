@@ -351,7 +351,7 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 			if ("and".equals(text) || "or".equals(text) || leaf.is(ParseTag.CC)) {
 				return true;
 			}
-			// a possessive ("CON-3685's manual")
+			// a possessive ("PROJ-1234's manual")
 			if ("'s".equals(text) || "’s".equals(text) || leaf.is(ParseTag.POS)) {
 				return true;
 			}
@@ -362,7 +362,7 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 				&& hasVerbSense(firstLower.substring(0, firstLower.length() - 1))) {
 			return true;
 		}
-		// the letters of a ticket key ("CON" in "CON-3685")
+		// the letters of a ticket key ("CON" in "PROJ-1234")
 		if (body.size() == 1 && Pattern.compile("(?<![\\p{L}\\p{N}])" + Pattern.quote(first.getText())
 				+ "-\\d").matcher(source).find()) {
 			return true;
@@ -377,7 +377,7 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 	private static boolean isProperNoun(List<NLPText> body, Set<NLPText> sentenceStarts) {
 		for (NLPText leaf : body) {
 			// #268: the tag alone isn't enough; the parser tags some lowercase words NNP
-			// ("entirely", "ingest" on the roundtable project). A proper noun is capitalized.
+			// ("entirely", "ingest" on a real project). A proper noun is capitalized.
 			// The body was located in the source, so every leaf has text.
 			if (!leaf.in(ParseTag.NNP, ParseTag.NNPS)
 					|| !Character.isUpperCase(leaf.getText().codePointAt(0))) {

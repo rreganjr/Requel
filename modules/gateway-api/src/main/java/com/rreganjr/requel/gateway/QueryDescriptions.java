@@ -193,7 +193,7 @@ public final class QueryDescriptions {
     public static final String SOURCE_SYSTEM = "The source family, e.g. jira, github or doc,"
             + " ignoring case.";
 
-    public static final String SOURCE_EXTERNAL_ID = "The source's own identifier, e.g. CON-3685,"
+    public static final String SOURCE_EXTERNAL_ID = "The source's own identifier, e.g. PROJ-1234,"
             + " exactly as recorded.";
 
     public static final String SOURCE_FRAGMENT = "Optional: one fragment of the source, e.g. AC-4,"

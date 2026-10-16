@@ -53,7 +53,7 @@ public class TagImportHandlerImpl implements TagImportHandler {
 	/**
 	 * Imported tokens are normalized on exactly the same terms as a gateway write: the category and
 	 * value both go through {@link TagNormalizer#slug(String)}, so an XML document carrying
-	 * {@code Source:CON-3685} imports as {@code source:con-3685} and joins the same controlled
+	 * {@code Source:PROJ-1234} imports as {@code source:proj-1234} and joins the same controlled
 	 * vocabulary as everything else. An export-import round trip is therefore stable but not
 	 * case-preserving, and a token whose value slugs away to nothing is skipped rather than
 	 * imported blank.
