@@ -19,7 +19,7 @@
  *
  */
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter, TitleStrategy } from '@angular/router';
+import { provideRouter, TitleStrategy, withNavigationErrorHandler } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { providePrimeNG } from 'primeng/config';
@@ -27,11 +27,13 @@ import { RequelPreset } from './theme/requel-preset';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth.interceptor';
 import { RequelTitleStrategy } from './core/requel-title-strategy';
+import { reloadOnStaleChunk } from './core/stale-chunk-reload';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes),
+    // #400: a tab left open across an upgrade reloads into the new build instead of failing.
+    provideRouter(routes, withNavigationErrorHandler(error => { reloadOnStaleChunk(error); })),
     provideHttpClient(withInterceptors([authInterceptor])),
     provideAnimationsAsync(),
     { provide: TitleStrategy, useClass: RequelTitleStrategy },
