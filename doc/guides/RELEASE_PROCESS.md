@@ -152,8 +152,9 @@ notes that don't belong to one ticket.
    git push origin v2.1.0-rc1
    ```
    The tag publishes a pre-release on GitHub and the `rreganjr/requel:2.1.0-rc1` image.
-   `:latest` does not move. `set-version.sh` also sets the compose files' image tags and
-   `requel-cli --version`, which `versions:set` alone misses.
+   `:latest` does not move; the rc image is temporary, and step 7 deletes it from Docker Hub.
+   `set-version.sh` also sets the compose files' image tags and `requel-cli --version`,
+   which `versions:set` alone misses.
 4. **Test the candidate** from Docker Hub, not a local build (see
    [Verifying a published image](#verifying-a-published-image)). A problem is fixed by a
    normal ticket PR into `release/2.1`, then `-rc2`. While it runs on an empty database,
@@ -161,8 +162,11 @@ notes that don't belong to one ticket.
    script's header says how) and commit any that changed, with the site's status banner in
    `website/index.html` set for the release.
 5. **Final release.** Same as step 3 with `./scripts/set-version.sh 2.1.0`, the message
-   `Version 2.1.0` and the tag `v2.1.0`. This publishes the GitHub Release with the app and
-   `requel-cli` jars attached, and pushes `rreganjr/requel:2.1.0` and `:latest`.
+   `Version 2.1.0` and the tag `v2.1.0`. Before committing, set the release in the
+   [user-facing docs](#user-facing-versions) as well and add them to the `git add`, so the
+   install guide at the tag names the version the tag ships. This publishes the GitHub
+   Release with the app and `requel-cli` jars attached, and pushes `rreganjr/requel:2.1.0`
+   and `:latest`.
 6. **Promote to `master`** with a merge commit:
    ```bash
    gh pr create --repo rreganjr/Requel --base master --head release/2.1 --title "Release 2.1.0" --body "Promote release/2.1 (v2.1.0) to master."
@@ -170,10 +174,11 @@ notes that don't belong to one ticket.
    ```
    Step 2 already brought `master` into the release branch, so this has no conflicts and
    leaves `master` with the same tree as `v2.1.0`.
-7. **Close out.** Close the Release issue and the `v2.1` milestone (Issues → Milestones →
-   Close), record retros (`./scripts/backfill-points.sh 2.1`), regenerate the doc index
-   (`./scripts/gen-doc-index.sh 2.1`). Nothing lands on `release/2.1` after this; delete
-   it once the promotion is merged.
+7. **Close out.** Update the Docker Hub overview and delete the `2.1.0-rc*` tags (see
+   [Docker Hub](#docker-hub)). Close the Release issue and the `v2.1` milestone (Issues →
+   Milestones → Close), record retros (`./scripts/backfill-points.sh 2.1`), regenerate the
+   doc index (`./scripts/gen-doc-index.sh 2.1`). Nothing lands on `release/2.1` after this;
+   delete it once the promotion is merged.
 8. **Start the next release** once there is agreed work for it: cut `release/2.2` from
    `master`, set `2.2.0-dev` (`./scripts/set-version.sh 2.2.0-dev`), create the `v2.2` milestone and run
    `./scripts/setup-project.sh 2.2`. `doc/work/2.2/` is created by the first plan filed
@@ -193,9 +198,10 @@ A hotfix patches the latest shipped release. The steps below ship 2.1.1.
    ```
    The PR targets `master` (`gh pr create --base master ...`) and is squash-merged. Because
    `master` is the default branch, `Closes #<n>` closes the issue on merge.
-3. **Version bump.** Fold `./scripts/set-version.sh 2.1.1`
-   into the last fix's PR, so the release costs no extra CI run. When several fixes ship
-   together, the bump rides with whichever merges last.
+3. **Version bump.** Fold `./scripts/set-version.sh 2.1.1` and the
+   [user-facing docs](#user-facing-versions) change into the last fix's PR, so the release
+   costs no extra CI run. When several fixes ship together, the bump rides with whichever
+   merges last.
 4. **Tag on `master`:**
    ```bash
    git switch master
@@ -204,7 +210,8 @@ A hotfix patches the latest shipped release. The steps below ship 2.1.1.
    git push origin v2.1.1
    ```
 5. **Merge forward** into the active release branch, if there is one (next section).
-6. **Close out.** Close the `v2.1.1` milestone and run `./scripts/backfill-points.sh 2.1.1`.
+6. **Close out.** Update the Docker Hub overview (see [Docker Hub](#docker-hub)), close the
+   `v2.1.1` milestone and run `./scripts/backfill-points.sh 2.1.1`.
 
 ## Forward merges
 
@@ -225,6 +232,45 @@ The PR is merged with **Create a merge commit**, never squash (see [Branches](#b
 Every pom conflicts on each forward merge, because `master` says `2.1.1` and the release
 branch says `2.2.0-dev`; the release branch's version always wins. Merge commits have no
 issue URL on line 1, which is fine: the retro counts the fix's own commit.
+
+## User-facing versions
+
+`set-version.sh` sets the poms, the compose files and `requel-cli --version`. The pages that
+tell users which release to download name it too, and only a final release (`x.y.0` or a
+hotfix) changes them, never an rc:
+
+- `README.md`: the compose download URL in **Running Requel**.
+- `doc/guides/INSTALL.md`: the compose URL, the `docker run` image tag, the jar and
+  `requel-cli` file names and the release link.
+- `doc/guides/DOCKER_HUB.md`: the image tags, the tag table and the links to the guides.
+- `website/index.html`: the status banner (step 4 of
+  [Cutting a release](#cutting-a-release-xy0)).
+- `website/guide/integrations.html`: the `requel-cli` download.
+
+After the change, this lists what still names the previous release (`2.0.1` when shipping
+`2.1.0`). The tag table in `DOCKER_HUB.md` keeps a row for it; nothing else should show:
+
+```bash
+grep -rn "2\.0\.1" README.md doc/guides/INSTALL.md doc/guides/DOCKER_HUB.md website/index.html website/guide/integrations.html
+```
+
+## Docker Hub
+
+`container-publish.yml` pushes images but not the repository page, so two things are done by
+hand after a final release ships, signed in to Docker Hub as `rreganjr`.
+
+**The overview.** `doc/guides/DOCKER_HUB.md` is its source; edit it there, never only on
+Docker Hub. Once the final tag's image is published, open
+https://hub.docker.com/r/rreganjr/requel, edit the overview and replace it with the file's
+contents. The short description (100 characters at most) is
+`Requel: web-based requirements management with NLP and AI review`.
+
+**Tags.** Users pin final tags (`2.1.0`, `2.1.1`), so those are never deleted. Release
+candidate tags (`2.1.0-rc1`, …) only exist to test the candidate: delete them once the final
+release is published. A throwaway tag pushed to test the workflow (`0.0.0-…`) is deleted as
+soon as the test is done. On the repository's **Tags** tab, tick the tags and choose
+**Delete**. Deleting a tag can't be undone, and a digest that another tag still points to
+stays.
 
 ## Database migrations
 

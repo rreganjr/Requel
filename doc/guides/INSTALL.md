@@ -22,7 +22,7 @@ reach the server.
 
    ```bash
    mkdir requel && cd requel
-   curl -fsSLO https://raw.githubusercontent.com/rreganjr/Requel/v2.0.0/docker-compose.yml
+   curl -fsSLO https://raw.githubusercontent.com/rreganjr/Requel/v2.0.1/docker-compose.yml
    ```
 
 2. Create the secret Requel signs login tokens with. Keep this file: a new secret logs
@@ -63,7 +63,7 @@ docker run -d --name requel --network requel-net -p 8080:8080 --restart unless-s
   -e SPRING_DATASOURCE_PASSWORD=change-me \
   -e "REQUEL_JWT_SECRET=$(openssl rand -base64 48)" \
   -e "_JAVA_OPTIONS=-Xmx2g" \
-  rreganjr/requel:2.0.0
+  rreganjr/requel:2.0.1
 ```
 
 MySQL takes a few seconds to accept connections on first start. If Requel starts before it does,
@@ -75,8 +75,8 @@ Generate the secret once and reuse it when you recreate the container. Then foll
 
 ## The jar
 
-1. Download `requel-app-2.0.0.jar` from the
-   [2.0.0 release](https://github.com/rreganjr/Requel/releases/tag/v2.0.0).
+1. Download `requel-app-2.0.1.jar` from the
+   [2.0.1 release](https://github.com/rreganjr/Requel/releases/tag/v2.0.1).
 2. Create an empty database and a user for it in your MySQL 8.4:
 
    ```sql
@@ -92,7 +92,7 @@ Generate the secret once and reuse it when you recreate the container. Then foll
    export SPRING_DATASOURCE_USERNAME=requel
    export SPRING_DATASOURCE_PASSWORD=change-me
    export REQUEL_JWT_SECRET='<the output of: openssl rand -base64 48>'
-   java -Xmx2g -jar requel-app-2.0.0.jar
+   java -Xmx2g -jar requel-app-2.0.1.jar
    ```
 
 4. Wait for `Started Application`, then log in as in step 4 of the Compose section.
@@ -130,8 +130,8 @@ install; other users need the *manage API tokens* permission, which an admin gra
 page.
 
 ```bash
-java -jar requel-cli-2.0.0.jar login --token reqpat_...
-java -jar requel-cli-2.0.0.jar projects
+java -jar requel-cli-2.0.1.jar login --token reqpat_...
+java -jar requel-cli-2.0.1.jar projects
 ```
 
 For an MCP client, send it as a bearer token: `Authorization: Bearer reqpat_...` against
