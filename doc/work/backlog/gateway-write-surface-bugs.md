@@ -104,8 +104,8 @@ steps.
 
 # Tag category names and values are silently lower-cased
 
-`EditTagCategory` with `name: "Source"` and `values: ["CON-3685", "CON-3686"]` returns
-`name: "source"` and `values: ["con-3685", "con-3686"]`. No warning, no note in the tool
+`EditTagCategory` with `name: "Source"` and `values: ["PROJ-1234", "PROJ-1235"]` returns
+`name: "source"` and `values: ["proj-1234", "proj-1235"]`. No warning, no note in the tool
 description.
 
 This matters beyond cosmetics: tags are the cheapest available carrier for provenance (see

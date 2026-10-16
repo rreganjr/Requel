@@ -169,7 +169,7 @@ child 2 costs nothing here — none of that is rework — but 6's API and UI wai
   working test for humans held up well and should be written into the Actor definition: if no use
   case contains a step this person performs, they are a stakeholder, not an actor.
 - **Does the project know whether the system already exists?** The same sentence is a constraint for
-  greenfield and an observation for brownfield — "must use AWS account 714494397341" is normative
+  greenfield and an observation for brownfield — "must use this specific AWS account" is normative
   before the system is built and descriptive after. A reviewer cannot classify it without being
   told, so either the project carries that flag or definitions must ask.
 - **Can one document be recorded as subordinate to another?** Both non-ticket sources in the case

@@ -16,7 +16,7 @@ does not have: **an entity knowing which external artifact it came from.**
 
 Concretely, provenance is what makes these possible:
 
-- **Re-ingest instead of duplicate.** Reading CON-3685 a second time must update the eight goals it
+- **Re-ingest instead of duplicate.** Reading the epic a second time must update the eight goals it
   produced, not create eight more.
 - **Change detection.** Telling "the source is unchanged" from "the source was edited" requires a
   record of the source's state at ingest, not just its identity.
@@ -34,19 +34,19 @@ reconciliation key (both authoritative).
 Requel has `TagCategory` / `Tag` / `AssignTag`, and a `source` category with one tag per external
 artifact is the cheapest thing that could work. It was used for the roundtable build.
 
-**What works.** Zero code. Queryable today — "everything from CON-3685" is a tag filter.
+**What works.** Zero code. Queryable today — "everything from PROJ-1234" is a tag filter.
 Assign/unassign already exist, tags are project-scoped, and they carry a color so the UI can
 distinguish them.
 
 **What was observed to fail.**
 
-- **Case normalisation.** `EditTagCategory` with name `Source` and values `CON-3685` / `CON-3686`
-  came back as `source`, `con-3685`, `con-3686`. A tag cannot round-trip the canonical form of an
+- **Case normalisation.** `EditTagCategory` with name `Source` and values `PROJ-1234` / `PROJ-1235`
+  came back as `source`, `proj-1234`, `proj-1235`. A tag cannot round-trip the canonical form of an
   external identifier, which matters the moment the identifier is used to construct a URL or compared
   against the source system.
 - **Identifier, not locator.** A tag is category + value + color. There is no field for the Jira
   URL, so the link that makes provenance useful has nowhere to live.
-- **No granularity.** The tag records that a goal came from CON-3685. It cannot record that it came
+- **No granularity.** The tag records that a goal came from the epic. It cannot record that it came
   from *acceptance criterion 4*. During the build this was the first thing missed — eight goals from
   one ticket, indistinguishable by tag.
 - **No temporal record.** No ingest timestamp, no source version or content hash, so change
@@ -83,7 +83,7 @@ still need to be excluded from context packs explicitly.
 ## Option C — a first-class field or entity
 
 A `SourceRef` owned by the entity (or a side table keyed by entity type + id), holding: system
-(`jira`), external id (`CON-3685`), fragment (`AC#4`), URL, ingested-at, source content hash, and
+(`jira`), external id (`PROJ-1234`), fragment (`AC#4`), URL, ingested-at, source content hash, and
 the ingest run that created it.
 
 **For:** it is not user-removable, it is queryable and indexable, it can be excluded from context
@@ -109,6 +109,6 @@ The two predictions worth checking against reality, since the project is live:
 
 - AC-level granularity will be missed before ticket-level identity is.
 - The first re-ingest will be the moment tags become untenable, because nothing can answer "has
-  CON-3685 changed since I last read it?"
+  the epic changed since I last read it?"
 
 Record what actually happens in `doc/work/2.0/pq-roundtable-case-study.md`.

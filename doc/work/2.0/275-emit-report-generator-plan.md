@@ -280,7 +280,7 @@ issues and write those sections. No change to #258's scope now.
   `ProjectQueryControllerTest` (media type, file name, 422); Angular report service and editor
   specs.
 - **Roundtable (621), run 2026-09-30:** the Ticket (Markdown) generator rendered the project with
-  no hand-editing; the output is `doc/work/2.0/roundtable/pq-roundtable-emitted-CON-3685-v3.md`.
+  no hand-editing; the output was a third emitted ticket.
   Against v2's structural sections: all 11 goals, 5 actors and 7 use cases are present; the
   recovery ladder and the six-step manual verification pass come out as scenarios with their
   ordered steps, the manual pass under "Run a roundtable session" (it is an additional scenario,
@@ -295,7 +295,7 @@ issues and write those sections. No change to #258's scope now.
   - Five use cases have a primary scenario with no steps, which rendered as a heading with nothing
     under it. A stepless scenario now reads `_No steps recorded._`.
   - All 11 open issues are MEDIUM: the case-study findings were written before #271, so none
-    carries a severity, and the ranking cannot surface the admin-gate finding (review L1) the way
+    carries a severity, and the ranking cannot surface the most important finding the way
     v2's Blocking Check did. That is data: set the severities with EditIssue.
   - Three of the 11 are legacy "subject of the step text ... does not match a known actor"
     findings, still `mustBeResolved`: #268 made the lexical issues advisory but not these

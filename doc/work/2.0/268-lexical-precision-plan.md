@@ -212,7 +212,7 @@ at all (the baseline's `person` came from a pre-#314 fragment).
 
 **Person nouns (rule C).** Word-sense disambiguation is too unreliable for it. `person` gets the
 grammatical-category sense (`person%1:10:00::`), the hypernym walk to `person#n#1` matched 3
-words (two of them the parts of `Chris Peterson`), and the noun.person lexicographer file
+words (two of them the parts of `Alex Morgan`), and the noun.person lexicographer file
 (`%1:18:`) gives about 13 hits in stories, use cases and steps, of which `dry`, `zombie` and
 `guide` are wrong senses and `panelists`, `viewers` and `engineers` are plurals of actor names.
 
@@ -252,20 +252,20 @@ more than today, because a phrase like "the stream" normalizes to a single commo
 appears everywhere (`stream`, `session`, `one`, `run`, `page`, `path`, `step`, `top`). The
 revised rules raise 52 distinct phrases, most of them real domain terms (`CI pipeline`,
 `CloudWatch alarm`, `IVS channel`, `admin console`, `stream key`, `hot standby`, `gated watch
-page`, `recovery ladder`, `session recording`, `Chris Peterson`):
+page`, `recovery ladder`, `session recording`, `Alex Morgan`):
 
 - **After normalizing, a single common noun is never a candidate**, the same rule the assistant
   already applies to one-word phrases before normalization. A single word is raised only as a
   proper noun that isn't the first word of its sentence, or as an acronym (`IVS`, `CI`).
   Sentence-initial `Archive`, `Recover`, `Verification`, `Force`, `Start` go.
 - **Coordinated phrases are rejected** (`stream key and RTMP endpoint` is two terms), and so are
-  possessives (`CON-3685's architecture description`).
+  possessives (`PROJ-1234's architecture description`).
 - **The sentence-verb filter is narrowed** to a first word that starts its sentence, ends in `-s`
   and whose singular is a verb (`Alarms route`, `Spans room creation`). The wider version also
   rejected `Bus factor`, `open finding`, `second audience` and `watch page`.
 - **The determiner filter stays as it is.** All 16 of its rejections were verb phrases or
   clauses (`archives the room`, `not a person`, `fairly sure the problem`).
-- **A token that is the letter part of a ticket key** (`CON` in `CON-3685`) is not a candidate.
+- **A token that is the letter part of a ticket key** (`PROJ` in `PROJ-1234`) is not a candidate.
 - The existing-vocabulary match works as planned: 45 candidates matched a term or actor,
   including `room` ×13, `test room`, `panelists` (via the singular) and `dry-run event`.
 - 25 of the 360 raw phrases don't occur in the source text as quoted (the joined-token problem);
@@ -322,8 +322,8 @@ Everything else is unchanged, including the #313 project dictionary layer.
 - **Coordination and possession:** reject a candidate containing `and`/`or` or a possessive `'s`.
 - **Single words:** after normalizing, a single common noun is never a candidate. A single word is
   raised only as a proper noun (NNP/NNPS, not the first word of its sentence) or an acronym, and
-  never as the letter part of a ticket key (`CON` in `CON-3685`). A multi-word run of NNPs
-  (`Chris Peterson`) is a proper noun wherever it is.
+  never as the letter part of a ticket key (`PROJ` in `PROJ-1234`). A multi-word run of NNPs
+  (`Alex Morgan`) is a proper noun wherever it is.
 - **Indefinite openers:** reject a candidate whose first word is `anything`, `something`,
   `everything`, `nothing`, `each`, `every`, `any` or `one` (`anything else`).
 - **Threshold:** raise a multi-word candidate only if the normalized phrase appears (word-boundary,
@@ -493,9 +493,9 @@ UPDATE `annotations` SET `must_be_resolved` = 0
 - `LexicalGlossaryTermAssistantTest`: `the room` with term `Room` emits a referer, not an issue;
   `a test room` matches `Test room`; `rooms` matches `Room`; `archives the room` and
   `downloads the resulting MP4` are rejected; sentence-initial `Archive` is not a proper noun but
-  mid-sentence `Conduit` is; `Chris Peterson` is raised from one entity; `the stream` (a single
+  mid-sentence `Conduit` is; `Alex Morgan` is raised from one entity; `the stream` (a single
   common noun after normalizing) is not; `stream key and RTMP endpoint` and a possessive phrase
-  are rejected; `Bus factor` is not rejected as a verb phrase; `CON` in `CON-3685` is not raised;
+  are rejected; `Bus factor` is not rejected as a verb phrase; `PROJ` in `PROJ-1234` is not raised;
   `anything else` is rejected; a common two-word phrase in two entities is not raised and in three
   is; a common phrase in one
   entity is not raised and in three entities is; the action carries `scope=PROJECT` and the

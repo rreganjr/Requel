@@ -54,7 +54,7 @@ relation only; #273 adds `CITES`, project-level attachment and supersedes.
 10. **Fragment ids like `AC#4` are positional,** so inserting an AC renumbers them. Requel can only
     match the key it is given; the gateway description says the key must be stable.
 11. **AC4 needs scoping.** Every MCP caller is a model, and #275's emitted document names its sources.
-12. **Tags lowercase their values** (`CON-3685` → `con-3685`, `TagNormalizer`), which is one of the
+12. **Tags lowercase their values** (`PROJ-1234` → `proj-1234`, `TagNormalizer`), which is one of the
     measured failures. The source record keeps `externalId` and `fragment` exactly as given.
 
 Patterns to copy: the `IgnoredFindingStore` stack (domain interface, JPA store, `deleteForTarget`

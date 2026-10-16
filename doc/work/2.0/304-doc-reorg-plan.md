@@ -95,7 +95,7 @@ doc sitting in `work/2.0/`) is visible and cheap to fix. The inverse — a dead 
 | `.DS_Store` | delete; add to `.gitignore` |
 | `docker_scout_report.txt` | delete — regenerable scan output, no provenance value |
 | `rebuild_semcor_from_wordnet30_at_work.sql` | move to `scripts/` — it is executable input, not documentation |
-| `pq-roundtable-emitted-CON-3685*.md` | `work/<release>/roundtable/` — generated experiment output, kept with its case study |
+| `pq-roundtable-emitted-*.md` | `work/<release>/roundtable/` — generated experiment output |
 | `pq-roundtable-case-study.md` | `work/<release>/` — a Requel case study, not Conduit work; stays in the repo |
 | `Requel System Structure.doc` | `archive/2009-thesis/requel-system-structure.doc` — the only filename with spaces |
 

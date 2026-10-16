@@ -7,7 +7,7 @@ Issue: https://github.com/rreganjr/Requel/issues/255
 `TagNormalizer.slug` is the single normalizer, and it does more than lower-case: trims,
 lower-cases with `Locale.ROOT`, collapses every run of non-alphanumerics into one hyphen, strips
 leading and trailing hyphens, and returns `null` when nothing survives. `"Source"` → `"source"`,
-`"CON-3685"` → `"con-3685"`, `"v2.0"` → `"v2-0"`.
+`"PROJ-1234"` → `"proj-1234"`, `"v2.0"` → `"v2-0"`.
 
 Six call sites: `EditTagCategoryCommandImpl` (`:104` name, `:150` each value),
 `EditTagCommandImpl` (`:86` category, `:87` value), and `TagImportHandlerImpl` (`:62`, `:63`).

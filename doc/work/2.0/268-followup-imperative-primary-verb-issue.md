@@ -2,7 +2,7 @@ Follow-on to #268. The NLP pipeline finds no primary verb in a command ("Create 
 
 ### Why
 
-Found while verifying #268 on the roundtable project. One whole-project re-run logged "No primary verb found in text" 109 times. Most were use case and scenario names written as commands: "Create the room", "Start the livestream", "Hand the stream key to Zoom", "Recover a failing stream mid-session". The rest were noun-phrase names ("Webinar", "Zoom Host") and bracketed source notes ("[Ingested verbatim from CON-3685 acceptance criterion 1.]"), which rightly have no verb.
+Found while verifying #268 on the roundtable project. One whole-project re-run logged "No primary verb found in text" 109 times. Most were use case and scenario names written as commands: "Create the room", "Start the livestream", "Hand the stream key to Zoom", "Recover a failing stream mid-session". The rest were noun-phrase names ("Webinar", "Zoom Host") and bracketed source notes ("[Ingested verbatim from PROJ-1234 acceptance criterion 1.]"), which rightly have no verb.
 
 `DependencyPrimaryVerbFinder` takes the primary verb to be the governor of the sentence's subject (a nominal subject, passive subject or agent). A command has no subject, so it gets no primary verb even though the verb is its first word. Two things read the primary verb:
 
@@ -18,7 +18,7 @@ Found while verifying #268 on the roundtable project. One whole-project re-run l
 ### AC
 
 - `processText("Create the room")` has primary verb "Create" and is marked imperative; "The host creates the room" still has primary verb "creates" and is not imperative; "Webinar" still has none.
-- A step named "Start the livestream" gets the no-actor finding and no could-not-analyze note. A step "The host starts the livestream", with an actor named Host, raises nothing new. "[Ingested verbatim from CON-3685 acceptance criterion 1.]" gets no no-actor finding.
+- A step named "Start the livestream" gets the no-actor finding and no could-not-analyze note. A step "The host starts the livestream", with an actor named Host, raises nothing new. "[Ingested verbatim from PROJ-1234 acceptance criterion 1.]" gets no no-actor finding.
 - A scenario named "Create the room" gets whatever the review decides, pinned by a test.
 - Re-running analysis on the roundtable project: the could-not-analyze count before and after is recorded on the issue.
 

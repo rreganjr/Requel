@@ -110,7 +110,7 @@ quoted phrases include:
 - `"Sees the Zoom livestream indicator and the recording notic"` — cut mid-word
 - `"ermissions matrix"` — starts mid-word
 - `"a Zoom webinar p"` — cut mid-word
-- `"le, not a person — CON-3685 names Chris Peterson where it means this role, ..."` — starts
+- `"le, not a person — PROJ-1234 names the original developer where it means this role, ..."` — starts
   mid-word, in a complexity finding
 
 The cuts fall at arbitrary offsets rather than token boundaries, and at least one of them

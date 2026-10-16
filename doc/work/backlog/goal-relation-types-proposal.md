@@ -26,7 +26,7 @@ Two findings from the case study that the model cannot hold:
 - **`PROXY_FOR_OUTCOME`.** "Conduit is the named owner" is a checkable proxy that can be fully true
   while the actual intent (bus factor above one) fails. The relationship between the proxy and the
   outcome is the finding, and there is no type for it.
-- **`DUPLICATE_AT_DIFFERENT_ABSTRACTION`.** "Chris is no longer a required participant" and "two
+- **`DUPLICATE_AT_DIFFERENT_ABSTRACTION`.** "The original developer is no longer a required participant" and "two
   engineers have run it unassisted" have the same success condition. During the build the only
   available approximation was `Supports`, which is true and loses the point entirely.
 

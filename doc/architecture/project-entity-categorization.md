@@ -180,7 +180,7 @@ Assignment
 - Assignments are polymorphic via the registry; a controller turns a request's `entityType` string
   into a `Class` and loads the entity (same trick `AnnotationCommandRegistrar.loadAnnotatable` uses).
 - Prefer **incremental add/remove** of individual assignments over quik's full delete-then-reinsert
-  "set the whole tag set" call, to avoid the race conditions quik had to guard against (CON-3330).
+  "set the whole tag set" call, to avoid the race conditions quik had to guard against (an earlier ticket).
   A "replace set" convenience command can exist on top.
 - Assignment carries audit (`created_by`, `created_on`).
 

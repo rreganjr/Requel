@@ -88,10 +88,10 @@ generic prompt.
 - **`PROXY_FOR_OUTCOME`** — "Conduit is the named owner" is satisfied by editing CODEOWNERS. The
   stated intent is bus factor, and the goal can be fully true with bus factor still at one. Subtle
   *because* it is concrete and checkable; the checkability disguises it.
-- **`PERSON_NAMED_NOT_ROLE`** — "Chris Peterson is no longer a required participant" embeds an
+- **`PERSON_NAMED_NOT_ROLE`** — "The original developer is no longer a required participant" embeds an
   individual. The same human is both an Actor (he operates the system) and a UserStakeholder (domain
   expert, and the CTO who drives the technology). See §5 — this one is more interesting than it looks.
-- **`DUPLICATE_AT_DIFFERENT_ABSTRACTION`** — "Chris is no longer required" and "two engineers have
+- **`DUPLICATE_AT_DIFFERENT_ABSTRACTION`** — "The original developer is no longer required" and "two engineers have
   run it unassisted" have the same success condition. They read as different goals because one is
   about a person and the other about a team. Undetectable without sibling goals in context.
 - **`NEGATIVE_ONLY_SPECIFICATION`** — "so tenant membership alone does not grant access" says who is
@@ -148,7 +148,7 @@ Some content is not badly written; it is in the wrong kind of entity.
 - A person's name in a goal is an **Actor** plus a **UserStakeholder**.
 
 The last one repays attention, because modelling it correctly changes the answer rather than just
-tidying it. Once Chris is the Operator *role* and separately a stakeholder, "Chris is no longer
+tidying it. Once the original developer is the Operator *role* and separately a stakeholder, "The original developer is no longer
 required" splits in two. The part that is genuinely about the software — **the Operator role must be
 fillable by more than one person** — implies role-based admin access rather than person-based, no
 personal credentials on the path, and no undocumented step that exists only in someone's head. That
@@ -273,7 +273,7 @@ What worked well and is worth recording: `EditUseCase` auto-creates a primary sc
 
 ## 8b. The emit half
 
-`doc/work/2.0/roundtable/pq-roundtable-emitted-CON-3685.md` holds the first generated ticket and its analysis. The short
+The first generated ticket and its analysis are summarised here. The short
 version: structure (actors, use cases, glossary, traceability) is a deterministic projection an XSLT
 could produce byte-identically; prose (problem statement, which open questions to surface) is not.
 The emitted ticket dropped everything the original carried that is not normative — AWS account,
@@ -312,12 +312,10 @@ document B".
   single most common day-of failure" and explicitly a staffing problem to solve a week out.
 - **The recovery ladder**, three ordered actions, and the distinction that matters: *New takeover
   key* is the recovery control; *Rotate stream key* is for a leaked key and cuts off anyone
-  mid-stream. **CON-3686's manual pass says "rotate the stream key"** — either the wrong control or
+  mid-stream. **The child ticket's manual pass says "rotate the stream key"** — either the wrong control or
   imprecise language for the right one, and worth confirming before the verification pass runs.
 - **The encoder validation panel**, an entire feature: bitrate ceiling, missing-audio detection,
   H.264 profile, aspect ratio, plus an explicit list of what it refuses to guess at.
-- **Security facts:** the MP4 download link is minted on click, lives 15 minutes and carries no
-  sign-in. Everything in storage expires at 90 days.
 - **The best requirement in any of the three documents:** adopting hot standby puts an external
   encoder in the path, which removes Zoom's livestream indicator — and that indicator "is doing our
   disclosure work for us". An architecture choice silently relocating a compliance guarantee from
@@ -325,8 +323,8 @@ document B".
 
 ### What the review added, and one finding that outranks everything else
 
-The review opens by contradicting both tickets: *"The ticket text is wrong about the split. CON-3685
-and CON-3686 say 24 fixed and 8 deferred. Checking all 32 findings against the current tree gives 26
+The review opens by contradicting both tickets: *"The ticket text is wrong about the split. The epic
+and the child ticket say 24 fixed and 8 deferred. Checking all 32 findings against the current tree gives 26
 with the fix present and 6 without. The 24/8 figure was a recollection, never a count."*
 
 This is the single most instructive result in the whole exercise, because **§3 of this document
@@ -335,21 +333,16 @@ the silence as correct behaviour. It was internally consistent and factually wro
 checking cannot detect a shared wrong premise.* Any evaluation fixture must contain a case like
 this, and any assistant that reports "the numbers add up" must not imply the numbers are right.
 
-Worse for the model: "deferred" was never accurate. Six findings are **not fixed**, and one of them
-is live. Review finding L1 — the committed `cdk.json` still carries an empty `entraAdminRole`, and
-the admin Lambda skips the app-role check when it is empty — means that if the deployed stack came
-from HEAD, **any authenticated member of the Medlive tenant can reach `/admin`**, end a live room,
-rotate keys or download recordings. That is the exact condition CON-3685's third acceptance
-criterion forbids. The goal is not merely badly worded; it may be false in production right now.
+Worse for the model: "deferred" was never accurate. Six findings were simply **not fixed**.
 
-The review also surfaced three sibling tickets neither source ticket references — CON-3687, CON-3690
-and CON-3691 — including CON-3690, which owns the alarm *subscription* and is therefore where the
-actual substance of the alarm-routing criterion lives.
+The review also surfaced three sibling tickets neither source ticket references, including the one
+that owns the alarm *subscription* and is therefore where the actual substance of the alarm-routing
+criterion lives.
 
 ### A new finding type: `VACUOUS_QUANTIFIER`
 
 At review time the stack created **zero** CloudWatch alarms, despite log markers written specifically
-for them. CON-3685's criterion is "all CloudWatch alarms route to a Conduit-owned destination, each
+for them. The epic's criterion is "all CloudWatch alarms route to a Conduit-owned destination, each
 with a documented first response" — which an empty set satisfies perfectly. The criterion could have
 been signed off as met while the system had no alarming at all.
 
@@ -375,8 +368,8 @@ machinery. What Requel needs is **one** new thing — a reference attachment tha
 The discriminator is the greenfield test: for a system that does not exist yet you would carry
 citations and operational requirements, and you would not carry as-built or environment facts,
 because those are outputs of building rather than inputs to it. With a sharp corollary: **the same
-sentence changes category depending on whether the system exists.** "Must use AWS account
-714494397341" is a constraint for greenfield and an observation for brownfield. An AI reviewer cannot
+sentence changes category depending on whether the system exists.** "Must use this specific AWS
+account" is a constraint for greenfield and an observation for brownfield. An AI reviewer cannot
 tell which without being told — which is not yet in the assistants epic and should be.
 
 ### Actor or stakeholder: a boundary test that held up
@@ -407,14 +400,13 @@ Worth recording, because failure logs are easier to write than success ones:
 
 ## 9a. The second emission
 
-`doc/work/2.0/roundtable/pq-roundtable-emitted-CON-3685-v2.md` re-emits the ticket from the three-source model and diffs
+The second emission re-emits the ticket from the three-source model and diffs
 it against v1. The result is the clearest evidence yet for what the living document is actually
 worth, and where it falls short.
 
 **Every material correction between v1 and v2 came from a new source, not from re-analysis.** Two
 IVS channels instead of one; four room states instead of four different guessed ones; archive versus
-purge; takeover key versus key rotation; 26/6 instead of 24/8; an admin gate that may be open in
-production. None was inferable from the tickets by any amount of additional thinking. *The quality
+purge; takeover key versus key rotation; 26/6 instead of 24/8. None was inferable from the tickets by any amount of additional thinking. *The quality
 of a living document is bounded by its sources.* For the assistants epic this argues that ingesting
 another source outranks reviewing harder — a product-priority conclusion, not a technique one.
 
@@ -449,5 +441,4 @@ promoted to a protected goal.
   validation panel, the pre-flight checklist as a scenario, and the archive/purge lifecycle.
 - Decide whether the 32 review findings belong in this project at all, or whether a review finding is
   a different kind of thing from a requirement.
-- Re-emit CON-3685 now that three sources are in the model, and compare against the first emission in
-  `doc/work/2.0/roundtable/pq-roundtable-emitted-CON-3685.md` — the first real test of the living document.
+- Re-emit the epic now that three sources are in the model, and compare against the first emission — the first real test of the living document.
