@@ -1,0 +1,40 @@
+# Dependabot security updates, grouped so each ecosystem gets one PR.
+#
+# Without grouping, every vulnerable package gets its own PR, and a lone bump of one
+# @angular/* package can't install because the framework packages must move together
+# (their peer ranges pin each other's exact version). One grouped PR per ecosystem
+# also means one CI run instead of one per package.
+#
+# open-pull-requests-limit: 0 turns off routine version-update PRs; the groups still
+# apply to security updates.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/requel-angular"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      maven-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      actions-security:
+        applies-to: security-updates
+        patterns: ["*"]
