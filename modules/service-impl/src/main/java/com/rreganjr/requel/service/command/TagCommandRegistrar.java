@@ -93,13 +93,21 @@ public class TagCommandRegistrar {
                 (cmd, input) -> {
                     EditTagCommand c = (EditTagCommand) cmd;
                     EditTagInput i = (EditTagInput) input;
-                    c.setProjectScope(resolveProjectByName(i.projectName()));
+                    if (i.tagId() != null) {
+                        // Edit: the scope is the tag's own project, never the caller's (#343).
+                        Tag tag = tagRepository.findTagById(i.tagId());
+                        if (tag == null) {
+                            throw new IllegalArgumentException("Tag not found: " + i.tagId());
+                        }
+                        c.setTag(tag);
+                        c.setProjectScope(resolveExistingScope(
+                                tag.getProjectId(), i.projectName(), "Tag", i.tagId()));
+                    } else {
+                        c.setProjectScope(resolveProjectByName(i.projectName()));
+                    }
                     c.setCategory(i.category());
                     c.setValue(i.value());
                     c.setColor(i.color());
-                    if (i.tagId() != null) {
-                        c.setTag(tagRepository.findTagById(i.tagId()));
-                    }
                 },
                 null,
                 cmd -> toTagDto(((EditTagCommand) cmd).getTag()));
@@ -151,7 +159,18 @@ public class TagCommandRegistrar {
                 (cmd, input) -> {
                     EditTagCategoryCommand c = (EditTagCategoryCommand) cmd;
                     EditTagCategoryInput i = (EditTagCategoryInput) input;
-                    c.setProjectScope(resolveProjectByName(i.projectName()));
+                    if (i.categoryId() != null) {
+                        // Edit: the scope is the category's own project, never the caller's (#343).
+                        TagCategory category = tagRepository.findCategoryById(i.categoryId());
+                        if (category == null) {
+                            throw new IllegalArgumentException(
+                                    "Tag category not found: " + i.categoryId());
+                        }
+                        c.setProjectScope(resolveExistingScope(
+                                category.getProjectId(), i.projectName(), "Tag category", i.categoryId()));
+                    } else {
+                        c.setProjectScope(resolveProjectByName(i.projectName()));
+                    }
                     c.setCategoryId(i.categoryId());
                     c.setName(i.name());
                     c.setExclusive(i.exclusive());
@@ -188,6 +207,25 @@ public class TagCommandRegistrar {
             return null;
         }
         return projectRepository.findProjectByName(projectName);
+    }
+
+    /**
+     * Project scope for an edit of an existing tag or category: the one it belongs to (null for a
+     * global one), so authorization checks the owner rather than whatever project the caller names
+     * (#343). A {@code projectName} is optional here; when given it must name that same project,
+     * and anything else is refused. The message names only the caller's project, so a refusal does
+     * not reveal which project owns the id.
+     */
+    private Object resolveExistingScope(Long ownerProjectId, String projectName, String what, Long id) {
+        Object owner = resolveProject(ownerProjectId);
+        if ((projectName != null) && !projectName.isBlank()) {
+            Project named = (Project) resolveProjectByName(projectName);
+            if ((ownerProjectId == null) || !ownerProjectId.equals(named.getId())) {
+                throw new IllegalArgumentException(what + " " + id + " does not belong to project '"
+                        + projectName + "'; omit projectName to edit it in its own scope.");
+            }
+        }
+        return owner;
     }
 
     private Object projectScopeOf(Taggable taggable) {

@@ -28,6 +28,12 @@ import com.rreganjr.requel.project.*;
 import com.rreganjr.requel.annotation.command.*;
 import com.rreganjr.requel.project.command.*;
 import com.rreganjr.requel.project.impl.StakeholderPermissionImpl;
+import com.rreganjr.requel.tagging.Tag;
+import com.rreganjr.requel.tagging.TagCategory;
+import com.rreganjr.requel.tagging.TagRepository;
+import com.rreganjr.requel.tagging.command.EditTagCategoryCommand;
+import com.rreganjr.requel.tagging.command.EditTagCommand;
+import com.rreganjr.requel.tagging.command.TagCommandFactory;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.command.EditUserCommand;
 import org.junit.jupiter.api.BeforeAll;
@@ -41,10 +47,13 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -93,6 +102,12 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
 
     @Autowired
     private com.rreganjr.requel.project.IgnoredFindingStore ignoredFindingStore;
+
+    @Autowired
+    private TagCommandFactory tagCommandFactory;
+
+    @Autowired
+    private TagRepository tagRepository;
 
     // JWT tokens stored once in @BeforeAll and reused in @Test methods
     private String adminToken;
@@ -1340,5 +1355,96 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                 "entityId", entityId,
                 "text", text,
                 "mustBeResolved", true));
+    }
+
+    // -------------------------------------------------------------------------
+    // Tags across projects (#343). The editor holds Annotation[Edit] on the fixture project
+    // only. Tag commands must take their project from the tag or category itself, so naming the
+    // editor's own project cannot reach another project's or a global tag, and a tag from another
+    // project cannot be attached to the editor's goal.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void editorCannotReachAnotherProjectsOrGlobalTagsThroughItsOwnProject() throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        long ts = System.nanoTime();
+        EditProjectCommand projectCmd = getProjectCommandFactory().newEditProjectCommand();
+        projectCmd.setEditedBy(admin);
+        projectCmd.setName("auth-test-other-" + ts);
+        projectCmd.setText("a project the editor is not a stakeholder of");
+        projectCmd.setOrganizationName("AuthTestOrg-" + ts);
+        Project other = getCommandHandler().execute(projectCmd).getProject();
+
+        Tag otherTag = newTag(admin, other, "other-" + ts);
+        Tag globalTag = newTag(admin, null, "global-" + ts);
+        TagCategory otherCategory = newCategory(admin, other, "other-cat-" + ts);
+
+        for (Tag tag : List.of(otherTag, globalTag)) {
+            mockMvc.perform(post("/api/commands/EditTag")
+                            .header("Authorization", "Bearer " + editorToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "tagId", tag.getId(), "projectName", testProjectName,
+                                    "category", "type", "value", "hijacked-" + ts))))
+                    .andExpect(status().isBadRequest());
+        }
+        // Without a projectName the scope is the tag's own project, where the editor has no grant.
+        mockMvc.perform(post("/api/commands/EditTag")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "tagId", otherTag.getId(), "category", "type",
+                                "value", "hijacked-" + ts))))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/commands/EditTagCategory")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "categoryId", otherCategory.getId(), "projectName", testProjectName,
+                                "name", "hijacked-" + ts, "exclusive", true))))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/commands/EditTagCategory")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "categoryId", otherCategory.getId(),
+                                "name", "hijacked-" + ts, "exclusive", true))))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/commands/AssignTag")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "tagId", otherTag.getId(), "entityType", "Goal", "entityId", goalId))))
+                .andExpect(status().isUnprocessableEntity());
+
+        assertEquals("other-" + ts, tagRepository.findTagById(otherTag.getId()).getValue());
+        assertEquals("global-" + ts, tagRepository.findTagById(globalTag.getId()).getValue());
+        TagCategory category = tagRepository.findCategoryById(otherCategory.getId());
+        assertEquals("other-cat-" + ts, category.getName());
+        assertFalse(category.isExclusive());
+        assertFalse(tagRepository.findTagsOnEntity("Goal", goalId).stream()
+                        .anyMatch(t -> t.getId().equals(otherTag.getId())),
+                "another project's tag must not be attached to the editor's goal");
+    }
+
+    /** A tag created by admin in {@code scope} (admin created that project), or a global tag. */
+    private Tag newTag(User admin, Project scope, String value) throws Exception {
+        EditTagCommand cmd = tagCommandFactory.newEditTagCommand();
+        cmd.setEditedBy(admin);
+        cmd.setProjectScope(scope);
+        cmd.setCategory("type");
+        cmd.setValue(value);
+        return getCommandHandler().execute(cmd).getTag();
+    }
+
+    private TagCategory newCategory(User admin, Project scope, String name) throws Exception {
+        EditTagCategoryCommand cmd = tagCommandFactory.newEditTagCategoryCommand();
+        cmd.setEditedBy(admin);
+        cmd.setProjectScope(scope);
+        cmd.setName(name);
+        cmd.setExclusive(false);
+        return getCommandHandler().execute(cmd).getTagCategory();
     }
 }

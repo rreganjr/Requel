@@ -28,7 +28,9 @@ import com.rreganjr.requel.service.api.CommandDescription;
 @CommandDescription(value = "Attaches an existing tag (tagId) to the entity given by entityType"
         + " and entityId. entityType is case-sensitive: Goal, Project, Actor, Story, Scenario,"
         + " UseCase, NonUserStakeholder or UserStakeholder. Attaching a tag the entity already"
-        + " carries changes nothing. When the tag's category has rules, looked up in the project"
+        + " carries changes nothing. A project tag can only be attached to an entity of"
+        + " its own project (attaching it to another project's entity is refused); a global tag"
+        + " can be attached anywhere. When the tag's category has rules, looked up in the project"
         + " first and then globally, its allowed entity types are enforced, and an exclusive"
         + " category replaces any other tag of that category on the entity. The response is the"
         + " tag, not the entity.",

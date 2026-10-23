@@ -234,4 +234,62 @@ public class TagCommandIT {
 
 		assertNull(tagRepository.findTagById(tagId), "deleted tag should no longer be found");
 	}
+
+	/**
+	 * #343: a project tag only goes on its own project's entities. The authorization check runs
+	 * against the entity's project, so before the fix a stakeholder of project B could attach
+	 * project A's tag to a B entity. A global tag is assignable anywhere.
+	 */
+	@Test
+	@Transactional
+	public void assignRefusesAnotherProjectsTag() throws Exception {
+		User admin = admin();
+		Project projectA = newProject(admin);
+		Project projectB = newProject(admin);
+		GoalImpl goalA = new GoalImpl(projectA, admin, "Goal-" + UUID.randomUUID(), "goal text");
+		GoalImpl goalB = new GoalImpl(projectB, admin, "Goal-" + UUID.randomUUID(), "goal text");
+		entityManager.persist(goalA);
+		entityManager.persist(goalB);
+		entityManager.flush();
+
+		Tag tagA = newTag(admin, projectA, "a-only-" + UUID.randomUUID());
+		Tag global = newTag(admin, null, "global-" + UUID.randomUUID());
+
+		assertThrows(EntityValidationException.class, () -> assign(admin, projectB, tagA, goalB),
+				"project A's tag must not go on a project B goal");
+		assertThrows(EntityValidationException.class,
+				() -> assign(admin, projectB, tagA, (Taggable) projectB),
+				"project A's tag must not go on project B itself");
+		entityManager.flush();
+		assertTrue(tagRepository.findTagsOnEntity("Goal", goalB.getId()).isEmpty(),
+				"the refused assignment must not have been written");
+
+		assign(admin, projectB, global, goalB);
+		assign(admin, projectA, tagA, goalA);
+		entityManager.flush();
+		assertTrue(tagRepository.findTagsOnEntity("Goal", goalB.getId()).stream()
+				.anyMatch(t -> t.getId().equals(global.getId())), "a global tag goes anywhere");
+		assertTrue(tagRepository.findTagsOnEntity("Goal", goalA.getId()).stream()
+				.anyMatch(t -> t.getId().equals(tagA.getId())), "A's tag goes on A's goal");
+	}
+
+	/** A tag in {@code scope}, or a global tag when {@code scope} is null. */
+	private Tag newTag(User admin, Project scope, String value) throws Exception {
+		EditTagCommand create = tagCommandFactory.newEditTagCommand();
+		create.setEditedBy(admin);
+		create.setProjectScope(scope);
+		create.setCategory("type");
+		create.setValue(value);
+		create.execute();
+		return create.getTag();
+	}
+
+	private void assign(User admin, Project scope, Tag tag, Taggable taggable) throws Exception {
+		AssignTagCommand assign = tagCommandFactory.newAssignTagCommand();
+		assign.setEditedBy(admin);
+		assign.setProjectScope(scope);
+		assign.setTag(tag);
+		assign.setTaggable(taggable);
+		assign.execute();
+	}
 }
