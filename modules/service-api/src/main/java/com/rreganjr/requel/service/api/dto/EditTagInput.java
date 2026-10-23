@@ -31,8 +31,10 @@ import com.rreganjr.requel.service.api.CommandDescription;
  * caller-facing statement of that.
  */
 @CommandDescription(value = "Creates or edits a single tag. Pass tagId to edit an existing tag,"
-        + " or leave it null to create one; a null or blank projectName makes the tag global."
-        + " category may be null for a flat tag; value is required. Both category and value are"
+        + " or leave it null to create one. When creating, a null or blank projectName makes the"
+        + " tag global. When editing, the tag stays in its own project (or stays global):"
+        + " projectName may be omitted, and if given it must name the tag's own project or the"
+        + " edit is refused. An unknown tagId is refused. category may be null for a flat tag; value is required. Both category and value are"
         + " stored as slugs: trimmed, lower-cased, and with each run of non-alphanumeric characters"
         + " collapsed to a single hyphen. \"PROJ-1234\" is stored as \"proj-1234\" and \"v2.0\" as"
         + " \"v2-0\". The slug is the uniqueness key and the text you supplied is not retained, so"

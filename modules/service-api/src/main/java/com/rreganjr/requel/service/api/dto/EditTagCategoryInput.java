@@ -33,8 +33,11 @@ import jakarta.validation.constraints.Size;
  * {@code allowedEntityTypes}/{@code values} may be null or empty (no restriction).
  */
 @CommandDescription(value = "Creates or edits a tag category and its controlled values. Pass"
-        + " categoryId to edit an existing category, or leave it null to create one; a null or"
-        + " blank projectName makes the category global. The name and every entry in values are"
+        + " categoryId to edit an existing category, or leave it null to create one. When"
+        + " creating, a null or blank projectName makes the category global. When editing, the"
+        + " category stays in its own project (or stays global): projectName may be omitted, and"
+        + " if given it must name the category's own project or the edit is refused. An unknown"
+        + " categoryId is refused. The name and every entry in values are"
         + " stored as slugs: trimmed, lower-cased, and with each run of non-alphanumeric characters"
         + " collapsed to a single hyphen. \"Source\" is stored as \"source\", \"PROJ-1234\" as"
         + " \"proj-1234\", \"v2.0\" as \"v2-0\". The slug is the uniqueness key and the text you"

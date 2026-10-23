@@ -74,11 +74,41 @@ public class AssignTagCommandImpl extends AbstractTagCommand implements AssignTa
 		TagImpl tagImpl = (TagImpl) getRepository().get(getTag());
 		Taggable managedTaggable = getRepository().get(taggable);
 
+		requireTagInEntityProject(tagImpl, managedTaggable);
 		applyCategoryRules(tagImpl, managedTaggable);
 
 		tagImpl.getTaggables().add(managedTaggable);
 		getRepository().merge(tagImpl);
 		setTag(tagImpl);
+	}
+
+	/**
+	 * A project-scoped tag may only be attached to an entity of its own project (#343): the
+	 * authorization check runs against the entity's project, so without this a stakeholder of one
+	 * project could attach another project's tag, and expose its text, to their own entities. A
+	 * global tag (no project) is assignable anywhere.
+	 */
+	private static void requireTagInEntityProject(TagImpl tag, Taggable managedTaggable) {
+		Long tagProjectId = tag.getProjectId();
+		if (tagProjectId == null) {
+			return;
+		}
+		if (!tagProjectId.equals(projectIdOf(managedTaggable))) {
+			throw EntityValidationException.validationFailed(Tag.class, "tagId",
+					"Tag " + tag.getId() + " belongs to another project and cannot be assigned here.");
+		}
+	}
+
+	/** The id of the project (or domain) that owns {@code taggable}, or null when it has none. */
+	private static Long projectIdOf(Taggable taggable) {
+		if (taggable instanceof ProjectOrDomainEntity entity) {
+			ProjectOrDomain owner = entity.getProjectOrDomain();
+			return (owner != null) ? owner.getId() : null;
+		}
+		if (taggable instanceof ProjectOrDomain pod) {
+			return pod.getId();
+		}
+		return null;
 	}
 
 	/**
