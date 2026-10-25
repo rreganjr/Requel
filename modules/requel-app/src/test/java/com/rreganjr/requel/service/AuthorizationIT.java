@@ -580,6 +580,84 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
     }
 
     // -------------------------------------------------------------------------
+    // EditProject selects by projectName; null creates (issue #340)
+    // -------------------------------------------------------------------------
+
+    /**
+     * #340: a projectName that names no project used to fall through to create, so a misspelled
+     * name made a second project and reported success. Admin holds createProjects, so before the
+     * fix this request created {@code newName}; now it is refused like any unknown projectName.
+     */
+    @Test
+    void editProjectWithAnUnknownProjectNameIsRefusedAndCreatesNothing() throws Exception {
+        String newName = "auth-misspelled-target-" + System.nanoTime();
+        mockMvc.perform(post("/api/commands/EditProject")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "projectName", testProjectName + "-misspelled",
+                                "name", newName))))
+                .andExpect(status().isConflict());
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.rreganjr.requel.project.exception.NoSuchProjectException.class,
+                () -> getProjectRepository().findProjectByName(newName),
+                "an EditProject with an unknown projectName must not create a project");
+    }
+
+    /** #340: creating is projectName null, and that still works. */
+    @Test
+    void editProjectWithANullProjectNameCreatesAProject() throws Exception {
+        String newName = "auth-created-" + System.nanoTime();
+        Map<String, Object> input = new java.util.HashMap<>();
+        input.put("projectName", null);
+        input.put("name", newName);
+        input.put("organizationName", "AuthCreateOrg");
+        mockMvc.perform(post("/api/commands/EditProject")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(input)))
+                .andExpect(status().isOk());
+
+        assertEquals(newName, getProjectRepository().findProjectByName(newName).getName());
+    }
+
+    /**
+     * #340: a rename is projectName = the current name and name = the new one. Renames the shared
+     * fixture project and puts the name back, so the other tests keep finding it.
+     */
+    @Test
+    void editorCanRenameProjectByItsCurrentName() throws Exception {
+        String renamed = testProjectName + "-renamed";
+        try {
+            mockMvc.perform(post("/api/commands/EditProject")
+                            .header("Authorization", "Bearer " + editorToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "projectName", testProjectName,
+                                    "name", renamed))))
+                    .andExpect(status().isOk());
+
+            assertEquals(renamed, getProjectRepository().findProjectByName(renamed).getName());
+            org.junit.jupiter.api.Assertions.assertThrows(
+                    com.rreganjr.requel.project.exception.NoSuchProjectException.class,
+                    () -> getProjectRepository().findProjectByName(testProjectName),
+                    "the old name no longer resolves after the rename");
+        } finally {
+            // Only when the rename happened, so a failed rename reports its own assertion.
+            if (projectExists(renamed)) {
+                mockMvc.perform(post("/api/commands/EditProject")
+                                .header("Authorization", "Bearer " + editorToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(Map.of(
+                                        "projectName", renamed,
+                                        "name", testProjectName))))
+                        .andExpect(status().isOk());
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // DeleteProject — requires Project[Delete] (issue #240)
     // The deleter and no-access personas lack Project[Delete] (deleter has no
     // Project[Edit], so the #240 backfill never grants it Delete; no-access is not a
@@ -1306,6 +1384,15 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                 "username", username,
                 "permissionKeys", java.util.List.of(),
                 "version", version));
+    }
+
+    private boolean projectExists(String name) {
+        try {
+            getProjectRepository().findProjectByName(name);
+            return true;
+        } catch (com.rreganjr.requel.project.exception.NoSuchProjectException e) {
+            return false;
+        }
     }
 
     private String editProjectJson() throws Exception {

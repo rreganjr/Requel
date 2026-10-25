@@ -662,6 +662,45 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
     }
 
     /**
+     * #340: an EditProject whose projectName names no project used to fall through to create.
+     * Admin holds createProjects, so before the fix this call created {@code newName}; now it is
+     * refused, as any unknown projectName is. The kind is not asserted: #345 changes it.
+     */
+    @Test
+    void editProjectWithAnUnknownProjectNameIsRefusedAndCreatesNothing() throws Exception {
+        long ts = System.nanoTime();
+        String newName = "gw-misspelled-target-" + ts;
+        authenticate("admin");
+
+        assertThrows(GatewayException.class, () -> gateway.execute(new GatewayRequest("EditProject",
+                Map.of("projectName", "gw-no-such-project-" + ts, "name", newName))));
+        assertThrows(NoSuchProjectException.class,
+                () -> getProjectRepository().findProjectByName(newName),
+                "an EditProject with an unknown projectName must not create a project");
+    }
+
+    /** #340: a rename is projectName = the current name and name = the new one. */
+    @Test
+    void editProjectRenamesByTheCurrentName() throws Exception {
+        long ts = System.nanoTime();
+        String oldName = "gw-rename-" + ts;
+        String newName = oldName + "-renamed";
+        String username = "gw-rename-user-" + ts;
+        Project target = createProject(oldName);
+        createUser(username);
+        addUserStakeholder(target, username, keys(StakeholderPermissionType.Edit, Project.class));
+
+        authenticate(username);
+        gateway.execute(new GatewayRequest("EditProject",
+                Map.of("projectName", oldName, "name", newName)));
+
+        assertEquals(target.getId(), getProjectRepository().findProjectByName(newName).getId());
+        assertThrows(NoSuchProjectException.class,
+                () -> getProjectRepository().findProjectByName(oldName),
+                "the old name no longer resolves after the rename");
+    }
+
+    /**
      * Issue #242 AC: a caller without {@code Project[Delete]} is rejected at the <em>command</em>
      * layer, not merely hidden from the tool list. The policy allows the command type — this
      * stakeholder even holds {@code Project[Edit]} — so an UNAUTHORIZED outcome here can only have
