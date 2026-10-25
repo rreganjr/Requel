@@ -100,7 +100,6 @@ import com.rreganjr.requel.project.command.RemoveGoalFromGoalContainerCommand;
 import com.rreganjr.requel.project.command.RemoveScenarioFromUseCaseCommand;
 import com.rreganjr.requel.project.command.SetPrimaryScenarioOnUseCaseCommand;
 import com.rreganjr.requel.project.command.RemoveStoryFromStoryContainerCommand;
-import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.service.api.CommandRegistry;
 import com.rreganjr.requel.service.api.dto.ActorDto;
 import com.rreganjr.requel.service.api.dto.AddActorToActorContainerInput;
@@ -184,13 +183,11 @@ public class ProjectCommandRegistrar {
                     EditProjectCommand c = (EditProjectCommand) cmd;
                     EditProjectInput i = (EditProjectInput) input;
 
-                    // If projectName matches an existing project, set it for update; otherwise leave null for create
+                    // projectName selects the project to edit; null creates one. A name that matches
+                    // no project is refused like every other project-scoped command (#340): it used
+                    // to fall through to create, so a misspelled name made a second project.
                     if (i.projectName() != null) {
-                        try {
-                            c.setProject(projectRepository.findProjectByName(i.projectName()));
-                        } catch (NoSuchProjectException e) {
-                            // New project — leave project null, command will create
-                        }
+                        c.setProject(projectRepository.findProjectByName(i.projectName()));
                     }
                     // Caller's version drives the optimistic-lock check on update (issue #108).
                     c.setExpectedVersion(i.version());

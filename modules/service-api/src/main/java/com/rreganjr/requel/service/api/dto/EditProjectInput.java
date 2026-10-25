@@ -27,9 +27,9 @@ import jakarta.validation.constraints.Size;
 
 /**
  * Input DTO for the EditProject command. Used for both creating and updating projects.
- * {@code projectName} selects the project to update; when it is null or names no project, a new
- * project is created. {@code id} is not read (issue #296). A non-null {@code version} is checked
- * on update.
+ * {@code projectName} selects the project to update; when it is null a new project is created,
+ * and a name that matches no project is refused (issue #340). {@code id} is not read (issue #296).
+ * A non-null {@code version} is checked on update.
  * Organization is referenced by organizationId when selecting an existing org,
  * or by organizationName when creating a new one.
  * <p>
@@ -39,9 +39,10 @@ import jakarta.validation.constraints.Size;
  * {@code organizationName} clears it (issue #316).
  */
 @CommandDescription(value = "Creates or edits a project. projectName selects the project to edit;"
-        + " when it is null or names no project, a new project is created, so a misspelled"
-        + " projectName creates a project rather than failing. name is the new name: required when"
-        + " creating, kept when left null, and it cannot be cleared. Project names are unique"
+        + " when it is null a new project is created, and a projectName that names no project is"
+        + " refused. name is the new name: required when creating, kept when left null, and it"
+        + " cannot be cleared; to rename, pass the current name as projectName and the new one as"
+        + " name. Project names are unique"
         + " across the whole installation, ignoring case. The id field is ignored. organizationId"
         + " selects an existing organization; otherwise organizationName is looked up and created"
         + " when it does not exist, and an empty organizationName removes the organization."
