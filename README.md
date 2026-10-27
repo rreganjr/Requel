@@ -53,7 +53,7 @@ An example project file that can be imported:
 The quickest way is Docker Compose:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/rreganjr/Requel/v2.0.1/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/rreganjr/Requel/v2.0.2/docker-compose.yml
 echo "REQUEL_JWT_SECRET=$(openssl rand -base64 48)" > .env
 docker compose up -d
 ```

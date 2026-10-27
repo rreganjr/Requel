@@ -31,7 +31,8 @@ import jakarta.validation.constraints.NotNull;
         + " positionId. supportLevel is exactly one of StronglyFor, For, Neutral, Against or"
         + " StronglyAgainst. Leave argumentId null to create one, or pass it to replace an"
         + " argument's text and supportLevel; an argument stays on the position it was created on."
-        + " An unknown argumentId creates a new argument rather than failing.")
+        + " An unknown positionId or argumentId, or an argumentId from another project, is"
+        + " refused.")
 public record EditArgumentInput(
         String projectName,
         @NotNull Long positionId,

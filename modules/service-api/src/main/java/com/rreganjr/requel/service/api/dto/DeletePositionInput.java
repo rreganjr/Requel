@@ -24,6 +24,7 @@ import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotNull;
 
 @CommandDescription("Deletes a position, selected by positionId: it is removed from every issue"
-        + " it answers and its arguments are deleted. An issue it had resolved becomes unresolved.")
+        + " it answers and its arguments are deleted. An issue it had resolved becomes unresolved."
+        + " An unknown positionId is refused.")
 public record DeletePositionInput(String projectName, @NotNull Long positionId) {
 }

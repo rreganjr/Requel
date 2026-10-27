@@ -44,7 +44,7 @@ import jakarta.validation.constraints.Pattern;
         + " applied to it. severity is LOW, MEDIUM or HIGH, ignoring case, and cannot be cleared; a"
         + " new issue gets MEDIUM and mustBeResolved false. When editing, a null mustBeResolved or"
         + " severity keeps its current value. Editing an issue attached elsewhere also attaches it"
-        + " to this entity, and an unknown issueId creates a new issue rather than failing. Issues"
+        + " to this entity. An unknown issueId, or one from another project, is refused. Issues"
         + " are resolved in the Requel UI, not through the gateway.")
 public record EditIssueInput(
         String projectName,

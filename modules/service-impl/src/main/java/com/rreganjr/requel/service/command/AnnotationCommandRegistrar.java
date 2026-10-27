@@ -106,7 +106,10 @@ public class AnnotationCommandRegistrar {
                     c.setGroupingObject(getProject(annotatable));
                     c.setText(i.text());
                     if (i.noteId() != null) {
-                        c.setNote(entityManager.find(NoteImpl.class, i.noteId()));
+                        NoteImpl note = require(NoteImpl.class, i.noteId(), "Note");
+                        requireSameScope(note.getGroupingObject(), getProject(annotatable), "Note",
+                                i.noteId());
+                        c.setNote(note);
                     }
                 },
                 null,
@@ -117,7 +120,7 @@ public class AnnotationCommandRegistrar {
                 (cmd, input) -> {
                     DeleteNoteCommand c = (DeleteNoteCommand) cmd;
                     DeleteNoteInput i = (DeleteNoteInput) input;
-                    c.setNote(entityManager.find(NoteImpl.class, i.noteId()));
+                    c.setNote(require(NoteImpl.class, i.noteId(), "Note"));
                 });
 
         // Issues
@@ -136,7 +139,10 @@ public class AnnotationCommandRegistrar {
                     c.setMustBeResolved(i.mustBeResolved());
                     c.setSeverity(IssueSeverity.parse(i.severity()).orElse(null));
                     if (i.issueId() != null) {
-                        c.setIssue(entityManager.find(IssueImpl.class, i.issueId()));
+                        IssueImpl issue = require(IssueImpl.class, i.issueId(), "Issue");
+                        requireSameScope(issue.getGroupingObject(), getProject(annotatable), "Issue",
+                                i.issueId());
+                        c.setIssue(issue);
                     }
                 },
                 null,
@@ -147,7 +153,7 @@ public class AnnotationCommandRegistrar {
                 (cmd, input) -> {
                     DeleteIssueCommand c = (DeleteIssueCommand) cmd;
                     DeleteIssueInput i = (DeleteIssueInput) input;
-                    c.setIssue(entityManager.find(IssueImpl.class, i.issueId()));
+                    c.setIssue(require(IssueImpl.class, i.issueId(), "Issue"));
                 });
 
         // LexicalIssue — no API input DTO, driven by NLP analysis
@@ -159,10 +165,14 @@ public class AnnotationCommandRegistrar {
                 (cmd, input) -> {
                     EditPositionCommand c = (EditPositionCommand) cmd;
                     EditPositionInput i = (EditPositionInput) input;
-                    c.setIssue(entityManager.find(IssueImpl.class, i.issueId()));
+                    IssueImpl issue = require(IssueImpl.class, i.issueId(), "Issue");
+                    c.setIssue(issue);
                     c.setText(i.text());
                     if (i.positionId() != null) {
-                        c.setPosition(entityManager.find(PositionImpl.class, i.positionId()));
+                        PositionImpl position = require(PositionImpl.class, i.positionId(), "Position");
+                        requireSameScope(scopeOfPosition(position.getId()), issue.getGroupingObject(),
+                                "Position", i.positionId());
+                        c.setPosition(position);
                     }
                 },
                 null,
@@ -173,7 +183,7 @@ public class AnnotationCommandRegistrar {
                 (cmd, input) -> {
                     DeletePositionCommand c = (DeletePositionCommand) cmd;
                     DeletePositionInput i = (DeletePositionInput) input;
-                    c.setPosition(entityManager.find(PositionImpl.class, i.positionId()));
+                    c.setPosition(require(PositionImpl.class, i.positionId(), "Position"));
                 });
 
         // Spelling/dictionary positions — driven by NLP analysis
@@ -186,11 +196,15 @@ public class AnnotationCommandRegistrar {
                 (cmd, input) -> {
                     EditArgumentCommand c = (EditArgumentCommand) cmd;
                     EditArgumentInput i = (EditArgumentInput) input;
-                    c.setPosition(entityManager.find(PositionImpl.class, i.positionId()));
+                    PositionImpl position = require(PositionImpl.class, i.positionId(), "Position");
+                    c.setPosition(position);
                     c.setText(i.text());
                     c.setSupportLevelName(i.supportLevel());
                     if (i.argumentId() != null) {
-                        c.setArgument(entityManager.find(ArgumentImpl.class, i.argumentId()));
+                        ArgumentImpl argument = require(ArgumentImpl.class, i.argumentId(), "Argument");
+                        requireSameScope(scopeOfPosition(argument.getPosition().getId()),
+                                scopeOfPosition(position.getId()), "Argument", i.argumentId());
+                        c.setArgument(argument);
                     }
                 },
                 null,
@@ -201,7 +215,7 @@ public class AnnotationCommandRegistrar {
                 (cmd, input) -> {
                     DeleteArgumentCommand c = (DeleteArgumentCommand) cmd;
                     DeleteArgumentInput i = (DeleteArgumentInput) input;
-                    c.setArgument(entityManager.find(ArgumentImpl.class, i.argumentId()));
+                    c.setArgument(require(ArgumentImpl.class, i.argumentId(), "Argument"));
                 });
 
         // Resolve issue — polymorphic: correct command subtype depends on position type
@@ -237,6 +251,62 @@ public class AnnotationCommandRegistrar {
             throw new IllegalArgumentException("Entity not found: " + entityType + "#" + entityId);
         }
         return entity;
+    }
+
+    /**
+     * #342: looks an annotation up by id and refuses a miss. {@code entityManager.find} returns
+     * null for an unknown id, and the binders used to pass that on: an edit then created a new
+     * annotation and reported success, and a delete failed with a NullPointerException. Same
+     * message shape as ResolveIssue's builder.
+     */
+    private <T> T require(Class<T> type, Long id, String label) {
+        T found = id == null ? null : entityManager.find(type, id);
+        if (found == null) {
+            throw new IllegalArgumentException(label + " not found: " + id);
+        }
+        return found;
+    }
+
+    /**
+     * #342: refuses an edit whose child (the note, issue, position or argument named by id)
+     * belongs to another project than the entity or parent it is edited under. The edit commands
+     * take their permission scope from that entity or parent, so without this a stakeholder of
+     * one project could rewrite another project's annotation by id. A child that reaches no
+     * project or domain (an orphan position) is refused too.
+     */
+    private static void requireSameScope(Object childScope, Object expectedScope, String label, Long id) {
+        if (childScope == null || expectedScope == null || !sameScope(childScope, expectedScope)) {
+            throw new IllegalArgumentException(label + " " + id + " belongs to another project.");
+        }
+    }
+
+    /**
+     * Projects and domains compare by kind and id: a grouping object may be a Hibernate proxy, and
+     * project and domain ids come from different tables, so equal ids alone could collide.
+     */
+    private static boolean sameScope(Object a, Object b) {
+        if (a instanceof com.rreganjr.requel.project.ProjectOrDomain pa
+                && b instanceof com.rreganjr.requel.project.ProjectOrDomain pb) {
+            boolean aProject = pa instanceof com.rreganjr.requel.project.Project;
+            boolean bProject = pb instanceof com.rreganjr.requel.project.Project;
+            return aProject == bProject && pa.getId() != null && pa.getId().equals(pb.getId());
+        }
+        return a.equals(b);
+    }
+
+    /**
+     * The grouping object of the issues a position answers; null when it answers none. Queried
+     * rather than read from {@code position.getIssues()}: that set is lazy, and the binder can run
+     * with no open persistence context (the in-process gateway), where it cannot be loaded.
+     */
+    private Object scopeOfPosition(Long positionId) {
+        List<IssueImpl> issues = entityManager.createQuery(
+                        "select i from IssueImpl i join i.positions p where p.id = :positionId"
+                                + " order by i.id", IssueImpl.class)
+                .setParameter("positionId", positionId)
+                .setMaxResults(1)
+                .getResultList();
+        return issues.isEmpty() ? null : issues.get(0).getGroupingObject();
     }
 
     private Object getProject(Annotatable annotatable) {

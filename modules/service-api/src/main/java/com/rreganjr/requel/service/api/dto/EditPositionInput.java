@@ -34,7 +34,7 @@ import jakarta.validation.constraints.NotNull;
         + " id. Pass positionId to replace a position's text. A position can answer several issues,"
         + " so the change shows on all of them, and text that another position in the project"
         + " already has is refused, naming that position's id so you can edit it instead. An"
-        + " unknown positionId creates a new position rather than failing.")
+        + " unknown issueId or positionId, or a positionId from another project, is refused.")
 public record EditPositionInput(
         String projectName,
         @NotNull Long issueId,

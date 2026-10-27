@@ -33,8 +33,8 @@ import jakarta.validation.constraints.NotNull;
         + " UserStakeholder. Leave noteId null to create a note; when a note with the same text,"
         + " ignoring case, already exists anywhere in the project, that note is attached instead of"
         + " a new one. Pass noteId to replace a note's text. A note can be attached to several"
-        + " entities, so editing it changes it everywhere, and an unknown noteId creates a new note"
-        + " rather than failing.")
+        + " entities, so editing it changes it everywhere. An unknown noteId, or one from another"
+        + " project, is refused.")
 public record EditNoteInput(
         String projectName,
         @NotBlank String entityType,
