@@ -25,6 +25,6 @@ import jakarta.validation.constraints.NotNull;
 
 @CommandDescription("Deletes an issue, selected by issueId, and removes it from every entity it"
         + " is attached to. Positions that answer only this issue are deleted with their arguments;"
-        + " positions shared with other issues are kept.")
+        + " positions shared with other issues are kept. An unknown issueId is refused.")
 public record DeleteIssueInput(String projectName, @NotNull Long issueId) {
 }

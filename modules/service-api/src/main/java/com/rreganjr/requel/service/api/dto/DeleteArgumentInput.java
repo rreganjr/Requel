@@ -24,6 +24,6 @@ import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotNull;
 
 @CommandDescription("Deletes an argument, selected by argumentId, and removes it from its"
-        + " position.")
+        + " position. An unknown argumentId is refused.")
 public record DeleteArgumentInput(String projectName, @NotNull Long argumentId) {
 }

@@ -4,14 +4,14 @@ Web-based requirements management: goals, stories, actors, scenarios and use cas
 issue/position/argument discussion layer and automated NLP and AI review.
 
 - Source and full docs: https://github.com/rreganjr/Requel
-- Install guide (Compose, Docker, jar, upgrading, settings): https://github.com/rreganjr/Requel/blob/v2.0.1/doc/guides/INSTALL.md
+- Install guide (Compose, Docker, jar, upgrading, settings): https://github.com/rreganjr/Requel/blob/v2.0.2/doc/guides/INSTALL.md
 
 ## Tags
 
 | Tag | What it is |
 |---|---|
-| `latest`, `2.0.1` | Current release. Multi-platform: `linux/amd64` and `linux/arm64` |
-| `2.0.0` | Previous 2.0 release |
+| `latest`, `2.0.2` | Current release. Multi-platform: `linux/amd64` and `linux/arm64` |
+| `2.0.1`, `2.0.0` | Previous 2.0 releases |
 | `1.2.0`, `1.1.0` | 1.x line (arm64 only); see Upgrading before moving off them |
 | `1.0.2`, `1.0.1` | Original release; MySQL 5.x only |
 
@@ -28,7 +28,7 @@ Pin a version tag rather than `latest` so an upgrade happens when you choose.
 
 ```bash
 mkdir requel && cd requel
-curl -fsSLO https://raw.githubusercontent.com/rreganjr/Requel/v2.0.1/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/rreganjr/Requel/v2.0.2/docker-compose.yml
 echo "REQUEL_JWT_SECRET=$(openssl rand -base64 48)" > .env
 docker compose up -d
 docker compose logs -f web     # Ctrl-C once "Started Application" appears
@@ -56,7 +56,7 @@ docker run -d --name requel --network requel-net -p 8080:8080 --restart unless-s
   -e SPRING_DATASOURCE_PASSWORD=change-me \
   -e "REQUEL_JWT_SECRET=$(openssl rand -base64 48)" \
   -e "_JAVA_OPTIONS=-Xmx2g" \
-  rreganjr/requel:2.0.1
+  rreganjr/requel:2.0.2
 
 docker logs -f requel          # Ctrl-C once "Started Application" appears
 ```
@@ -67,7 +67,7 @@ and reuse it when you recreate the container.
 
 ## Try the sample project
 
-Download [Requel.xml](https://raw.githubusercontent.com/rreganjr/Requel/v2.0.1/doc/samples/Requel.xml)
+Download [Requel.xml](https://raw.githubusercontent.com/rreganjr/Requel/v2.0.2/doc/samples/Requel.xml)
 and import it from **Projects → Import**.
 
 ## Settings
@@ -79,10 +79,10 @@ and import it from **Projects → Import**.
 | `REQUEL_JWT_SECRET` | none: required | Signs login tokens; at least 32 characters; keep it stable |
 | `SERVER_PORT` | `8080` | HTTP port inside the container |
 | `_JAVA_OPTIONS` | JVM default | Memory, e.g. `-Xmx2g` |
-| `REQUEL_AI_*`, `SPRING_PROFILES_ACTIVE=ai-…` | assistant off | AI review provider; see [AI assistant setup](https://github.com/rreganjr/Requel/blob/v2.0.1/doc/guides/AI_ASSISTANT_SETUP.md) |
+| `REQUEL_AI_*`, `SPRING_PROFILES_ACTIVE=ai-…` | assistant off | AI review provider; see [AI assistant setup](https://github.com/rreganjr/Requel/blob/v2.0.2/doc/guides/AI_ASSISTANT_SETUP.md) |
 
 The full list, including the OAuth settings for MCP clients and `requel-cli`, is in the
-[install guide](https://github.com/rreganjr/Requel/blob/v2.0.1/doc/guides/INSTALL.md#configuration-reference).
+[install guide](https://github.com/rreganjr/Requel/blob/v2.0.2/doc/guides/INSTALL.md#configuration-reference).
 Don't set `SPRING_PROFILES_ACTIVE=dev`: it is for developing Requel and opens unauthenticated
 reset endpoints.
 
@@ -94,7 +94,7 @@ Back up the database first (`mysqldump --single-transaction requel > requel-back
 - **From 1.2:** start 2.0 on the same MySQL 8.4 database; it migrates in place on first start.
 - **From 1.0 or 1.1:** 2.0 refuses to start on these databases (and leaves them untouched).
   Export each project's XML from the old version, start 2.0 on a new empty database, and import
-  them. Details in the [install guide](https://github.com/rreganjr/Requel/blob/v2.0.1/doc/guides/INSTALL.md#upgrading).
+  them. Details in the [install guide](https://github.com/rreganjr/Requel/blob/v2.0.2/doc/guides/INSTALL.md#upgrading).
 
 ## Before you expose it
 

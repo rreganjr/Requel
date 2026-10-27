@@ -108,6 +108,8 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
 
     @Autowired
     private TagRepository tagRepository;
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     // JWT tokens stored once in @BeforeAll and reused in @Test methods
     private String adminToken;
@@ -1514,6 +1516,126 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
         assertFalse(tagRepository.findTagsOnEntity("Goal", goalId).stream()
                         .anyMatch(t -> t.getId().equals(otherTag.getId())),
                 "another project's tag must not be attached to the editor's goal");
+    }
+
+    // -------------------------------------------------------------------------
+    // Annotations across projects (#342). The annotation edits take their permission scope from
+    // the entity or parent they are edited under, so a child id from another project must be
+    // refused in the binder, or the editor could rewrite that project's note, issue, position or
+    // argument through its own.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void editorCannotEditAnotherProjectsAnnotationsById() throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        long ts = System.nanoTime();
+        EditProjectCommand projectCmd = getProjectCommandFactory().newEditProjectCommand();
+        projectCmd.setEditedBy(admin);
+        projectCmd.setName("auth-test-annotations-" + ts);
+        projectCmd.setText("a project the editor is not a stakeholder of");
+        projectCmd.setOrganizationName("AuthTestOrg-" + ts);
+        Project other = getCommandHandler().execute(projectCmd).getProject();
+
+        // Admin created the other project, so it holds every permission there.
+        EditNoteCommand noteCmd = getAnnotationCommandFactory().newEditNoteCommand();
+        noteCmd.setEditedBy(admin);
+        noteCmd.setGroupingObject(other);
+        noteCmd.setAnnotatable(other);
+        noteCmd.setText("other note " + ts);
+        Long otherNoteId = getCommandHandler().execute(noteCmd).getNote().getId();
+
+        EditIssueCommand issueCmd = getAnnotationCommandFactory().newEditIssueCommand();
+        issueCmd.setEditedBy(admin);
+        issueCmd.setGroupingObject(other);
+        issueCmd.setAnnotatable(other);
+        issueCmd.setText("other issue " + ts);
+        issueCmd.setMustBeResolved(false);
+        issueCmd = getCommandHandler().execute(issueCmd);
+        Long otherIssueId = issueCmd.getIssue().getId();
+
+        EditPositionCommand positionCmd = getAnnotationCommandFactory().newEditPositionCommand();
+        positionCmd.setEditedBy(admin);
+        positionCmd.setIssue(issueCmd.getIssue());
+        positionCmd.setText("other position " + ts);
+        positionCmd = getCommandHandler().execute(positionCmd);
+        Long otherPositionId = positionCmd.getPosition().getId();
+
+        EditArgumentCommand argumentCmd = getAnnotationCommandFactory().newEditArgumentCommand();
+        argumentCmd.setEditedBy(admin);
+        argumentCmd.setPosition(positionCmd.getPosition());
+        argumentCmd.setText("other argument " + ts);
+        argumentCmd.setSupportLevelName("For");
+        Long otherArgumentId = getCommandHandler().execute(argumentCmd).getArgument().getId();
+
+        // The editor's own issue and position on the fixture project, to edit the others under.
+        long[] own = createIssueWithPosition("cross-project");
+        long ownIssueId = own[0];
+        long ownPositionId = own[1];
+
+        expectBadRequest("EditNote", Map.of("projectName", testProjectName, "entityType", "Goal",
+                "entityId", goalId, "noteId", otherNoteId, "text", "hijacked " + ts));
+        expectBadRequest("EditIssue", Map.of("projectName", testProjectName, "entityType", "Goal",
+                "entityId", goalId, "issueId", otherIssueId, "text", "hijacked " + ts));
+        expectBadRequest("EditPosition", Map.of("projectName", testProjectName,
+                "issueId", ownIssueId, "positionId", otherPositionId, "text", "hijacked " + ts));
+        expectBadRequest("EditArgument", Map.of("projectName", testProjectName,
+                "positionId", ownPositionId, "argumentId", otherArgumentId,
+                "text", "hijacked " + ts, "supportLevel", "Against"));
+
+        assertEquals("other note " + ts, textOf("annotations", otherNoteId));
+        assertEquals("other issue " + ts, textOf("annotations", otherIssueId));
+        assertEquals("other position " + ts, textOf("positions", otherPositionId));
+        assertEquals("other argument " + ts, textOf("arguments", otherArgumentId));
+        assertEquals(0, countOf("SELECT COUNT(*) FROM annotation_annotatable"
+                + " WHERE annotation_id IN (?, ?) AND annotatable_id = ?"
+                + " AND annotatable_type LIKE '%Goal%'",
+                otherNoteId, otherIssueId, goalId), "nothing from the other project attached to the goal");
+        assertEquals(0, countOf("SELECT COUNT(*) FROM position_issue"
+                + " WHERE position_id = ? AND issue_id = ?", otherPositionId, ownIssueId),
+                "the other project's position must not answer the editor's issue");
+    }
+
+    /** Control for the test above: the same edits with the fixture project's own ids work. */
+    @Test
+    void editorCanEditItsOwnProjectsAnnotationsById() throws Exception {
+        long ts = System.nanoTime();
+        long[] own = createIssueWithPosition("same-project");
+
+        mockMvc.perform(post("/api/commands/EditIssue")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "projectName", testProjectName, "entityType", "Goal",
+                                "entityId", goalId, "issueId", own[0], "text", "edited issue " + ts))))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/commands/EditPosition")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "projectName", testProjectName, "issueId", own[0],
+                                "positionId", own[1], "text", "edited position " + ts))))
+                .andExpect(status().isOk());
+
+        assertEquals("edited issue " + ts, textOf("annotations", own[0]));
+        assertEquals("edited position " + ts, textOf("positions", own[1]));
+    }
+
+    private void expectBadRequest(String commandType, Map<String, Object> input) throws Exception {
+        mockMvc.perform(post("/api/commands/" + commandType)
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(input)))
+                .andExpect(status().isBadRequest());
+    }
+
+    private String textOf(String table, Long id) {
+        return jdbcTemplate.queryForObject("SELECT text FROM " + table + " WHERE id = ?",
+                String.class, id);
+    }
+
+    private int countOf(String sql, Object... args) {
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, args);
+        return count == null ? 0 : count;
     }
 
     /** A tag created by admin in {@code scope} (admin created that project), or a global tag. */

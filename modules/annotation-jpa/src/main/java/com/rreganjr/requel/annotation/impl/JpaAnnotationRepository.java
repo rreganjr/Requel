@@ -472,20 +472,36 @@ public class JpaAnnotationRepository extends AbstractJpaRepository implements An
 		return discriminators;
 	}
 
+	/**
+	 * The lowest-id note in the grouping object with this text.
+	 * <p>
+	 * #342: this used to be {@code getSingleResult()} over a {@code like} comparison, the same
+	 * two failures #284 fixed in {@link #findPosition}: {@code %} and {@code _} in the text were
+	 * wildcards, so a note could match a different one, and two notes with the same text made
+	 * {@code getSingleResult()} throw, failing the {@code EditNote} that wanted to reuse one. Now
+	 * it matches on equality and resolves to the lowest id. Duplicates are left in place: a note
+	 * has no children to reparent, so nothing depends on which one survives.
+	 */
 	@Override
+	@SuppressWarnings("unchecked")
 	public Note findNote(Object groupingObject, Annotatable annotatable, String message) {
 		try {
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
 							"select object(note) from NoteImpl as note "
-									+ "where note.text like :message and note.groupingObject = :groupingObject");
+									+ "where note.text = :message and note.groupingObject = :groupingObject "
+									+ "order by note.id");
 			query.setParameter("groupingObject", groupingObject);
 			query.setParameter("message", message);
-			// query.setParameter("annotatable", annotatable);
-			return (Note) query.getSingleResult();
-		} catch (NoResultException e) {
-			throw NoSuchAnnotationException.forMessage(message);
+			query.setMaxResults(1);
+			List<Note> matches = query.getResultList();
+			if (matches.isEmpty()) {
+				throw NoSuchAnnotationException.forMessage(message);
+			}
+			return matches.get(0);
+		} catch (NoSuchAnnotationException e) {
+			throw e;
 		} catch (Exception e) {
 			throw convertException(e, Note.class, null, EntityExceptionActionType.Reading);
 		}
