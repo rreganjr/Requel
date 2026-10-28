@@ -1,15 +1,26 @@
 name: Release
 
-# Fires only on tag pushes matching v* (e.g. v2.0.0-rc1, v2.0.0).
+# Fires on tag pushes matching v* (e.g. v2.0.0-rc1, v2.0.0).
 # Builds the project, runs the full test suite, and creates a GitHub
 # Release with auto-generated notes, the Spring Boot JAR and the
 # requel-cli JAR attached.
+#
+# Also runs by hand (workflow_dispatch, #300) so the workflow can be
+# proven without pushing a tag: the build and tests run, and the Release
+# is created only when the `publish` input is true. A dispatch has to run
+# from the default branch (master), where this trigger lives.
 # See doc/work/2.0/20-release-plan.md §5.4.
 
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Create the GitHub Release (only for a real release; leave off to test)"
+        type: boolean
+        default: false
 
 # Don't cancel a release run in flight if the same tag gets re-pushed.
 # Killing mid-publish could leave a half-created Release. CI workflows
@@ -29,7 +40,7 @@ jobs:
 
     steps:
       - name: Check out at tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # softprops/action-gh-release walks git history to auto-generate
           # release notes (comparing this tag to the previous tag's commit).
@@ -38,7 +49,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
@@ -69,7 +80,7 @@ jobs:
           EOF
 
       - name: Set up Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -88,8 +99,10 @@ jobs:
           -Dstyle.color=always
           -Dmaven.test.redirectTestOutputToFile=true
 
+      # Only a tag push, or a dispatch with publish ticked, creates a Release.
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        if: ${{ github.event_name == 'push' || inputs.publish }}
+        uses: softprops/action-gh-release@v3
         with:
           # GitHub auto-generates the changelog body by listing PRs
           # merged into the default branch since the previous tag.
