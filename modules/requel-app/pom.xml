@@ -182,71 +182,9 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
 
-            <!-- Aggregate JaCoCo report covering all module dependencies -->
-            <plugin>
-                <groupId>org.jacoco</groupId>
-                <artifactId>jacoco-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>jacoco-report</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>report</goal>
-                        </goals>
-                        <configuration>
-                            <includes>
-                                <include>com/rreganjr/**</include>
-                            </includes>
-                            <formats>
-                                <format>HTML</format>
-                                <format>XML</format>
-                            </formats>
-                            <!--
-                              Issue #313: narrowed from com/rreganjr/nlp/** to the legacy NLP
-                              pipeline alone. The broad pattern also hid com.rreganjr.nlp.dictionary
-                              — the WordNet entities and the dictionary repository — which is where
-                              the project-scoped dictionary lives and where work happens now. With
-                              the old pattern those classes appeared only in dictionary-jpa's own
-                              report, built from that module's own exec file, so everything covered
-                              by an integration test two modules away read as 0%.
-                            -->
-                            <excludes>
-                                <exclude>com/rreganjr/nlp/impl/**</exclude>
-                            </excludes>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>jacoco-report-aggregate</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>report-aggregate</goal>
-                        </goals>
-                        <configuration>
-                            <includeCurrentProject>true</includeCurrentProject>
-                            <includes>
-                                <include>com/rreganjr/**</include>
-                            </includes>
-                            <formats>
-                                <format>HTML</format>
-                                <format>XML</format>
-                            </formats>
-                            <outputDirectory>${project.reporting.outputDirectory}/jacoco-aggregate</outputDirectory>
-                            <!--
-                              Issue #313: narrowed from com/rreganjr/nlp/** to the legacy NLP
-                              pipeline alone. The broad pattern also hid com.rreganjr.nlp.dictionary
-                              — the WordNet entities and the dictionary repository — which is where
-                              the project-scoped dictionary lives and where work happens now. With
-                              the old pattern those classes appeared only in dictionary-jpa's own
-                              report, built from that module's own exec file, so everything covered
-                              by an integration test two modules away read as 0%.
-                            -->
-                            <excludes>
-                                <exclude>com/rreganjr/nlp/impl/**</exclude>
-                            </excludes>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+            <!-- #321: the coverage aggregate moved to modules/coverage-report, which covers every
+                 module rather than only requel-app's direct dependencies. requel-app keeps the
+                 root pom's per-module report. -->
 
         </plugins>
     </build>

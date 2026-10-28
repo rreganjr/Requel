@@ -333,6 +333,7 @@ The Angular SPA is backed by a hybrid CQRS API:
 - **JUnit 5 (Jupiter)** — fully migrated from JUnit 4; 59 test classes, all using `org.junit.jupiter.api`
 - Tests in `modules/requel-app/src/test/` cover commands, REST API (MockMvc), repositories, authorization, and JAXB round-trips
 - Surefire configured with `failIfNoTests=false` — modules without tests still build
+- **Coverage:** Codecov's backend figure is the one JaCoCo aggregate built by `modules/coverage-report` (`mvn -pl modules/coverage-report -am verify`); a module's own `target/site/jacoco/` report counts only its own tests. A new module with main code must be added as a dependency of `modules/coverage-report/pom.xml`, or CI fails. See `doc/guides/COVERAGE.md`.
 - Key test classes: `AuthorizationIT` (28 authorization scenarios), `ProjectXmlStreamingRoundTripIT`, `ProjectUserCreationIT`, `AnnotationAnyMappingTest`, `DeleteProjectIT` / `DeleteProjectMySqlIT` (delete cascades on H2 and on Testcontainers MySQL), `DeleteCascadeIT`
 
 ### Writing tests
