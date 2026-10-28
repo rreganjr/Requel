@@ -52,7 +52,7 @@ question that decides where a file goes.
 
 - **Ticket-scoped artifacts** — plans, reviews, rollups, issue drafts — go in
   `doc/work/<release>/`, where `<release>` is the reactor version's major.minor from the
-  root `pom.xml` (`2.0.0-dev` → `doc/work/2.0/`). Never hardcode the release.
+  root `pom.xml` (`2.1.0-dev` → `doc/work/2.1/`). Never hardcode the release.
 - **Standing documentation** goes in `doc/architecture/` (how it is built),
   `doc/guides/` (how to run it) or `doc/ui/` (the Angular layer).
 - **Proposals not yet tied to an issue** go in `doc/work/backlog/`.
@@ -65,11 +65,19 @@ Never use `TL;DR` I hate that abbreviation, use `Summary`
 
 ### Development Workflow
 
-Each release such as `release/2.0` has a GitHub project (**Requel 2.0**, `github.com/users/rreganjr/projects/2`); all issues for the release are added to it. We use the **Story Points** (estimate) and **Story Points (Retro)** (actual, filled after merge) custom fields to track effort.
+Each release has a GitHub project named for it (**Requel 2.1** for `release/2.1`, under `github.com/users/rreganjr/projects`); `./scripts/setup-project.sh <x.y>` creates or reuses it, and all issues for the release are added to it. We use the **Story Points** (estimate) and **Story Points (Retro)** (actual, filled after merge) custom fields to track effort.
 
-How releases, milestones, hotfixes and version bumps work is in `doc/guides/RELEASE_PROCESS.md`; `release/2.0` below stands for the active release branch.
+How releases, milestones, hotfixes and version bumps work is in `doc/guides/RELEASE_PROCESS.md`.
 
-Every change is tied to a GitHub issue and lands via a ticket branch and a PR — never commit straight onto `release/2.0`. The two exceptions (`doc/guides/RELEASE_PROCESS.md`, "Commits that skip the PR") are documentation-only changes (`doc/**/*.md`, root `*.md`) and maintainer-script changes (`scripts/**`), which CI skips, and release commits that only bump the version; both still carry the issue URL on line 1. **Steps that create or change Git/GitHub state (branch, commit, push, PR, issue edits, project-field edits, merges) are always run by the developer, never by Claude.** Claude prepares them — reviews, plans, writes `commit.md`, works out the exact `git`/`gh` invocation, checks the tree is in the state the command assumes — and hands the commands over to paste. See the "let's commit / let's push" rule above.
+**`release/<x.y>` below is the active release branch**, and `<x.y>` is the major.minor of the root `pom.xml` version (`2.1.0-dev` → `release/2.1`), the same derivation as `doc/work/<release>/`. Claude fills it in when handing over a command, so the commands it hands over stay paste-ready; this file names no release so it never goes stale. On `master` the pom holds the shipped version (`2.0.2` → `2.0`), which is right for a hotfix's `doc/work/<release>/`; hotfixes branch from `master`, never from a release branch. When a script needs it:
+
+```bash
+RELEASE="$(sed '/<parent>/,/<\/parent>/d' pom.xml | sed -n 's:.*<version>\([0-9][0-9]*\.[0-9][0-9]*\)\..*</version>.*:\1:p' | head -1)"   # 2.1
+```
+
+`master` is the repository's default branch and holds the latest shipped release (`RELEASE_PROCESS.md`, "Summary"); that is a standing policy, not a per-release setting.
+
+Every change is tied to a GitHub issue and lands via a ticket branch and a PR — never commit straight onto `release/<x.y>`. The two exceptions (`doc/guides/RELEASE_PROCESS.md`, "Commits that skip the PR") are documentation-only changes (`doc/**/*.md`, root `*.md`) and maintainer-script changes (`scripts/**`), which CI skips, and release commits that only bump the version; both still carry the issue URL on line 1. **Steps that create or change Git/GitHub state (branch, commit, push, PR, issue edits, project-field edits, merges) are always run by the developer, never by Claude.** Claude prepares them — reviews, plans, writes `commit.md`, works out the exact `git`/`gh` invocation, checks the tree is in the state the command assumes — and hands the commands over to paste. See the "let's commit / let's push" rule above.
 
 **The ticket lifecycle, every time:**
 
@@ -79,7 +87,7 @@ Every change is tied to a GitHub issue and lands via a ticket branch and a PR �
    ```
    Report: is it still needed, have the ACs changed, any blockers/decisions needed. Ask the open questions and wait for answers.
 2. **Write an implementation plan** — a house-style doc at `doc/work/<release>/<n>-<slug>-plan.md` (scope/locked decisions, contracts, step-by-step, test plan, out-of-scope, risks, AC mapping). All plans/reviews/notes live under `doc/work/<release>/`. Get a thumbs-up on the plan (and on any risky decisions, e.g. a route move) before coding. One ticket, one PR (§ "One PR per ticket" below).
-3. **Branch (at the start of work)** — cut from `release/2.0`, named `<issue-number>-<short-slug>` (e.g. `142-route-groups`, `128-154-app-shell`). All edits on that branch. (Claude may create the branch over the device bridge with `git switch -c` / `git checkout -b` — those don't leave a lock — but never `git branch -D`, `git rebase`, `git stash`, or anything else that writes refs/index over the bridge; hand those to the developer.)
+3. **Branch (at the start of work)** — cut from `release/<x.y>`, named `<issue-number>-<short-slug>` (e.g. `142-route-groups`, `128-154-app-shell`). All edits on that branch. (Claude may create the branch over the device bridge with `git switch -c` / `git checkout -b` — those don't leave a lock — but never `git branch -D`, `git rebase`, `git stash`, or anything else that writes refs/index over the bridge; hand those to the developer.)
 4. **Implement.** Keep a per-ticket verify script at `tmp/<n>-verify.sh` (gitignored) that runs the exact gates below, so the developer runs one command.
 5. **Verify — the gate. All relevant suites must pass before committing:**
    - **Java (backend):** `mvn clean verify` green — whenever any `modules/**` changed.
@@ -108,11 +116,11 @@ Every change is tied to a GitHub issue and lands via a ticket branch and a PR �
    Do not commit until the relevant suites pass.
 6. **Commit message** — (re)write `commit.md` in the format under **Process Instructions**, with a closing keyword (`Closes #<n>`). `commit.md` is gitignored and never staged.
 7. **Commit + push** — Claude hands over `git add <changed files>` (name them; never `git add -A`, which would sweep in `commit.md`/`pr.md`), `git commit -F commit.md`, `git push -u origin <branch>`. When the PR body differs from the commit message, write it to `pr.md` (also gitignored) and refresh it *before* the `gh pr create`/`gh pr edit` — a stale `pr.md` is an easy mistake.
-8. **PR** — Claude hands over `gh pr create --base release/2.0 --head <branch>`, always with `--title` (`<issue#>: <concise summary>`) and `--body-file pr.md`. PRs are squash-merged.
-9. **Merge** — developer merges once CI (including e2e) is green. `--admin` overrides branch protection on `release/2.0` when needed; auto-merge is disabled on this repo.
-10. **Close the issue** — `release/2.0` is not the default branch, so `Closes #<n>` does **not** auto-close on merge. After merge:
+8. **PR** — Claude hands over `gh pr create --base release/<x.y> --head <branch>`, always with `--title` (`<issue#>: <concise summary>`) and `--body-file pr.md`. PRs are squash-merged.
+9. **Merge** — developer merges once CI (including e2e) is green. `--admin` overrides branch protection on `release/<x.y>` when needed; auto-merge is disabled on this repo.
+10. **Close the issue** — `Closes #<n>` auto-closes only on a merge into the default branch (`master`), so a PR into `release/<x.y>` leaves its issue open. After merge:
     ```bash
-    gh issue close <n> --repo rreganjr/Requel --reason completed       --comment "Merged to release/2.0 via #<pr>."
+    gh issue close <n> --repo rreganjr/Requel --reason completed --comment "Merged to release/<x.y> via #<pr>."
     ```
 11. **Sync the epic rollup** (for tickets under a rollup like #124):
     ```bash
@@ -121,11 +129,11 @@ Every change is tied to a GitHub issue and lands via a ticket branch and a PR �
     It reconciles the rollup doc's checkboxes/progress from **issue-closed state** (not PR-merged state), so run it *after* step 10.
 12. **Story Points (Retro)** — record actual effort so estimate-vs-actual stays honest. **Use the scripts; never hand-run `gh project`.** The fine-grained `GH_TOKEN` this tree exports can read ProjectsV2 but cannot write it (`item-add`/`item-edit` fail with *"Resource not accessible by personal access token"*), and `gh auth refresh` cannot add scopes to an env token. `scripts/retro-lib.sh` solves this by wrapping `gh` so that `gh project` calls — and only those — use the classic `project`-scoped PAT at `~/.config/gh-tokens/rreganjr-projects`, leaving `gh issue` and git on the ambient token.
     ```bash
-    ./scripts/audit-retros.sh 2.0                 # read-only: VIOLATION / MISSING / DRIFT / OK
+    ./scripts/audit-retros.sh <x.y>               # read-only: VIOLATION / MISSING / DRIFT / OK
     ./scripts/set-points.sh <n> 0                 # one issue: initial 0, retro auto-computed
     ./scripts/set-points.sh <n> 0 <retro>         # same, overriding the computed retro
-    ./scripts/backfill-points.sh 2.0              # fill every closed v2.0 issue that has no retro yet
-    ./scripts/clear-open-retros.sh 2.0 --apply    # clear retros set on still-open issues
+    ./scripts/backfill-points.sh <x.y>            # fill every closed v<x.y> issue that has no retro yet
+    ./scripts/clear-open-retros.sh <x.y> --apply  # clear retros set on still-open issues
     ```
     **The retro number is measured, not judged:** `retro = snap_fib(commit_days(n))`, where `commit_days` counts distinct days with a commit carrying `https://github.com/rreganjr/Requel/issues/<n>` (line 1 of every commit here). The scale is ~1 working day = 1 point, snapped to Fibonacci. Calibration: #40 = 1d → 1, #73 = 3d → 3, #69 = 4d → 5, #43 = 11d → 13, #38 = 39d → 34. Override only deliberately — a value that differs from the calc shows as **DRIFT** on every later audit, and a one-day ticket pointed at 5 is worth five of #38's days on the same board.
 
@@ -143,16 +151,16 @@ Every change is tied to a GitHub issue and lands via a ticket branch and a PR �
 
 **Device-bridge git caveat.** Over the Cowork bridge Claude cannot delete files, so any git command that takes `.git/*.lock` (notably `git status`, `git branch -D`, an interrupted `checkout`/`rebase`) leaves the lock behind and blocks the developer's terminal. Claude therefore: uses only read-only plumbing (`git show`, `git rev-parse`, `git ls-files`, `git log`) or `diff <(git show ref:path) path`, avoids `git status`, and hands **all** state-changing git to the developer. If a lock is stranded, the developer clears it: `rm -f .git/index.lock .git/*.lock .git/refs/**/*.lock`.
 
-**Auto-close caveat:** the repo's default branch is `master`, but PRs target `release/2.0`. GitHub auto-closes an issue from `Closes #<n>` only when the PR merges into the **default** branch, so merging into `release/2.0` does **not** close the issue — always do step 10 explicitly.
+**Auto-close caveat:** GitHub auto-closes an issue from `Closes #<n>` only when the PR merges into the **default** branch, `master`. Planned work merges into `release/<x.y>`, so its issue stays open until step 10; a hotfix merges into `master` and closes on its own.
 
-**Hotfixes** patch the latest shipped release on `master` (`doc/guides/RELEASE_PROCESS.md`, "Hotfixes"): the same lifecycle, but the branch is cut from `origin/master` (`git switch -c <issue#>-<slug> origin/master`), the PR is `gh pr create --repo rreganjr/Requel --base master ...`, the issue goes on the patch milestone (`v2.0.1`) and the parent board (`./scripts/add-milestone-issues-to-project.sh 2.0.1`), and step 10 is not needed because `master` is the default branch. After the tag, `master` is merged forward into the active release branch with a merge commit, never a squash.
+**Hotfixes** patch the latest shipped release on `master` (`doc/guides/RELEASE_PROCESS.md`, "Hotfixes"): the same lifecycle, but the branch is cut from `origin/master` (`git switch -c <issue#>-<slug> origin/master`), the PR is `gh pr create --repo rreganjr/Requel --base master ...`, the issue goes on the patch milestone (`v<x.y.z>`) and the parent board (`./scripts/add-milestone-issues-to-project.sh <x.y.z>`), and step 10 is not needed because `master` is the default branch. After the tag, `master` is merged forward into the active release branch with a merge commit, never a squash.
 
 Command reference — all run by the developer, in the developer's environment, not Claude's sandbox. Claude fills placeholders and hands them over:
 
 ```bash
 # 0. Review:  gh issue view <n> --repo rreganjr/Requel --json number,title,body,labels,state > tmp/issue-<n>.json
 # 1. Plan:    doc/work/<release>/<n>-<slug>-plan.md  (then get sign-off)
-# 2. Branch:  git switch -c <issue#>-<slug> release/2.0
+# 2. Branch:  git switch -c <issue#>-<slug> origin/release/<x.y>
 # 3. Verify (must pass — run what the change touched):
 mvn clean verify                                              # backend (modules/**)
 cd requel-angular && CI=1 npm test -- --watch=false           # frontend unit (requel-angular/**)
@@ -161,22 +169,22 @@ cd requel-angular && CI=1 npm test -- --watch=false           # frontend unit (r
 # 5. Commit + push (stage only changed source files):
 git add <changed files> && git commit -F commit.md && git push -u origin <issue#>-<slug>
 # 6. PR (always --title; body from pr.md, refreshed first):
-gh pr create --repo rreganjr/Requel --base release/2.0 --head <issue#>-<slug>   --title "<issue#>: <concise summary>" --body-file pr.md
-# 7. After squash-merge (release/2.0 is not default → close manually):
-gh issue close <n> --repo rreganjr/Requel --reason completed --comment "Merged to release/2.0 via #<pr>."
+gh pr create --repo rreganjr/Requel --base release/<x.y> --head <issue#>-<slug>   --title "<issue#>: <concise summary>" --body-file pr.md
+# 7. After squash-merge (release/<x.y> is not the default branch → close manually):
+gh issue close <n> --repo rreganjr/Requel --reason completed --comment "Merged to release/<x.y> via #<pr>."
 # 8. Rollup + retro:
 bash scripts/reorder-ui-ux-subissues.sh --sync-checks --comment
 #    (then record actual effort: ./scripts/set-points.sh <n> 0   — see step 12)
 ```
 
-Recovery — work accidentally committed onto `release/2.0`:
+Recovery — work accidentally committed onto `release/<x.y>`:
 
-- **Not yet pushed:** move the commits to a branch and rewind local `release/2.0`:
-  `git branch <issue#>-<slug>` then `git reset --hard origin/release/2.0` then
+- **Not yet pushed:** move the commits to a branch and rewind local `release/<x.y>`:
+  `git branch <issue#>-<slug>` then `git reset --hard origin/release/<x.y>` then
   `git switch <issue#>-<slug>` and continue at step 5 above.
-- **Already pushed to `origin/release/2.0`:** do **not** rewrite the shared branch. The work is
+- **Already pushed to `origin/release/<x.y>`:** do **not** rewrite the shared branch. The work is
   integrated; just close the issue with a comment linking the commit
-  (`gh issue close <n> --comment "Done in <sha> on release/2.0: ..."`).
+  (`gh issue close <n> --comment "Done in <sha> on release/<x.y>: ..."`).
 
 ## Build Commands
 
@@ -208,7 +216,7 @@ mvn -pl modules/requel-app -am package -Pdocker-image -DskipTests
 
 ## Running Locally
 
-The jar is named for the reactor version in the root `pom.xml` (`requel-app-<version>.jar`), currently `2.0.0-dev` — update these commands when that version changes.
+The jar is named for the reactor version in the root `pom.xml` (`requel-app-<version>.jar`, e.g. `requel-app-2.1.0-dev.jar` on `release/2.1`). Claude fills `<version>` in when handing over the command.
 
 **Always run the jar locally with `--spring.profiles.active=dev`, and always include it when handing
 over a `java -jar` command.** The dev profile enables `/api/dev/reset-admin` and
@@ -220,14 +228,14 @@ credentials to `admin`/`admin` on the database it points at.
 
 ```bash
 # With local MySQL (Angular served from the JAR at /)
-java -jar modules/requel-app/target/requel-app-2.0.0-dev.jar \
+java -jar modules/requel-app/target/requel-app-<version>.jar \
   --spring.profiles.active=dev --server.port=8080 \
   '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
   --spring.datasource.username=root --spring.datasource.password=password
 
 # Angular dev server (hot reload) + Spring Boot backend - the same command; the dev profile's
 # CORS setting is what lets localhost:4200 call it:
-java -jar modules/requel-app/target/requel-app-2.0.0-dev.jar \
+java -jar modules/requel-app/target/requel-app-<version>.jar \
   --spring.profiles.active=dev --server.port=8080 \
   '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
   --spring.datasource.username=root --spring.datasource.password=password
@@ -301,12 +309,13 @@ The Angular SPA is backed by a hybrid CQRS API:
 - **Annotation decoupling:** The annotation module must not import project implementation classes; use the registry pattern
 - **Module dependencies flow downward:** domain modules never depend on JPA modules
 - **Project XML compatibility:** Import/export must satisfy `doc/samples/project.xsd`; changes to JAXB mappings need round-trip regression tests
-- **Never edit an applied Flyway migration, not even a comment.** Flyway's checksum covers every line, so any change to a `V*__*.sql` file already on `release/2.0` fails startup on every existing database (#304 rewrote doc paths in the comments of V8, V9, V13 and V14; #316 put them back). Bulk find-and-replace passes must skip `db/migration/`. A fix goes in a new migration.
+- **Never edit an applied Flyway migration, not even a comment.** Flyway's checksum covers every line, so any change to a `V*__*.sql` file already on a release branch or `master` fails startup on every existing database (#304 rewrote doc paths in the comments of V8, V9, V13 and V14; #316 put them back). Bulk find-and-replace passes must skip `db/migration/`. A fix goes in a new migration.
 - **No upward `CascadeType.REFRESH`:** never cascade REFRESH from a child to its parent/owner (entity → project, anything → user, role → projects). `em.refresh(entity)` follows every REFRESH edge; one upward edge turned a refresh into a reload of the whole database (#247: 300k statements per DeleteProject). Refresh reloads the entity and what it owns, nothing above it.
 
 ## Key Documentation
 
-- `doc/work/2.0/20-release-plan.md` - New release with new Angular UI, CQRS API, SSE streaming, AI assistance, MCP spport
+- `doc/work/2.1/21-release-plan.md` — the 2.1 release: issue order, sizes and open decisions
+- `doc/work/2.0/20-release-plan.md` - the 2.0 release: new Angular UI, CQRS API, SSE streaming, AI assistance, MCP support
 - `doc/architecture/AUTH_ARCH.md` — authorization architecture: AuthorizingCommandHandler, permission model, Angular PermissionService
 - `doc/architecture/MODULARIZATION_PLAN.md` — module dependency graph, refactoring roadmap, package conventions
 - `doc/architecture/unmarshalling_plan.md` — JAXB import strategy, aggregate assembly
