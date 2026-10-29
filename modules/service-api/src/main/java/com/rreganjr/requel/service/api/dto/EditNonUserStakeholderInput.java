@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.RequiredOnCreate;
 import com.rreganjr.requel.service.api.CommandDescription;
 import com.rreganjr.requel.service.api.CommandDescriptions;
 import jakarta.validation.constraints.NotBlank;
@@ -41,16 +42,16 @@ import jakarta.validation.constraints.Size;
  */
 @CommandDescription("Creates or edits a non-user stakeholder: a party with an interest in the"
         + " project who is not a Requel user, such as a regulator or an external authority. Leave"
-        + " stakeholderId null to create one, or pass the id of an existing non-user stakeholder to"
-        + " edit it; a user stakeholder's id is not accepted. name is required on every call, so"
-        + " send the current name to keep it, and it is unique among the project's non-user"
-        + " stakeholders, ignoring case."
+        + " stakeholderId null to create one, or pass the id of an existing non-user stakeholder"
+        + " to edit it; a user stakeholder's id is not accepted. name is required when creating;"
+        + " leave it out when editing to keep the current name, and it is unique among the"
+        + " project's non-user stakeholders, ignoring case."
         + CommandDescriptions.PARTIAL_UPDATE
         + CommandDescriptions.VERSION_CHECKED)
+@RequiredOnCreate(id = "stakeholderId")
 public record EditNonUserStakeholderInput(
         @NotBlank String projectName,
         Long stakeholderId,
-        @NotBlank
         @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
         String name,
         String text,

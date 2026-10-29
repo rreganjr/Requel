@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.RequiredOnCreate;
 import com.rreganjr.requel.service.api.CommandDescription;
 import com.rreganjr.requel.service.api.CommandDescriptions;
 import jakarta.validation.constraints.NotBlank;
@@ -43,19 +44,19 @@ import jakarta.validation.constraints.Size;
  * @param primaryActorName name of the primary actor ("" to clear, null to leave it)
  * @param version          optimistic lock version (null for create)
  */
-@CommandDescription("Creates or edits a story. Leave storyId null to create one, or pass it to"
-        + " edit an existing story. name is required on every call, so send the current name to"
-        + " keep it, and story names are unique within the project, ignoring case. storyTypeName is"
-        + " exactly Success or Exception and is required when creating; an empty string is refused"
-        + " rather than clearing it. primaryActorName names an actor in the project and an empty"
-        + " string clears it; a name that matches no actor is refused. Saving asks the assistant to"
-        + " analyze the story."
+@CommandDescription("Creates or edits a story. Leave storyId null to create one, or pass it to edit"
+        + " an existing story. name is required when creating; leave it out when editing to keep"
+        + " the current name, and story names are unique within the project, ignoring case."
+        + " storyTypeName is exactly Success or Exception and is required when creating; an empty"
+        + " string is refused rather than clearing it. primaryActorName names an actor in the"
+        + " project and an empty string clears it; a name that matches no actor is refused."
+        + " Saving asks the assistant to analyze the story."
         + CommandDescriptions.PARTIAL_UPDATE
         + CommandDescriptions.VERSION_CHECKED)
+@RequiredOnCreate(id = "storyId")
 public record EditStoryInput(
         @NotBlank String projectName,
         Long storyId,
-        @NotBlank
         @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
         String name,
         String text,
