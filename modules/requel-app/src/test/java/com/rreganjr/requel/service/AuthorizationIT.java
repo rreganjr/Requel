@@ -588,7 +588,8 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
     /**
      * #340: a projectName that names no project used to fall through to create, so a misspelled
      * name made a second project and reported success. Admin holds createProjects, so before the
-     * fix this request created {@code newName}; now it is refused like any unknown projectName.
+     * fix this request created {@code newName}; now it is refused like any unknown projectName,
+     * as not found (404, #345).
      */
     @Test
     void editProjectWithAnUnknownProjectNameIsRefusedAndCreatesNothing() throws Exception {
@@ -599,7 +600,7 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "projectName", testProjectName + "-misspelled",
                                 "name", newName))))
-                .andExpect(status().isConflict());
+                .andExpect(status().isNotFound());
 
         org.junit.jupiter.api.Assertions.assertThrows(
                 com.rreganjr.requel.project.exception.NoSuchProjectException.class,

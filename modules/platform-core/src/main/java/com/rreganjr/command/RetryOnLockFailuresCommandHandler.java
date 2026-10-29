@@ -34,6 +34,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.repository.Repository;
 import com.rreganjr.platform.exception.EntityLockException;
+import com.rreganjr.platform.exception.StaleVersionException;
 import com.rreganjr.validator.EntityValidationException;
 
 /**
@@ -91,6 +92,9 @@ public class RetryOnLockFailuresCommandHandler implements CommandHandler {
 				return returnCommand;
 			} catch (EntityValidationException e) {
 				// the command failed during valdation, don't retry
+				throw e;
+			} catch (StaleVersionException e) {
+				// #345: the caller's version is out of date; it stays out of date on every retry.
 				throw e;
 			} catch (EntityLockException e) {
 				thrown[retries] = e;

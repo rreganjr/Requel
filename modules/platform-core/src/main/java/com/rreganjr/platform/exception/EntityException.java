@@ -113,9 +113,9 @@ public class EntityException extends RequelException {
 	 * @param actionType
 	 * @return
 	 */
-	public static EntityException uniquenessConflict(Class<?> entityType, Object entity,
+	public static UniquenessConflictException uniquenessConflict(Class<?> entityType, Object entity,
 			String propertyName, EntityExceptionActionType actionType) {
-		return new EntityException(entityType, entity, new String[] { propertyName }, null,
+		return new UniquenessConflictException(entityType, entity, new String[] { propertyName }, null,
 				actionType, MSG_UNIQUENESS_CONFICT, propertyName, (entityType != null ? entityType
 						.getSimpleName() : "<unknown>"));
 	}
@@ -125,8 +125,8 @@ public class EntityException extends RequelException {
 	 * @param msg
 	 * @return
 	 */
-	public static EntityException uniquenessConflict(Throwable cause, String msg) {
-		return new EntityException(cause, null, null, new String[] {}, new Object[] {},
+	public static UniquenessConflictException uniquenessConflict(Throwable cause, String msg) {
+		return new UniquenessConflictException(cause, null, null, new String[] {}, new Object[] {},
 				EntityExceptionActionType.Updating, MSG_PRE_GENERATED, msg);
 	}
 

@@ -61,7 +61,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * #342: the annotation binders looked child ids up with {@code entityManager.find} and passed a
  * miss on as null, so an edit with an unknown id created a new annotation and a delete failed with
- * a NullPointerException. Both are now refused as INVALID_INPUT. Also covers {@code findNote}, the
+ * a NullPointerException. Both are now refused as NOT_FOUND (#345; INVALID_INPUT before it). Also covers {@code findNote}, the
  * {@code EditNote} reuse lookup, which matched with LIKE and failed on duplicate text.
  *
  * <p>Runs through the in-process gateway, the MCP path, as a stakeholder with Annotation[Edit] and
@@ -130,13 +130,13 @@ public class AnnotationUnknownIdIT extends AbstractIntegrationTestCase {
 		int positions = rowCount("SELECT COUNT(*) FROM positions");
 		int arguments = rowCount("SELECT COUNT(*) FROM arguments");
 
-		assertInvalid("EditNote", Map.of("projectName", projectName, "entityType", "Goal",
+		assertNotFound("EditNote", Map.of("projectName", projectName, "entityType", "Goal",
 				"entityId", goalId, "noteId", UNKNOWN, "text", "a note"), "Note not found");
-		assertInvalid("EditIssue", Map.of("projectName", projectName, "entityType", "Goal",
+		assertNotFound("EditIssue", Map.of("projectName", projectName, "entityType", "Goal",
 				"entityId", goalId, "issueId", UNKNOWN, "text", "an issue"), "Issue not found");
-		assertInvalid("EditPosition", Map.of("projectName", projectName, "issueId", issueId,
+		assertNotFound("EditPosition", Map.of("projectName", projectName, "issueId", issueId,
 				"positionId", UNKNOWN, "text", "a position"), "Position not found");
-		assertInvalid("EditArgument", Map.of("projectName", projectName, "positionId", positionId,
+		assertNotFound("EditArgument", Map.of("projectName", projectName, "positionId", positionId,
 				"argumentId", UNKNOWN, "text", "an argument", "supportLevel", "For"),
 				"Argument not found");
 
@@ -150,9 +150,9 @@ public class AnnotationUnknownIdIT extends AbstractIntegrationTestCase {
 		int positions = rowCount("SELECT COUNT(*) FROM positions");
 		int arguments = rowCount("SELECT COUNT(*) FROM arguments");
 
-		assertInvalid("EditPosition", Map.of("projectName", projectName, "issueId", UNKNOWN,
+		assertNotFound("EditPosition", Map.of("projectName", projectName, "issueId", UNKNOWN,
 				"text", "an orphan position " + System.nanoTime()), "Issue not found");
-		assertInvalid("EditArgument", Map.of("projectName", projectName, "positionId", UNKNOWN,
+		assertNotFound("EditArgument", Map.of("projectName", projectName, "positionId", UNKNOWN,
 				"text", "an orphan argument", "supportLevel", "For"), "Position not found");
 
 		assertEquals(positions, rowCount("SELECT COUNT(*) FROM positions"),
@@ -163,13 +163,13 @@ public class AnnotationUnknownIdIT extends AbstractIntegrationTestCase {
 	/** These used to fail with a NullPointerException, reported as EXECUTION_ERROR. */
 	@Test
 	void aDeleteWithAnUnknownIdIsRefused() {
-		assertInvalid("DeleteNote", Map.of("projectName", projectName, "noteId", UNKNOWN),
+		assertNotFound("DeleteNote", Map.of("projectName", projectName, "noteId", UNKNOWN),
 				"Note not found");
-		assertInvalid("DeleteIssue", Map.of("projectName", projectName, "issueId", UNKNOWN),
+		assertNotFound("DeleteIssue", Map.of("projectName", projectName, "issueId", UNKNOWN),
 				"Issue not found");
-		assertInvalid("DeletePosition", Map.of("projectName", projectName, "positionId", UNKNOWN),
+		assertNotFound("DeletePosition", Map.of("projectName", projectName, "positionId", UNKNOWN),
 				"Position not found");
-		assertInvalid("DeleteArgument", Map.of("projectName", projectName, "argumentId", UNKNOWN),
+		assertNotFound("DeleteArgument", Map.of("projectName", projectName, "argumentId", UNKNOWN),
 				"Argument not found");
 	}
 
@@ -198,10 +198,10 @@ public class AnnotationUnknownIdIT extends AbstractIntegrationTestCase {
 
 	// ---- helpers -------------------------------------------------------------------------------
 
-	private void assertInvalid(String commandType, Map<String, Object> input, String message) {
+	private void assertNotFound(String commandType, Map<String, Object> input, String message) {
 		GatewayException ex = assertThrows(GatewayException.class,
 				() -> gateway.execute(new GatewayRequest(commandType, input)), commandType);
-		assertEquals(GatewayException.Kind.INVALID_INPUT, ex.getKind(), commandType);
+		assertEquals(GatewayException.Kind.NOT_FOUND, ex.getKind(), commandType);
 		assertTrue(String.valueOf(ex.getMessage()).contains(message),
 				commandType + ": " + ex.getMessage());
 	}

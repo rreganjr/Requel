@@ -123,6 +123,18 @@ describe('ProjectEditorComponent', () => {
     }));
   });
 
+  // #345: EditProjectInput no longer has an id; the server never read it.
+  it('onSave does not send an id', async () => {
+    fixture.detectChanges();
+    await flush();
+    comp.detailsForm.controls.name.setValue('My New Project');
+    comp.detailsForm.markAsDirty();
+    await comp.onSave();
+    const input = commandServiceMock.execute.mock.calls.find((c: unknown[]) => c[0] === 'EditProject')?.[1];
+    expect(input).toBeDefined();
+    expect(input).not.toHaveProperty('id');
+  });
+
   // #173: create is a wizard. Project is the one editor whose second step needs no version
   // handling - AssignTag mutates the Tag, not the project - so the contract to pin here is that
   // step 1 captures the id WITHOUT navigating. The old code routed away on save, which both hid

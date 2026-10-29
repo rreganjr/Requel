@@ -26,6 +26,7 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
+import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.repository.jpa.BeanValidationException;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectScopedCommand;
@@ -286,6 +287,44 @@ class CommandControllerTest {
                         .content("{}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("CONFLICT"));
+    }
+
+    /** #345: an unknown projectName (a repository miss) is not found, not a business-rule 409. */
+    @Test
+    void noSuchEntityExceptionReturnsNotFound() throws Exception {
+        stubCommandThrows("EditGoal", NoSuchEntityException.byQuery(String.class, "name", "nope"));
+
+        mockMvc.perform(post("/api/commands/EditGoal")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("NOT_FOUND"));
+    }
+
+    /** #345: an unknown id refused while the command is built is not found, not a 400. */
+    @Test
+    void notFoundInputExceptionReturnsNotFound() throws Exception {
+        doReturn(Void.class).when(apiCommandFactory).getInputType("EditGoal");
+        when(apiCommandFactory.newCommand(eq("EditGoal"), any(), any()))
+                .thenThrow(new NotFoundInputException("Goal not found: 42"));
+
+        mockMvc.perform(post("/api/commands/EditGoal")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Goal not found: 42"));
+    }
+
+    /** #345: a name already taken stays a 409 on this endpoint. */
+    @Test
+    void uniquenessConflictReturnsConflict() throws Exception {
+        stubCommandThrows("EditGoal", EntityException.uniquenessConflict(String.class, null, "name",
+                EntityExceptionActionType.Updating));
+
+        mockMvc.perform(post("/api/commands/EditGoal")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isConflict());
     }
 
     @Test

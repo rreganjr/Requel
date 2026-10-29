@@ -283,7 +283,12 @@ public class ProjectCommandRegistrar {
                     if (i.text() != null) c.setText(i.text());
                     // For edit: find existing non-user stakeholder by ID
                     if (i.stakeholderId() != null) {
-                        NonUserStakeholder existing = (NonUserStakeholder) findStakeholderById(project, i.stakeholderId());
+                        Stakeholder found = findStakeholderById(project, i.stakeholderId());
+                        // #345: a user stakeholder's id used to fail here with a ClassCastException.
+                        if (!(found instanceof NonUserStakeholder existing)) {
+                            throw new IllegalArgumentException("Stakeholder " + i.stakeholderId()
+                                    + " is a user stakeholder; edit it with EditUserStakeholder.");
+                        }
                         c.setStakeholder(existing);
                         c.setExpectedVersion(i.version());
                     }
@@ -985,14 +990,14 @@ public class ProjectCommandRegistrar {
                 return s;
             }
         }
-        throw new IllegalArgumentException("Stakeholder not found: " + stakeholderId);
+        throw new NotFoundInputException("Stakeholder not found: " + stakeholderId);
     }
 
     private static Goal findGoalById(Project project, Long goalId) {
         for (Goal g : project.getGoals()) {
             if (g.getId().equals(goalId)) return g;
         }
-        throw new IllegalArgumentException("Goal not found: " + goalId);
+        throw new NotFoundInputException("Goal not found: " + goalId);
     }
 
     private static GoalContainer findGoalContainerById(Project project, Long containerId, String containerType) {
@@ -1084,35 +1089,35 @@ public class ProjectCommandRegistrar {
         for (UseCase uc : project.getUseCases()) {
             if (uc.getId().equals(useCaseId)) return uc;
         }
-        throw new IllegalArgumentException("UseCase not found: " + useCaseId);
+        throw new NotFoundInputException("UseCase not found: " + useCaseId);
     }
 
     private static Actor findActorById(Project project, Long actorId) {
         for (Actor a : project.getActors()) {
             if (a.getId().equals(actorId)) return a;
         }
-        throw new IllegalArgumentException("Actor not found: " + actorId);
+        throw new NotFoundInputException("Actor not found: " + actorId);
     }
 
     private static GlossaryTerm findTermById(Project project, Long termId) {
         for (GlossaryTerm t : project.getGlossaryTerms()) {
             if (t.getId().equals(termId)) return t;
         }
-        throw new IllegalArgumentException("GlossaryTerm not found: " + termId);
+        throw new NotFoundInputException("GlossaryTerm not found: " + termId);
     }
 
     private static ReportGenerator findReportGeneratorById(Project project, Long reportId) {
         for (ReportGenerator r : project.getReportGenerators()) {
             if (r.getId().equals(reportId)) return r;
         }
-        throw new IllegalArgumentException("ReportGenerator not found: " + reportId);
+        throw new NotFoundInputException("ReportGenerator not found: " + reportId);
     }
 
     private static Goal findGoalByName(Project project, String name) {
         for (Goal g : project.getGoals()) {
             if (g.getName().equals(name)) return g;
         }
-        throw new IllegalArgumentException("Goal not found: " + name);
+        throw new NotFoundInputException("Goal not found: " + name);
     }
 
     private static GoalRelation findGoalRelationById(Project project, String fromGoalName, String toGoalName) {
@@ -1129,28 +1134,28 @@ public class ProjectCommandRegistrar {
                 if (r.getId().equals(relationId)) return r;
             }
         }
-        throw new IllegalArgumentException("GoalRelation not found: " + relationId);
+        throw new NotFoundInputException("GoalRelation not found: " + relationId);
     }
 
     private static Story findStoryById(Project project, Long storyId) {
         for (Story s : project.getStories()) {
             if (s.getId().equals(storyId)) return s;
         }
-        throw new IllegalArgumentException("Story not found: " + storyId);
+        throw new NotFoundInputException("Story not found: " + storyId);
     }
 
     private static Story findStoryByName(Project project, String name) {
         for (Story s : project.getStories()) {
             if (s.getName().equals(name)) return s;
         }
-        throw new IllegalArgumentException("Story not found: " + name);
+        throw new NotFoundInputException("Story not found: " + name);
     }
 
     private static Scenario findScenarioById(Project project, Long scenarioId) {
         for (Scenario s : project.getScenarios()) {
             if (s.getId().equals(scenarioId)) return s;
         }
-        throw new IllegalArgumentException("Scenario not found: " + scenarioId);
+        throw new NotFoundInputException("Scenario not found: " + scenarioId);
     }
 
     private static Step findStepByIdAcrossScenarios(Project project, Long stepId) {
@@ -1159,7 +1164,7 @@ public class ProjectCommandRegistrar {
                 if (step.getId().equals(stepId)) return step;
             }
         }
-        throw new IllegalArgumentException("Step not found: " + stepId);
+        throw new NotFoundInputException("Step not found: " + stepId);
     }
 
     private ProjectDto toDto(Project project) {

@@ -348,7 +348,7 @@ public class ProvenanceCommandRegistrar {
 	private ProjectOrDomainEntity loadTarget(Project project, String entityType, Long entityId) {
 		Class<? extends ProjectOrDomainEntity> type = ProvenanceEntityTypes.require(entityType);
 		return ProvenanceEntityTypes.load(projectRepository, project, type, entityId)
-				.orElseThrow(() -> new IllegalArgumentException(entityType + " not found: "
+				.orElseThrow(() -> new NotFoundInputException(entityType + " not found: "
 						+ entityId));
 	}
 

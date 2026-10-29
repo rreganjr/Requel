@@ -20,6 +20,9 @@
  */
 package com.rreganjr.command;
 
+import com.rreganjr.platform.exception.EntityExceptionActionType;
+import com.rreganjr.platform.exception.EntityLockException;
+import com.rreganjr.platform.exception.StaleVersionException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -91,5 +94,42 @@ class RetryOnLockFailuresCommandHandlerTest {
 		assertThatThrownBy(() -> new RetryOnLockFailuresCommandHandler(DIRECT, null).execute(command))
 				.isInstanceOf(LockAcquisitionException.class);
 		assertThat(command.executions.get()).isEqualTo(1);
+	}
+
+	/** A command that always fails with the given exception, counting its executions. */
+	private static final class AlwaysFailing implements Command {
+		private final AtomicInteger executions = new AtomicInteger();
+		private final RuntimeException failure;
+
+		AlwaysFailing(RuntimeException failure) {
+			this.failure = failure;
+		}
+
+		@Override
+		public void execute() {
+			executions.incrementAndGet();
+			throw failure;
+		}
+	}
+
+	/** #345: the caller's version stays stale, so retrying cannot succeed. */
+	@Test
+	void aStaleVersionIsNotRetried() {
+		AlwaysFailing command = new AlwaysFailing(EntityLockException.staleEntity(Object.class, null,
+				EntityExceptionActionType.Updating));
+		assertThatThrownBy(() -> new RetryOnLockFailuresCommandHandler(DIRECT, null).execute(command))
+				.isInstanceOf(StaleVersionException.class);
+		assertThat(command.executions.get()).isEqualTo(1);
+	}
+
+	/** #345: a plain lock failure (deadlock, lock wait) is still retried. */
+	@Test
+	void aDeadlockIsStillRetried() {
+		AlwaysFailing command = new AlwaysFailing(EntityLockException.deadlock(Object.class, null,
+				EntityExceptionActionType.Updating));
+		assertThatThrownBy(() -> new RetryOnLockFailuresCommandHandler(DIRECT, null).execute(command))
+				.isInstanceOf(EntityLockException.class)
+				.isNotInstanceOf(StaleVersionException.class);
+		assertThat(command.executions.get()).isEqualTo(3);
 	}
 }

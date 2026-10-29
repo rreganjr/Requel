@@ -125,4 +125,32 @@ class RestCommandGatewayTest {
                 .satisfies(e -> assertThat(((GatewayException) e).getKind())
                         .isEqualTo(GatewayException.Kind.UNAUTHORIZED));
     }
+
+    /** #345: the gateway answers 409 with kind CONFLICT for a name taken or a stale version. */
+    @Test
+    void conflictKindComesFromErrorBody() {
+        Fixture f = newFixture();
+        f.server().expect(requestTo("/api/gateway/commands/EditGoal"))
+                .andRespond(withStatus(HttpStatus.CONFLICT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"kind\":\"CONFLICT\",\"message\":\"The name conflicts with an existing Goal\"}"));
+
+        assertThatThrownBy(() -> f.gateway().execute(new GatewayRequest("EditGoal", Map.of())))
+                .isInstanceOf(GatewayException.class)
+                .satisfies(e -> assertThat(((GatewayException) e).getKind())
+                        .isEqualTo(GatewayException.Kind.CONFLICT));
+    }
+
+    /** #345: a bare 409 (no error body) maps to CONFLICT too. */
+    @Test
+    void bareConflictStatusFallsBackToConflict() {
+        Fixture f = newFixture();
+        f.server().expect(requestTo("/api/gateway/commands/EditGoal"))
+                .andRespond(withStatus(HttpStatus.CONFLICT));
+
+        assertThatThrownBy(() -> f.gateway().execute(new GatewayRequest("EditGoal", Map.of())))
+                .isInstanceOf(GatewayException.class)
+                .satisfies(e -> assertThat(((GatewayException) e).getKind())
+                        .isEqualTo(GatewayException.Kind.CONFLICT));
+    }
 }

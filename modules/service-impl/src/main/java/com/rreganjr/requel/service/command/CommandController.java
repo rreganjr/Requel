@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.service.command;
 
+import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.platform.exception.EntityException;
@@ -122,6 +123,11 @@ public class CommandController {
         } catch (AuthorizationException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(ErrorResponse.of("FORBIDDEN", e.getMessage()));
+        } catch (NotFoundInputException | NoSuchEntityException e) {
+            // #345: the input names something that does not exist (an unknown id, an unknown
+            // projectName). 404 rather than 400 (malformed input) or 409 (business rule).
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ErrorResponse.of("NOT_FOUND", e.getMessage()));
         } catch (OptimisticLockException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(Map.of(

@@ -215,8 +215,9 @@ public class McpWriteService {
 
 	private static RuntimeException mapGatewayException(GatewayException e) {
 		return switch (e.getKind()) {
-			// Client-correctable failures map to JSON-RPC INVALID_PARAMS.
-			case NOT_ALLOWED, NOT_FOUND, INVALID_INPUT, UNAUTHORIZED ->
+			// Client-correctable failures map to JSON-RPC INVALID_PARAMS. JSON-RPC has no conflict
+			// code, so CONFLICT (#345) goes here too; the message says what conflicted.
+			case NOT_ALLOWED, NOT_FOUND, INVALID_INPUT, UNAUTHORIZED, CONFLICT ->
 					new McpInvalidParamsException(e.getMessage());
 			// Server-side execution failure maps to INTERNAL_ERROR.
 			case EXECUTION_ERROR -> new IllegalStateException(e.getMessage(), e);
