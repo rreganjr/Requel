@@ -258,5 +258,7 @@
         <module>modules/mcp-server</module>
         <module>modules/service-impl</module>
         <module>modules/requel-app</module>
+        <!-- #321: report-only; must stay last so every module it aggregates builds first -->
+        <module>modules/coverage-report</module>
   </modules>
 </project>

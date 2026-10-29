@@ -57,7 +57,7 @@ permissions:
 jobs:
   build-and-test:
     name: Build & test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
 
     steps:
@@ -108,11 +108,13 @@ jobs:
       # Surefire runs the unit suite during the `test` phase; failsafe (added
       # to the root pom alongside this workflow) runs the *IT.java integration
       # tests during the `integration-test`/`verify` phases. JaCoCo writes a
-      # combined HTML+XML coverage report to **/target/site/jacoco/.
-      # requel-cli is listed too: requel-app doesn't depend on it, so -am alone skips its tests.
+      # per-module coverage report to **/target/site/jacoco/.
+      # modules/coverage-report depends on every module with main code (requel-app and requel-cli
+      # included), so -am builds and tests all of them, and it then writes the one coverage
+      # aggregate CI uploads (#321, doc/guides/COVERAGE.md).
       - name: Maven build, unit + integration tests, Angular bundle
         run: >
-          mvn -pl modules/requel-app,modules/requel-cli -am verify
+          mvn -pl modules/coverage-report -am verify
           --batch-mode --no-transfer-progress
           -Dstyle.color=always
 
@@ -127,25 +129,32 @@ jobs:
           npm run lint
           npm test -- --no-watch
 
+      # Fails when a module with main code is missing from the aggregate, which would leave its
+      # Codecov figure at its own tests only (#321).
+      - name: Check every module is in the coverage aggregate
+        run: .github/scripts/check-coverage-modules.sh
+
       - name: Upload JaCoCo coverage
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: jacoco-coverage
-          path: "**/target/site/jacoco/"
+          path: |
+            **/target/site/jacoco/
+            modules/coverage-report/target/site/jacoco-aggregate/
           if-no-files-found: warn
           retention-days: 14
 
-      # The per-module reports are each built from their own module's exec file, so a class
-      # exercised only by an integration test in another module reads as 0% in them. The
-      # aggregate report in modules/requel-app attributes that cross-module coverage, and until
-      # issue #313 it was generated on every build and never uploaded — its output directory is
-      # site/jacoco-aggregate, which the per-module glob does not match.
+      # Only the aggregate goes to Codecov (#321). The per-module reports are each built from their
+      # own module's exec file, so a class exercised only by an integration test in another module
+      # reads as 0% in them; the aggregate merges every module's execution data. disable_search
+      # stops the action adding the per-module reports it would otherwise find on its own.
       - name: Upload backend coverage to Codecov
         if: always()
         uses: codecov/codecov-action@v7
         with:
-          files: "**/target/site/jacoco/jacoco.xml,modules/requel-app/target/site/jacoco-aggregate/jacoco.xml"
+          files: modules/coverage-report/target/site/jacoco-aggregate/jacoco.xml
+          disable_search: true
           flags: backend
           name: jacoco-backend
           fail_ci_if_error: false
@@ -192,7 +201,7 @@ jobs:
   e2e:
     name: E2E + frontend coverage
     needs: build-and-test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # E2E is serial (workers:1) and coverage-instrumented; ~35 min observed. Give it
     # headroom over the ~20 min norm without masking a real slowdown.
     timeout-minutes: 60
