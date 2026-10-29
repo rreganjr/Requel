@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.RequiredOnCreate;
 import com.rreganjr.requel.service.api.CommandDescription;
 import com.rreganjr.requel.service.api.CommandDescriptions;
 import jakarta.validation.constraints.NotBlank;
@@ -36,15 +37,15 @@ import jakarta.validation.constraints.Size;
  */
 @CommandDescription("Creates or edits an actor: someone or something that takes part in use cases"
         + " and stories. Leave actorId null to create one, or pass it to edit an existing actor."
-        + " name is required on every call, so send the current name to keep it, and actor names"
-        + " are unique within the project, ignoring case. description is the actor's text. Saving"
-        + " asks the assistant to analyze the actor."
+        + " name is required when creating; leave it out when editing to keep the current name,"
+        + " and actor names are unique within the project, ignoring case. description is the"
+        + " actor's text. Saving asks the assistant to analyze the actor."
         + CommandDescriptions.PARTIAL_UPDATE
         + CommandDescriptions.VERSION_CHECKED)
+@RequiredOnCreate(id = "actorId")
 public record EditActorInput(
         @NotBlank String projectName,
         Long actorId,
-        @NotBlank
         @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
         String name,
         String description,
