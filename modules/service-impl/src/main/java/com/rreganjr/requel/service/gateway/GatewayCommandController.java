@@ -111,6 +111,7 @@ public class GatewayCommandController {
         return switch (kind) {
             case NOT_ALLOWED, UNAUTHORIZED -> HttpStatus.FORBIDDEN;
             case NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case CONFLICT -> HttpStatus.CONFLICT;
             case INVALID_INPUT -> HttpStatus.BAD_REQUEST;
             case EXECUTION_ERROR -> HttpStatus.UNPROCESSABLE_ENTITY;
         };

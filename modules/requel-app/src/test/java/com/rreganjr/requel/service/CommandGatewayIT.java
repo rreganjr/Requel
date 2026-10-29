@@ -475,19 +475,69 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
     }
 
     @Test
-    void unknownChildIdIsInvalidInput() {
+    void unknownChildIdIsNotFound() {
         authenticate(editorUsername);
-        // Valid container, but the child goal id does not exist: findGoalById throws
-        // IllegalArgumentException("Goal not found") from the input applicator while the command is
-        // built. Before #188 that fell through to EXECUTION_ERROR; it must be INVALID_INPUT so MCP
-        // maps it to INVALID_PARAMS (not INTERNAL_ERROR) and the gateway HTTP wrapper returns 400,
-        // matching the HTTP controller. This is the child-lookup gap left after #189 scoped the
-        // container lookups to EntityValidationException.
+        // Valid container, but the child goal id does not exist: findGoalById refuses it while the
+        // command is built. #188 made that INVALID_INPUT instead of EXECUTION_ERROR; #345 makes it
+        // NOT_FOUND, so a caller can tell "that does not exist" from malformed input. MCP still
+        // maps it to INVALID_PARAMS and the gateway HTTP wrapper returns 404.
         GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
                 new GatewayRequest("AddGoalToGoalContainer",
                         Map.of("projectName", projectName, "goalContainerId", useCaseId,
                                 "goalId", 999_999_999L, "containerType", "UseCase"))));
+        assertEquals(GatewayException.Kind.NOT_FOUND, ex.getKind());
+    }
+
+    // ---- issue #345: error kinds a caller can act on ------------------------------------------
+
+    @Test
+    void anUnknownProjectNameIsNotFound() {
+        authenticate(editorUsername);
+        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
+                new GatewayRequest("EditGoal", Map.of("projectName", "gw-no-such-project-"
+                        + System.nanoTime(), "name", "g", "text", "t"))));
+        assertEquals(GatewayException.Kind.NOT_FOUND, ex.getKind());
+    }
+
+    @Test
+    void aNameAlreadyTakenIsAConflict() throws Exception {
+        authenticate(editorUsername);
+        long ts = System.nanoTime();
+        editGoal(Map.of("projectName", projectName, "name", "taken-" + ts, "text", "first"));
+        GoalDto second = editGoal(Map.of("projectName", projectName, "name", "free-" + ts,
+                "text", "second"));
+
+        GatewayException ex = assertThrows(GatewayException.class, () -> editGoal(Map.of(
+                "projectName", projectName, "goalId", second.id(), "name", "taken-" + ts)));
+        assertEquals(GatewayException.Kind.CONFLICT, ex.getKind(), ex.getMessage());
+    }
+
+    @Test
+    void aStaleVersionIsAConflict() throws Exception {
+        authenticate(editorUsername);
+        String name = "stale-" + System.nanoTime();
+        GoalDto goal = editGoal(Map.of("projectName", projectName, "name", name, "text", "v0"));
+
+        // name is sent because EditGoalInput still requires it on update (#331).
+        GatewayException ex = assertThrows(GatewayException.class, () -> editGoal(Map.of(
+                "projectName", projectName, "goalId", goal.id(), "name", name, "text", "edited",
+                "version", goal.version() + 5)));
+        assertEquals(GatewayException.Kind.CONFLICT, ex.getKind(), ex.getMessage());
+    }
+
+    @Test
+    void editNonUserStakeholderWithAUserStakeholderIdIsInvalidInput() {
+        authenticate(editorUsername);
+        // It used to fail with a ClassCastException (EXECUTION_ERROR).
+        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
+                new GatewayRequest("EditNonUserStakeholder", Map.of("projectName", projectName,
+                        "stakeholderId", userStakeholderId, "name", "renamed"))));
         assertEquals(GatewayException.Kind.INVALID_INPUT, ex.getKind());
+        assertTrue(ex.getMessage().contains("user stakeholder"), ex.getMessage());
+    }
+
+    private GoalDto editGoal(Map<String, Object> input) throws Exception {
+        return (GoalDto) gateway.execute(new GatewayRequest("EditGoal", input)).result();
     }
 
     // ---- issue #189: type-scoped container resolution ------------------------------------------

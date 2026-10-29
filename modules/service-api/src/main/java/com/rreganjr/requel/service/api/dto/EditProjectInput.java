@@ -28,8 +28,8 @@ import jakarta.validation.constraints.Size;
 /**
  * Input DTO for the EditProject command. Used for both creating and updating projects.
  * {@code projectName} selects the project to update; when it is null a new project is created,
- * and a name that matches no project is refused (issue #340). {@code id} is not read (issue #296).
- * A non-null {@code version} is checked on update.
+ * and a name that matches no project is refused (issue #340). A non-null {@code version} is checked
+ * on update. The unread {@code id} field was removed in issue #345.
  * Organization is referenced by organizationId when selecting an existing org,
  * or by organizationName when creating a new one.
  * <p>
@@ -43,7 +43,7 @@ import jakarta.validation.constraints.Size;
         + " refused. name is the new name: required when creating, kept when left null, and it"
         + " cannot be cleared; to rename, pass the current name as projectName and the new one as"
         + " name. Project names are unique"
-        + " across the whole installation, ignoring case. The id field is ignored. organizationId"
+        + " across the whole installation, ignoring case. organizationId"
         + " selects an existing organization; otherwise organizationName is looked up and created"
         + " when it does not exist, and an empty organizationName removes the organization."
         + " Creating a project makes you a stakeholder with every permission and adds the assistant"
@@ -52,7 +52,6 @@ import jakarta.validation.constraints.Size;
         + CommandDescriptions.VERSION_CHECKED,
         authorization = "createProjects role permission to create; Project[Edit] to edit")
 public record EditProjectInput(
-        Long id,
         Integer version,
         String projectName,
         @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)

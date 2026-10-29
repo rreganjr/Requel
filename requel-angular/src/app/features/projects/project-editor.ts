@@ -204,7 +204,6 @@ export class ProjectEditorComponent implements OnInit, DirtyCheckable {
   // retryable error state replaces the form only when the initial load fails.
   readonly loadError = signal<string | null>(null);
   readonly originalName = signal('');
-  private projectId: number | null = null;
   private projectVersion: number | null = null;
   private lastNameParam: string | null = null;
 
@@ -296,7 +295,6 @@ export class ProjectEditorComponent implements OnInit, DirtyCheckable {
         ]);
         this.populateForm(project);
       } else {
-        this.projectId = null;
         this.projectVersion = null;
         this.tagEntityId.set(null);
         this.originalName.set('');
@@ -346,7 +344,7 @@ export class ProjectEditorComponent implements OnInit, DirtyCheckable {
   }
 
   /**
-   * Issues `EditProject` and, on success, adopts id/version/name.
+   * Issues `EditProject` and, on success, adopts version/name.
    *
    * Deliberately does NOT navigate. The old create path routed to `/projects/{name}` the moment
    * the project saved, which is what made Tags unreachable without a second visit - and here it
@@ -370,7 +368,6 @@ export class ProjectEditorComponent implements OnInit, DirtyCheckable {
         : (orgId == null ? '' : null);
 
       const input: Record<string, unknown> = {
-        id: this.projectId,
         version: this.projectVersion,
         projectName: this.isNew() ? null : this.originalName(),
         name,
@@ -393,7 +390,6 @@ export class ProjectEditorComponent implements OnInit, DirtyCheckable {
       this.successMessage.set('Project saved successfully.');
       const saved = result.entity as ProjectDto | null;
       if (saved) {
-        this.projectId = saved.id;
         this.projectVersion = saved.version;
         this.tagEntityId.set(saved.id);
       }
@@ -487,7 +483,6 @@ export class ProjectEditorComponent implements OnInit, DirtyCheckable {
   }
 
   private populateForm(project: ProjectDto): void {
-    this.projectId = project.id;
     this.tagEntityId.set(project.id);
     this.projectVersion = project.version;
     this.originalName.set(project.name);

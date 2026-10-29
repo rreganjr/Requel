@@ -188,7 +188,8 @@ public class TagApiIT {
 		assertEquals(400, dispatchStatus("EditTag", Map.of("tagId", global.getId(),
 				"projectName", projectB.getName(), "category", "type", "value", "hijacked-" + suffix)),
 				"a global tag must not be editable as project B");
-		assertEquals(400, dispatchStatus("EditTag", Map.of("tagId", Long.MAX_VALUE,
+		// #345: an unknown id is not found (404), no longer invalid input (400).
+		assertEquals(404, dispatchStatus("EditTag", Map.of("tagId", Long.MAX_VALUE,
 				"projectName", projectA.getName(), "category", "type", "value", "ghost-" + suffix)),
 				"an unknown tagId is refused");
 		entityManager.flush();
@@ -231,7 +232,8 @@ public class TagApiIT {
 		assertEquals(400, dispatchStatus("EditTagCategory", categoryInput(global.getId(),
 				projectB.getName(), "hijacked-" + suffix)),
 				"a global category must not be editable as project B");
-		assertEquals(400, dispatchStatus("EditTagCategory", categoryInput(Long.MAX_VALUE,
+		// #345: an unknown id is not found (404), no longer invalid input (400).
+		assertEquals(404, dispatchStatus("EditTagCategory", categoryInput(Long.MAX_VALUE,
 				projectA.getName(), "ghost-" + suffix)),
 				"an unknown categoryId is refused");
 		entityManager.flush();

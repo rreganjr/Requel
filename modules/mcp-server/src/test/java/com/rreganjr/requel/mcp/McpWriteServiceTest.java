@@ -294,4 +294,16 @@ class McpWriteServiceTest {
 				.isInstanceOf(IllegalStateException.class)
 				.hasMessageContaining("boom");
 	}
+
+	/** #345: a conflict (name taken, stale version) is the caller's to fix, so INVALID_PARAMS. */
+	@Test
+	void conflictMapsToInvalidParams() {
+		RecordingGateway gw = new RecordingGateway();
+		gw.toThrow = new GatewayException(GatewayException.Kind.CONFLICT, "name already taken");
+		McpWriteService svc = new McpWriteService(gw, catalog, objectMapper, true);
+		assertThatThrownBy(() -> svc.call("EditGoal",
+				json("{\"projectName\":\"P\",\"name\":\"G\"}")))
+				.isInstanceOf(McpInvalidParamsException.class)
+				.hasMessageContaining("name already taken");
+	}
 }

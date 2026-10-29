@@ -32,12 +32,21 @@ public class GatewayException extends Exception {
     public enum Kind {
         /** The command type is not permitted through the gateway (denylist / not on allowlist). */
         NOT_ALLOWED,
-        /** The command type is unknown / not registered. */
+        /**
+         * The command type is unknown / not registered, or the input names an entity (a project,
+         * an id) that does not exist (issue #345).
+         */
         NOT_FOUND,
         /** The input payload was missing or malformed for the command. */
         INVALID_INPUT,
         /** The authenticated user lacks permission for the command. */
         UNAUTHORIZED,
+        /**
+         * The command conflicts with the current state: a value that must be unique is already
+         * taken, or the caller's version is stale because someone else saved first (issue #345).
+         * The caller can fix it (pick another name, re-read and retry).
+         */
+        CONFLICT,
         /** The command failed during execution. */
         EXECUTION_ERROR
     }

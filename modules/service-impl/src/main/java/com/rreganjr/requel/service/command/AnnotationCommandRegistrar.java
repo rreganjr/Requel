@@ -223,11 +223,11 @@ public class AnnotationCommandRegistrar {
                 (ResolveIssueInput input) -> {
                     PositionImpl position = entityManager.find(PositionImpl.class, input.positionId());
                     if (position == null) {
-                        throw new IllegalArgumentException("Position not found: " + input.positionId());
+                        throw new NotFoundInputException("Position not found: " + input.positionId());
                     }
                     IssueImpl issue = entityManager.find(IssueImpl.class, input.issueId());
                     if (issue == null) {
-                        throw new IllegalArgumentException("Issue not found: " + input.issueId());
+                        throw new NotFoundInputException("Issue not found: " + input.issueId());
                     }
                     var cmd = factory.newResolveIssueCommand(position);
                     cmd.setPosition(position);
@@ -248,7 +248,7 @@ public class AnnotationCommandRegistrar {
                 .orElseThrow(() -> new IllegalArgumentException("Unknown entity type: " + entityType));
         Annotatable entity = entityManager.find(entityClass, entityId);
         if (entity == null) {
-            throw new IllegalArgumentException("Entity not found: " + entityType + "#" + entityId);
+            throw new NotFoundInputException("Entity not found: " + entityType + "#" + entityId);
         }
         return entity;
     }
@@ -262,7 +262,7 @@ public class AnnotationCommandRegistrar {
     private <T> T require(Class<T> type, Long id, String label) {
         T found = id == null ? null : entityManager.find(type, id);
         if (found == null) {
-            throw new IllegalArgumentException(label + " not found: " + id);
+            throw new NotFoundInputException(label + " not found: " + id);
         }
         return found;
     }

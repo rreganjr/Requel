@@ -111,6 +111,7 @@ public class RestCommandGateway implements CommandGateway {
             case 400 -> GatewayException.Kind.INVALID_INPUT;
             case 401, 403 -> GatewayException.Kind.UNAUTHORIZED;
             case 404 -> GatewayException.Kind.NOT_FOUND;
+            case 409 -> GatewayException.Kind.CONFLICT;
             default -> GatewayException.Kind.EXECUTION_ERROR;
         };
     }

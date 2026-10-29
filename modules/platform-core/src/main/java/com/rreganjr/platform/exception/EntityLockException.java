@@ -35,9 +35,9 @@ public class EntityLockException extends EntityException {
 	 * @param actionType
 	 * @return
 	 */
-	public static EntityLockException staleEntity(Class<?> entityType, Object entity,
+	public static StaleVersionException staleEntity(Class<?> entityType, Object entity,
 			EntityExceptionActionType actionType) {
-		return new EntityLockException(entityType, entity, null, null, actionType,
+		return new StaleVersionException(entityType, entity, actionType,
 				MSG_STALE_ENTITY,
 				(entityType == null ? "Unknown Type" : entityType.getSimpleName()));
 	}
