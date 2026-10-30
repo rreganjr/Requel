@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
+import com.rreganjr.validator.EntityValidationException;
 import com.rreganjr.platform.command.CascadeAuthorizable;
 import java.util.HashSet;
 import java.util.Set;
@@ -143,9 +144,12 @@ public class DeleteActorCommandImpl extends AbstractDeleteProjectEntityCommand i
 			if (actorContainer instanceof UseCase) {
 				UseCase useCase = (UseCase) actorContainer;
 				if (useCase.getPrimaryActor().equals(actor)) {
-					throw new RuntimeException("The actor \"" + actor.getDescription()
-							+ "\" is the primary actor for \"" + useCase.getDescription()
-							+ "\" and cannot be deleted unless the use case is deleted first.");
+					// #341: a validation error (INVALID_INPUT, 422) rather than a RuntimeException,
+					// which callers saw as a server failure.
+					throw EntityValidationException.validationFailed(Actor.class, "actorId",
+							"The actor \"" + actor.getDescription() + "\" is the primary actor for \""
+									+ useCase.getDescription()
+									+ "\" and cannot be deleted unless the use case is deleted first.");
 				}
 			}
 		}
