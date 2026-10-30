@@ -30,7 +30,9 @@ import com.rreganjr.validator.EntityValidationException;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.impl.AddWordToDictionaryPosition;
+import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.impl.LexicalIssue;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.command.EditProjectDictionaryWordCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 
@@ -82,7 +84,11 @@ public class ResolveIssueWithAddWordToDictionaryPositionCommandImpl extends Reso
 		// Issue #312: the project instance is handed over, not its id — the nested command
 		// authorizes against it, and a project re-loaded by id has a detached stakeholder
 		// collection by the time the check walks it.
-		command.setProject(getProject());
+		// #330: and it is read from the issue as loaded in this command's session. Over the
+		// gateway the issue was bound before the command ran, so getProject() reaches a project
+		// whose stakeholders can't be loaded any more, and the nested check refused every caller.
+		Project project = AnnotationCommandProjectResolver.of(getRepository().get(getIssue()));
+		command.setProject(project != null ? project : getProject());
 		// Issue #312: the nested command is authorized in its own right, and the check reads its
 		// subject from getEditedBy(). CurrentUserCommandHandler would inject it over HTTP, but an
 		// in-process caller has no SecurityContext and a null editedBy skips the check entirely,
@@ -96,9 +102,16 @@ public class ResolveIssueWithAddWordToDictionaryPositionCommandImpl extends Reso
 
 	@Override
 	protected void validate() {
+		super.validate();
 		if (getIssue() == null) {
 			throw EntityValidationException.emptyRequiredProperty(LexicalIssue.class, getIssue(),
 					"issue", EntityExceptionActionType.Updating);
 		}
+	}
+
+	/** #330: this resolver works only on lexical issues (it reads the issue's word). */
+	@Override
+	protected Class<? extends Issue> requiredIssueType() {
+		return LexicalIssue.class;
 	}
 }

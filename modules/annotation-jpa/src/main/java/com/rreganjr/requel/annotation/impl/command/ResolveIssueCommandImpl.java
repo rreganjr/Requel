@@ -119,15 +119,51 @@ public class ResolveIssueCommandImpl extends AbstractEditCommand
 		setIssue(getRepository().merge(issue));
 	}
 
+	/**
+	 * Subclasses that override this call it first: issue and position are required, and #330 the
+	 * position must be one of the issue's and fit its kind of issue.
+	 */
 	protected void validate() {
-		if (getIssue() == null) {
-			throw EntityValidationException.emptyRequiredProperty(Issue.class, getIssue(), "issue",
+		// The field, not getIssue(): the lexical resolvers narrow getIssue() with a cast, which
+		// would fail on the wrong kind of issue before requirePositionOfIssue could say so.
+		if (issue == null) {
+			throw EntityValidationException.emptyRequiredProperty(Issue.class, issue, "issue",
 					EntityExceptionActionType.Updating);
 		}
 		if (getPosition() == null) {
 			throw EntityValidationException.emptyRequiredProperty(Issue.class, getPosition(),
 					"position", EntityExceptionActionType.Updating);
 		}
+		requirePositionOfIssue();
+	}
+
+	/**
+	 * Issue #330: accepting a position resolves its issue, so the position has to be one the
+	 * issue offers. Nothing checked it, so any position id resolved any issue, another project's
+	 * included, and a resolver that needs a lexical issue (Add as Actor, Fix Spelling, ...) failed
+	 * on a cast when handed another kind. Both are refused here, as a field error on
+	 * {@code positionId}, before a resolver changes anything.
+	 */
+	protected void requirePositionOfIssue() {
+		Issue issue = getRepository().get(this.issue);
+		Position position = getRepository().get(getPosition());
+		Long positionId = position.getId();
+		boolean offered = issue.getPositions().stream()
+				.anyMatch(p -> p.getId() != null && p.getId().equals(positionId));
+		if (!offered) {
+			throw EntityValidationException.validationFailed(Issue.class, "positionId", "Position "
+					+ positionId + " is not one of issue " + issue.getId() + "'s positions.");
+		}
+		if (!requiredIssueType().isInstance(org.hibernate.Hibernate.unproxy(issue))) {
+			throw EntityValidationException.validationFailed(Issue.class, "positionId", "Position "
+					+ positionId + " resolves only " + requiredIssueType().getSimpleName()
+					+ "s, and issue " + issue.getId() + " is not one.");
+		}
+	}
+
+	/** The kind of issue this resolver works on; the lexical resolvers narrow it. */
+	protected Class<? extends Issue> requiredIssueType() {
+		return Issue.class;
 	}
 
 	/**
@@ -140,7 +176,7 @@ public class ResolveIssueCommandImpl extends AbstractEditCommand
 	 */
 	@Override
 	public Project getProject() {
-		Project project = AnnotationCommandProjectResolver.of(getIssue());
+		Project project = AnnotationCommandProjectResolver.of(issue);
 		if (project != null) {
 			return project;
 		}

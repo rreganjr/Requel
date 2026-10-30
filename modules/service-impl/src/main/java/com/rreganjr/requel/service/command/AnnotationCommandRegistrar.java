@@ -42,6 +42,7 @@ import com.rreganjr.requel.annotation.impl.PositionImpl;
 import com.rreganjr.requel.annotation.impl.PositionTypes;
 import com.rreganjr.requel.annotation.spi.AnnotatableTypeRegistry;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
+import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.service.api.CommandRegistry;
 import com.rreganjr.requel.service.api.dto.AnnotationSubjectDto;
 import com.rreganjr.requel.service.api.dto.ArgumentDto;
@@ -69,9 +70,9 @@ import java.util.List;
 /**
  * Registers annotation domain command types with the CQRS command registry at startup.
  * <p>
- * Note: ResolveIssueCommand is polymorphic (requires a Position argument to determine
- * the concrete resolver). It cannot be registered as a simple Supplier and will be
- * handled via a dedicated endpoint or a specialized applicator in Phase 2.
+ * ResolveIssueCommand is polymorphic: the concrete resolver depends on the position's type, so
+ * it is registered with a builder that loads the position first and asks the factory for the
+ * matching command.
  */
 @Component
 public class AnnotationCommandRegistrar {
@@ -82,15 +83,18 @@ public class AnnotationCommandRegistrar {
     private final CommandRegistry registry;
     private final AnnotatableTypeRegistry annotatableTypeRegistry;
     private final EntityManager entityManager;
+    private final ProjectRepository projectRepository;
 
     public AnnotationCommandRegistrar(AnnotationCommandFactory factory,
                                       CommandRegistry registry,
                                       AnnotatableTypeRegistry annotatableTypeRegistry,
-                                      EntityManager entityManager) {
+                                      EntityManager entityManager,
+                                      ProjectRepository projectRepository) {
         this.factory = factory;
         this.registry = registry;
         this.annotatableTypeRegistry = annotatableTypeRegistry;
         this.entityManager = entityManager;
+        this.projectRepository = projectRepository;
     }
 
     @PostConstruct
@@ -229,6 +233,12 @@ public class AnnotationCommandRegistrar {
                     if (issue == null) {
                         throw new NotFoundInputException("Issue not found: " + input.issueId());
                     }
+                    // #330: the issue must be in the project named, as for the other annotation
+                    // commands (#342). That the position is one of the issue's is checked by the
+                    // command itself, so the UI's path gets it too.
+                    requireSameScope(issue.getGroupingObject(),
+                            projectRepository.findProjectByName(input.projectName()), "Issue",
+                            input.issueId());
                     var cmd = factory.newResolveIssueCommand(position);
                     cmd.setPosition(position);
                     cmd.setIssue(issue);

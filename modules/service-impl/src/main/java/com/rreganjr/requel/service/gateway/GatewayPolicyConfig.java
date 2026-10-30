@@ -99,6 +99,9 @@ public class GatewayPolicyConfig {
             // Annotations / IBIS
             "EditNote", "DeleteNote", "EditIssue", "DeleteIssue",
             "EditPosition", "DeletePosition", "EditArgument", "DeleteArgument",
+            // Accepting a position resolves its issue (#330): Annotation[Edit], plus Edit on
+            // whatever the position changes (Fix Spelling's entities, Add as Actor's actor).
+            "ResolveIssue",
             // Tagging / categorization (tags reuse the Annotation stakeholder permission:
             // Edit to create/assign, Delete to delete; global/system tags require admin)
             "EditTag", "DeleteTag", "AssignTag", "UnassignTag",
@@ -129,7 +132,7 @@ public class GatewayPolicyConfig {
             // cascade steps, #75) but never driven by an external client
             "ReplaceGlossaryTerm", "EditAddWordToGlossaryPosition", "EditAddActorToProjectPosition",
             "RemoveUnneedLexicalIssues", "EditLexicalIssue", "EditChangeSpellingPosition",
-            "EditAddWordToDictionaryPosition", "ResolveIssue", "RemoveAnnotationFromAnnotatable");
+            "EditAddWordToDictionaryPosition", "RemoveAnnotationFromAnnotatable");
 
     @Bean
     public CommandPolicy gatewayCommandPolicy(ProjectRepository projectRepository) {

@@ -31,6 +31,7 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
+import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.impl.LexicalIssue;
 import com.rreganjr.requel.annotation.impl.command.ResolveIssueCommandImpl;
 import com.rreganjr.requel.project.ActorContainer;
@@ -81,6 +82,7 @@ public class ResolveIssueWithAddActorPositionCommandImpl extends ResolveIssueCom
 
 	@Override
 	public void execute() throws Exception {
+		validate(); // #330: before the nested edit, not after it
 		LexicalIssue issue = getRepository().get(getIssue());
 		User resolvedBy = getRepository().get(getEditedBy());
 
@@ -100,5 +102,11 @@ public class ResolveIssueWithAddActorPositionCommandImpl extends ResolveIssueCom
 		command.setEditedBy(resolvedBy);
 		command = getCommandHandler().execute(command);
 		super.execute();
+	}
+
+	/** #330: this resolver works only on lexical issues (it reads the issue's word). */
+	@Override
+	protected Class<? extends Issue> requiredIssueType() {
+		return LexicalIssue.class;
 	}
 }

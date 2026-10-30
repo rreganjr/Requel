@@ -868,11 +868,20 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
         for (String type : GatewayPolicyConfig.ALLOWED) {
             assertTrue(commandRegistry.isRegistered(type), type + " must be registered");
             CommandRegistration<?> reg = commandRegistry.lookup(type);
-            assertNotNull(reg.factoryMethod(), type + " must have a factory method");
-            Command instance = reg.factoryMethod().get();
-            assertTrue(instance instanceof AuthorizableCommand,
-                    type + " must implement AuthorizableCommand so the gateway never exposes an "
-                            + "unchecked write");
+            if (reg.factoryMethod() == null) {
+                // #330: ResolveIssue is built from its input (the position's type picks the
+                // resolver), so there is no factory method to try; every resolver extends
+                // ResolveIssueCommandImpl, which is checked here instead.
+                assertNotNull(reg.commandBuilder(), type + " must have a factory method or a builder");
+                assertEquals("ResolveIssue", type, type + " is built from its input; check its commands");
+                assertTrue(AuthorizableCommand.class.isAssignableFrom(
+                        com.rreganjr.requel.annotation.impl.command.ResolveIssueCommandImpl.class));
+            } else {
+                Command instance = reg.factoryMethod().get();
+                assertTrue(instance instanceof AuthorizableCommand,
+                        type + " must implement AuthorizableCommand so the gateway never exposes an "
+                                + "unchecked write");
+            }
             // Issue #252: CommandRegistry's two-argument register(type, factory) overload is a
             // "placeholder for future DTO wiring" and records Void.class, which the catalog turns
             // into an empty MCP schema — a tool that advertises no way to call it. Four allowlisted

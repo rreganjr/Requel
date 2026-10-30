@@ -828,6 +828,19 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                 .andExpect(jsonPath("$.success").value(true));
     }
 
+    /** #330: a position from another issue is a field error, not a resolve of the wrong issue. */
+    @Test
+    void resolvingWithAnotherIssuesPositionIsAFieldError() throws Exception {
+        long[] first = createIssueWithPosition("resolve-mismatch-a");
+        long[] second = createIssueWithPosition("resolve-mismatch-b");
+        mockMvc.perform(post("/api/commands/ResolveIssue")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(resolveIssueJson(first[0], second[1])))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.violations[0].field").value("positionId"));
+    }
+
     @Test
     void deleterWithoutAnnotationEditCannotResolveIssue() throws Exception {
         long[] ids = createIssueWithPosition("resolve-deleter");

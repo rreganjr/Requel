@@ -39,6 +39,7 @@ import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.impl.AddWordToDictionaryPosition;
 import com.rreganjr.requel.annotation.impl.ChangeSpellingPosition;
+import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.impl.LexicalIssue;
 import com.rreganjr.requel.annotation.spi.AnnotatableTextEditRegistry;
 import com.rreganjr.requel.annotation.spi.AnnotatableTextEditor;
@@ -128,6 +129,7 @@ public class ResolveIssueWithChangeSpellingPositionCommandImpl extends ResolveIs
 
 	@Override
 	protected void validate() {
+		super.validate();
 		if (getIssue() == null) {
 			throw EntityValidationException.emptyRequiredProperty(LexicalIssue.class, getIssue(),
 					"issue", EntityExceptionActionType.Updating);
@@ -200,5 +202,11 @@ public class ResolveIssueWithChangeSpellingPositionCommandImpl extends ResolveIs
 			return toWord.substring(0, 1).toUpperCase() + toWord.substring(1);
 		}
 		return toWord;
+	}
+
+	/** #330: this resolver works only on lexical issues (it reads the issue's word). */
+	@Override
+	protected Class<? extends Issue> requiredIssueType() {
+		return LexicalIssue.class;
 	}
 }
