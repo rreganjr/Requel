@@ -1,3 +1,4 @@
 org.springframework.boot.diagnostics.FailureAnalyzer=\
   com.rreganjr.requel.RequelStartupFailureAnalyzer,\
-  com.rreganjr.requel.InsecureJwtSecretFailureAnalyzer
+  com.rreganjr.requel.InsecureJwtSecretFailureAnalyzer,\
+  com.rreganjr.requel.legacy.LegacyUpgradeFailureAnalyzer
