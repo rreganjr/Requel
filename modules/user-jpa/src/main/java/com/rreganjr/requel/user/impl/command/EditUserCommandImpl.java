@@ -65,6 +65,7 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 	private String phoneNumber;
 	private String organizationName;
 	private Boolean editable = Boolean.TRUE;
+	private Boolean mustChangePassword;
 	private Set<String> userRoleNames = new HashSet<String>();
 	private boolean userRolesProvided = false;
 	private Map<String, Set<String>> userRolePermissionNames = new HashMap<String, Set<String>>();
@@ -121,6 +122,10 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 			Organization organization = getOrCreateOrganization(getOrganizationName());
 			UserImpl userImpl = new UserImpl(getUsername(), getPassword(),
 					getName(), getEmailAddress(), getPhoneNumber(), organization, getEditable());
+			// #381: only an admin (or the system, editedBy null) creates users, so no role check here.
+			if (getMustChangePassword() != null) {
+				userImpl.setMustChangePassword(getMustChangePassword());
+			}
 			updateRoles(userImpl);
 			return getUserRepository().persist(userImpl);
 		} else {
@@ -144,6 +149,11 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 		if (isAdmin) {
 			userImpl.setUsername(getUsername());
 			userImpl.setEditable(getEditable());
+			// #381: admin-only, like editable; a self-edit can't clear it (and a flagged user can't
+			// reach EditUser at all - see PasswordChangeRequiredFilter).
+			if (getMustChangePassword() != null) {
+				userImpl.setMustChangePassword(getMustChangePassword());
+			}
 			if (userRolesProvided) {
 				updateRoles(userImpl);
 			}
@@ -253,6 +263,15 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 
 	public void setEditable(Boolean editable) {
 		this.editable = editable;
+	}
+
+	protected Boolean getMustChangePassword() {
+		return mustChangePassword;
+	}
+
+	@Override
+	public void setMustChangePassword(Boolean mustChangePassword) {
+		this.mustChangePassword = mustChangePassword;
 	}
 
 	protected Set<String> getUserRoleNames() {

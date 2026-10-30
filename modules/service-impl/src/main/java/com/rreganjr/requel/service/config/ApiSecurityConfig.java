@@ -23,6 +23,7 @@ package com.rreganjr.requel.service.config;
 import com.rreganjr.requel.service.auth.ApiTokenRepository;
 import com.rreganjr.requel.service.auth.JwtAuthenticationFilter;
 import com.rreganjr.requel.service.auth.JwtService;
+import com.rreganjr.requel.service.auth.PasswordChangeRequiredFilter;
 import com.rreganjr.requel.service.auth.UserDtoMapper;
 import com.rreganjr.requel.user.UserRepository;
 import jakarta.servlet.http.HttpServletResponse;
@@ -35,6 +36,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -112,6 +114,8 @@ public class ApiSecurityConfig {
             .addFilterBefore(new JwtAuthenticationFilter(jwtService, apiTokenRepository,
                     userRepository, userDtoMapper),
                     UsernamePasswordAuthenticationFilter.class)
+            // #381: after authentication, before the authorization rules above.
+            .addFilterBefore(new PasswordChangeRequiredFilter(), AuthorizationFilter.class)
             .anonymous(AbstractHttpConfigurer::disable);
 
         return http.build();

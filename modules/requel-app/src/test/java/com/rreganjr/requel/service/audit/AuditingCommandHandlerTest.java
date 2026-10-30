@@ -338,6 +338,7 @@ class AuditingCommandHandlerTest {
         @Override public void setPhoneNumber(String s) {}
         @Override public void setOrganizationName(String s) {}
         @Override public void setEditable(Boolean b) {}
+        @Override public void setMustChangePassword(Boolean b) {}
         @Override public void setUserRoleNames(java.util.Set<String> s) {}
         @Override public void addUserRoleName(String s) {}
         @Override public void setUserRolePermissionNames(java.util.Map<String, java.util.Set<String>> m) {}

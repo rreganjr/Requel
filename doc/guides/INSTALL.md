@@ -39,8 +39,12 @@ reach the server.
    docker compose logs -f web     # Ctrl-C once "Started Application" appears
    ```
 
-4. Open http://localhost:8080/ and log in as **admin** with password **admin**. Change the
-   password straight away (the account menu, **Edit Account**).
+4. Open http://localhost:8080/ and log in as **admin** with password **admin**. Requel sends you
+   straight to **Change your password**, and nothing else works until you have. API tokens, MCP
+   clients and `requel login --oauth` are refused for that account in the meantime. Requel
+   checks this at every startup: while the admin password is still `admin`, the next sign-in has
+   to change it (`requel.admin.force-password-change=false` turns the check off; the `dev`
+   profile does).
 
 MySQL is published on host port 3307 if you need to reach it directly. `docker compose down`
 stops both containers and keeps the data; `docker compose down --volumes` deletes it.
@@ -177,7 +181,7 @@ Set these as environment variables (shown) or as `--property=value` arguments.
 
 - `REQUEL_JWT_SECRET` is set to a random value and kept somewhere safe. Requel refuses to start
   without one (except with the `dev` profile).
-- The **admin** password is no longer `admin`.
+- The **admin** password is no longer `admin` (Requel makes you change it at the first sign-in).
 - The `dev` profile is **not** active.
 - Requel sits behind HTTPS (a reverse proxy such as nginx or Caddy terminating TLS).
 - The database is backed up on a schedule.

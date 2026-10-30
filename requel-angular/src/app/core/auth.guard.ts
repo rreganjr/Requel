@@ -29,9 +29,22 @@ export const authGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  if (authService.isAuthenticated()) {
-    return true;
+  if (!authService.isAuthenticated()) {
+    return router.createUrlTree(['/login']);
   }
+  // #381: a user who must change their password goes nowhere else until they have.
+  if (authService.mustChangePassword()) {
+    return router.createUrlTree(['/change-password']);
+  }
+  return true;
+};
 
-  return router.createUrlTree(['/login']);
+/**
+ * #381: the change-password page needs a signed-in user, but not the redirect above (it is where
+ * that redirect goes).
+ */
+export const signedInGuard: CanActivateFn = () => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
+  return authService.isAuthenticated() ? true : router.createUrlTree(['/login']);
 };

@@ -12,7 +12,10 @@ describe('LoginComponent accessibility (issue #132)', () => {
       providers: [
         provideNoopAnimations(),
         provideRouter([]),
-        { provide: AuthService, useValue: { login: vi.fn().mockResolvedValue(undefined) } },
+        {
+          provide: AuthService,
+          useValue: { login: vi.fn().mockResolvedValue(undefined), mustChangePassword: vi.fn().mockReturnValue(false) },
+        },
       ],
     });
     const fixture = TestBed.createComponent(LoginComponent);

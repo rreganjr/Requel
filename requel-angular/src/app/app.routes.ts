@@ -19,7 +19,7 @@
  *
  */
 import { Routes } from '@angular/router';
-import { authGuard } from './core/auth.guard';
+import { authGuard, signedInGuard } from './core/auth.guard';
 import { routeData } from './core/route-data';
 import { LoginComponent } from './features/auth/login';
 import { accountRoutes } from './features/users/account.routes';
@@ -34,6 +34,14 @@ import { projectRoutes } from './features/projects/projects.routes';
  */
 export const routes: Routes = [
   { path: 'login', component: LoginComponent, title: 'Sign in', data: routeData({ section: 'account' }) },
+  // #381: outside the shell, like login; authGuard sends a user who must change their password here.
+  {
+    path: 'change-password',
+    loadComponent: () => import('./features/auth/change-password').then(m => m.ChangePasswordComponent),
+    canActivate: [signedInGuard],
+    title: 'Change password',
+    data: routeData({ section: 'account' }),
+  },
   {
     path: '',
     loadComponent: () => import('./features/auth/layout').then(m => m.LayoutComponent),

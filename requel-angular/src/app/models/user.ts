@@ -29,6 +29,11 @@ export interface UserDto {
   permissions: string[];
   permissionsByRole: Record<string, string[]> | null;
   version: number;
+  /**
+   * #381: the user must change their password before anything else works; the server refuses
+   * every other call until they do. Absent on a user stored before 2.1, which reads as false.
+   */
+  mustChangePassword?: boolean;
 }
 
 export interface OrganizationDto {
@@ -44,4 +49,11 @@ export interface LoginRequest {
 export interface LoginResponse {
   token: string;
   user: UserDto;
+}
+
+/** Body of POST /api/auth/password (#381). */
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
 }

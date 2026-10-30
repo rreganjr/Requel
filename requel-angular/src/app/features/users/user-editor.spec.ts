@@ -95,6 +95,14 @@ describe('UserEditorComponent', () => {
     expect(comp.orgOptions().length).toBe(1);
   });
 
+  it('shows an existing user\'s must-change-password flag (#381)', async () => {
+    userServiceMock.getUser.mockResolvedValue({ ...MOCK_USER, mustChangePassword: true });
+    paramMap$.next(convertToParamMap({ username: 'bob' }));
+    fixture.detectChanges();
+    await flush();
+    expect(comp.form.controls.mustChangePassword.value).toBe(true);
+  });
+
   it('loads existing user data when username is not "new"', async () => {
     paramMap$.next(convertToParamMap({ username: 'bob' }));
     fixture.detectChanges();
@@ -118,6 +126,21 @@ describe('UserEditorComponent', () => {
       name: 'New User',
       userRoleNames: ['ProjectUserRole'],
       userRolePermissionNames: { ProjectUserRole: ['editGoals'] }
+    }));
+  });
+
+  it('sends mustChangePassword, unchecked by default on a new user (#381)', async () => {
+    fixture.detectChanges();
+    await flush();
+    fillNewUser();
+    expect(comp.form.controls.mustChangePassword.value).toBe(false);
+    comp.form.controls.mustChangePassword.setValue(true);
+
+    await comp.onSave();
+
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('EditUser', expect.objectContaining({
+      username: 'newuser',
+      mustChangePassword: true,
     }));
   });
 

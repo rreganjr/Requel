@@ -101,4 +101,50 @@ describe('AuthService', () => {
     httpMock = TestBed.inject(HttpTestingController);
     expect(fresh.user()?.username).toBe('admin');
   });
+
+  describe('changePassword (#381)', () => {
+    const request = { currentPassword: 'old', newPassword: 'new', confirmPassword: 'new' };
+
+    it('posts the change and replaces the session with the returned token and user', async () => {
+      localStorage.setItem('requel_token', 'flagged-jwt');
+      const promise = service.changePassword(request);
+      const req = httpMock.expectOne('/api/auth/password');
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual(request);
+      req.flush({ token: 'fresh-jwt', user: { ...MOCK_USER, mustChangePassword: false } });
+
+      expect(await promise).toBeNull();
+      expect(service.token()).toBe('fresh-jwt');
+      expect(localStorage.getItem('requel_token')).toBe('fresh-jwt');
+      expect(service.mustChangePassword()).toBe(false);
+    });
+
+    it('returns the refusal so the form can show its violations', async () => {
+      const promise = service.changePassword(request);
+      const refusal = {
+        success: false, entity: null, entityType: null, error: 'Password not changed.',
+        violations: [{ field: 'currentPassword', message: 'Current password is incorrect.' }],
+      };
+      httpMock.expectOne('/api/auth/password')
+        .flush(refusal, { status: 422, statusText: 'Unprocessable Entity' });
+
+      expect(await promise).toEqual(refusal);
+      expect(service.token()).toBeNull();
+    });
+
+    it('throws on any other failure', async () => {
+      const promise = service.changePassword(request);
+      httpMock.expectOne('/api/auth/password').flush('boom', { status: 500, statusText: 'Server Error' });
+      await expect(promise).rejects.toBeTruthy();
+    });
+  });
+
+  it('mustChangePassword follows the stored user, and markPasswordChangeRequired sets it', () => {
+    expect(service.mustChangePassword()).toBe(false);
+    service.user.set(MOCK_USER);
+    expect(service.mustChangePassword()).toBe(false);
+    service.markPasswordChangeRequired();
+    expect(service.mustChangePassword()).toBe(true);
+    expect(JSON.parse(localStorage.getItem('requel_user')!).mustChangePassword).toBe(true);
+  });
 });

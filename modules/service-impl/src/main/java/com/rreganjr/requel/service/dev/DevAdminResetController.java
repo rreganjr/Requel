@@ -67,7 +67,8 @@ public class DevAdminResetController {
 
     /**
      * Resets the admin user's password to {@code requel.admin.password} (default: "admin").
-     * All other fields (name, email, phone, org, roles) are preserved.
+     * All other fields (name, email, phone, org, roles) are preserved, and "must change password"
+     * is cleared (#381).
      *
      * <p>Sets editedBy to admin itself (admin editing own account) so the authorization
      * chain allows the update without requiring a live security context.</p>
@@ -93,6 +94,8 @@ public class DevAdminResetController {
             cmd.setOrganizationName(orgName);
             cmd.setPassword(adminPassword);
             cmd.setRepassword(adminPassword);
+            // #381: back to a usable admin even if the startup check flagged the default password.
+            cmd.setMustChangePassword(false);
             // userRoleNames not set → userRolesProvided=false → existing roles preserved
             commandHandler.execute(cmd);
             return ResponseEntity.noContent().build();

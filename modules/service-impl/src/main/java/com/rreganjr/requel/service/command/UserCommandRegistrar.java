@@ -85,6 +85,7 @@ public class UserCommandRegistrar {
                     if (i.phoneNumber() != null) c.setPhoneNumber(i.phoneNumber());
                     if (i.organizationName() != null) c.setOrganizationName(i.organizationName());
                     if (i.editable() != null) c.setEditable(i.editable());
+                    if (i.mustChangePassword() != null) c.setMustChangePassword(i.mustChangePassword());
                     if (i.userRoleNames() != null) c.setUserRoleNames(i.userRoleNames());
                     if (i.userRolePermissionNames() != null) c.setUserRolePermissionNames(i.userRolePermissionNames());
                 },

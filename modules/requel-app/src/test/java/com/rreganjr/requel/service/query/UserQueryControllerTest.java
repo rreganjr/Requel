@@ -92,11 +92,11 @@ class UserQueryControllerTest {
         when(userRepository.findUsers()).thenReturn(users);
 
         when(userDtoMapper.toDto(alice)).thenReturn(new UserDto(1L, "alice", "Alice",
-                null, null, null, List.of(), List.of(), Map.of(), 0));
+                null, null, null, List.of(), List.of(), Map.of(), 0, false));
         when(userDtoMapper.toDto(zara)).thenReturn(new UserDto(2L, "zara", "Zara",
-                null, null, null, List.of(), List.of(), Map.of(), 0));
+                null, null, null, List.of(), List.of(), Map.of(), 0, false));
         when(userDtoMapper.toDto(bob)).thenReturn(new UserDto(3L, "bob", "Bob",
-                null, null, null, List.of(), List.of(), Map.of(), 0));
+                null, null, null, List.of(), List.of(), Map.of(), 0, false));
 
         mockMvc.perform(get("/api/users"))
                 .andExpect(status().isOk())
@@ -129,7 +129,7 @@ class UserQueryControllerTest {
                 42L, "alice", "Alice Smith",
                 "alice@example.com", "555-1234", "ACME",
                 List.of("ProjectUserRole"), List.of("createProject"),
-                Map.of("ProjectUserRole", List.of("createProject")), 3));
+                Map.of("ProjectUserRole", List.of("createProject")), 3, false));
 
         mockMvc.perform(get("/api/users/alice"))
                 .andExpect(status().isOk())
