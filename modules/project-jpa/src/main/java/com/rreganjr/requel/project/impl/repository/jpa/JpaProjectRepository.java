@@ -254,6 +254,19 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
+	public java.util.List<UseCase> findUseCasesWithPrimaryScenario(Scenario scenario) {
+		try {
+			Query query = getEntityManager().createQuery(
+					"select uc from UseCaseImpl uc where uc.scenario = :scenario order by uc.id");
+			query.setParameter("scenario", scenario);
+			return query.getResultList();
+		} catch (Exception e) {
+			throw convertException(e, UseCase.class, null, EntityExceptionActionType.Reading);
+		}
+	}
+
+	@Override
 	public Set<Scenario> findScenariosUsedByUseCase(UseCase usecase) {
 		try {
 			// TODO: use named query so it can be configured externally
