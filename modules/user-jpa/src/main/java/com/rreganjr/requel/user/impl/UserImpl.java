@@ -125,6 +125,7 @@ public class UserImpl implements User, Serializable {
 	private String phoneNumber;
 	private Organization organization;
 	private boolean editable = true;
+	private boolean mustChangePassword;
 	private Set<UserRole> userRoles;
 	// start at 1 so hibernate recognizes the new
 	// instance as the initial value and not stale.
@@ -387,6 +388,26 @@ public class UserImpl implements User, Serializable {
 		this.editable = editable;
 	}
 
+	/**
+	 * Issue #381: while set, the user can sign in but can do nothing except change their password.
+	 * Set on the built-in admin while its password is still the default, and by an admin on any
+	 * user; cleared by the change-password call. Not exported: an imported user is a new account
+	 * on another install, and the flag describes this install's credentials.
+	 *
+	 * @return true if the user must change their password before doing anything else.
+	 */
+	@Override
+	@Column(name = "must_change_password", nullable = false)
+	@XmlTransient
+	public boolean isMustChangePassword() {
+		return mustChangePassword;
+	}
+
+	@Override
+	public void setMustChangePassword(boolean mustChangePassword) {
+		this.mustChangePassword = mustChangePassword;
+	}
+
 	@XmlElementWrapper(name = "userRoles", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRef(type = AbstractUserRole.class)
 	// #247: no REFRESH cascade into the roles - a ProjectUserRole's activeProjects fans out
@@ -627,6 +648,7 @@ public class UserImpl implements User, Serializable {
 		setEmailAddress(existingUser.getEmailAddress());
 		setPhoneNumber(existingUser.getPhoneNumber());
 		setEditable(existingUser.isEditable());
+		setMustChangePassword(existingUser.isMustChangePassword());
 		setOrganization(existingUser.getOrganization());
 		setEncryptedPassword(existingUser.getEncryptedPassword());
 		setPasswordSalt(existingUser.getPasswordSalt());

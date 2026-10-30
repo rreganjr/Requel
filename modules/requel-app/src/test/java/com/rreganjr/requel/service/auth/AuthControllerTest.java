@@ -96,7 +96,7 @@ class AuthControllerTest {
         when(userDtoMapper.toDto(user)).thenReturn(new UserDto(
                 1L, "alice", "Alice", null, null, null,
                 List.of("ProjectUserRole"), List.of("createProject"),
-                Map.of("ProjectUserRole", List.of("createProject")), 0));
+                Map.of("ProjectUserRole", List.of("createProject")), 0, false));
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -148,7 +148,7 @@ class AuthControllerTest {
         when(userDtoMapper.toDto(user)).thenReturn(new UserDto(
                 7L, "bob", "Bob", "bob@example.com", null, "ACME",
                 List.of("SystemAdminUserRole"), List.of(),
-                Map.of("SystemAdminUserRole", List.of()), 2));
+                Map.of("SystemAdminUserRole", List.of()), 2, false));
 
         mockMvc.perform(get("/api/auth/me"))
                 .andExpect(status().isOk())

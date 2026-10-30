@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.service.config;
 
+import org.springframework.security.authentication.CredentialsExpiredException;
+import org.springframework.security.web.authentication.ExceptionMappingAuthenticationFailureHandler;
 import com.rreganjr.requel.service.auth.OAuth2ConsentController;
 import com.rreganjr.requel.service.auth.OAuth2LoginPageController;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -273,9 +275,24 @@ public class AuthorizationServerConfig {
             .formLogin(form -> form
                 .loginPage(OAuth2LoginPageController.LOGIN_PAGE_URI)
                 .loginProcessingUrl(OAuth2LoginPageController.LOGIN_PAGE_URI)
+                // #381: a user who must change their password gets a page saying so instead of
+                // "Invalid username or password" (RequelUserAuthenticationProvider throws
+                // CredentialsExpiredException for them).
+                .failureHandler(oauthLoginFailureHandler())
                 .permitAll());
 
         return http.build();
+    }
+
+    private static ExceptionMappingAuthenticationFailureHandler oauthLoginFailureHandler() {
+        ExceptionMappingAuthenticationFailureHandler handler =
+                new ExceptionMappingAuthenticationFailureHandler();
+        handler.setDefaultFailureUrl(OAuth2LoginPageController.LOGIN_PAGE_URI + "?error");
+        handler.setExceptionMappings(java.util.Map.of(
+                CredentialsExpiredException.class.getName(),
+                OAuth2LoginPageController.LOGIN_PAGE_URI + "?error="
+                        + OAuth2LoginPageController.PASSWORD_CHANGE_ERROR));
+        return handler;
     }
 
     // ---- Persistence (JDBC-backed; tables via Flyway V12) ---------------------------------------

@@ -160,6 +160,13 @@ const SEPARATOR = '; ';
             </app-field>
           </app-field-group>
 
+          <!-- #381: the user can sign in, but must choose a new password before anything else. -->
+          <label class="checkbox-label must-change-password">
+            <p-checkbox formControlName="mustChangePassword" [binary]="true"
+                        data-testid="user-must-change-password" />
+            Must change password at next sign-in
+          </label>
+
           <div class="roles-section" data-testid="user-roles-section">
             <!-- h2, not h3: sibling of the section headings #158 standardised, and an h3
                  straight after the page h1 is an axe heading-order violation. -->
@@ -213,6 +220,7 @@ const SEPARATOR = '; ';
     /* The local .form-grid { 1fr 1fr } is gone — app-field-group owns the columns now
        (issue #172), and app-field owns each row. */
     app-field input, app-field p-password, app-field p-select { width: 100%; }
+    .must-change-password { display: flex; width: fit-content; margin-block-start: var(--rq-space-4); }
     .roles-section { margin-block: var(--rq-space-6); }
     .roles-section h2 { margin: 0 0 var(--rq-space-3); }
     .role-group { margin-bottom: var(--rq-space-3); }
@@ -276,6 +284,7 @@ export class UserEditorComponent implements OnInit, DirtyCheckable {
       organizationName: new FormControl('', { validators: notBlank(), nonNullable: true }),
       password: new FormControl('', { nonNullable: true }),
       repassword: new FormControl('', { nonNullable: true }),
+      mustChangePassword: new FormControl(false, { nonNullable: true }),
       userRoleNames: new FormControl<string[]>([], { validators: atLeastOne(), nonNullable: true }),
       permissions: new FormGroup<Record<string, FormControl<string[]>>>({}),
     },
@@ -439,6 +448,7 @@ export class UserEditorComponent implements OnInit, DirtyCheckable {
         phoneNumber: value.phoneNumber,
         organizationName: value.organizationName,
         editable: true,
+        mustChangePassword: value.mustChangePassword,
         userRoleNames: value.userRoleNames,
         // Only the selected roles' permissions, so a deselected role does not ship a
         // stale permission list the server would have to ignore.
@@ -499,6 +509,7 @@ export class UserEditorComponent implements OnInit, DirtyCheckable {
         emailAddress: user.emailAddress ?? '',
         phoneNumber: user.phoneNumber ?? '',
         organizationName: user.organizationName ?? '',
+        mustChangePassword: user.mustChangePassword === true,
         userRoleNames: [...user.roles],
       },
       { emitEvent: false }

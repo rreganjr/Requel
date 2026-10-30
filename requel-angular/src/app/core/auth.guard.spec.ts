@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, UrlTree } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { authGuard } from './auth.guard';
+import { authGuard, signedInGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 
 describe('authGuard', () => {
@@ -37,6 +37,25 @@ describe('authGuard', () => {
   it('returns a UrlTree to /login when the user is not authenticated', () => {
     const result = TestBed.runInInjectionContext(() => authGuard({} as any, {} as any));
     expect(result).toBeInstanceOf(UrlTree);
+    expect((result as UrlTree).toString()).toBe('/login');
+  });
+
+  it('sends a user who must change their password to /change-password (#381)', () => {
+    localStorage.setItem('requel_token', 'valid-token');
+    localStorage.setItem('requel_user', JSON.stringify({ username: 'admin', mustChangePassword: true }));
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+    });
+
+    const result = TestBed.runInInjectionContext(() => authGuard({} as any, {} as any));
+    expect((result as UrlTree).toString()).toBe('/change-password');
+    // ...and the change-password page itself lets them in.
+    expect(TestBed.runInInjectionContext(() => signedInGuard({} as any, {} as any))).toBe(true);
+  });
+
+  it('signedInGuard sends a signed-out user to /login', () => {
+    const result = TestBed.runInInjectionContext(() => signedInGuard({} as any, {} as any));
     expect((result as UrlTree).toString()).toBe('/login');
   });
 });

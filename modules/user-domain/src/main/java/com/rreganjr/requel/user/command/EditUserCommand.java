@@ -102,6 +102,15 @@ public interface EditUserCommand extends Command {
 	public void setEditable(Boolean editable);
 
 	/**
+	 * Issue #381: an admin can require the user to change their password at their next sign-in.
+	 * Applied when an admin creates or edits a user; ignored on a user's edit of their own account.
+	 * {@code null} leaves an existing user's flag unchanged (and a new user unflagged).
+	 *
+	 * @param mustChangePassword
+	 */
+	public void setMustChangePassword(Boolean mustChangePassword);
+
+	/**
 	 * Set the names of the user roles this user has.
 	 * 
 	 * @param userRoleNames

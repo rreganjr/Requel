@@ -36,6 +36,8 @@ public record UserDto(
         List<String> roles,
         List<String> permissions,
         Map<String, List<String>> permissionsByRole,
-        int version
+        int version,
+        // #381: the UI sends a user with this set straight to the change-password page.
+        boolean mustChangePassword
 ) {
 }

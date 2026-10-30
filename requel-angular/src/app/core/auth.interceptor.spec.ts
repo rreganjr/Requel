@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient, withInterceptors, HttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { Component } from '@angular/core';
 
 @Component({ template: '' })
@@ -23,7 +23,10 @@ describe('authInterceptor', () => {
       providers: [
         provideHttpClient(withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
-        provideRouter([{ path: 'login', component: StubLoginComponent }])
+        provideRouter([
+          { path: 'login', component: StubLoginComponent },
+          { path: 'change-password', component: StubLoginComponent },
+        ])
       ]
     });
     http = TestBed.inject(HttpClient);
@@ -80,5 +83,31 @@ describe('authInterceptor', () => {
     await promise;
     // Token should still be in storage — logout was NOT triggered
     expect(localStorage.getItem('requel_token')).toBe('stale-token');
+  });
+
+  it('sends the user to change-password on a 403 PASSWORD_CHANGE_REQUIRED (#381)', async () => {
+    setup('flagged-token');
+    localStorage.setItem('requel_user', JSON.stringify({ username: 'ron', mustChangePassword: false }));
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const promise = firstValueFrom(http.get('/api/projects')).catch(() => null);
+    const req = httpMock.expectOne('/api/projects');
+    req.flush({ error: 'PASSWORD_CHANGE_REQUIRED', message: 'Change it.' },
+      { status: 403, statusText: 'Forbidden' });
+    await promise;
+    expect(navigate).toHaveBeenCalledWith(['/change-password']);
+    expect(JSON.parse(localStorage.getItem('requel_user')!).mustChangePassword).toBe(true);
+    // Still signed in: the change itself needs the token.
+    expect(localStorage.getItem('requel_token')).toBe('flagged-token');
+  });
+
+  it('leaves any other 403 to the caller', async () => {
+    setup('my-jwt');
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+    const promise = firstValueFrom(http.get('/api/projects')).catch(() => null);
+    const req = httpMock.expectOne('/api/projects');
+    req.flush({ error: 'FORBIDDEN' }, { status: 403, statusText: 'Forbidden' });
+    await promise;
+    expect(navigate).not.toHaveBeenCalled();
+    expect(localStorage.getItem('requel_token')).toBe('my-jwt');
   });
 });

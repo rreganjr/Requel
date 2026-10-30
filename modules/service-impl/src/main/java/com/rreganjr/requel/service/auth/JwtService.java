@@ -50,6 +50,13 @@ public class JwtService {
     /** The secret {@code application.properties} falls back to when REQUEL_JWT_SECRET is unset. */
     public static final String BUILT_IN_SECRET = "requel-dev-secret-change-in-production-min-32-chars";
 
+    /**
+     * Issue #381: set on a login token when the user must change their password. The JWT path
+     * makes no database lookup per request, so the flag travels in the token; a token issued
+     * before an admin sets the flag doesn't carry it, and the flag applies at the next sign-in.
+     */
+    public static final String PASSWORD_CHANGE_CLAIM = "pwdChange";
+
     /** HS256 needs a key of at least 256 bits. */
     public static final int MIN_SECRET_BYTES = 32;
 
@@ -89,16 +96,21 @@ public class JwtService {
     }
 
     /**
-     * Generate a JWT for the given user with roles and permissions as claims.
+     * Generate a JWT for the given user with roles and permissions as claims, plus
+     * {@link #PASSWORD_CHANGE_CLAIM} when the user must change their password (#381).
      */
     public String generateToken(User user, List<String> roles, List<String> permissions) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expiryMs);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(user.getUsername())
                 .claim("roles", roles)
-                .claim("permissions", permissions)
+                .claim("permissions", permissions);
+        if (user instanceof com.rreganjr.requel.user.User u && u.isMustChangePassword()) {
+            builder = builder.claim(PASSWORD_CHANGE_CLAIM, true);
+        }
+        return builder
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(signingKey)
@@ -116,6 +128,13 @@ public class JwtService {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    /**
+     * @return true if the token was issued to a user who must change their password (#381).
+     */
+    public static boolean isPasswordChangeRequired(Claims claims) {
+        return Boolean.TRUE.equals(claims.get(PASSWORD_CHANGE_CLAIM, Boolean.class));
     }
 
     /**

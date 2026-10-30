@@ -21,6 +21,8 @@
 package com.rreganjr.requel.service.auth;
 
 import com.rreganjr.requel.user.User;
+import com.rreganjr.requel.service.api.CommandResult;
+import com.rreganjr.requel.service.api.dto.ChangePasswordRequest;
 import com.rreganjr.requel.service.api.dto.ErrorResponse;
 import com.rreganjr.requel.service.api.dto.LoginRequest;
 import com.rreganjr.requel.service.api.dto.LoginResponse;
@@ -46,13 +48,16 @@ public class AuthController {
     private final JwtService jwtService;
     private final UserDtoMapper userDtoMapper;
     private final CurrentUserResolver currentUserResolver;
+    private final PasswordChangeService passwordChangeService;
 
     public AuthController(UserRepository userRepository, JwtService jwtService,
-                          UserDtoMapper userDtoMapper, CurrentUserResolver currentUserResolver) {
+                          UserDtoMapper userDtoMapper, CurrentUserResolver currentUserResolver,
+                          PasswordChangeService passwordChangeService) {
         this.userRepository = userRepository;
         this.jwtService = jwtService;
         this.userDtoMapper = userDtoMapper;
         this.currentUserResolver = currentUserResolver;
+        this.passwordChangeService = passwordChangeService;
     }
 
     /**
@@ -76,6 +81,27 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ErrorResponse.of("UNAUTHORIZED", "Invalid username or password"));
         }
+    }
+
+    /**
+     * POST /api/auth/password — the signed-in user changes their own password (#381). This is the
+     * one write a user who must change their password can make (see
+     * {@link PasswordChangeRequiredFilter}). Returns a fresh token + UserDto, since the caller's
+     * token may carry the password-change claim; 422 with field violations when refused.
+     */
+    @PostMapping("/password")
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {
+        User user = currentUserResolver.resolve();
+        try {
+            user = passwordChangeService.changePassword(user.getUsername(), request);
+        } catch (PasswordChangeService.PasswordChangeRefusedException e) {
+            return ResponseEntity.unprocessableEntity()
+                    .body(CommandResult.validationFailure(e.getMessage(), e.getViolations()));
+        }
+        var roles = userDtoMapper.getRoleStrings(user);
+        var permissions = userDtoMapper.getPermissionStrings(user);
+        String token = jwtService.generateToken(user, roles, permissions);
+        return ResponseEntity.ok(new LoginResponse(token, userDtoMapper.toDto(user)));
     }
 
     /**

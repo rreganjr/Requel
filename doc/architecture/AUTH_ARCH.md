@@ -538,6 +538,29 @@ The Angular HTTP interceptor handles 403 responses:
 - Do not redirect — the user stays on the current page
 - Optionally refresh permissions in case they changed
 
+### 5.3 Required Password Change (#381)
+
+A user can be flagged "must change password" (`users.must_change_password`). The built-in
+`admin` is flagged at every startup while its password is still `admin`
+(`DefaultAdminPasswordInitializer`, off when `requel.admin.force-password-change=false`, as in the
+`dev` and `test` profiles), and an admin can set the flag on any user (`EditUser.mustChangePassword`).
+
+A flagged user can sign in, but every authentication path gives them the single authority
+`PASSWORD_CHANGE_REQUIRED` instead of their roles:
+
+- a login JWT carries the `pwdChange` claim (the JWT path makes no per-request database lookup, so
+  a flag set while a user is signed in applies at their next sign-in);
+- a personal access token and an MCP OAuth token load the owner live, so the flag applies at once;
+- the OAuth sign-in form (MCP clients, `requel login --oauth`) refuses a flagged user with a
+  message to change the password in Requel first.
+
+`PasswordChangeRequiredFilter`, in both the `/api/**` chain and the MCP/gateway chain, answers
+403 with `"error": "PASSWORD_CHANGE_REQUIRED"` to every request from such a caller except
+`POST /api/auth/login`, `GET /api/auth/me` and `POST /api/auth/password`. The last changes the
+password (current password required, new one different), clears the flag and returns a fresh
+token. In Angular, `authGuard` sends a flagged user to `/change-password`, and the interceptor does
+the same on a `PASSWORD_CHANGE_REQUIRED` 403.
+
 ## 6. Assistant Identity and Permissions
 
 Three different identities write through the command chain, and they are authorized

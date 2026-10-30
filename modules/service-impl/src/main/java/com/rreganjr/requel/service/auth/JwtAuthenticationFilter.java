@@ -98,11 +98,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @SuppressWarnings("unchecked")
             List<String> roles = claims.get("roles", List.class);
 
-            List<SimpleGrantedAuthority> authorities = roles != null
-                    ? roles.stream()
+            List<SimpleGrantedAuthority> authorities;
+            if (JwtService.isPasswordChangeRequired(claims)) {
+                // #381: no roles until the password is changed; PasswordChangeRequiredFilter
+                // allows only the change itself.
+                authorities = List.of(PasswordChangeRequiredFilter.GRANTED_AUTHORITY);
+            } else if (roles != null) {
+                authorities = roles.stream()
                         .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-                        .toList()
-                    : List.of();
+                        .toList();
+            } else {
+                authorities = List.of();
+            }
 
             var auth = new UsernamePasswordAuthenticationToken(username, null, authorities);
             // Store JWT expiry epoch-ms as details so controllers can schedule server-side expiry
@@ -135,9 +142,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.clearContext();
                 return;
             }
-            List<SimpleGrantedAuthority> authorities = userDtoMapper.getRoleStrings(user).stream()
-                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-                    .toList();
+            // #381: a token can't be used to skip a required password change; the owner is loaded
+            // live, so a flag set after the token was minted applies at once.
+            List<SimpleGrantedAuthority> authorities = user.isMustChangePassword()
+                    ? List.of(PasswordChangeRequiredFilter.GRANTED_AUTHORITY)
+                    : userDtoMapper.getRoleStrings(user).stream()
+                            .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                            .toList();
             var auth = new UsernamePasswordAuthenticationToken(user.getUsername(), null, authorities);
             auth.setDetails(pat.getExpiresAt() != null ? pat.getExpiresAt().toEpochMilli() : 0L);
             SecurityContextHolder.getContext().setAuthentication(auth);

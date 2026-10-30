@@ -19,11 +19,12 @@
  *
  */
 import { Injectable, signal, computed } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { LoginRequest, LoginResponse, UserDto } from '../models/user';
+import { ChangePasswordRequest, LoginRequest, LoginResponse, UserDto } from '../models/user';
+import { CommandResult } from '../models/command';
 
 const TOKEN_KEY = 'requel_token';
 const USER_KEY = 'requel_user';
@@ -34,6 +35,8 @@ export class AuthService {
   readonly token = signal<string | null>(localStorage.getItem(TOKEN_KEY));
   readonly user = signal<UserDto | null>(this.loadStoredUser());
   readonly isAuthenticated = computed(() => this.token() !== null);
+  /** #381: signed in, but nothing works until the password is changed. */
+  readonly mustChangePassword = computed(() => this.user()?.mustChangePassword === true);
 
   constructor(private http: HttpClient, private router: Router) {}
 
@@ -42,6 +45,40 @@ export class AuthService {
       this.http.post<LoginResponse>(`${environment.apiBaseUrl}/auth/login`, request)
     );
     this.setSession(response.token, response.user);
+  }
+
+  /**
+   * #381: change the signed-in user's password. On success the server returns a fresh token (the
+   * old one may carry the password-change restriction), which replaces the session. A refusal
+   * (422) comes back as the CommandResult so the form can show its field violations; anything
+   * else throws.
+   */
+  async changePassword(request: ChangePasswordRequest): Promise<CommandResult | null> {
+    try {
+      const response = await firstValueFrom(
+        this.http.post<LoginResponse>(`${environment.apiBaseUrl}/auth/password`, request)
+      );
+      this.setSession(response.token, response.user);
+      return null;
+    } catch (err: unknown) {
+      if (err instanceof HttpErrorResponse && err.status === 422 && err.error) {
+        return err.error as CommandResult;
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * #381: the server said this session must change its password (a 403 PASSWORD_CHANGE_REQUIRED),
+   * so the stored user is out of date. Mark it, so the guard keeps the user on the change page.
+   */
+  markPasswordChangeRequired(): void {
+    const user = this.user();
+    if (user && !user.mustChangePassword) {
+      const updated = { ...user, mustChangePassword: true };
+      localStorage.setItem(USER_KEY, JSON.stringify(updated));
+      this.user.set(updated);
+    }
   }
 
   logout(): void {

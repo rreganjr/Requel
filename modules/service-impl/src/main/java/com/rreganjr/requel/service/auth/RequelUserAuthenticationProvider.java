@@ -24,6 +24,7 @@ import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.CredentialsExpiredException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -73,6 +74,11 @@ public class RequelUserAuthenticationProvider implements AuthenticationProvider 
         }
         if (user == null || password == null || !user.isPassword(password)) {
             throw new BadCredentialsException("Invalid username or password");
+        }
+        // #381: no OAuth token (MCP client, `requel login --oauth`) for a user who must change
+        // their password; the password was right, so the form can say what to do instead.
+        if (user.isMustChangePassword()) {
+            throw new CredentialsExpiredException("Password change required");
         }
 
         List<SimpleGrantedAuthority> authorities = userDtoMapper.getRoleStrings(user).stream()

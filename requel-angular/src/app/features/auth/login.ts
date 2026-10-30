@@ -215,7 +215,8 @@ export class LoginComponent implements AfterViewInit {
     try {
       const { username, password } = this.form.getRawValue();
       await this.authService.login({ username, password });
-      await this.router.navigate(['/']);
+      // #381: a user who must change their password goes straight to that page.
+      await this.router.navigate([this.authService.mustChangePassword() ? '/change-password' : '/']);
     } catch (err: unknown) {
       // A failed login is about the credential *pair*, not about one field — there is
       // no field to attach it to, so it stays page-level. This is also why login does

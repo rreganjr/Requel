@@ -612,7 +612,8 @@ export async function createUser(
   username: string,
   name: string,
   password: string,
-  roleName = 'ProjectUserRole'
+  roleName = 'ProjectUserRole',
+  mustChangePassword = false
 ): Promise<UserFixture> {
   const token = await getAdminToken(api);
   const result = await command(api, token, 'EditUser', {
@@ -626,6 +627,8 @@ export async function createUser(
     editable: true,
     password,
     repassword: password,
+    // #381: the user must choose a new password at their first sign-in.
+    mustChangePassword,
     userRoleNames: [roleName],
     userRolePermissionNames: { [roleName]: [] },
   });
