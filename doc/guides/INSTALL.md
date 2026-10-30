@@ -112,16 +112,27 @@ reset endpoints.
 - **From 2.0.x:** replace the image or jar and start it. Flyway applies any new migrations.
 - **From 1.2:** start 2.0 on the same database (MySQL 8.4). 1.2 already has Flyway history,
   so 2.0 migrates it in place on first start; logins and projects carry over.
-- **From 1.0 or 1.1:** these databases have no Flyway history, and 2.0 refuses to start on
-  one (it leaves it untouched). Move the projects instead:
+- **From 1.0.1, 1.0.2 or 1.1.0:** these databases have no Flyway history, so Requel won't
+  touch one unless you ask it to upgrade it in place:
+  1. Back it up (above).
+  2. **1.0.x only:** 1.0.x runs on MySQL 5.x, Requel 2 on 8.4. Load the backup into a new
+     MySQL 8.4 database (`mysql requel < requel-backup.sql`) and point Requel at that one.
+  3. Start Requel once with `REQUEL_UPGRADE_FROM_1X=true` (or
+     `--requel.upgrade.from-1x=true`). It checks the schema is exactly what that release
+     created, converts it (tables to utf8mb4, column types, index names, id columns) and fills
+     in what the old release didn't store, then applies the 2.x migrations. On a full install the
+     conversion rewrites the dictionary tables and can take several minutes; watch the log.
+  4. Remove the setting; it does nothing on a database that has Flyway history.
+
+  Users keep their passwords, and `admin` still on `admin` must change it at its next sign-in.
+  A database that doesn't match one of those releases exactly (edited by hand, or made by a
+  modified build) is refused with the first difference, and nothing is changed. Move its
+  projects by XML instead:
   1. In the old version, open each project and use **Export** to save its XML.
-  2. Start 2.0 on a new, empty database as above.
+  2. Start Requel on a new, empty database as above.
   3. Import each file (**Projects → Import**). The project keeps its name. Users named in the
      project (stakeholders, authors) are created from the file; create any other accounts
      again.
-
-  Requel 1.0.x runs on MySQL 5.x only, so the new database is also your move to MySQL 8.4.
-  An in-place upgrade is [#380](https://github.com/rreganjr/Requel/issues/380).
 
 ## Connect the CLI or an AI client
 
@@ -194,6 +205,11 @@ Set these as environment variables (shown) or as `--property=value` arguments.
   above. With Compose, check `.env` is next to `docker-compose.yml`.
 - **`Database ... has N tables but no Flyway history`.** It is a Requel 1.0/1.1 database (or
   not a Requel database). See [Upgrading](#upgrading).
+- **`... is not a Requel 1.0.1, 1.0.2 or 1.1.0 schema, so it can't be upgraded in place`.** The
+  message names the first difference. Nothing was changed; move the projects by XML (see
+  [Upgrading](#upgrading)).
+- **`... did not produce the expected schema`.** The in-place upgrade changed the database but
+  didn't finish. Restore the backup and report the message as a GitHub issue.
 - **`Communications link failure`.** Requel can't reach MySQL: check the URL's host and port,
   and that the database container is healthy (`docker compose ps`).
 - **Port already in use.** Change the published port (`"8081:8080"` in the compose file) or

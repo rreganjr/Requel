@@ -92,9 +92,10 @@ Back up the database first (`mysqldump --single-transaction requel > requel-back
 
 - **From 2.0.x:** change the image tag and recreate the container. Flyway applies any new migrations.
 - **From 1.2:** start 2.0 on the same MySQL 8.4 database; it migrates in place on first start.
-- **From 1.0 or 1.1:** 2.0 refuses to start on these databases (and leaves them untouched).
-  Export each project's XML from the old version, start 2.0 on a new empty database, and import
-  them. Details in the [install guide](https://github.com/rreganjr/Requel/blob/v2.0.2/doc/guides/INSTALL.md#upgrading).
+- **From 1.0.1, 1.0.2 or 1.1.0:** start once with `REQUEL_UPGRADE_FROM_1X=true` to upgrade the
+  database in place (a 1.0.x database moves from MySQL 5.x to 8.4 by dump/load first). Without
+  it, Requel refuses to start on these databases and leaves them untouched. Details in the
+  [install guide](https://github.com/rreganjr/Requel/blob/v2.0.2/doc/guides/INSTALL.md#upgrading).
 
 ## Before you expose it
 
