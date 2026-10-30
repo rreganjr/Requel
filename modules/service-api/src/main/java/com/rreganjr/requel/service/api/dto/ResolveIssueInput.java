@@ -20,14 +20,32 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 /**
  * Input DTO for resolving an issue by choosing one of its positions.
  * The correct ResolveIssueCommand subtype is selected at runtime based on
  * the concrete position type loaded from the database.
  */
+@CommandDescription(value = "Resolves the issue issueId by accepting one of its positions, positionId (an"
+        + " issue's positions come from getAnnotations or getOpenIssues, each with a positionType)."
+        + " Accepting a position does what it proposes: Position only marks the issue resolved;"
+        + " IgnorePosition also keeps the assistant from raising that finding on the entity again;"
+        + " ChangeSpellingPosition rewrites the word in every entity the issue is on"
+        + " (all or nothing: refused if you can't edit one of them); AddWordToDictionaryPosition"
+        + " adds the word to the project's dictionary; AddActorPosition adds the phrase as an actor"
+        + " in the entities the issue is on; AddGlossaryTermPosition adds it to the glossary."
+        + " Needs Annotation[Edit] on the project, plus Edit on what the position changes. A"
+        + " position that isn't one of the issue's, or an issue in another project, is refused."
+        + " Resolving an issue that is already resolved records the new position.",
+        authorization = "Annotation[Edit], plus Edit on what the accepted position changes:"
+                + " ChangeSpellingPosition, every entity the issue is on; AddActorPosition,"
+                + " Actor[Edit]; AddGlossaryTermPosition, GlossaryTerm[Edit]")
 public record ResolveIssueInput(
-        String projectName,
-        Long issueId,
-        Long positionId
+        @NotBlank String projectName,
+        @NotNull Long issueId,
+        @NotNull Long positionId
 ) {
 }
