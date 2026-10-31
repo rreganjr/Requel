@@ -174,10 +174,10 @@ class ProjectXmlRoundTripIT {
 				.contains("<actors>")
 				.contains(standaloneScenarioName)
 				.contains(standaloneScenarioStepName)
-				.contains("<password>")
-				.contains("<passwordSalt>")
-				.contains("<passwordEncryptingAlgorithm>")
-				.contains("<passwordEncryptingIterations>")
+				.doesNotContain("<password>")
+				.doesNotContain("<passwordSalt>")
+				.doesNotContain("<passwordEncryptingAlgorithm>")
+				.doesNotContain("<passwordEncryptingIterations>")
 				.contains("<dictionary>")
 				.contains("requelspeak");
 		assertXmlMatchesProjectSchema(exportedBytes);

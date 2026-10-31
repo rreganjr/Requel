@@ -112,8 +112,9 @@ reset endpoints.
   one (it leaves it untouched). Move the projects instead:
   1. In the old version, open each project and use **Export** to save its XML.
   2. Start 2.0 on a new, empty database as above.
-  3. Import each file (**Projects → Import**). The project keeps its name. Users named in the
-     project (stakeholders, authors) are created from the file; create any other accounts
+  3. Sign in as `admin` and import each file (**Projects → Import**). The project keeps its
+     name. Users named in the project (stakeholders, authors) are created from the file with
+     their old logins, which only an administrator's import restores. Create any other accounts
      again.
 
   Requel 1.0.x runs on MySQL 5.x only, so the new database is also your move to MySQL 8.4.

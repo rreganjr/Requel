@@ -42,7 +42,8 @@ public class UserImportXml {
     @XmlElement(name = "passwordSalt", namespace = "http://www.rreganjr.com/requel")
     private String passwordSalt;
 
-    @XmlElement(name = "passwordEncryptingAlgorithmName", namespace = "http://www.rreganjr.com/requel")
+    // #444: the name the export wrote (UserImpl); it used to read "...AlgorithmName" and never matched.
+    @XmlElement(name = "passwordEncryptingAlgorithm", namespace = "http://www.rreganjr.com/requel")
     private String passwordAlgorithm;
 
     @XmlElement(name = "passwordEncryptingIterations", namespace = "http://www.rreganjr.com/requel")

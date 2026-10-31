@@ -79,7 +79,7 @@ import com.rreganjr.validator.ValidationLimits;
 @Entity
 @Table(name = "users")
 @XmlRootElement(name = "user", namespace = "http://www.rreganjr.com/requel")
-@XmlType(name = "user", propOrder = { "username", "encryptedPassword", "passwordSalt", "passwordEncryptingAlgorithmName", "passwordEncryptingIterations", "name", "emailAddress",
+@XmlType(name = "user", propOrder = { "username", "name", "emailAddress",
 		"phoneNumber", "organization", "userRoles", "editable" }, namespace = "http://www.rreganjr.com/requel")
 public class UserImpl implements User, Serializable {
 	static final long serialVersionUID = 0L;
@@ -300,7 +300,8 @@ public class UserImpl implements User, Serializable {
 
 	@Column(name="hashed_password", nullable = false)
 	@NotEmpty(message = "password is required and both fields must match.")
-	@XmlElement(name = "password", required = true, namespace = "http://www.rreganjr.com/requel")
+	// #444: credentials never leave the server in a project export (or a report built from one).
+	@XmlTransient
 	public String getEncryptedPassword() {
 		return encryptedPassword;
 	}
@@ -309,7 +310,7 @@ public class UserImpl implements User, Serializable {
 		this.encryptedPassword = encryptedPassword;
 	}
 
-	@XmlElement(name = "passwordSalt", namespace = "http://www.rreganjr.com/requel", defaultValue = DEFAULT_PASSWORD_SALT)
+	@XmlTransient
 	public String getPasswordSalt() {
 		return passwordSalt;
 	}
@@ -318,7 +319,7 @@ public class UserImpl implements User, Serializable {
 		this.passwordSalt = passwordSalt;
 	}
 
-	@XmlElement(name = "passwordEncryptingAlgorithm", namespace = "http://www.rreganjr.com/requel", defaultValue = DEFAULT_PASSWORD_ENCRYPTING_ALGORITHM)
+	@XmlTransient
 	public String getPasswordEncryptingAlgorithmName() {
 		return passwordEncryptingAlgorithmName;
 	}
@@ -327,7 +328,7 @@ public class UserImpl implements User, Serializable {
 		this.passwordEncryptingAlgorithmName = passwordEncryptingAlgorithmName;
 	}
 
-	@XmlElement(name = "passwordEncryptingIterations", namespace = "http://www.rreganjr.com/requel", defaultValue = DEFAULT_PASSWORD_ENCRYPTING_ITERATIONS)
+	@XmlTransient
 	public Integer getPasswordEncryptingIterations() {
 		return passwordEncryptingIterations;
 	}
