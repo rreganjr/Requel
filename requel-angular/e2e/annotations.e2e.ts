@@ -58,6 +58,73 @@ test.describe('Annotations (IBIS)', () => {
     await page.close();
   });
 
+  // #387: Review with AI beside Save. CI runs with AI off, so the review calls are stubbed for the
+  // first case: available, queued, running, then done; the second checks the real server hides it.
+  test('Review with AI: disabled while editing, follows the run, reloads the annotations (#387)', async ({ adminContext, request }) => {
+    goalFixture = await createGoal(request, PROJECT_NAME, `e2e-ann-ai-review-${Date.now()}`);
+    const page = await adminContext.newPage();
+
+    const statuses = ['QUEUED', 'RUNNING', 'SUCCEEDED'];
+    let reviewed = false;
+    const runBody = (status: string) => JSON.stringify({ runId: 'e2e-run', status,
+      createdAt: new Date().toISOString(), completedAt: null, errorKind: null, errorSummary: null,
+      summary: null, findings: status === 'SUCCEEDED'
+        ? [{ findingType: 'AMBIGUOUS', kind: 'ISSUE', severity: 'MEDIUM', text: 'Vague', state: 'ACTIVE', annotationId: 1 }]
+        : [] });
+    await page.route('**/api/ai/reviews/availability?**', route => route.fulfill({
+      contentType: 'application/json', body: JSON.stringify({ available: true, reason: null }) }));
+    await page.route('**/api/ai/reviews?**', route => {
+      if (route.request().method() === 'POST') {
+        reviewed = true;
+        return route.fulfill({ status: 202, contentType: 'application/json',
+          body: JSON.stringify({ runId: 'e2e-run', policyRunId: null }) });
+      }
+      if (!reviewed) return route.fulfill({ status: 204 });
+      return route.fulfill({ contentType: 'application/json', body: runBody(statuses.shift() ?? 'SUCCEEDED') });
+    });
+
+    const listPage = new GoalListPage(page);
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickGoal(goalFixture.name);
+
+    const button = page.getByTestId('ai-review-button').locator('button');
+    await expect(button).toBeEnabled();
+    // It sits with Save, below the details form.
+    await expect(page.locator('.form-actions').getByTestId('ai-review-button')).toBeVisible();
+
+    // Unsaved edits: the review would read the old text, so it waits for Save.
+    const name = page.getByTestId('goal-name');
+    await name.fill(goalFixture.name + ' (edited)');
+    await expect(button).toBeDisabled();
+    // Drop the edit (a reload gives a pristine form) rather than saving it.
+    await page.reload();
+    await expect(button).toBeEnabled();
+
+    const annotationsReload = page.waitForResponse(r => r.url().includes('/api/annotations')
+      && r.request().method() === 'GET' && reviewed && statuses.length === 0);
+    await button.click();
+    await expect(page.getByTestId('ai-review-status'))
+      .toHaveText('AI review done: 1 issue, in Annotations below.', { timeout: 20_000 });
+    await annotationsReload;
+    await expect(button).toBeEnabled();
+
+    await page.close();
+  });
+
+  test('Review with AI is absent when AI is off on the server (#387)', async ({ adminContext, request }) => {
+    goalFixture = await createGoal(request, PROJECT_NAME, `e2e-ann-ai-off-${Date.now()}`);
+    const page = await adminContext.newPage();
+    const listPage = new GoalListPage(page);
+    const availability = page.waitForResponse(r => r.url().includes('/api/ai/reviews/availability'));
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickGoal(goalFixture.name);
+    const body = await (await availability).json();
+    expect(body.available).toBe(false);
+    await expect(page.getByTestId('goal-save')).toBeVisible();
+    await expect(page.getByTestId('ai-review-button')).toHaveCount(0);
+    await page.close();
+  });
+
   test('add issue with High severity → badge shows High and it lists above a Medium issue (#271)', async ({ adminContext, request }) => {
     const mediumText = `Medium issue ${Date.now()}`;
     const highText = `High issue ${Date.now()}`;

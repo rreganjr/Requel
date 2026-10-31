@@ -45,6 +45,7 @@ import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { AiReviewButtonComponent } from '../../shared/ai-review-button';
 import { SourcesSectionComponent } from '../../shared/sources-section';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
 import { LoadingStateComponent } from '../../shared/loading-state';
@@ -70,7 +71,7 @@ const STALE_VERSION_MESSAGE =
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-actor-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
+  imports: [AiReviewButtonComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
             ButtonModule, InputText, TextareaModule, TableModule, RelationshipSectionComponent,
             SubmitErrorComponent, UpdateBannerComponent, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent, SourcesSectionComponent, AppFieldComponent, AppFieldControlDirective,
@@ -145,12 +146,15 @@ const STALE_VERSION_MESSAGE =
         <app-card>
           <ng-container [ngTemplateOutlet]="detailsFields" />
 
-          @if (canEdit()) {
-            <div class="form-actions">
+          <!-- #387: the row shows for anyone, as Review with AI needs only project access. -->
+          <div class="form-actions">
+            @if (canEdit()) {
               <p-button label="Save" icon="pi pi-check" data-testid="actor-save"
                         [disabled]="!canSave()" (onClick)="onSave()" />
-            </div>
-          }
+            }
+            <app-ai-review-button entityType="Actor" [entityId]="actorId"
+                                  [dirty]="hasUnsavedChanges()" />
+          </div>
         </app-card>
 
         <ng-container [ngTemplateOutlet]="goalsSection"
@@ -260,7 +264,7 @@ const STALE_VERSION_MESSAGE =
   styles: [`
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .page-actions { display: flex; gap: 0.5rem; }
-    .form-actions { margin-top: 1rem; max-width: 700px; }
+    .form-actions { margin-top: 1rem; max-width: 700px; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .goals-section { margin-top: 2rem; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
     .section-header h3 { margin: 0; }

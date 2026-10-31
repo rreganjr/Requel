@@ -19,6 +19,7 @@
  *
  */
 import { Component, Input, OnChanges, SimpleChanges, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormGroup, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
@@ -28,6 +29,7 @@ import { SelectModule } from 'primeng/select';
 import { MessageService } from 'primeng/api';
 import { RouterLink } from '@angular/router';
 import { AnnotationSubjectDto, AnnotationsDto, ISSUE_SEVERITY_OPTIONS, IssueDto, IssueSeverity, NoteDto, PositionDto, STALE_LABEL, STALE_TOOLTIP, SUPPORT_LEVEL_OPTIONS, severityLabel, severityRank } from '../models/annotation';
+import { AiReviewService } from '../core/ai-review.service';
 import { AnnotationService } from '../core/annotation.service';
 import { PermissionService } from '../core/permission.service';
 import { AppCardComponent } from './app-card';
@@ -522,8 +524,16 @@ export class AnnotationsSectionComponent implements OnChanges {
   constructor(
     private annotationService: AnnotationService,
     private permissionService: PermissionService,
-    private messageService: MessageService
-  ) {}
+    private messageService: MessageService,
+    aiReviews: AiReviewService
+  ) {
+    // #387: a review requested with the editor's button finished; its findings are on the entity.
+    aiReviews.completed$.pipe(takeUntilDestroyed()).subscribe(target => {
+      if (target.entityType === this.entityType && target.entityId === this.entityId) {
+        this.reload();
+      }
+    });
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (this.entityId != null && (changes['entityId'] || changes['entityType'] || changes['projectName'])) {

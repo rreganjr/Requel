@@ -40,6 +40,7 @@ import { TermService } from '../../core/term.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { AiReviewButtonComponent } from '../../shared/ai-review-button';
 import { SourcesSectionComponent } from '../../shared/sources-section';
 import { AppCardComponent } from '../../shared/app-card';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
@@ -61,7 +62,7 @@ const SEPARATOR = '; ';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-term-editor',
   standalone: true,
-  imports: [
+  imports: [AiReviewButtonComponent, 
     PageHeaderComponent,
     AppCardComponent,
     ReactiveFormsModule,
@@ -182,6 +183,9 @@ const SEPARATOR = '; ';
                 [loading]="saving()"
                 [disabled]="form.invalid || form.pristine || saving()"
               />
+              <!-- #387: beside Save; disabled while there are unsaved changes. -->
+              <app-ai-review-button entityType="GlossaryTerm" [entityId]="termId()"
+                                    [dirty]="hasUnsavedChanges()" />
             </div>
           </form>
         </app-card>
@@ -250,7 +254,7 @@ const SEPARATOR = '; ';
     /* The rows are app-field's now (issue #132); the local .form-grid that redefined a
        160px label column is gone. Only control width stays with the caller. */
     app-field input, app-field textarea, app-field p-select { width: 100%; }
-    .form-actions { margin-block: var(--rq-space-4) var(--rq-space-6); }
+    .form-actions { margin-block: var(--rq-space-4) var(--rq-space-6); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .section { margin-top: var(--rq-space-6); }
     .section h2 { margin-bottom: var(--rq-space-3); }
     .clickable-row { cursor: pointer; }

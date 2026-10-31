@@ -58,6 +58,9 @@ public record AssistantDefinition(String key, String displayName, DefinitionKind
 		Integer forkedFromVersion, String executorBean, Map<String, Integer> contextBudgets,
 		boolean localOnly) {
 
+	/** #387: the task type the per-entity review definitions serve. */
+	public static final String REQUIREMENTS_REVIEW = "REQUIREMENTS_REVIEW";
+
 	/** #265: the task type policy definitions serve, beside {@code REQUIREMENTS_REVIEW}. */
 	public static final String POLICY_REVIEW = "POLICY_REVIEW";
 

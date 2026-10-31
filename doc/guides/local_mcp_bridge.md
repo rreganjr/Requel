@@ -201,6 +201,10 @@ the same dispatch path, not a second write path.
 provenance reads `getSource`, `findEntitiesBySource` and `getEntitySources` (#272; see
 [Entity provenance](#entity-provenance-272)).
 
+With AI on for the server, `getAiReview` reads an entity's latest AI review and, when write tools
+are on too, `requestAiReview` asks for one (#387; see
+[Using the assistant](AI_ASSISTANT_SETUP.md#5-using-the-assistant)).
+
 ## The issue tracker → Goals workflow (end to end)
 
 Source-agnostic; Jira shown as the example.

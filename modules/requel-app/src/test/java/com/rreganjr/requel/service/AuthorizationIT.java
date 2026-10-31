@@ -1129,6 +1129,36 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                 .andExpect(status().isBadRequest());
     }
 
+    // Issue #387: the availability read has the same checks, and with AI off (this context) a
+    // stakeholder's POST is a 409 naming why rather than a run that does nothing.
+    @Test
+    void reviewAvailabilityNeedsProjectAccessAndAnUnavailablePostIsA409() throws Exception {
+        mockMvc.perform(get("/api/ai/reviews/availability").param("entityType", "Goal")
+                        .param("entityId", goalId.toString())
+                        .header("Authorization", "Bearer " + deleterToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.available").value(false))
+                .andExpect(jsonPath("$.reason").value("AI review is off on this server."));
+        mockMvc.perform(get("/api/ai/reviews/availability").param("entityType", "Goal")
+                        .param("entityId", goalId.toString())
+                        .header("Authorization", "Bearer " + noAccessToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/ai/reviews/availability").param("entityType", "Project")
+                        .param("entityId", goalId.toString())
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/ai/reviews/availability").param("entityType", "Goal")
+                        .param("entityId", "987654321")
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/ai/reviews").param("entityType", "Goal")
+                        .param("entityId", goalId.toString())
+                        .header("Authorization", "Bearer " + deleterToken))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("AI_REVIEW_UNAVAILABLE"))
+                .andExpect(jsonPath("$.message").value("AI review is off on this server."));
+    }
+
     @Test
     void deleterCannotAddAProjectDictionaryWord() throws Exception {
         mockMvc.perform(post("/api/commands/AddProjectDictionaryWord")
