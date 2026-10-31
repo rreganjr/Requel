@@ -927,6 +927,66 @@ class ProjectQueryControllerTest {
                 .andExpect(jsonPath("$[2].issueText").value("Fresh low"));
     }
 
+    /** #338: a minimum severity lists that severity and above, still highest first. */
+    @Test
+    void getOpenIssuesWithAMinimumSeverityListsOnlyThatSeverityAndAbove() throws Exception {
+        stubIssuesOfEverySeverity();
+
+        mockMvc.perform(get("/api/projects/TestProject/open-issues").param("minSeverity", "medium"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].issueText").value("High issue"))
+                .andExpect(jsonPath("$[1].issueText").value("Medium issue"));
+        mockMvc.perform(get("/api/projects/TestProject/open-issues").param("minSeverity", "HIGH"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].issueText").value("High issue"));
+    }
+
+    /** #338: absent, blank and LOW all list every open issue. */
+    @Test
+    void getOpenIssuesWithoutAMinimumSeverityListsEveryIssue() throws Exception {
+        stubIssuesOfEverySeverity();
+
+        mockMvc.perform(get("/api/projects/TestProject/open-issues"))
+                .andExpect(jsonPath("$.length()").value(3));
+        mockMvc.perform(get("/api/projects/TestProject/open-issues").param("minSeverity", " "))
+                .andExpect(jsonPath("$.length()").value(3));
+        mockMvc.perform(get("/api/projects/TestProject/open-issues").param("minSeverity", "low"))
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[2].issueText").value("Low issue"));
+    }
+
+    /** #338: an unknown minimum severity is a 400 naming the parameter, not an empty list. */
+    @Test
+    void getOpenIssuesWithAnUnknownMinimumSeverityIsA400NamingIt() throws Exception {
+        stubIssuesOfEverySeverity();
+        MockMvc adviced = MockMvcBuilders.standaloneSetup(new ProjectQueryController(
+                projectRepository, projectCommandFactory, commandHandler, currentUserResolver,
+                entityManager, dictionaryRepository))
+                .setControllerAdvice(new com.rreganjr.requel.service.config.ApiExceptionHandler())
+                .build();
+
+        adviced.perform(get("/api/projects/TestProject/open-issues").param("minSeverity", "urgent"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("BAD_REQUEST"))
+                .andExpect(jsonPath("$.message").value(
+                        "Unsupported minSeverity value: urgent; expected LOW, MEDIUM or HIGH"));
+    }
+
+    private void stubIssuesOfEverySeverity() {
+        Goal goal = stubGoal(21L, "Goal Entity");
+        doReturn(Goal.class).when(goal).getProjectOrDomainEntityInterface();
+        IssueImpl low = new IssueImpl(project, "Low issue", false, user);
+        low.setSeverity(com.rreganjr.requel.annotation.IssueSeverity.LOW);
+        IssueImpl medium = new IssueImpl(project, "Medium issue", false, user);
+        medium.setSeverity(com.rreganjr.requel.annotation.IssueSeverity.MEDIUM);
+        IssueImpl high = new IssueImpl(project, "High issue", false, user);
+        high.setSeverity(com.rreganjr.requel.annotation.IssueSeverity.HIGH);
+        when(goal.getAnnotations()).thenReturn(Set.of(low, medium, high));
+        when(project.getProjectEntities()).thenReturn(Set.of(goal));
+    }
+
     // -------------------------------------------------------------------------
     // Stub helpers
     // -------------------------------------------------------------------------

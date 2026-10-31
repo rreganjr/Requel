@@ -186,6 +186,93 @@ describe('OpenIssuesComponent', () => {
     });
   });
 
+  // #338: the minimum-severity filter, applied to the rows already loaded.
+  describe('severity filter', () => {
+    const row = (issueId: number, severity: 'HIGH' | 'MEDIUM' | 'LOW', stale = false,
+                 mustBeResolved = false) => ({
+      issueId, issueText: `Issue ${issueId}`, mustBeResolved, severity,
+      entityType: 'Goal', entityId: 10, entityName: 'Goal A',
+      source: stale ? 'ASSISTANT:requirements-review' : null, stale
+    });
+    // Server order: severity, then fresh before stale.
+    const ISSUES = [row(1, 'HIGH'), row(3, 'MEDIUM'), row(2, 'MEDIUM', true), row(4, 'LOW', false, true)];
+
+    async function load(data: object[] = ISSUES) {
+      fixture.detectChanges();
+      httpTesting.expectOne(r => r.url.includes('open-issues')).flush(data);
+      await flush();
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    const ids = () => comp.issues().map(i => i.issueId);
+    const emptyTitle = (el: HTMLElement) =>
+      el.querySelector('[data-testid="open-issues-empty"]')?.textContent ?? '';
+
+    it('shows every issue by default, with a labelled selector in the toolbar', async () => {
+      const el = await load();
+      expect(comp.minSeverity()).toBe('ALL');
+      expect(ids()).toEqual([1, 3, 2, 4]);
+      const select = el.querySelector('[data-testid="open-issues-min-severity"]');
+      expect(select).not.toBeNull();
+      expect(comp.severityFilterOptions.map(o => o.label))
+        .toEqual(['All severities', 'Medium and up', 'High only']);
+    });
+
+    it('Medium and up drops the LOW rows, High only keeps the HIGH ones, All restores them', async () => {
+      await load();
+      comp.minSeverity.set('MEDIUM');
+      expect(ids()).toEqual([1, 3, 2]);
+      comp.minSeverity.set('HIGH');
+      expect(ids()).toEqual([1]);
+      comp.minSeverity.set('ALL');
+      expect(ids()).toEqual([1, 3, 2, 4]);
+    });
+
+    it('does not reload: the filter works on the rows already fetched', async () => {
+      await load();
+      comp.minSeverity.set('HIGH');
+      fixture.detectChanges();
+      httpTesting.expectNone(r => r.url.includes('open-issues'));
+    });
+
+    it('combines with Hide stale', async () => {
+      await load();
+      comp.minSeverity.set('MEDIUM');
+      comp.hideStale.set(true);
+      expect(ids()).toEqual([1, 3]);
+    });
+
+    it('leaves the must-resolve badge counting every open issue', async () => {
+      const el = await load();
+      comp.minSeverity.set('HIGH');
+      fixture.detectChanges();
+      expect(comp.mustResolveCount()).toBe(1);
+      expect(el.querySelector('[data-testid="open-issues-badge"]')!.textContent!.trim()).toBe('1');
+    });
+
+    it('says when nothing matches the filters, not that nothing is open', async () => {
+      const el = await load([row(4, 'LOW')]);
+      comp.minSeverity.set('HIGH');
+      fixture.detectChanges();
+      expect(emptyTitle(el)).toContain('No issues match the filters');
+      expect(emptyTitle(el)).toContain('Lower the severity filter');
+      expect(emptyTitle(el)).not.toContain('No open issues');
+    });
+
+    it('still says nothing is open when there are no issues at all', async () => {
+      const el = await load([]);
+      comp.minSeverity.set('HIGH');
+      fixture.detectChanges();
+      expect(emptyTitle(el)).toContain('No open issues');
+    });
+
+    it('has no axe-core violations with the selector in the toolbar', async () => {
+      const el = await load();
+      await expectNoAxeViolations(el);
+    });
+  });
+
   it('errorMessage set when HTTP request fails', async () => {
     fixture.detectChanges();
     const req = httpTesting.expectOne(r => r.url.includes('open-issues'));

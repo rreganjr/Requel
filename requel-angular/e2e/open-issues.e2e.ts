@@ -132,6 +132,49 @@ test.describe('Open Issues', () => {
     await page.close();
   });
 
+  test('the severity filter narrows the rows without reloading (#338)', async ({ adminContext, request }) => {
+    const tag = `sev338-${Date.now()}`;
+    const lowText = `${tag} low`;
+    const mediumText = `${tag} medium`;
+    const highText = `${tag} high`;
+
+    goalToCleanup = await createGoal(request, PROJECT_NAME, `e2e-open-min-severity-${Date.now()}`);
+    await addIssue(request, PROJECT_NAME, 'Goal', goalToCleanup.id, lowText, false, 'LOW');
+    await addIssue(request, PROJECT_NAME, 'Goal', goalToCleanup.id, mediumText, false, 'MEDIUM');
+    await addIssue(request, PROJECT_NAME, 'Goal', goalToCleanup.id, highText, false, 'HIGH');
+
+    const page = await adminContext.newPage();
+    let loads = 0;
+    page.on('response', r => {
+      if (r.url().includes('/api/projects/') && r.url().includes('/open-issues')) loads++;
+    });
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes(`/api/projects/${encodeURIComponent(PROJECT_NAME)}/open-issues`) && r.status() === 200),
+      page.goto(`/projects/${encodeURIComponent(PROJECT_NAME)}/open-issues`),
+    ]);
+    // Other tests' and the assistants' issues share the project: search down to ours.
+    await page.getByTestId('data-table-search').fill(tag);
+    const ours = page.getByTestId('open-issue-text').filter({ hasText: tag });
+    await expect(ours).toHaveCount(3);
+
+    await page.getByTestId('open-issues-min-severity').click();
+    await page.getByRole('option', { name: 'High only' }).click();
+    await expect(ours).toHaveCount(1);
+    await expect(ours).toHaveText(highText);
+
+    await page.getByTestId('open-issues-min-severity').click();
+    await page.getByRole('option', { name: 'Medium and up' }).click();
+    await expect(ours).toHaveCount(2);
+    await expect(page.getByTestId('open-issue-text').filter({ hasText: lowText })).toHaveCount(0);
+
+    await page.getByTestId('open-issues-min-severity').click();
+    await page.getByRole('option', { name: 'All severities' }).click();
+    await expect(ours).toHaveCount(3);
+    expect(loads).toBe(1);
+
+    await page.close();
+  });
+
   test('clicking issue entity link navigates to actor and story editors', async ({ adminContext, request }) => {
     const actorIssueText = `Actor issue ${Date.now()}`;
     const storyIssueText = `Story issue ${Date.now()}`;

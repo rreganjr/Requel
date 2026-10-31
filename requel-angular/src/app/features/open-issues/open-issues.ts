@@ -26,6 +26,8 @@ import { firstValueFrom } from 'rxjs';
 import { projectApiUrl } from '../../core/api-url';
 import { ButtonModule } from 'primeng/button';
 import { BadgeModule } from 'primeng/badge';
+import { SelectModule } from 'primeng/select';
+import { FormsModule } from '@angular/forms';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ListPageComponent } from '../../shared/list-page';
 import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-table';
@@ -54,6 +56,14 @@ interface OpenIssueDto {
  */
 type OpenIssueRow = OpenIssueDto & { severityRank: number; sortRank: number };
 
+/** #338: the severity filter's choices, a minimum: everything, MEDIUM and HIGH, or HIGH alone. */
+type SeverityFilter = 'ALL' | 'MEDIUM' | 'HIGH';
+const SEVERITY_FILTER_OPTIONS: { label: string; value: SeverityFilter }[] = [
+  { label: 'All severities', value: 'ALL' },
+  { label: 'Medium and up', value: 'MEDIUM' },
+  { label: 'High only', value: 'HIGH' },
+];
+
 /** Maps entity type simple names to their Angular route segment. */
 const ENTITY_ROUTES: Record<string, string> = {
   Goal: 'goals',
@@ -71,7 +81,7 @@ const ENTITY_ROUTES: Record<string, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-open-issues',
   standalone: true,
-  imports: [ListPageComponent, AppDataTableComponent, AppTagComponent, RouterLink, ButtonModule, BadgeModule, SubmitErrorComponent],
+  imports: [ListPageComponent, AppDataTableComponent, AppTagComponent, RouterLink, ButtonModule, BadgeModule, SelectModule, FormsModule, SubmitErrorComponent],
   template: `
     <app-list-page title="Open Issues" [fill]="true" [showSearch]="false">
       <app-submit-error [message]="errorMessage()" testid="open-issues-error" [retryable]="true" (retry)="loadIssues()" />
@@ -80,9 +90,13 @@ const ENTITY_ROUTES: Record<string, string> = {
                       [rowClickable]="false" [defaultActions]="false" [rows]="25"
                       sortField="sortRank" [sortOrder]="-1" searchPlaceholder="Search issues..."
                       [globalFilterFields]="['severity', 'entityType', 'entityName', 'issueText']"
-                      testid="open-issues" emptyTitle="No open issues"
-                      emptyMessage="All clear — everything in this project is resolved." emptyIcon="pi-check-circle">
-        <div toolbarActions>
+                      testid="open-issues" [emptyTitle]="emptyState().title"
+                      [emptyMessage]="emptyState().message" [emptyIcon]="emptyState().icon">
+        <div toolbarActions class="open-issues-toolbar-actions">
+          <p-select [options]="severityFilterOptions" [ngModel]="minSeverity()"
+                    (ngModelChange)="minSeverity.set($event)"
+                    optionLabel="label" optionValue="value" ariaLabel="Minimum severity"
+                    data-testid="open-issues-min-severity" class="severity-filter" />
           @if (staleCount() > 0) {
             <p-button [label]="hideStale() ? 'Show stale' : 'Hide stale'"
                       [icon]="hideStale() ? 'pi pi-eye' : 'pi pi-eye-slash'"
@@ -141,6 +155,8 @@ const ENTITY_ROUTES: Record<string, string> = {
     /* #270: muted; the "May no longer apply" tag carries the meaning, not the colour. */
     .issue-text.stale { opacity: 0.7; }
     .issue-text + span { margin-left: 0.5rem; }
+    .open-issues-toolbar-actions { display: flex; align-items: center; gap: var(--rq-space-2); }
+    .severity-filter { min-width: 160px; }
   `]
 })
 export class OpenIssuesComponent implements OnInit {
@@ -148,9 +164,30 @@ export class OpenIssuesComponent implements OnInit {
   /** #270: hide issues that may no longer apply. Off by default, not persisted. */
   readonly hideStale = signal(false);
   readonly staleCount = computed(() => this.allIssues().filter(i => i.stale).length);
-  /** The rows the table shows: every open issue, less the stale ones when hidden. */
-  readonly issues = computed(() =>
-    this.hideStale() ? this.allIssues().filter(i => !i.stale) : this.allIssues());
+  /**
+   * #338: the lowest severity shown. Filters the rows already loaded; not persisted, and the
+   * must-resolve badge still counts every open issue, as it does when stale ones are hidden.
+   */
+  readonly minSeverity = signal<SeverityFilter>('ALL');
+  readonly severityFilterOptions = SEVERITY_FILTER_OPTIONS;
+  /** The rows the table shows: every open issue, less those below the minimum and, when hidden, the stale ones. */
+  readonly issues = computed(() => {
+    const minRank = this.minSeverity() === 'ALL' ? 0 : severityRank(this.minSeverity());
+    return this.allIssues().filter(i =>
+      i.severityRank >= minRank && !(this.hideStale() && i.stale));
+  });
+  /** #338: "nothing open" and "nothing at these filters" are different empty pages. */
+  readonly emptyState = computed(() => {
+    if (this.allIssues().length === 0) {
+      return { title: 'No open issues', message: 'All clear — everything in this project is resolved.',
+        icon: 'pi-check-circle' };
+    }
+    const bySeverity = this.minSeverity() !== 'ALL';
+    const message = bySeverity && this.hideStale()
+      ? 'Lower the severity filter or show stale issues to see the rest.'
+      : bySeverity ? 'Lower the severity filter to see the rest.' : 'Show stale issues to see the rest.';
+    return { title: 'No issues match the filters', message, icon: 'pi-filter-slash' };
+  });
   readonly staleLabel = STALE_LABEL;
   readonly staleTooltip = STALE_TOOLTIP;
   loading = signal(true);

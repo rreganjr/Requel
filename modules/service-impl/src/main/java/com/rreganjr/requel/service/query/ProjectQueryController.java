@@ -43,6 +43,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.rreganjr.command.CommandHandler;
@@ -80,6 +81,7 @@ import com.rreganjr.requel.service.api.dto.StepDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.Issue;
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.annotation.impl.IssueImpl;
 import com.rreganjr.requel.annotation.spi.AnnotationFreshness;
 import com.rreganjr.requel.service.command.AnnotationCommandRegistrar;
@@ -1371,9 +1373,22 @@ public class ProjectQueryController {
     /**
      * GET /api/projects/{name}/open-issues — all unresolved issues across every project entity.
      * Used by the project-wide Open Issues view.
+     *
+     * @param minSeverity issue #338: optional, any case; only issues at or above it are listed.
+     *        Absent or blank lists every issue. Anything else is a 400 naming the parameter
+     *        ({@link IssueSeverity#parseMinimum}, through {@code ApiExceptionHandler}).
      */
     @GetMapping("/{name}/open-issues")
-    public ResponseEntity<?> getOpenIssues(@PathVariable String name) {
+    public ResponseEntity<?> getOpenIssues(@PathVariable String name,
+            @RequestParam(required = false) String minSeverity) {
+        return getOpenIssues(name, IssueSeverity.parseMinimum("minSeverity", minSeverity));
+    }
+
+    /**
+     * The open issues of a project, at or above {@code minSeverity} (null: all of them), highest
+     * severity first. The gateway calls this with the already-parsed filter.
+     */
+    public ResponseEntity<?> getOpenIssues(String name, IssueSeverity minSeverity) {
         try {
             Project project = projectRepository.findProjectByName(name);
             requireProjectAccess(project);
@@ -1385,7 +1400,8 @@ public class ProjectQueryController {
             for (ProjectOrDomainEntity entity : project.getProjectEntities()) {
                 String entityType = entity.getProjectOrDomainEntityInterface().getSimpleName();
                 for (Annotation annotation : entity.getAnnotations()) {
-                    if (annotation instanceof IssueImpl issue && issue.getResolvedByPosition() == null) {
+                    if (annotation instanceof IssueImpl issue && issue.getResolvedByPosition() == null
+                            && IssueSeverity.atLeast(issue.getSeverity(), minSeverity)) {
                         issues.add(new OpenIssueDto(
                                 issue.getId(),
                                 issue.getText(),

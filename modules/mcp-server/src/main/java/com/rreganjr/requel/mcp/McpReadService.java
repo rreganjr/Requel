@@ -78,7 +78,7 @@ public class McpReadService {
 				new McpToolDescriptor("getGlossary", QueryDescriptions.GET_GLOSSARY,
 						projectNameSchema()),
 				new McpToolDescriptor("getOpenIssues", QueryDescriptions.GET_OPEN_ISSUES,
-						projectNameSchema()),
+						minSeveritySchema()),
 				new McpToolDescriptor("getAnnotations", QueryDescriptions.GET_ANNOTATIONS,
 						entityRefSchema(QueryDescriptions.ANNOTATABLE_ENTITY_TYPES,
 								QueryDescriptions.ANNOTATABLE_ENTITY_TYPE)),
@@ -91,7 +91,7 @@ public class McpReadService {
 				new McpToolDescriptor("searchProjectEntities",
 						QueryDescriptions.SEARCH_PROJECT_ENTITIES, searchSchema()),
 				new McpToolDescriptor("getProjectContext", QueryDescriptions.GET_PROJECT_CONTEXT,
-						projectNameSchema()),
+						minSeveritySchema()),
 				new McpToolDescriptor("getProjectContent", QueryDescriptions.GET_PROJECT_CONTENT,
 						projectContentSchema()),
 				new McpToolDescriptor("draftAnnotation", QueryDescriptions.DRAFT_ANNOTATION,
@@ -131,7 +131,7 @@ public class McpReadService {
 			case "getGlossary" -> projectQueryGateway.getGlossaryTerms(requiredText(
 					arguments, "projectName"));
 			case "getOpenIssues" -> projectQueryGateway.getOpenIssues(requiredText(
-					arguments, "projectName"));
+					arguments, "projectName"), minSeverity(arguments));
 			case "getAnnotations" -> projectQueryGateway.getAnnotations(
 					requiredText(arguments, "projectName"), requiredText(arguments, "entityType"),
 					requiredLong(arguments, "entityId"));
@@ -144,7 +144,7 @@ public class McpReadService {
 			case "searchProjectEntities" -> projectQueryGateway.searchProjectEntities(
 					requiredText(arguments, "projectName"), requiredText(arguments, "query"));
 			case "getProjectContext" -> projectQueryGateway.getProjectContext(
-					requiredText(arguments, "projectName"));
+					requiredText(arguments, "projectName"), minSeverity(arguments));
 			case "getProjectContent" -> projectQueryGateway.getProjectContent(
 					requiredText(arguments, "projectName"), optionalText(arguments, "annotations"));
 			case "draftAnnotation" -> draftAnnotation(arguments);
@@ -184,6 +184,28 @@ public class McpReadService {
 				"properties", Map.of("projectName",
 						property("string", QueryDescriptions.PROJECT_NAME)),
 				"required", List.of("projectName"), "additionalProperties", false);
+	}
+
+	/** #338: the project name plus the optional minimum severity of the open issues listed. */
+	private Map<String, Object> minSeveritySchema() {
+		return Map.of("type", "object",
+				"properties", Map.of(
+						"projectName", property("string", QueryDescriptions.PROJECT_NAME),
+						"minSeverity", enumProperty(SEVERITIES, QueryDescriptions.MIN_SEVERITY)),
+				"required", List.of("projectName"), "additionalProperties", false);
+	}
+
+	/**
+	 * #338: the optional {@code minSeverity} argument, null when absent. An unknown value is an
+	 * invalid-params error naming it; the read path has nothing else that would turn the
+	 * gateway's refusal into one.
+	 */
+	private static IssueSeverity minSeverity(JsonNode arguments) {
+		try {
+			return IssueSeverity.parseMinimum("minSeverity", optionalText(arguments, "minSeverity"));
+		} catch (IllegalArgumentException e) {
+			throw new McpInvalidParamsException(e.getMessage());
+		}
 	}
 
 	/** #274: the project name plus the optional annotation mode. */
