@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 
 import com.rreganjr.requel.assistant.core.persistence.AssistantRunReadService.FindingView;
 import com.rreganjr.requel.assistant.core.persistence.AssistantRunReadService.RunView;
+import com.rreganjr.requel.service.api.dto.AiReviewDto;
 
 /** #355: the review read's body is a straight copy of the run view. */
 class AiReviewDtoTest {
@@ -45,7 +46,7 @@ class AiReviewDtoTest {
 								null, "Goal", 7L)), 2, "ai-requirements-review", "1", 3,
 				"PROJECT");
 
-		AiReviewDto dto = AiReviewDto.of(run);
+		AiReviewDto dto = AiReviewDtos.of(run);
 
 		assertEquals("run-1", dto.runId());
 		assertEquals("SUCCEEDED", dto.status());

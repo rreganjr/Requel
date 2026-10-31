@@ -37,6 +37,7 @@ import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.assistant.core.persistence.AssistantRunReadService;
 import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.service.api.dto.AiReviewDto;
 import com.rreganjr.requel.service.api.dto.ErrorResponse;
 
 /** Issue #266: the corpus endpoints' responses. */

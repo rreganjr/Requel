@@ -117,6 +117,28 @@ class DefinitionRegistryTest {
 		assertThat(registry.findAssistantsFor(goal(), context(TASK))).isEmpty();
 	}
 
+	/** #387: what an AI review request would run, after the switches, without a run context. */
+	@Test
+	void reviewsForAnswersWhetherAReviewCanRunForATypeInAProject() {
+		AssistantDefinition goals = definition("goals", Set.of("Goal"));
+		when(store.definitionsFor(1L, TASK)).thenReturn(List.of(definition("default", Set.of()),
+				goals));
+		registry.setSettingsStore(disabling());
+		assertThat(registry.reviewsFor(goal(), 1L)).containsExactly(goals);
+		assertThat(registry.reviewsFor(story(), 1L)).extracting(AssistantDefinition::key)
+				.containsExactly("default");
+
+		// Switching the covering definition off stops the type's reviews (no fallback).
+		registry.setSettingsStore(disabling("goals"));
+		assertThat(registry.reviewsFor(goal(), 1L)).isEmpty();
+		assertThat(registry.reviewsFor(story(), 1L)).extracting(AssistantDefinition::key)
+				.containsExactly("default");
+
+		// No executor (AI off): nothing can run.
+		registry.setExecutorFactory(null);
+		assertThat(registry.reviewsFor(story(), 1L)).isEmpty();
+	}
+
 	@Test
 	void noTaskOrNoFactoryMeansNoDefinitions() {
 		when(store.definitionsFor(1L, TASK)).thenReturn(List.of(definition("default", Set.of())));

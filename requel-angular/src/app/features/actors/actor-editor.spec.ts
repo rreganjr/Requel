@@ -4,6 +4,9 @@ import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angul
 import { BehaviorSubject, Subject } from 'rxjs';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ActorEditorComponent } from './actor-editor';
+import { By } from '@angular/platform-browser';
+import { ChangeDetectorRef } from '@angular/core';
+import { AiReviewButtonComponent } from '../../shared/ai-review-button';
 import { ActorService } from '../../core/actor.service';
 import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
@@ -730,4 +733,36 @@ describe('ActorEditorComponent', () => {
       expect(comp.goals().length).toBe(1);
   });
 
+  // #387: Review with AI sits beside Save, bound to the entity and told about unsaved changes.
+  it('puts Review with AI beside Save, bound to the entity and the dirty state', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
+    fixture.detectChanges();
+    await flush();
+    fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
+    fixture.detectChanges();
+    const de = fixture.debugElement.query(By.directive(AiReviewButtonComponent));
+    expect(de).not.toBeNull();
+    expect(de.nativeElement.closest('.form-actions')).not.toBeNull();
+    const button = de.componentInstance as AiReviewButtonComponent;
+    expect(button.entityType()).toBe('Actor');
+    expect(button.entityId()).toBe(5);
+    expect(button.dirty()).toBe(false);
+    comp.detailsForm.markAsDirty();
+    fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
+    fixture.detectChanges();
+    expect(button.dirty()).toBe(true);
+  });
+
+  // #387: the Save row now shows without Actor[Edit], since a review needs project access only.
+  it('shows Review with AI to a user who cannot edit the actor', async () => {
+    permissionServiceMock.canEdit.mockReturnValue(false);
+    paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
+    fixture.detectChanges();
+    await flush();
+    fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="actor-save"]')).toBeNull();
+    const de = fixture.debugElement.query(By.directive(AiReviewButtonComponent));
+    expect(de?.nativeElement.closest('.form-actions')).not.toBeNull();
+  });
 });

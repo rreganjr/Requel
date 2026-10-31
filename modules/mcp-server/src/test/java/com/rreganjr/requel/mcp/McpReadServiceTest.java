@@ -25,14 +25,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.requel.annotation.IssueSeverity;
+import com.rreganjr.requel.gateway.AiReviewGateway;
 import com.rreganjr.requel.gateway.GatewayCommandCatalog;
+import com.rreganjr.requel.gateway.GatewayException;
 import com.rreganjr.requel.gateway.QueryDescriptions;
+import com.rreganjr.requel.service.api.dto.AiReviewDto;
+import com.rreganjr.requel.service.api.dto.AiReviewRequestDto;
 
 class McpReadServiceTest {
 
@@ -207,6 +212,133 @@ class McpReadServiceTest {
 			assertThat(schema.at("/properties/minSeverity/enum").toString())
 					.isEqualTo("[\"LOW\",\"MEDIUM\",\"HIGH\"]");
 			assertThat(schema.at("/required").toString()).isEqualTo("[\"projectName\"]");
+		}
+	}
+
+	// ---- #387: the AI review tools ---------------------------------------------------------------
+
+	/** A recording AI review backend: a run per call, CONFLICT for a goal named 99. */
+	private static final class FakeAiReviewGateway implements AiReviewGateway {
+		String lastCall;
+
+		@Override
+		public AiReviewRequestDto requestReview(String projectName, String entityType,
+				long entityId) throws GatewayException {
+			if (entityId == 99) {
+				throw new GatewayException(GatewayException.Kind.CONFLICT,
+						"AI review of goals is switched off for this project.");
+			}
+			lastCall = "request " + projectName + " " + entityType + " " + entityId;
+			return new AiReviewRequestDto("run-1", null);
+		}
+
+		@Override
+		public Optional<AiReviewDto> latestReview(String projectName, String entityType,
+				long entityId, String taskType) {
+			lastCall = "latest " + projectName + " " + entityType + " " + entityId + " " + taskType;
+			return entityId == 0 ? Optional.empty()
+					: Optional.of(new AiReviewDto("run-1", "SUCCEEDED", null, null, 12L, null, null,
+							"Looks fine.", 0, List.of(), 0, "ai-review-goal", "1", 0, "BUNDLED"));
+		}
+	}
+
+	private McpReadService aiService(FakeAiReviewGateway ai, boolean aiEnabled, boolean writes) {
+		McpReadService s = new McpReadService(new StubProjectQueryGateway(),
+				new McpWriteService(null, GatewayCommandCatalog.empty(), objectMapper, writes),
+				McpRateLimiter.NOOP, objectMapper);
+		s.setAiReviewGateway(ai);
+		s.setAiEnabled(aiEnabled);
+		return s;
+	}
+
+	@SuppressWarnings("unchecked")
+	private static List<String> toolNames(McpReadService s) {
+		return ((List<McpToolDescriptor>) s.listTools().get("tools")).stream()
+				.map(McpToolDescriptor::name).toList();
+	}
+
+	@Test
+	void theAiReviewToolsAreOfferedOnlyWhenAiIsOnAndRequestingOnlyWithWrites() {
+		FakeAiReviewGateway ai = new FakeAiReviewGateway();
+		assertThat(toolNames(service)).doesNotContain("getAiReview", "requestAiReview");
+		assertThat(toolNames(aiService(ai, false, true)))
+				.doesNotContain("getAiReview", "requestAiReview");
+		assertThat(toolNames(aiService(ai, true, false))).contains("getAiReview")
+				.doesNotContain("requestAiReview");
+		assertThat(toolNames(aiService(ai, true, true))).contains("getAiReview", "requestAiReview");
+		assertThat(toolNames(aiService(null, true, true)))
+				.doesNotContain("getAiReview", "requestAiReview");
+	}
+
+	@Test
+	void requestAiReviewPassesTheEntityAndReturnsTheRun() {
+		FakeAiReviewGateway ai = new FakeAiReviewGateway();
+		Map<String, Object> response = aiService(ai, true, true).callTool(json("""
+				{ "name": "requestAiReview",
+				  "arguments": { "projectName": "Sample", "entityType": "Goal", "entityId": 10 } }
+				"""));
+
+		assertThat(ai.lastCall).isEqualTo("request Sample Goal 10");
+		assertThat(readJson(objectMapper.valueToTree(response.get("content")).get(0)
+				.path("text").asText()).path("runId").asText()).isEqualTo("run-1");
+	}
+
+	@Test
+	void anUnavailableReviewIsInvalidParamsWithTheReason() {
+		assertThatThrownBy(() -> aiService(new FakeAiReviewGateway(), true, true).callTool(json("""
+				{ "name": "requestAiReview",
+				  "arguments": { "projectName": "Sample", "entityType": "Goal", "entityId": 99 } }
+				""")))
+				.isInstanceOf(McpInvalidParamsException.class)
+				.hasMessage("AI review of goals is switched off for this project.");
+	}
+
+	@Test
+	void requestAiReviewIsRefusedWhenWritesAreOff() {
+		assertThatThrownBy(() -> aiService(new FakeAiReviewGateway(), true, false).callTool(json("""
+				{ "name": "requestAiReview",
+				  "arguments": { "projectName": "Sample", "entityType": "Goal", "entityId": 10 } }
+				""")))
+				.isInstanceOf(McpInvalidParamsException.class)
+				.hasMessageContaining("requel.gateway.write.enabled");
+	}
+
+	@Test
+	void getAiReviewReadsTheLatestRunWithTheTaskTypeOrNull() {
+		FakeAiReviewGateway ai = new FakeAiReviewGateway();
+		McpReadService s = aiService(ai, true, false);
+		Map<String, Object> response = s.callTool(json("""
+				{ "name": "getAiReview", "arguments": { "projectName": "Sample",
+				  "entityType": "Goal", "entityId": 10, "taskType": "POLICY_REVIEW" } }
+				"""));
+		assertThat(ai.lastCall).isEqualTo("latest Sample Goal 10 POLICY_REVIEW");
+		JsonNode body = readJson(objectMapper.valueToTree(response.get("content")).get(0)
+				.path("text").asText());
+		assertThat(body.path("status").asText()).isEqualTo("SUCCEEDED");
+		assertThat(body.path("summary").asText()).isEqualTo("Looks fine.");
+
+		Map<String, Object> never = s.callTool(json("""
+				{ "name": "getAiReview", "arguments": { "projectName": "Sample",
+				  "entityType": "Goal", "entityId": 0 } }
+				"""));
+		assertThat(objectMapper.valueToTree(never.get("content")).get(0).path("text").asText())
+				.isEqualTo("null");
+	}
+
+	@Test
+	void theAiReviewSchemasNameTheReviewableTypesAndRequireTheEntity() {
+		McpReadService s = aiService(new FakeAiReviewGateway(), true, true);
+		@SuppressWarnings("unchecked")
+		List<McpToolDescriptor> tools = (List<McpToolDescriptor>) s.listTools().get("tools");
+		for (String name : List.of("getAiReview", "requestAiReview")) {
+			JsonNode schema = objectMapper.valueToTree(tools.stream()
+					.filter(t -> name.equals(t.name())).findFirst().orElseThrow().inputSchema());
+			assertThat(schema.at("/properties/entityType/enum").toString()).isEqualTo(
+					"[\"Goal\",\"Story\",\"Actor\",\"UseCase\",\"Scenario\",\"Step\",\"GlossaryTerm\"]");
+			assertThat(schema.at("/required").toString())
+					.isEqualTo("[\"projectName\",\"entityType\",\"entityId\"]");
+			schema.path("properties").forEach(p -> assertThat(p.path("description").asText())
+					.isNotBlank());
 		}
 	}
 

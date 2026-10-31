@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
+import com.rreganjr.requel.service.api.dto.AiReviewDto;
 import com.rreganjr.requel.service.api.dto.ErrorResponse;
 
 /**
@@ -70,7 +71,7 @@ public class CorpusAnalysisController {
 			@RequestParam(required = false) Long rootId,
 			@RequestParam(defaultValue = "CANDIDATES") String mode) {
 		try {
-			return service.latest(projectId, set, rootId, mode).map(AiReviewDto::of)
+			return service.latest(projectId, set, rootId, mode).map(AiReviewDtos::of)
 					.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent().build());
 		} catch (NoSuchEntityException e) {
 			return ResponseEntity.notFound().build();

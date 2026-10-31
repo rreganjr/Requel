@@ -4,6 +4,8 @@ import { provideRouter } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { MessageService } from 'primeng/api';
 import { AnnotationsSectionComponent } from './annotations-section';
+import { Subject } from 'rxjs';
+import { AiReviewService, AiReviewTarget } from '../core/ai-review.service';
 import { AnnotationService } from '../core/annotation.service';
 import { PermissionService } from '../core/permission.service';
 
@@ -51,6 +53,26 @@ describe('AnnotationsSectionComponent', () => {
       { provide: PermissionService, useValue: permissionServiceMock },
     ];
   }
+
+  // #387: a review finished from the editor's button reloads this entity's annotations only.
+  it('reloads when an AI review of its entity completes, and not for another entity', async () => {
+    const completed = new Subject<AiReviewTarget>();
+    const { fixture } = await render(AnnotationsSectionComponent, {
+      providers: [...providers(), { provide: AiReviewService, useValue: { completed$: completed } }],
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1 }
+    });
+    await fixture.whenStable();
+    expect(annotationServiceMock.getAnnotations).toHaveBeenCalledTimes(1);
+
+    completed.next({ entityType: 'Goal', entityId: 2 });
+    completed.next({ entityType: 'Story', entityId: 1 });
+    await fixture.whenStable();
+    expect(annotationServiceMock.getAnnotations).toHaveBeenCalledTimes(1);
+
+    completed.next({ entityType: 'Goal', entityId: 1 });
+    await fixture.whenStable();
+    expect(annotationServiceMock.getAnnotations).toHaveBeenCalledTimes(2);
+  });
 
   it('shows "No annotations." when service returns empty data', async () => {
     const { fixture } = await render(AnnotationsSectionComponent, {

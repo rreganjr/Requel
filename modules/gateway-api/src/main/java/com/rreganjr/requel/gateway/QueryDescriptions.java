@@ -149,6 +149,39 @@ public final class QueryDescriptions {
             + " writes) with projectName and the draft's targetRef.entityType, targetRef.entityId,"
             + " text and severity, and for an issue its metadata.mustResolve as mustBeResolved.";
 
+    // ---- AI review (#387) -----------------------------------------------------------------------
+
+    /** The entity types an AI review can be requested for. */
+    public static final List<String> REVIEWABLE_ENTITY_TYPES = List.of(
+            "Goal", "Story", "Actor", "UseCase", "Scenario", "Step", "GlossaryTerm");
+
+    public static final String REVIEWABLE_ENTITY_TYPE = "The kind of entity to review: Goal,"
+            + " Story, Actor, UseCase, Scenario, Step or GlossaryTerm.";
+
+    public static final String REQUEST_AI_REVIEW = "Asks the server's AI assistant to review one"
+            + " entity's text. The review runs in the background and its findings are added to the"
+            + " entity as issues and notes, as when a person presses Review with AI in the editor."
+            + " Returns runId (and policyRunId when a project policy also applies); read the result"
+            + " with getAiReview, polling until its status is SUCCEEDED or FAILED. Asking again"
+            + " while a review is queued or running returns that run rather than starting another."
+            + " Refused, with the reason, when AI review is off on the server, the project is not"
+            + " allowed to use it, or the review of that type is switched off in the project. Needs"
+            + " access to the project (a stakeholder, or a system administrator).";
+
+    public static final String GET_AI_REVIEW = "Reads the latest AI review of one entity: its"
+            + " status (QUEUED, RUNNING, SUCCEEDED or FAILED), errorSummary when it failed, the"
+            + " model's summary and the findings it reported (type, kind ISSUE or NOTE, severity,"
+            + " text and the annotationId of the issue or note it became). Returns null when the"
+            + " entity has never been reviewed. taskType POLICY_REVIEW reads the project policies'"
+            + " pass instead.";
+
+    public static final String AI_REVIEW_TASK_TYPE = "REQUIREMENTS_REVIEW (the default) for the"
+            + " entity's review, POLICY_REVIEW for the project policies' pass.";
+
+    /** The values {@link #AI_REVIEW_TASK_TYPE} accepts. */
+    public static final List<String> AI_REVIEW_TASK_TYPES = List.of("REQUIREMENTS_REVIEW",
+            "POLICY_REVIEW");
+
     // ---- provenance (#272): the only reads that return a source or its locator ----------------
 
     /** The entity types a source link can be recorded on. */

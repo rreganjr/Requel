@@ -93,7 +93,7 @@ public class RestCommandGateway implements CommandGateway {
      * falling back to a status-code mapping if the body isn't the expected shape (e.g. a 401 with an
      * empty body from the security layer, before the request reaches the gateway controller).
      */
-    private static GatewayException toGatewayException(RestClientResponseException e) {
+    static GatewayException toGatewayException(RestClientResponseException e) {
         try {
             GatewayErrorBody body = e.getResponseBodyAs(GatewayErrorBody.class);
             if (body != null && body.kind() != null) {

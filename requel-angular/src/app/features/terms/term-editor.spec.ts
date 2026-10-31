@@ -4,6 +4,9 @@ import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angul
 import { BehaviorSubject, EMPTY, Subject } from 'rxjs';
 import { MessageService } from 'primeng/api';
 import { TermEditorComponent } from './term-editor';
+import { By } from '@angular/platform-browser';
+import { ChangeDetectorRef } from '@angular/core';
+import { AiReviewButtonComponent } from '../../shared/ai-review-button';
 import { TermService } from '../../core/term.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
@@ -560,5 +563,24 @@ describe('TermEditorComponent', () => {
 
       expect(termServiceMock.getTerm.mock.calls.length).toBeGreaterThan(callsBefore);
     });
+  });
+  // #387: Review with AI sits beside Save, bound to the entity and told about unsaved changes.
+  it('puts Review with AI beside Save, bound to the entity and the dirty state', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', termId: '2' }));
+    fixture.detectChanges();
+    await flush();
+    fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
+    fixture.detectChanges();
+    const de = fixture.debugElement.query(By.directive(AiReviewButtonComponent));
+    expect(de).not.toBeNull();
+    expect(de.nativeElement.closest('.form-actions')).not.toBeNull();
+    const button = de.componentInstance as AiReviewButtonComponent;
+    expect(button.entityType()).toBe('GlossaryTerm');
+    expect(button.entityId()).toBe(2);
+    expect(button.dirty()).toBe(false);
+    comp.form.markAsDirty();
+    fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
+    fixture.detectChanges();
+    expect(button.dirty()).toBe(true);
   });
 });

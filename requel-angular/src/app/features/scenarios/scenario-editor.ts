@@ -53,6 +53,7 @@ import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dial
 import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { AiReviewButtonComponent } from '../../shared/ai-review-button';
 import { SourcesSectionComponent } from '../../shared/sources-section';
 import { LoadingStateComponent } from '../../shared/loading-state';
 import { ErrorStateComponent } from '../../shared/error-state';
@@ -101,7 +102,7 @@ type StepGroup = FormGroup<{
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-scenario-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet,
+  imports: [AiReviewButtonComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet,
             ReactiveFormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             MessageModule, SubmitErrorComponent, UpdateBannerComponent, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
             ScenarioSelectorDialogComponent, AnnotationsSectionComponent, SourcesSectionComponent, LoadingStateComponent,
@@ -186,6 +187,9 @@ type StepGroup = FormGroup<{
           <div class="form-actions">
             <p-button label="Save" icon="pi pi-check" data-testid="scenario-save"
                       [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
+            <!-- #387: beside Save; disabled while there are unsaved changes. -->
+            <app-ai-review-button entityType="Scenario" [entityId]="scenarioId"
+                                  [dirty]="hasUnsavedChanges()" />
           </div>
         </app-card>
 
@@ -423,7 +427,7 @@ type StepGroup = FormGroup<{
   styles: [`
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .page-actions { display: flex; gap: 0.5rem; }
-    .form-actions { margin-top: 1rem; }
+    .form-actions { margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .section { margin-top: 1.5rem; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
     .section-actions { display: flex; gap: 0.5rem; }

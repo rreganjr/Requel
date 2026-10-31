@@ -5,6 +5,9 @@ import { Location } from '@angular/common';
 import { BehaviorSubject, EMPTY, Subject } from 'rxjs';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ScenarioEditorComponent } from './scenario-editor';
+import { By } from '@angular/platform-browser';
+import { ChangeDetectorRef } from '@angular/core';
+import { AiReviewButtonComponent } from '../../shared/ai-review-button';
 import { ScenarioService } from '../../core/scenario.service';
 import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
@@ -645,5 +648,24 @@ describe('ScenarioEditorComponent', () => {
       expect(group.controls.name.value).toBe('User opens login page');
       expect(comp.stepsForm.dirty).toBe(false);
     });
+  });
+  // #387: Review with AI sits beside Save, bound to the entity and told about unsaved changes.
+  it('puts Review with AI beside Save, bound to the entity and the dirty state', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+    fixture.detectChanges();
+    await flush();
+    fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
+    fixture.detectChanges();
+    const de = fixture.debugElement.query(By.directive(AiReviewButtonComponent));
+    expect(de).not.toBeNull();
+    expect(de.nativeElement.closest('.form-actions')).not.toBeNull();
+    const button = de.componentInstance as AiReviewButtonComponent;
+    expect(button.entityType()).toBe('Scenario');
+    expect(button.entityId()).toBe(15);
+    expect(button.dirty()).toBe(false);
+    comp.detailsForm.markAsDirty();
+    fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
+    fixture.detectChanges();
+    expect(button.dirty()).toBe(true);
   });
 });
