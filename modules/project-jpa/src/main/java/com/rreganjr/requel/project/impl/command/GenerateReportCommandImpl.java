@@ -153,14 +153,12 @@ public class GenerateReportCommandImpl extends AbstractProjectCommand implements
 			// on the app classpath, and with secure processing on it drops every attribute of a
 			// literal result element ("\"href\" attribute is not allowed on the a element"), so
 			// the bundled generator's links, anchors and classes never reached the output.
+			// #443: no fallback - a factory that refuses one of these fails the report rather
+			// than transforming a user-authored template without it.
 			TransformerFactory tf = TransformerFactory.newDefaultInstance();
-			try {
-				tf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-				tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-				tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
-			} catch (Throwable t) {
-				// ignore if not supported
-			}
+			tf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+			tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+			tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
 			tf.setErrorListener(messages);
 			Transformer transformer = tf.newTransformer(new StreamSource(new StringReader(
 					templateText(reportGenerator))));

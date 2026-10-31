@@ -28,7 +28,6 @@ import jakarta.xml.bind.Unmarshaller;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
-import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
@@ -56,8 +55,7 @@ public class GoalStaxImporter {
 
     public List<GoalImportDraft> readGoals(InputStream inputStream) {
         try {
-            XMLInputFactory factory = XMLInputFactory.newFactory();
-            XMLStreamReader reader = factory.createXMLStreamReader(inputStream);
+            XMLStreamReader reader = SecureXml.createStreamReader(inputStream);
             Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
             List<GoalImportDraft> drafts = new ArrayList<>();
 
