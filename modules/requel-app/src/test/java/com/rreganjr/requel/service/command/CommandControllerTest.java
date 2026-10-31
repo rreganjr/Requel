@@ -288,6 +288,20 @@ class CommandControllerTest {
                 .andExpect(jsonPath("$.error").value("CONFLICT"));
     }
 
+    /** #443: a project file the importer refuses is a bad request, with the reason, not a 500. */
+    @Test
+    void importExceptionReturnsBadRequestWithItsMessage() throws Exception {
+        stubCommandThrows("ImportProject",
+                new com.rreganjr.requel.imports.ImportException("Project files must not contain a DOCTYPE declaration."));
+
+        mockMvc.perform(post("/api/commands/ImportProject")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("BAD_REQUEST"))
+                .andExpect(jsonPath("$.message").value("Project files must not contain a DOCTYPE declaration."));
+    }
+
     @Test
     void unhandledExceptionReturnsInternalServerError() throws Exception {
         stubCommandThrows("EditGoal", new RuntimeException("database on fire"));

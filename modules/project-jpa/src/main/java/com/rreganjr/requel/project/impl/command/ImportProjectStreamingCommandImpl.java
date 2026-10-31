@@ -64,6 +64,7 @@ import com.rreganjr.requel.user.Organization;
 import com.rreganjr.requel.user.exception.NoSuchOrganizationException;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
 import com.rreganjr.requel.user.impl.OrganizationImpl;
+import com.rreganjr.requel.utils.jaxb.imports.SecureXml;
 import com.rreganjr.requel.utils.jaxb.imports.ActorStaxImporter;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -71,7 +72,6 @@ import java.io.InputStream;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
@@ -709,8 +709,7 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
 
     private ProjectMetadata readProjectMetadata(byte[] xmlBytes) {
         try {
-            XMLInputFactory factory = XMLInputFactory.newFactory();
-            XMLStreamReader reader = factory.createXMLStreamReader(new ByteArrayInputStream(xmlBytes));
+            XMLStreamReader reader = SecureXml.createStreamReader(new ByteArrayInputStream(xmlBytes));
             String projectName = null;
             String organizationName = null;
             String description = null;

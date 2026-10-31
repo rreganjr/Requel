@@ -34,6 +34,8 @@ import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
 import com.rreganjr.requel.project.impl.ProjectImpl;
+import com.rreganjr.requel.imports.ImportException;
+import com.rreganjr.requel.utils.jaxb.imports.SecureXml;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -47,6 +49,7 @@ import com.rreganjr.requel.user.command.EditUserCommand;
 import com.rreganjr.requel.project.ProjectUserRole;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
@@ -258,6 +261,40 @@ public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCa
         String unnamed = sample.replaceFirst("\n    <name>Requel</name>", "");
         assertTrue(importXml(unnamed, null).getName().startsWith("Imported Project"),
                 "no name in the file falls back to Imported Project");
+    }
+
+    /**
+     * #443: a project file with a DOCTYPE is refused before anything is read from it, so an entity
+     * pointing at a local file never reaches the imported project, and no project is created.
+     */
+    @Test
+    public void importRejectsADoctypeAndCreatesNothing(@TempDir Path tmp) throws Exception {
+        projectUserInitializer.initialize();
+        ensureAssistantHasProjectRole();
+        String markerText = "REQUEL-443-MARKER";
+        Path marker = Files.writeString(tmp.resolve("marker.txt"), markerText);
+        String sample = Files.readString(resolveSampleXml());
+        String name = "Doctype Import " + System.currentTimeMillis();
+        String hostile = sample
+                .replaceFirst("\\?>", java.util.regex.Matcher.quoteReplacement(
+                        "?><!DOCTYPE project [<!ENTITY xxe SYSTEM \"" + marker.toUri() + "\">]>"))
+                .replaceFirst("\n    <name>Requel</name>", "\n    <name>" + name + " &xxe;</name>");
+        assertTrue(hostile.contains("<!DOCTYPE") && hostile.contains(name + " &xxe;"),
+                "the DOCTYPE and the entity reference were inserted");
+        int projectsBefore = getProjectRepository().findAllProjects().size();
+
+        Exception thrown = assertThrows(Exception.class, () -> importXml(hostile, null));
+
+        boolean refusedForTheDoctype = false;
+        for (Throwable cause = thrown; cause != null; cause = cause.getCause()) {
+            assertFalse(String.valueOf(cause.getMessage()).contains(markerText),
+                    "the marker file's text must not appear in any error");
+            refusedForTheDoctype |= cause instanceof ImportException
+                    && SecureXml.DOCTYPE_NOT_ALLOWED.equals(cause.getMessage());
+        }
+        assertTrue(refusedForTheDoctype, "refused for the DOCTYPE: " + thrown);
+        assertEquals(projectsBefore, getProjectRepository().findAllProjects().size(),
+                "no project is created");
     }
 
     private Project importXml(String xml, String rename) throws Exception {

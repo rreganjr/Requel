@@ -21,6 +21,7 @@
 package com.rreganjr.requel.service.command;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rreganjr.requel.imports.ImportException;
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.command.Command;
@@ -161,6 +162,11 @@ public class CommandController {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ErrorResponse.of("CONFLICT", e.getMessage()));
         } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(ErrorResponse.of("BAD_REQUEST", e.getMessage()));
+        } catch (ImportException e) {
+            // #443: a file the importer refuses is the caller's input, not a server fault.
+            log.warn("Import rejected: {} - {}", commandType, e.getMessage());
             return ResponseEntity.badRequest()
                     .body(ErrorResponse.of("BAD_REQUEST", e.getMessage()));
         } catch (Exception e) {
