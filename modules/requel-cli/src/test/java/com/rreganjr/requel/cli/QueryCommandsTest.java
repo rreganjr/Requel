@@ -22,8 +22,10 @@ package com.rreganjr.requel.cli;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.gateway.ProjectContentTooLargeException;
 import com.rreganjr.requel.gateway.QueryDescriptions;
 import com.rreganjr.requel.gateway.QueryGateway;
@@ -176,7 +178,7 @@ class QueryCommandsTest {
     @Test
     void openIssues() {
         QueryGateway gw = mock(QueryGateway.class);
-        when(gw.getOpenIssues("Demo")).thenReturn(List.of(
+        when(gw.getOpenIssues("Demo", null)).thenReturn(List.of(
                 new OpenIssueDto(5L, "Ambiguous wording", true, "HIGH", "Goal", 3L, "Login goal",
                         null, false),
                 new OpenIssueDto(6L, "Untestable", false, "MEDIUM", "Goal", 3L, "Login goal",
@@ -191,6 +193,54 @@ class QueryCommandsTest {
                 // #270: a stale issue says so; a fresh one does not.
                 .contains("MEDIUM [Goal Login goal] Untestable  (may no longer apply)")
                 .doesNotContain("Ambiguous wording  (must resolve)  (may no longer apply)");
+    }
+
+    /** #338: the level is accepted in any case, as RequelCli configures picocli, and passed on. */
+    @Test
+    void openIssuesPassesTheMinimumSeverity() {
+        QueryGateway gw = mock(QueryGateway.class);
+        when(gw.getOpenIssues("Demo", IssueSeverity.MEDIUM)).thenReturn(List.of(
+                new OpenIssueDto(5L, "Ambiguous wording", true, "HIGH", "Goal", 3L, "Login goal",
+                        null, false)));
+        OpenIssuesCommand cmd = new OpenIssuesCommand();
+        cmd.parent = parent(OutputFormat.TEXT);
+        cmd.queryOverride = gw;
+        cli(cmd).parseArgs("Demo", "--min-severity", "medium");
+
+        String out = capture(() -> assertThat(cmd.call()).isEqualTo(ExitCode.SUCCESS));
+        assertThat(out).contains("Ambiguous wording");
+        verify(gw).getOpenIssues("Demo", IssueSeverity.MEDIUM);
+    }
+
+    @Test
+    void contextPassesTheMinimumSeverity() {
+        QueryGateway gw = mock(QueryGateway.class);
+        when(gw.getProjectContext("Demo", IssueSeverity.HIGH)).thenReturn(Map.of("openIssues",
+                List.of()));
+        ContextCommand cmd = new ContextCommand();
+        cmd.parent = parent(OutputFormat.TEXT);
+        cmd.queryOverride = gw;
+        cli(cmd).parseArgs("Demo", "--min-severity", "HIGH");
+
+        capture(() -> assertThat(cmd.call()).isEqualTo(ExitCode.SUCCESS));
+        verify(gw).getProjectContext("Demo", IssueSeverity.HIGH);
+    }
+
+    /** #338: an unknown level is an option error naming the option, before any call. */
+    @Test
+    void anUnknownMinimumSeverityIsAnOptionErrorNamingIt() {
+        for (Object command : List.of(new OpenIssuesCommand(), new ContextCommand())) {
+            CommandLine.ParameterException e = org.junit.jupiter.api.Assertions.assertThrows(
+                    CommandLine.ParameterException.class,
+                    () -> cli(command).parseArgs("Demo", "--min-severity", "urgent"));
+            assertThat(e.getMessage()).contains("--min-severity").contains("urgent")
+                    .contains("LOW").contains("MEDIUM").contains("HIGH");
+        }
+    }
+
+    /** The command line as {@link RequelCli#main} builds it: enum values in any case. */
+    private static CommandLine cli(Object command) {
+        return new CommandLine(command).setCaseInsensitiveEnumValuesAllowed(true);
     }
 
     @Test
@@ -243,7 +293,7 @@ class QueryCommandsTest {
     @Test
     void contextRendersBundle() {
         QueryGateway gw = mock(QueryGateway.class);
-        when(gw.getProjectContext("Demo")).thenReturn(Map.of("project", Map.of("name", "Demo"),
+        when(gw.getProjectContext("Demo", null)).thenReturn(Map.of("project", Map.of("name", "Demo"),
                 "openIssues", List.of()));
         ContextCommand cmd = new ContextCommand();
         cmd.parent = parent(OutputFormat.TEXT);

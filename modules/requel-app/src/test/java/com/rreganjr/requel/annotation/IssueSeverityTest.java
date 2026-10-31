@@ -21,6 +21,9 @@
 package com.rreganjr.requel.annotation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
@@ -29,7 +32,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@link IssueSeverity} parsing and ranking (issue #271).
+ * {@link IssueSeverity} parsing and ranking (issue #271), and the minimum-severity filter (#338).
  */
 class IssueSeverityTest {
 
@@ -53,6 +56,39 @@ class IssueSeverityTest {
 		assertTrue(IssueSeverity.HIGH.rank() > IssueSeverity.MEDIUM.rank());
 		assertTrue(IssueSeverity.MEDIUM.rank() > IssueSeverity.LOW.rank());
 		assertTrue(IssueSeverity.LOW.rank() > IssueSeverity.rankOf(null));
+	}
+
+	// #338: the minimum-severity filter's parse and test.
+
+	@Test
+	void parseMinimumIsNullForNullAndBlank() {
+		assertNull(IssueSeverity.parseMinimum("minSeverity", null));
+		assertNull(IssueSeverity.parseMinimum("minSeverity", " "));
+	}
+
+	@Test
+	void parseMinimumAcceptsEveryNameInAnyCase() {
+		assertEquals(IssueSeverity.LOW, IssueSeverity.parseMinimum("minSeverity", "low"));
+		assertEquals(IssueSeverity.MEDIUM, IssueSeverity.parseMinimum("minSeverity", " Medium "));
+		assertEquals(IssueSeverity.HIGH, IssueSeverity.parseMinimum("minSeverity", "HIGH"));
+	}
+
+	@Test
+	void parseMinimumRefusesAnUnknownValueNamingTheParameterAndTheChoices() {
+		IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+				() -> IssueSeverity.parseMinimum("minSeverity", "urgent"));
+		assertEquals("Unsupported minSeverity value: urgent; expected LOW, MEDIUM or HIGH",
+				e.getMessage());
+	}
+
+	@Test
+	void atLeastLetsThroughTheMinimumAndAbove() {
+		assertTrue(IssueSeverity.atLeast(IssueSeverity.LOW, null));
+		assertTrue(IssueSeverity.atLeast(null, null));
+		assertFalse(IssueSeverity.atLeast(IssueSeverity.LOW, IssueSeverity.MEDIUM));
+		assertTrue(IssueSeverity.atLeast(IssueSeverity.MEDIUM, IssueSeverity.MEDIUM));
+		assertTrue(IssueSeverity.atLeast(IssueSeverity.HIGH, IssueSeverity.MEDIUM));
+		assertFalse(IssueSeverity.atLeast(null, IssueSeverity.LOW));
 	}
 
 	@Test

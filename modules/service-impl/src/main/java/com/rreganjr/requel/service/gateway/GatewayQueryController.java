@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.service.gateway;
 
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
@@ -76,9 +77,12 @@ public class GatewayQueryController {
         return queryGateway.getGlossaryTerms(name);
     }
 
+    /** Issue #338: {@code minSeverity} (optional, any case) lists only issues at or above it. */
     @GetMapping("/projects/{name}/open-issues")
-    public List<OpenIssueDto> getOpenIssues(@PathVariable String name) {
-        return queryGateway.getOpenIssues(name);
+    public List<OpenIssueDto> getOpenIssues(@PathVariable String name,
+            @RequestParam(required = false) String minSeverity) {
+        return queryGateway.getOpenIssues(name,
+                IssueSeverity.parseMinimum("minSeverity", minSeverity));
     }
 
     @GetMapping("/projects/{name}/annotations")
@@ -154,8 +158,11 @@ public class GatewayQueryController {
         return queryGateway.getProjectContent(name, annotations);
     }
 
+    /** Issue #338: {@code minSeverity} narrows the context's open issues only. */
     @GetMapping("/projects/{name}/context")
-    public Map<String, Object> getProjectContext(@PathVariable String name) {
-        return queryGateway.getProjectContext(name);
+    public Map<String, Object> getProjectContext(@PathVariable String name,
+            @RequestParam(required = false) String minSeverity) {
+        return queryGateway.getProjectContext(name,
+                IssueSeverity.parseMinimum("minSeverity", minSeverity));
     }
 }

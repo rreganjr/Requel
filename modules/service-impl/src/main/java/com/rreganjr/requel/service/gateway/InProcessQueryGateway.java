@@ -32,6 +32,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.ActorDto;
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
@@ -93,8 +94,10 @@ public class InProcessQueryGateway implements QueryGateway {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public List<OpenIssueDto> getOpenIssues(String projectName) {
-		return (List<OpenIssueDto>) unwrap(projectQueryController.getOpenIssues(projectName));
+	public List<OpenIssueDto> getOpenIssues(String projectName,
+			IssueSeverity minSeverity) {
+		return (List<OpenIssueDto>) unwrap(projectQueryController.getOpenIssues(projectName,
+				minSeverity));
 	}
 
 	@Override
@@ -177,12 +180,14 @@ public class InProcessQueryGateway implements QueryGateway {
 	}
 
 	@Override
-	public Map<String, Object> getProjectContext(String projectName) {
+	public Map<String, Object> getProjectContext(String projectName,
+			IssueSeverity minSeverity) {
 		Map<String, Object> context = new LinkedHashMap<>();
 		context.put("project", getProject(projectName));
 		context.put("tree", getProjectTree(projectName));
 		context.put("glossary", getGlossaryTerms(projectName));
-		context.put("openIssues", getOpenIssues(projectName));
+		// #338: the filter narrows the open issues only.
+		context.put("openIssues", getOpenIssues(projectName, minSeverity));
 		return context;
 	}
 

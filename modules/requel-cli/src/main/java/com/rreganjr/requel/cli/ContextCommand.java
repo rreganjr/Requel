@@ -20,15 +20,18 @@
  */
 package com.rreganjr.requel.cli;
 
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.gateway.QueryDescriptions;
 import com.rreganjr.requel.gateway.QueryGateway;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 /**
- * {@code requel context <project>} — the composite project-context bundle (summary, tree, glossary,
+ * {@code requel context <project> [--min-severity=LOW|MEDIUM|HIGH]} — the composite project-context bundle (summary, tree, glossary,
  * open issues), the same bundle an agent would prime on. Text output shows it as formatted JSON since
- * it is a composite; use {@code --output json} for the raw bundle.
+ * it is a composite; use {@code --output json} for the raw bundle. {@code --min-severity} narrows the
+ * open issues only (#338).
  */
 @Command(name = "context", description = QueryDescriptions.GET_PROJECT_CONTEXT)
 public class ContextCommand extends AbstractQueryCommand {
@@ -36,9 +39,14 @@ public class ContextCommand extends AbstractQueryCommand {
     @Parameters(index = "0", paramLabel = "PROJECT", description = QueryDescriptions.PROJECT_NAME)
     String projectName;
 
+    /** #338: list only open issues at or above this severity; picocli refuses anything else. */
+    @Option(names = "--min-severity", paramLabel = "LOW|MEDIUM|HIGH",
+            description = QueryDescriptions.MIN_SEVERITY)
+    IssueSeverity minSeverity;
+
     @Override
     protected Object query(QueryGateway gateway) {
-        return gateway.getProjectContext(projectName);
+        return gateway.getProjectContext(projectName, minSeverity);
     }
 
     @Override

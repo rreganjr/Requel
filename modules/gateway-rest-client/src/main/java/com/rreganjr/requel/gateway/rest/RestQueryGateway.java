@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.gateway.rest;
 
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.gateway.ProjectContentTooLargeException;
 import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
@@ -85,8 +86,9 @@ public class RestQueryGateway implements QueryGateway {
     }
 
     @Override
-    public List<OpenIssueDto> getOpenIssues(String projectName) {
-        return http.get().uri(BASE + "/projects/{name}/open-issues", projectName)
+    public List<OpenIssueDto> getOpenIssues(String projectName, IssueSeverity minSeverity) {
+        return http.get().uri(withMinSeverity(BASE + "/projects/{name}/open-issues", minSeverity),
+                        projectName, minSeverity == null ? null : minSeverity.name())
                 .retrieve().body(new ParameterizedTypeReference<>() { });
     }
 
@@ -174,9 +176,15 @@ public class RestQueryGateway implements QueryGateway {
     }
 
     @Override
-    public Map<String, Object> getProjectContext(String projectName) {
-        return http.get().uri(BASE + "/projects/{name}/context", projectName)
+    public Map<String, Object> getProjectContext(String projectName, IssueSeverity minSeverity) {
+        return http.get().uri(withMinSeverity(BASE + "/projects/{name}/context", minSeverity),
+                        projectName, minSeverity == null ? null : minSeverity.name())
                 .retrieve().body(new ParameterizedTypeReference<>() { });
+    }
+
+    /** Issue #338: the filter goes on the query string only when there is one. */
+    private static String withMinSeverity(String uri, IssueSeverity minSeverity) {
+        return minSeverity == null ? uri : uri + "?minSeverity={minSeverity}";
     }
 
     /**

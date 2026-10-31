@@ -213,7 +213,8 @@ class InMemoryGateway implements CommandGateway, QueryGateway {
     }
 
     @Override
-    public List<com.rreganjr.requel.service.api.dto.OpenIssueDto> getOpenIssues(String projectName) {
+    public List<com.rreganjr.requel.service.api.dto.OpenIssueDto> getOpenIssues(String projectName,
+            com.rreganjr.requel.annotation.IssueSeverity minSeverity) {
         throw new UnsupportedOperationException();
     }
 
@@ -229,7 +230,8 @@ class InMemoryGateway implements CommandGateway, QueryGateway {
     }
 
     @Override
-    public Map<String, Object> getProjectContext(String projectName) {
+    public Map<String, Object> getProjectContext(String projectName,
+            com.rreganjr.requel.annotation.IssueSeverity minSeverity) {
         throw new UnsupportedOperationException();
     }
 }

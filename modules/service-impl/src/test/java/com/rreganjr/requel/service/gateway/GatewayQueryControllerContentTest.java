@@ -71,14 +71,16 @@ class GatewayQueryControllerContentTest {
 		@Override public ProjectDto getProject(String n) { return null; }
 		@Override public List<ProjectTreeNodeDto> getProjectTree(String n) { return List.of(); }
 		@Override public List<GlossaryTermDto> getGlossaryTerms(String n) { return List.of(); }
-		@Override public List<OpenIssueDto> getOpenIssues(String n) { return List.of(); }
+		@Override public List<OpenIssueDto> getOpenIssues(String n,
+				com.rreganjr.requel.annotation.IssueSeverity min) { return List.of(); }
 		@Override public AnnotationsDto getAnnotations(String n, String t, long id) { return null; }
 		@Override public Object getEntity(String n, String t, long id) { return null; }
 		@Override public Map<String, List<EntityReferenceDto>> getEntityNeighbors(String n,
 				String t, long id) { return Map.of(); }
 		@Override public List<EntityReferenceDto> searchProjectEntities(String n, String q) {
 			return List.of(); }
-		@Override public Map<String, Object> getProjectContext(String n) { return Map.of(); }
+		@Override public Map<String, Object> getProjectContext(String n,
+				com.rreganjr.requel.annotation.IssueSeverity min) { return Map.of(); }
 	};
 
 	private final MockMvc mvc = MockMvcBuilders

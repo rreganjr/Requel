@@ -85,8 +85,8 @@ public final class QueryDescriptions {
             + " position is chosen to resolve it, whether or not it must be resolved, and issues"
             + " the assistant raised, such as spelling, are included. Each entry names the entity"
             + " the issue is attached to. Issues on the project itself and on goal relations are"
-            + " not listed. Within a severity, stale issues come after the others."
-            + STALE_ANNOTATIONS;
+            + " not listed. Within a severity, stale issues come after the others. Give a minimum"
+            + " severity to list only the issues at or above it." + STALE_ANNOTATIONS;
 
     public static final String GET_ANNOTATIONS = "Reads the notes and issues attached to one"
             + " entity. Notes come in the order they were created, stale ones last. Issues, resolved ones included,"
@@ -116,7 +116,8 @@ public final class QueryDescriptions {
     public static final String GET_PROJECT_CONTEXT = "Reads a project's summary, content tree"
             + " (names only), glossary and open issues in one call, the same data as reading each"
             + " of them separately. For the text of every entity, scenarios with their steps, and"
-            + " all annotations, read the project's content instead." + STALE_ANNOTATIONS;
+            + " all annotations, read the project's content instead. A minimum severity narrows"
+            + " the open issues only." + STALE_ANNOTATIONS;
 
     /** #274: the project content read. */
     public static final String GET_PROJECT_CONTENT = "Reads a project's whole content in one call:"
@@ -225,6 +226,11 @@ public final class QueryDescriptions {
 
     public static final String ANNOTATION_SEVERITY = "Issues only: LOW, MEDIUM or HIGH, ignoring"
             + " case. Left out, a saved issue gets MEDIUM.";
+
+    /** #338: the open-issues filter. */
+    public static final String MIN_SEVERITY = "Only list open issues at or above this severity:"
+            + " LOW, MEDIUM or HIGH, ignoring case. Left out, every open issue is listed, the same"
+            + " as LOW.";
 
     public static final String ANNOTATION_MUST_RESOLVE = "Issues only: whether the issue must be"
             + " resolved. Defaults to false, as it does when EditIssue creates an issue.";

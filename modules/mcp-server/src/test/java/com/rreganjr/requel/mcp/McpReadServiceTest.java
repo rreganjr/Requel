@@ -30,14 +30,15 @@ import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.gateway.GatewayCommandCatalog;
 import com.rreganjr.requel.gateway.QueryDescriptions;
 
 class McpReadServiceTest {
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
-	private final McpReadService service = new McpReadService(new StubProjectQueryGateway(),
-			objectMapper);
+	private final StubProjectQueryGateway gateway = new StubProjectQueryGateway();
+	private final McpReadService service = new McpReadService(gateway, objectMapper);
 
 	@Test
 	void rateLimiterIsConsultedForEveryToolCall() {
@@ -146,6 +147,67 @@ class McpReadServiceTest {
 		String text = content.get(0).path("text").asText();
 		assertThat(text).contains("\"project\"").contains("\"Sample\"").contains("\"openIssues\"");
 		assertThat(response.get("isError")).isEqualTo(false);
+	}
+
+	/** #338: the minimum severity reaches the gateway, in any case, and filters. */
+	@Test
+	void openIssuesPassesTheMinimumSeverity() {
+		Map<String, Object> response = service.callTool(json("""
+				{ "name": "getOpenIssues",
+				  "arguments": { "projectName": "Sample", "minSeverity": "high" } }
+				"""));
+
+		assertThat(gateway.minSeveritySeen).isEqualTo(IssueSeverity.HIGH);
+		assertThat(readJson(objectMapper.valueToTree(response.get("content")).get(0)
+				.path("text").asText())).isEmpty();
+	}
+
+	@Test
+	void openIssuesWithoutAMinimumSeverityPassesNull() {
+		Map<String, Object> response = service.callTool(json("""
+				{ "name": "getOpenIssues", "arguments": { "projectName": "Sample" } }
+				"""));
+
+		assertThat(gateway.minSeveritySeen).isNull();
+		assertThat(objectMapper.valueToTree(response.get("content")).get(0).path("text").asText())
+				.contains("What is the SLA?");
+	}
+
+	/** #338: the filter narrows the context's open issues; the rest of it is unchanged. */
+	@Test
+	void projectContextPassesTheMinimumSeverityToItsOpenIssues() {
+		Map<String, Object> response = service.callTool(json("""
+				{ "name": "getProjectContext",
+				  "arguments": { "projectName": "Sample", "minSeverity": "HIGH" } }
+				"""));
+
+		JsonNode body = readJson(objectMapper.valueToTree(response.get("content")).get(0)
+				.path("text").asText());
+		assertThat(gateway.minSeveritySeen).isEqualTo(IssueSeverity.HIGH);
+		assertThat(body.path("openIssues")).isEmpty();
+		assertThat(body.at("/project/name").asText()).isEqualTo("Sample");
+	}
+
+	@Test
+	void anUnknownMinimumSeverityIsInvalidParamsNamingIt() {
+		for (String tool : List.of("getOpenIssues", "getProjectContext")) {
+			assertThatThrownBy(() -> service.callTool(json("""
+					{ "name": "%s",
+					  "arguments": { "projectName": "Sample", "minSeverity": "urgent" } }
+					""".formatted(tool))))
+					.isInstanceOf(McpInvalidParamsException.class)
+					.hasMessage("Unsupported minSeverity value: urgent; expected LOW, MEDIUM or HIGH");
+		}
+	}
+
+	@Test
+	void openIssuesAndProjectContextSchemasOfferAnOptionalMinimumSeverity() {
+		for (String tool : List.of("getOpenIssues", "getProjectContext")) {
+			JsonNode schema = schemaOf(tool);
+			assertThat(schema.at("/properties/minSeverity/enum").toString())
+					.isEqualTo("[\"LOW\",\"MEDIUM\",\"HIGH\"]");
+			assertThat(schema.at("/required").toString()).isEqualTo("[\"projectName\"]");
+		}
 	}
 
 	@Test

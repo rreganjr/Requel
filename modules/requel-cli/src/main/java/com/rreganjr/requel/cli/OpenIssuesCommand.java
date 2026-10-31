@@ -20,23 +20,33 @@
  */
 package com.rreganjr.requel.cli;
 
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.gateway.QueryDescriptions;
 import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import java.util.List;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
-/** {@code requel open-issues <project>} — unresolved issues across the project's entities. */
+/**
+ * {@code requel open-issues <project> [--min-severity=LOW|MEDIUM|HIGH]} — unresolved issues across
+ * the project's entities.
+ */
 @Command(name = "open-issues", description = QueryDescriptions.GET_OPEN_ISSUES)
 public class OpenIssuesCommand extends AbstractQueryCommand {
 
     @Parameters(index = "0", paramLabel = "PROJECT", description = QueryDescriptions.PROJECT_NAME)
     String projectName;
 
+    /** #338: list only open issues at or above this severity; picocli refuses anything else. */
+    @Option(names = "--min-severity", paramLabel = "LOW|MEDIUM|HIGH",
+            description = QueryDescriptions.MIN_SEVERITY)
+    IssueSeverity minSeverity;
+
     @Override
     protected Object query(QueryGateway gateway) {
-        return gateway.getOpenIssues(projectName);
+        return gateway.getOpenIssues(projectName, minSeverity);
     }
 
     @Override
