@@ -25,7 +25,6 @@ import com.rreganjr.requel.imports.project.ActorImportDraft;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
-import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
@@ -56,8 +55,7 @@ public class ActorStaxImporter {
 
     public List<ActorImportDraft> readActors(InputStream inputStream) {
         try {
-            XMLInputFactory factory = XMLInputFactory.newFactory();
-            XMLStreamReader reader = factory.createXMLStreamReader(inputStream);
+            XMLStreamReader reader = SecureXml.createStreamReader(inputStream);
             Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
             List<ActorImportDraft> drafts = new ArrayList<>();
 

@@ -97,15 +97,17 @@
       requirements, stakeholders and their permissions, glossary, dictionary, tags, reports and every
       note and issue. The file follows the published
       <a href="../integration/2.0/project.xsd">project schema</a>.</p>
-    <div class="note">An export includes the user accounts its stakeholders and authors belong to,
-      password hashes included. Treat the file like the database it came from.</div>
+    <div class="note">An export names the user accounts its stakeholders and authors belong to, but
+      carries no passwords.</div>
     <p><strong>Import</strong> (sidebar or list) reads such a file into a new project:</p>
     <ul>
       <li>The project takes the name in the file. If that name is taken, Requel adds
         &ldquo;(1)&rdquo;, &ldquo;(2)&rdquo; and so on; rename it afterwards on its edit page.</li>
-      <li>Users the file names (stakeholders, authors) are created if no user has that username,
-        with the login details they had on the server the file came from. Users who already exist
-        are used as they are.</li>
+      <li>Users the file names (stakeholders, authors) are created if no user has that username.
+        They can&rsquo;t sign in until an administrator sets a password for them on the Users page.
+        When an administrator imports a file that still carries login details (an export from
+        Requel 1.x or 2.0.0&ndash;2.0.2), new users keep them. Users who already exist are used as
+        they are.</li>
       <li>You are added as a stakeholder with every permission.</li>
     </ul>
     <p>Export and import are also how you copy a project to another Requel server, and how you move

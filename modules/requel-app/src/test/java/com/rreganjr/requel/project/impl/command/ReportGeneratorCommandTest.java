@@ -27,9 +27,15 @@ import com.rreganjr.requel.project.ReportGenerator;
 import com.rreganjr.requel.project.command.DeleteReportGeneratorCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.command.EditReportGeneratorCommand;
+import com.rreganjr.requel.project.command.GenerateReportCommand;
 import com.rreganjr.requel.user.User;
 import static org.junit.jupiter.api.Assertions.*;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Integration tests for report generator management commands:
@@ -64,12 +70,16 @@ public class ReportGeneratorCommandTest extends AbstractIntegrationTestCase {
     }
 
     private ReportGenerator createReportGenerator(Project project, String name) throws Exception {
+        return createReportGenerator(project, name, MINIMAL_XSLT);
+    }
+
+    private ReportGenerator createReportGenerator(Project project, String name, String xslt) throws Exception {
         User admin = getUserRepository().findUserByUsername("admin");
         EditReportGeneratorCommand cmd = getProjectCommandFactory().newEditReportGeneratorCommand();
         cmd.setEditedBy(admin);
         cmd.setProjectOrDomain(project);
         cmd.setName(name);
-        cmd.setText(MINIMAL_XSLT);
+        cmd.setText(xslt);
         cmd = getCommandHandler().execute(cmd);
         return cmd.getReportGenerator();
     }
@@ -217,5 +227,55 @@ public class ReportGeneratorCommandTest extends AbstractIntegrationTestCase {
 
         ReportGenerator updated = getProjectRepository().get(cmd.getReportGenerator());
         assertEquals("", updated.getText(), "an empty text should clear the text");
+    }
+
+    // -------------------------------------------------------------------------
+    // #443: a user-authored template can't read local files
+    // -------------------------------------------------------------------------
+
+    private static final String MARKER = "REQUEL-443-MARKER";
+
+    @Test
+    public void aTemplateEntityCannotReadALocalFile(@TempDir Path tmp) throws Exception {
+        Path marker = Files.writeString(tmp.resolve("marker.txt"), MARKER);
+        String xslt = "<?xml version=\"1.0\"?>"
+                + "<!DOCTYPE xsl:stylesheet [<!ENTITY xxe SYSTEM \"" + marker.toUri() + "\">]>"
+                + "<xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\">"
+                + "<xsl:template match=\"/\"><output>&xxe;</output></xsl:template>"
+                + "</xsl:stylesheet>";
+
+        assertMarkerNeverReachesTheReport(xslt, "Entity Report");
+    }
+
+    @Test
+    public void aTemplateDocumentCallCannotReadALocalFile(@TempDir Path tmp) throws Exception {
+        Path marker = Files.writeString(tmp.resolve("marker.xml"), "<m>" + MARKER + "</m>");
+        String xslt = "<?xml version=\"1.0\"?>"
+                + "<xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\">"
+                + "<xsl:template match=\"/\"><output><xsl:copy-of select=\"document('"
+                + marker.toUri() + "')\"/></output></xsl:template>"
+                + "</xsl:stylesheet>";
+
+        assertMarkerNeverReachesTheReport(xslt, "Document Report");
+    }
+
+    /** The report either fails or comes out without the marker; the marker is in neither. */
+    private void assertMarkerNeverReachesTheReport(String xslt, String generatorName) throws Exception {
+        Project project = createProject("Report-443");
+        ReportGenerator rg = createReportGenerator(project, generatorName, xslt);
+        GenerateReportCommand cmd = getProjectCommandFactory().newGenerateReportCommand();
+        cmd.setReportGenerator(rg);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        cmd.setOutputStream(out);
+        try {
+            getCommandHandler().execute(cmd);
+        } catch (Exception e) {
+            for (Throwable cause = e; cause != null; cause = cause.getCause()) {
+                assertFalse(String.valueOf(cause.getMessage()).contains(MARKER),
+                        "the marker must not appear in an error");
+            }
+        }
+        assertFalse(out.toString(StandardCharsets.UTF_8).contains(MARKER),
+                "the marker must not appear in the report");
     }
 }

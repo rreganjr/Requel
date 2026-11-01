@@ -127,7 +127,9 @@ public class AuthorizingCommandHandler implements CommandHandler {
 
         User user = command.getEditedBy();
         if (user == null) {
-            // Null editedBy means bootstrap / internal call (e.g. data initializers).
+            // Null editedBy means bootstrap / internal call (e.g. data initializers). A signed-in
+            // request never gets here with null: CurrentUserCommandHandler refuses one whose
+            // account can't be resolved (#445).
             // The execute() body in each command validates any further constraints.
             log.debug("Skipping authorization check — editedBy is null (bootstrap/internal)");
             return;

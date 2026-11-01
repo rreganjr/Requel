@@ -24,27 +24,44 @@ import com.rreganjr.requel.imports.AggregateAssembler;
 import com.rreganjr.requel.imports.ImportException;
 import com.rreganjr.requel.imports.ImportUnitOfWork;
 import com.rreganjr.requel.imports.identity.UserImportDraft;
-import com.rreganjr.requel.imports.identity.UserRoleImportDraft;
 import com.rreganjr.requel.user.Organization;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.OrganizationImpl;
 import com.rreganjr.requel.user.impl.UserImpl;
-import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 import com.rreganjr.requel.project.ProjectUserRole;
-import com.rreganjr.requel.user.impl.JpaUserRolePermission;
-import com.rreganjr.requel.user.UserRole;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Optional;
 import org.springframework.util.StringUtils;
 
 /**
  * Assembles users from drafts; creates new users if not found.
+ * <p>
+ * #444: a user the import creates starts with a random password nobody knows, so it can't sign
+ * in until an administrator resets it. Only when {@code restoreAccounts} is set (the importer is a
+ * system administrator, who could create the account anyway) is the file's password hash applied.
+ * Roles and role permissions in the file are never applied: a new user gets the default
+ * {@code ProjectUserRole}. An existing user is always used as it is.
  */
 public class UserAssembler implements AggregateAssembler<UserImportDraft, com.rreganjr.requel.user.User> {
 
-    private final UserRepository userRepository;
+    private static final SecureRandom RANDOM = new SecureRandom();
 
+    private final UserRepository userRepository;
+    private final boolean restoreAccounts;
+
+    /** An assembler that never restores credentials or global roles from the file. */
     public UserAssembler(UserRepository userRepository) {
+        this(userRepository, false);
+    }
+
+    /**
+     * @param restoreAccounts true to apply the file's password hash and global roles to users the
+     *            import creates; pass it only for a system administrator's import.
+     */
+    public UserAssembler(UserRepository userRepository, boolean restoreAccounts) {
         this.userRepository = userRepository;
+        this.restoreAccounts = restoreAccounts;
     }
 
     @Override
@@ -83,9 +100,12 @@ public class UserAssembler implements AggregateAssembler<UserImportDraft, com.rr
         }
 
         Organization org = resolveOrganization(draft.getOrganizationName(), unitOfWork);
-        UserImpl user = new UserImpl(draft.getUsername(), "imported", draft.getName(), draft.getEmail(), null, org, draft.isEditable());
-        hydratePassword(user, draft);
-        hydrateRoles(user, draft.getRoles());
+        UserImpl user = new UserImpl(draft.getUsername(), unguessablePassword(), draft.getName(), draft.getEmail(), null, org, draft.isEditable());
+        if (restoreAccounts) {
+            hydratePassword(user, draft);
+        }
+        // #444: roles and role permissions in the file are never applied; a new user gets the
+        // default ProjectUserRole, and an administrator grants anything more.
         ensureDefaultRole(user);
 
         // Persist the new user immediately so downstream associations (e.g., UserStakeholder)
@@ -96,6 +116,13 @@ public class UserAssembler implements AggregateAssembler<UserImportDraft, com.rr
         unitOfWork.register(com.rreganjr.requel.user.User.class, draft.getUsername(), user);
         unitOfWork.register(com.rreganjr.requel.user.impl.UserImpl.class, draft.getExternalId(), user);
         return user;
+    }
+
+    /** 32 random bytes; never logged or returned, so nobody can sign in with it. */
+    private static String unguessablePassword() {
+        byte[] bytes = new byte[32];
+        RANDOM.nextBytes(bytes);
+        return Base64.getEncoder().encodeToString(bytes);
     }
 
     private Organization resolveOrganization(String name, ImportUnitOfWork unitOfWork) {
@@ -121,44 +148,30 @@ public class UserAssembler implements AggregateAssembler<UserImportDraft, com.rr
         return null;
     }
 
+    /**
+     * Restores the file's hash with the settings it was made with. A setting the file leaves out
+     * is cleared rather than kept from the random password, so {@link UserImpl} falls back to its
+     * defaults (unsalted MD5): that is how a Requel 1.x export, which carries only the hash, signs
+     * in. The first successful sign-in re-hashes with the preferred settings. A file with no hash
+     * leaves the random password in place.
+     */
     private void hydratePassword(UserImpl user, UserImportDraft draft) {
-        if (StringUtils.hasText(draft.getEncryptedPassword())) {
-            user.setEncryptedPassword(draft.getEncryptedPassword());
-        }
-        if (StringUtils.hasText(draft.getPasswordSalt())) {
-            user.setPasswordSalt(draft.getPasswordSalt());
-        }
-        if (StringUtils.hasText(draft.getPasswordAlgorithm())) {
-            user.setPasswordEncryptingAlgorithmName(draft.getPasswordAlgorithm());
-        }
-        if (StringUtils.hasText(draft.getPasswordIterations())) {
-            try {
-                user.setPasswordEncryptingIterations(Integer.valueOf(draft.getPasswordIterations()));
-            } catch (NumberFormatException ignored) {
-                // leave default iterations
-            }
-        }
-    }
-
-    private void hydrateRoles(UserImpl user, java.util.List<UserRoleImportDraft> roles) {
-        if (roles == null) {
+        if (!StringUtils.hasText(draft.getEncryptedPassword())) {
             return;
         }
-        for (UserRoleImportDraft roleDraft : roles) {
-            String type = roleDraft.getRoleType();
-            if ("com.rreganjr.requel.project.ProjectUserRole".equals(type)) {
-                if (!user.hasRole(ProjectUserRole.class)) {
-                    user.grantRole(ProjectUserRole.class);
-                    UserRole role = user.getRoleForType(ProjectUserRole.class);
-                    roleDraft.getPermissionNames().forEach(name -> role.grantUserRolePermission(
-                            new JpaUserRolePermission(ProjectUserRole.class, name)));
-                }
-            } else if ("com.rreganjr.requel.user.impl.SystemAdminUserRole".equals(type)) {
-                if (!user.hasRole(SystemAdminUserRole.class)) {
-                    user.grantRole(SystemAdminUserRole.class);
-                }
+        user.setEncryptedPassword(draft.getEncryptedPassword());
+        user.setPasswordSalt(StringUtils.hasText(draft.getPasswordSalt()) ? draft.getPasswordSalt() : null);
+        user.setPasswordEncryptingAlgorithmName(
+                StringUtils.hasText(draft.getPasswordAlgorithm()) ? draft.getPasswordAlgorithm() : null);
+        Integer iterations = null;
+        if (StringUtils.hasText(draft.getPasswordIterations())) {
+            try {
+                iterations = Integer.valueOf(draft.getPasswordIterations().trim());
+            } catch (NumberFormatException ignored) {
+                // fall back to the default iterations
             }
         }
+        user.setPasswordEncryptingIterations(iterations);
     }
 
     /**
