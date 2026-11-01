@@ -100,7 +100,7 @@
   <xs:complexType name="user">
     <xs:sequence>
       <xs:element name="username" type="tns:artifactName" form="qualified"/>
-      <xs:element name="password" type="xs:string" form="qualified"/>
+      <xs:element name="password" type="xs:string" form="qualified" minOccurs="0"/>
       <xs:element name="passwordSalt" type="xs:string" form="qualified" minOccurs="0"/>
       <xs:element name="passwordEncryptingAlgorithm" type="xs:string" form="qualified" minOccurs="0"/>
       <xs:element name="passwordEncryptingIterations" type="xs:int" form="qualified" minOccurs="0"/>

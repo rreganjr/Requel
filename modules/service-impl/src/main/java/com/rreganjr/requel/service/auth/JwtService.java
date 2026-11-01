@@ -51,11 +51,18 @@ public class JwtService {
     public static final String BUILT_IN_SECRET = "requel-dev-secret-change-in-production-min-32-chars";
 
     /**
-     * Issue #381: set on a login token when the user must change their password. The JWT path
-     * makes no database lookup per request, so the flag travels in the token; a token issued
-     * before an admin sets the flag doesn't carry it, and the flag applies at the next sign-in.
+     * Issue #381: set on a login token when the user must change their password. Since #445 the
+     * filter takes the flag from the live account on every request, so it applies as soon as an
+     * admin sets it; the claim only tells a client what the token was issued for.
      */
     public static final String PASSWORD_CHANGE_CLAIM = "pwdChange";
+
+    /**
+     * #445: the user's id. The filter loads the account by it on every request, so a rename, a
+     * role change or a deleted account takes effect at once, and a username handed to a different
+     * account never reaches it. A token without it (issued before 2.0.3) is refused.
+     */
+    public static final String USER_ID_CLAIM = "uid";
 
     /** HS256 needs a key of at least 256 bits. */
     public static final int MIN_SECRET_BYTES = 32;
@@ -105,6 +112,7 @@ public class JwtService {
 
         var builder = Jwts.builder()
                 .subject(user.getUsername())
+                .claim(USER_ID_CLAIM, user.getId())
                 .claim("roles", roles)
                 .claim("permissions", permissions);
         if (user instanceof com.rreganjr.requel.user.User u && u.isMustChangePassword()) {
@@ -135,6 +143,14 @@ public class JwtService {
      */
     public static boolean isPasswordChangeRequired(Claims claims) {
         return Boolean.TRUE.equals(claims.get(PASSWORD_CHANGE_CLAIM, Boolean.class));
+    }
+
+    /**
+     * @return the {@link #USER_ID_CLAIM} of parsed claims, or null when the token has none.
+     */
+    public static Long userId(Claims claims) {
+        Object value = claims.get(USER_ID_CLAIM);
+        return (value instanceof Number n) ? Long.valueOf(n.longValue()) : null;
     }
 
     /**

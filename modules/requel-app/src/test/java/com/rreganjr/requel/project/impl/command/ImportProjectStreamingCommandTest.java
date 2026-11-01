@@ -32,8 +32,15 @@ import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.UseCase;
+import com.rreganjr.requel.project.command.ExportProjectCommand;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
+import com.rreganjr.requel.user.impl.SystemAdminUserRole;
+import com.rreganjr.requel.user.impl.UserImpl;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import com.rreganjr.requel.project.impl.ProjectImpl;
+import com.rreganjr.requel.imports.ImportException;
+import com.rreganjr.requel.utils.jaxb.imports.SecureXml;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -47,6 +54,7 @@ import com.rreganjr.requel.user.command.EditUserCommand;
 import com.rreganjr.requel.project.ProjectUserRole;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
@@ -260,9 +268,147 @@ public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCa
                 "no name in the file falls back to Imported Project");
     }
 
+    /**
+     * #443: a project file with a DOCTYPE is refused before anything is read from it, so an entity
+     * pointing at a local file never reaches the imported project, and no project is created.
+     */
+    @Test
+    public void importRejectsADoctypeAndCreatesNothing(@TempDir Path tmp) throws Exception {
+        projectUserInitializer.initialize();
+        ensureAssistantHasProjectRole();
+        String markerText = "REQUEL-443-MARKER";
+        Path marker = Files.writeString(tmp.resolve("marker.txt"), markerText);
+        String sample = Files.readString(resolveSampleXml());
+        String name = "Doctype Import " + System.currentTimeMillis();
+        String hostile = sample
+                .replaceFirst("\\?>", java.util.regex.Matcher.quoteReplacement(
+                        "?><!DOCTYPE project [<!ENTITY xxe SYSTEM \"" + marker.toUri() + "\">]>"))
+                .replaceFirst("\n    <name>Requel</name>", "\n    <name>" + name + " &xxe;</name>");
+        assertTrue(hostile.contains("<!DOCTYPE") && hostile.contains(name + " &xxe;"),
+                "the DOCTYPE and the entity reference were inserted");
+        int projectsBefore = getProjectRepository().findAllProjects().size();
+
+        Exception thrown = assertThrows(Exception.class, () -> importXml(hostile, null));
+
+        boolean refusedForTheDoctype = false;
+        for (Throwable cause = thrown; cause != null; cause = cause.getCause()) {
+            assertFalse(String.valueOf(cause.getMessage()).contains(markerText),
+                    "the marker file's text must not appear in any error");
+            refusedForTheDoctype |= cause instanceof ImportException
+                    && SecureXml.DOCTYPE_NOT_ALLOWED.equals(cause.getMessage());
+        }
+        assertTrue(refusedForTheDoctype, "refused for the DOCTYPE: " + thrown);
+        assertEquals(projectsBefore, getProjectRepository().findAllProjects().size(),
+                "no project is created");
+    }
+
+    // -------------------------------------------------------------------------
+    // #444: credentials and global roles in project XML
+    // -------------------------------------------------------------------------
+
+    /**
+     * The sample is a 1.x export: each user carries an unsalted MD5 hash of a password equal to
+     * its username, {@code project} carries {@code createProjects}, and {@code admin} carries
+     * {@code systemAdminUserRole}. Renaming {@code project}
+     * and {@code admin} in the file makes the import create both users.
+     */
+    private String sampleWithNewUsers(String newProjectUser, String newAdminUser) throws Exception {
+        String sample = Files.readString(resolveSampleXml());
+        String xml = sample
+                .replace("<username>project</username>", "<username>" + newProjectUser + "</username>")
+                .replace("<username>admin</username>", "<username>" + newAdminUser + "</username>");
+        assertTrue(xml.contains(newProjectUser) && xml.contains(newAdminUser), "both users were renamed");
+        return xml;
+    }
+
+    @Test
+    public void aNonAdminImportCreatesUsersWhoCannotSignInAndHaveNoGlobalRoles() throws Exception {
+        projectUserInitializer.initialize();
+        ensureAssistantHasProjectRole();
+        long ts = System.currentTimeMillis();
+        String newProjectUser = "imp-proj-" + ts;
+        String newAdminUser = "imp-admin-" + ts;
+
+        importXmlAs("project", sampleWithNewUsers(newProjectUser, newAdminUser), "NonAdmin Import " + ts);
+
+        UserImpl projectUser = (UserImpl) getUserRepository().findUserByUsername(newProjectUser);
+        UserImpl adminUser = (UserImpl) getUserRepository().findUserByUsername(newAdminUser);
+        assertFalse(projectUser.isPassword("project"), "the file's hash is not restored");
+        assertFalse(projectUser.isPassword("imported"), "no shared fallback password");
+        assertFalse(adminUser.isPassword("admin"), "the file's hash is not restored");
+        assertFalse(adminUser.hasRole(SystemAdminUserRole.class), "no global admin role from the file");
+        assertTrue(projectUser.hasRole(ProjectUserRole.class), "the default role");
+        assertFalse(projectUser.getRoleForType(ProjectUserRole.class)
+                        .hasUserRolePermission(ProjectUserRole.createProjects),
+                "no role permissions from the file");
+    }
+
+    @Test
+    public void anAdminImportRestoresTheFilesLoginsButNoRoles() throws Exception {
+        projectUserInitializer.initialize();
+        ensureAssistantHasProjectRole();
+        long ts = System.currentTimeMillis();
+        String newProjectUser = "imp-proj-a-" + ts;
+        String newAdminUser = "imp-admin-a-" + ts;
+
+        importXmlAs("admin", sampleWithNewUsers(newProjectUser, newAdminUser), "Admin Import " + ts);
+
+        UserImpl projectUser = (UserImpl) getUserRepository().findUserByUsername(newProjectUser);
+        UserImpl adminUser = (UserImpl) getUserRepository().findUserByUsername(newAdminUser);
+        assertTrue(projectUser.isPassword("project"), "a 1.x unsalted MD5 hash signs in");
+        assertFalse(adminUser.hasRole(SystemAdminUserRole.class), "no import grants the system admin role");
+        assertFalse(projectUser.getRoleForType(ProjectUserRole.class)
+                        .hasUserRolePermission(ProjectUserRole.createProjects),
+                "no import applies role permissions from the file");
+    }
+
+    @Test
+    public void anImportLeavesAnExistingUsersLoginAlone() throws Exception {
+        projectUserInitializer.initialize();
+        ensureAssistantHasProjectRole();
+        String sample = Files.readString(resolveSampleXml());
+        // md5("changed"): the file claims a different password for the existing "project" user
+        String xml = sample.replace("<password>46f86faa6bbf9ac94a7e459509a20ed0</password>",
+                "<password>8977dfac2f8e04cb96e66882235f5aba</password>");
+        assertNotEquals(sample, xml, "the project user's hash was replaced");
+
+        importXmlAs("admin", xml, "Existing User Import " + System.currentTimeMillis());
+
+        UserImpl project = (UserImpl) getUserRepository().findUserByUsername("project");
+        assertTrue(project.isPassword("project"), "the existing password still works");
+        assertFalse(project.isPassword("changed"), "the file's hash is not applied to an existing user");
+    }
+
+    @Test
+    public void anExportCarriesNoCredentials() throws Exception {
+        projectUserInitializer.initialize();
+        ensureAssistantHasProjectRole();
+        Project imported = importXml(Files.readString(resolveSampleXml()),
+                "Export Credentials " + System.currentTimeMillis());
+        assertFalse(imported.getStakeholders().isEmpty(), "the project has user stakeholders to export");
+
+        ExportProjectCommand export = getProjectCommandFactory().newExportProjectCommand();
+        export.setProject(imported);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        export.setOutputStream(out);
+        getCommandHandler().execute(export);
+        String xml = out.toString(StandardCharsets.UTF_8);
+
+        assertTrue(xml.contains("<username>project</username>")
+                        || xml.contains(":username>project</"), "users are still exported");
+        for (String element : new String[] { "password>", "passwordSalt>",
+                "passwordEncryptingAlgorithm>", "passwordEncryptingIterations>" }) {
+            assertFalse(xml.contains(element), "export must not contain " + element);
+        }
+    }
+
     private Project importXml(String xml, String rename) throws Exception {
+        return importXmlAs("project", xml, rename);
+    }
+
+    private Project importXmlAs(String username, String xml, String rename) throws Exception {
         ImportProjectCommand command = (ImportProjectCommand) applicationContext.getBean("importProjectCommand");
-        command.setEditedBy(getUserRepository().findUserByUsername("project"));
+        command.setEditedBy(getUserRepository().findUserByUsername(username));
         command.setAnalysisEnabled(false);
         command.setName(rename);
         command.setInputStream(new java.io.ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));

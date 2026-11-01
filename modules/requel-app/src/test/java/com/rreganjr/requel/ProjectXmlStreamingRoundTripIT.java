@@ -195,10 +195,11 @@ class ProjectXmlStreamingRoundTripIT {
 				.contains("<actors>")
 				.contains(standaloneScenarioName)
 				.contains(standaloneScenarioStepName)
-				.contains("<password>")
-				.contains("<passwordSalt>")
-				.contains("<passwordEncryptingAlgorithm>")
-				.contains("<passwordEncryptingIterations>");
+				// #444: users are exported without credentials
+				.doesNotContain("<password>")
+				.doesNotContain("<passwordSalt>")
+				.doesNotContain("<passwordEncryptingAlgorithm>")
+				.doesNotContain("<passwordEncryptingIterations>");
 		assertXmlMatchesProjectSchema(exportedBytes);
 
 		String reimportedProjectName = originalProject.getName() + " Reimport " + Instant.now().toEpochMilli();

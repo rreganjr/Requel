@@ -23,7 +23,6 @@ package com.rreganjr.requel.service.auth;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -45,8 +44,9 @@ import java.util.Optional;
  *
  * <p>Two credential kinds (issue #73):
  * <ul>
- *   <li><b>Login JWT</b> — short-lived, self-contained; validated statelessly (signature/expiry)
- *       with authorities from its claims. No DB hit.</li>
+ *   <li><b>Login JWT</b> — short-lived and signed; after the signature and expiry check, the
+ *       account is loaded by the token's user id on every request (#445), and the username and
+ *       authorities come from that account, not from the token's claims.</li>
  *   <li><b>Personal access token (PAT)</b> — opaque, prefixed {@code reqpat_}; hashed and looked up
  *       in the token store on <em>every</em> request (so revocation/expiry take effect immediately),
  *       the owning user is resolved, and authorities are loaded <em>live</em> from that user (so
@@ -91,34 +91,37 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    /**
+     * Validate a login JWT (signature, expiry), then load its account by the token's user id
+     * (#445) and set the context with that account's current username and roles, as the PAT path
+     * does. A token with no user id (issued before 2.0.3), or whose account is gone, leaves the
+     * context unauthenticated so protected endpoints return 401.
+     */
     private void authenticateJwt(String token) {
         try {
             Claims claims = jwtService.parseToken(token);
-            String username = claims.getSubject();
-            @SuppressWarnings("unchecked")
-            List<String> roles = claims.get("roles", List.class);
-
-            List<SimpleGrantedAuthority> authorities;
-            if (JwtService.isPasswordChangeRequired(claims)) {
-                // #381: no roles until the password is changed; PasswordChangeRequiredFilter
-                // allows only the change itself.
-                authorities = List.of(PasswordChangeRequiredFilter.GRANTED_AUTHORITY);
-            } else if (roles != null) {
-                authorities = roles.stream()
-                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-                        .toList();
-            } else {
-                authorities = List.of();
+            User user = userRepository.findUserById(JwtService.userId(claims));
+            if (user == null) {
+                SecurityContextHolder.clearContext();
+                return;
             }
+            // #381 + #445: both from the live account, so an admin setting "must change password"
+            // or changing roles applies on the next request. PasswordChangeRequiredFilter allows
+            // a flagged user only the change itself.
+            List<SimpleGrantedAuthority> authorities = user.isMustChangePassword()
+                    ? List.of(PasswordChangeRequiredFilter.GRANTED_AUTHORITY)
+                    : userDtoMapper.getRoleStrings(user).stream()
+                            .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                            .toList();
 
-            var auth = new UsernamePasswordAuthenticationToken(username, null, authorities);
+            var auth = new UsernamePasswordAuthenticationToken(user.getUsername(), null, authorities);
             // Store JWT expiry epoch-ms as details so controllers can schedule server-side expiry
             Date exp = claims.getExpiration();
             auth.setDetails(exp != null ? exp.getTime() : 0L);
             SecurityContextHolder.getContext().setAuthentication(auth);
-        } catch (JwtException e) {
-            // Invalid or expired token — don't set authentication, let Spring Security
-            // return 401 for protected endpoints
+        } catch (RuntimeException e) {
+            // Invalid or expired token, or the account lookup failed — don't set authentication,
+            // let Spring Security return 401 for protected endpoints
             SecurityContextHolder.clearContext();
         }
     }
