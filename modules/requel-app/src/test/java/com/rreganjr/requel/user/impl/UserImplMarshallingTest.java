@@ -37,7 +37,7 @@ import com.rreganjr.requel.user.impl.JpaUserRolePermission;
 class UserImplMarshallingTest {
 
 	@Test
-	void marshalledUserIncludesPasswordFields() throws Exception {
+	void marshalledUserCarriesNoPasswordFields() throws Exception {
 		OrganizationImpl organization = new OrganizationImpl("Test Org");
 		UserImpl user = new UserImpl("user", "secret", "User Name", "user@example.com", "555-555-5555", organization, true);
 
@@ -55,10 +55,12 @@ class UserImplMarshallingTest {
 		marshaller.marshal(user, writer);
 
 		String xml = writer.toString();
+		// #444: a user is marshalled (into project exports) without credentials
 		assertThat(xml)
-				.contains("<password>")
-				.contains("<passwordSalt>")
-				.contains("<passwordEncryptingAlgorithm>")
-				.contains("<passwordEncryptingIterations>");
+				.contains("<username>user</username>")
+				.doesNotContain("<password>")
+				.doesNotContain("<passwordSalt>")
+				.doesNotContain("<passwordEncryptingAlgorithm>")
+				.doesNotContain("<passwordEncryptingIterations>");
 	}
 }

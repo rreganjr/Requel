@@ -188,7 +188,9 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
         ScenarioAssembler scenarioAssembler = new ScenarioAssembler(targetProject, getUserRepository(), createdBy);
         UseCaseAssembler useCaseAssembler = new UseCaseAssembler(targetProject, getUserRepository(), createdBy);
         ReportGeneratorAssembler reportAssembler = new ReportGeneratorAssembler(targetProject, createdBy);
-        UserAssembler userAssembler = new UserAssembler(getUserRepository());
+        // #444: only a system admin's import restores the file's password hashes and global roles.
+        UserAssembler userAssembler = new UserAssembler(getUserRepository(),
+                createdBy.hasRole(com.rreganjr.requel.user.impl.SystemAdminUserRole.class));
         StakeholderAssembler stakeholderAssembler = new StakeholderAssembler(targetProject, getUserRepository(), createdBy,
                 getProjectRepository().findAvailableStakeholderPermissions());
         com.rreganjr.requel.project.imports.ProjectPositionAssembler positionAssembler =
