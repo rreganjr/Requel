@@ -174,7 +174,9 @@ public class StanfordLexicalizedParser implements NLPProcessor<NLPText> {
 				List<NLPText> leaves = text.getLeaves();
 				for (TypedDependency dependency : typedDependencies) {
 					NLPTextImpl governor = (NLPTextImpl) (dependency.gov().index() == 0 ? NLPText.ROOT : leaves.get(dependency.gov().index() - 1));
-					NLPTextImpl dependent = (NLPTextImpl) (dependency.gov().index() == 0 ? NLPText.ROOT : leaves.get(dependency.dep().index() - 1));
+					// #349: the root relation's dependent is the sentence's root word; it used to be
+					// replaced by the fake ROOT node too, so the root of a parse was never recorded.
+					NLPTextImpl dependent = (NLPTextImpl) leaves.get(dependency.dep().index() - 1);
 					String relationShortName = dependency.reln().getShortName();
 					GrammaticalRelationType type = GrammaticalRelationType
 							.getGrammaticalRelationByShortName(relationShortName);
