@@ -30,12 +30,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import org.hibernate.Hibernate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.rreganjr.requel.project.Project;
@@ -60,6 +63,10 @@ import jakarta.transaction.Transactional;
  * End-to-end coverage for the tag CQRS surface: dispatches tag/category commands through the generic
  * {@link CommandController} (exercising the TagCommandRegistrar input applicators, result extractors,
  * and input/result DTOs) and reads them back through {@link TagQueryController}.
+ *
+ * <p>
+ * The reads check project read access (issue #447), so they run signed in as the system
+ * administrator ({@link #asAdmin}). The commands run as internal calls, as before.
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -84,6 +91,17 @@ public class TagApiIT {
 		User admin = userRepository.findUserByUsername("admin");
 		Long adminId = ((UserImpl) Hibernate.unproxy(admin)).getId();
 		return entityManager.find(UserImpl.class, adminId);
+	}
+
+	/** Runs a read signed in as the system administrator. */
+	private static <T> T asAdmin(Supplier<T> read) {
+		SecurityContextHolder.getContext().setAuthentication(
+				new UsernamePasswordAuthenticationToken("admin", null, List.of()));
+		try {
+			return read.get();
+		} finally {
+			SecurityContextHolder.clearContext();
+		}
 	}
 
 	private void dispatchOk(String commandType, Map<String, Object> input) {
@@ -123,23 +141,27 @@ public class TagApiIT {
 		entityManager.flush();
 
 		// Reads through the query controller.
-		List<TagDto> onEntity = tagQueryController.getTagsOnEntity("Goal", goalId).getBody();
+		List<TagDto> onEntity = asAdmin(
+				() -> tagQueryController.getTagsOnEntity("Goal", goalId).getBody());
 		assertNotNull(onEntity);
 		assertTrue(onEntity.stream().anyMatch(t -> "business-rule".equals(t.value())),
 				"goal should carry the assigned tag");
 
-		List<TagDto> forProject = tagQueryController.getTagsForProject(projectName).getBody();
+		List<TagDto> forProject = asAdmin(
+				() -> tagQueryController.getTagsForProject(projectName).getBody());
 		assertNotNull(forProject);
 		assertTrue(forProject.stream().anyMatch(t -> "type".equals(t.category())));
 
-		List<String> categories = tagQueryController.getCategories(projectName).getBody();
+		List<String> categories = asAdmin(() -> tagQueryController.getCategories(projectName).getBody());
 		assertTrue(categories != null && categories.contains("type"));
 
-		List<TagCategoryDto> typed = tagQueryController.getTypedCategories(projectName).getBody();
+		List<TagCategoryDto> typed = asAdmin(
+				() -> tagQueryController.getTypedCategories(projectName).getBody());
 		assertTrue(typed != null && typed.stream().anyMatch(c -> "type".equals(c.name()) && c.exclusive()),
 				"typed categories should include the exclusive 'type'");
 
-		List<Map<String, Object>> entities = tagQueryController.getEntitiesWithTag(tag.getId()).getBody();
+		List<Map<String, Object>> entities = asAdmin(
+				() -> tagQueryController.getEntitiesWithTag(tag.getId()).getBody());
 		assertNotNull(entities);
 		assertTrue(entities.stream().anyMatch(e -> "Goal".equals(e.get("entityType"))),
 				"entities-with-tag should list the goal");
@@ -147,7 +169,7 @@ public class TagApiIT {
 		// UnassignTag — detach it.
 		dispatchOk("UnassignTag", Map.of("tagId", tag.getId(), "entityType", "Goal", "entityId", goalId));
 		entityManager.flush();
-		assertTrue(tagQueryController.getTagsOnEntity("Goal", goalId).getBody().isEmpty(),
+		assertTrue(asAdmin(() -> tagQueryController.getTagsOnEntity("Goal", goalId).getBody()).isEmpty(),
 				"tag assignment should be removed");
 
 		// DeleteTag + DeleteTagCategory.

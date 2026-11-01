@@ -74,6 +74,10 @@
                         <!-- Avoid build failures in modules with no matching tests when -Dtest is used -->
                         <failIfNoTests>false</failIfNoTests>
                         <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+                        <!-- Tests run in UTC; see the failsafe plugin below. -->
+                        <environmentVariables>
+                            <TZ>UTC</TZ>
+                        </environmentVariables>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -94,6 +98,19 @@
                             <include>**/*IT.java</include>
                         </includes>
                         <failIfNoTests>false</failIfNoTests>
+                        <!--
+                          Tests run in UTC, whatever the developer's time zone. The H2 test database
+                          stores TIMESTAMP columns without a zone, in the JVM's local time, so in a
+                          zone with daylight saving a time written in the hour that repeats at the
+                          fall-back reads back an hour off. The OAuth tokens' issued and expiry times
+                          (PublicClientRefreshTokenIT) then fail "expiresAt must be after issuedAt".
+                          MySQL is not affected: every shipped datasource URL sets serverTimezone=UTC.
+                          TZ rather than -Duser.timezone, because argLine is owned by JaCoCo and is
+                          replaced by an argLine given on the command line.
+                        -->
+                        <environmentVariables>
+                            <TZ>UTC</TZ>
+                        </environmentVariables>
                     </configuration>
                     <executions>
                         <execution>
