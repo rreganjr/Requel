@@ -11,11 +11,25 @@ issue/position/argument discussion layer and automated NLP and AI review.
 | Tag | What it is |
 |---|---|
 | `latest`, `2.0.3` | Current release. Multi-platform: `linux/amd64` and `linux/arm64` |
-| `2.0.2`, `2.0.1`, `2.0.0` | Previous 2.0 releases |
+| `2.0.2`, `2.0.1`, `2.0.0` | Previous 2.0 releases; see [Security](#security) |
 | `1.2.0`, `1.1.0` | 1.x line (arm64 only); see Upgrading before moving off them |
 | `1.0.2`, `1.0.1` | Original release; MySQL 5.x only |
 
 Pin a version tag rather than `latest` so an upgrade happens when you choose.
+
+## Security
+
+2.0.3 fixes three security issues in 2.0.0 to 2.0.2. Upgrade every 2.0.x install:
+
+- [GHSA-g7v7-79mw-3v64](https://github.com/rreganjr/Requel/security/advisories/GHSA-g7v7-79mw-3v64):
+  XML external entity resolution in project import.
+- [GHSA-2rq5-fpxv-q24h](https://github.com/rreganjr/Requel/security/advisories/GHSA-2rq5-fpxv-q24h):
+  project exports carried password hashes, and imports created accounts. Read its "What to do"
+  section: upgrading doesn't clean up export files or accounts made before 2.0.3.
+- [GHSA-5c3x-62mf-528p](https://github.com/rreganjr/Requel/security/advisories/GHSA-5c3x-62mf-528p):
+  login tokens weren't re-checked against the live account.
+
+Upgrading to 2.0.3 signs everyone out once.
 
 ## Requirements
 
