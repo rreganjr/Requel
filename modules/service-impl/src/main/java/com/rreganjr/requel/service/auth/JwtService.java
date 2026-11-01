@@ -50,6 +50,13 @@ public class JwtService {
     /** The secret {@code application.properties} falls back to when REQUEL_JWT_SECRET is unset. */
     public static final String BUILT_IN_SECRET = "requel-dev-secret-change-in-production-min-32-chars";
 
+    /**
+     * #445: the user's id. The filter loads the account by it on every request, so a rename, a
+     * role change or a deleted account takes effect at once, and a username handed to a different
+     * account never reaches it. A token without it (issued before 2.0.3) is refused.
+     */
+    public static final String USER_ID_CLAIM = "uid";
+
     /** HS256 needs a key of at least 256 bits. */
     public static final int MIN_SECRET_BYTES = 32;
 
@@ -97,6 +104,7 @@ public class JwtService {
 
         return Jwts.builder()
                 .subject(user.getUsername())
+                .claim(USER_ID_CLAIM, user.getId())
                 .claim("roles", roles)
                 .claim("permissions", permissions)
                 .issuedAt(now)
@@ -116,6 +124,14 @@ public class JwtService {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    /**
+     * @return the {@link #USER_ID_CLAIM} of parsed claims, or null when the token has none.
+     */
+    public static Long userId(Claims claims) {
+        Object value = claims.get(USER_ID_CLAIM);
+        return (value instanceof Number n) ? Long.valueOf(n.longValue()) : null;
     }
 
     /**
