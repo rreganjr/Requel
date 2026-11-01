@@ -22,11 +22,15 @@ package com.rreganjr.requel.service.command;
 
 import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.platform.command.EditCommand;
 import com.rreganjr.requel.user.command.EditUserCommand;
 import com.rreganjr.requel.service.auth.CurrentUserResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
  * Command handler decorator that resolves the current authenticated user from
@@ -36,8 +40,10 @@ import org.slf4j.LoggerFactory;
  * <p>Wraps the outermost handler in the chain so editedBy is set before
  * authorization checks or retries.</p>
  *
- * <p>If no SecurityContext is present (e.g., during tests or background jobs),
- * the handler silently skips user resolution and delegates directly.</p>
+ * <p>If no one is signed in (initializers, background jobs, the dev-only reset endpoints), the
+ * handler skips user resolution and delegates directly; the command runs as an internal call.
+ * If someone <em>is</em> signed in but their account can't be resolved, the command is refused
+ * (#445): a lookup failure must never turn a request into an internal call.</p>
  */
 public class CurrentUserCommandHandler implements CommandHandler {
 
@@ -65,11 +71,24 @@ public class CurrentUserCommandHandler implements CommandHandler {
     }
 
     private void resolveAndSet(java.util.function.Consumer<com.rreganjr.requel.user.User> setter) {
-        try {
-            setter.accept(currentUserResolver.resolve());
-        } catch (Exception e) {
-            // No SecurityContext, anonymous user, or user not found — skip
-            log.debug("Could not resolve current user for editedBy injection: {}", e.getMessage());
+        if (!isSignedIn(SecurityContextHolder.getContext().getAuthentication())) {
+            log.debug("No signed-in user; running as an internal call");
+            return;
         }
+        com.rreganjr.requel.user.User user;
+        try {
+            user = currentUserResolver.resolve();
+        } catch (Exception e) {
+            log.warn("Refusing a command: the signed-in account could not be resolved: {}", e.getMessage());
+            throw new AuthorizationException("The signed-in account could not be found.");
+        }
+        if (user == null) {
+            throw new AuthorizationException("The signed-in account could not be found.");
+        }
+        setter.accept(user);
+    }
+
+    private static boolean isSignedIn(Authentication auth) {
+        return auth != null && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken);
     }
 }
