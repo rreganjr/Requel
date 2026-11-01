@@ -64,6 +64,36 @@ public class ImperativePrimaryVerbIT extends AbstractIntegrationTestCase {
 		}
 	}
 
+	/**
+	 * The roundtable names the tagger read as starting with a noun: retried with the first word
+	 * tagged as a verb (it has a verb sense). The tokenizer splits "Force-stop" at the hyphen, so
+	 * its verb is "Force".
+	 */
+	@Test
+	void aCommandWhoseVerbTheTaggerReadAsANounIsRetriedAsACommand() {
+		for (String[] example : new String[][] { { "Archive a room", "Archive" },
+				{ "Respond to a CloudWatch alarm", "Respond" },
+				{ "Recover a failing stream mid-session", "Recover" },
+				{ "View the test room as a viewer", "View" },
+				{ "Force-stop the active stream", "Force" },
+				{ "Force-stop the stream during verification", "Force" } }) {
+			NLPText text = process(example[0]);
+			assertNotNull(text.getPrimaryVerb(), "no primary verb for " + example[0]);
+			assertEquals(example[1], text.getPrimaryVerb().getText(), example[0]);
+			assertTrue(text.isImperative(), example[0] + " should be imperative");
+		}
+	}
+
+	/** A name whose first word has no verb sense is not retried and stays verbless. */
+	@Test
+	void aNounPhraseNameIsNotTurnedIntoACommand() {
+		for (String example : new String[] { "Webinar dry run", "Manual verification pass" }) {
+			NLPText text = process(example);
+			assertNull(text.getPrimaryVerb(), example);
+			assertFalse(text.isImperative(), example);
+		}
+	}
+
 	@Test
 	void aSentenceWithASubjectKeepsItsVerbAndIsNotImperative() {
 		NLPText text = process("The host creates the room");

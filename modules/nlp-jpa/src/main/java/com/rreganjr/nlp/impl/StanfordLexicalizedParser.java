@@ -138,7 +138,25 @@ public class StanfordLexicalizedParser implements NLPProcessor<NLPText> {
 		return text;
 	}
 
-	private static synchronized void parse(NLPText text) throws ParserException {
+	/**
+	 * Issue #349: parse a fresh, single sentence with its first word tagged as a base-form verb.
+	 * The tagger sometimes reads a command's leading verb as a noun ("Archive a room", "View the
+	 * test room"), and the sentence then has no verb at all; the caller retries with this when the
+	 * word has a verb sense and keeps the result only if it reads as a command.
+	 */
+	public void parseWithLeadingVerb(NLPText sentence) {
+		if (sentence.hasText() && sentence.is(GrammaticalStructureLevel.SENTENCE)
+				&& sentence.getChildren().isEmpty()) {
+			parse(sentence, true);
+		}
+	}
+
+	private static void parse(NLPText text) throws ParserException {
+		parse(text, false);
+	}
+
+	private static synchronized void parse(NLPText text, boolean leadingVerb)
+			throws ParserException {
 		if (parser == null) {
 			return;
 		}
@@ -152,6 +170,11 @@ public class StanfordLexicalizedParser implements NLPProcessor<NLPText> {
 				Tokenizer<? extends HasWord> tokenizer = tlp.getTokenizerFactory().getTokenizer(
 						new CharArrayReader(sentence.toCharArray()));
 				tokens = tokenizer.tokenize();
+				if (leadingVerb && !tokens.isEmpty()) {
+					List<HasWord> tagged = new ArrayList<HasWord>(tokens);
+					tagged.set(0, new TaggedWord(tokens.get(0).word(), ParseTag.VB.getText()));
+					tokens = tagged;
+				}
 			}
 		} else {
 			List<TaggedWord> xtokens = new ArrayList<TaggedWord>();

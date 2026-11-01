@@ -125,6 +125,13 @@ public class StepStructureAssistantIT extends AbstractLexicalAssistantTest {
 		assertEquals(List.of(), findingTypes(analyzeScenario("Create the room")));
 	}
 
+	/** Commands whose verb the tagger reads as a noun are retried as commands (roundtable names). */
+	@Test
+	void aCommandTheTaggerMisreadIsStillACommand() throws Exception {
+		assertEquals(List.of("no-actor"), findingTypes(analyzeStep("View the test room as a viewer")));
+		assertEquals(List.of(), findingTypes(analyzeScenario("Archive a room")));
+	}
+
 	@Test
 	void aScenarioNameWithNoVerbGetsTheUnreadableIssue() throws Exception {
 		assertEquals(List.of("unreadable"), findingTypes(analyzeScenario("Webinar dry run")));
