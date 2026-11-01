@@ -20,6 +20,8 @@
  */
 package com.rreganjr.nlp.impl;
 
+import java.util.List;
+
 import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
@@ -35,6 +37,11 @@ import com.rreganjr.nlp.dictionary.PartOfSpeech;
 /**
  * This uses the dependency information attached to the NLPText to get the
  * primary verb of a SENTENCE, CLAUSE, or PHRASE.
+ * <p>
+ * Issue #349: a command ("Create the room") has no subject. When there is no subject relation
+ * and the root of the dependency parse is a base-form verb ({@code VB}, or a {@code VBP} that is
+ * the first word, as the tagger sometimes marks a leading command verb), the root is the primary
+ * verb and the sentence is marked {@linkplain NLPText#isImperative() imperative}.
  * 
  * @author ron
  */
@@ -85,14 +92,43 @@ public class DependencyPrimaryVerbFinder implements NLPProcessor<NLPText> {
 						}
 					}
 				} catch (NLPProcessorException e) {
-					// #268: expected, not a problem. Names ("Webinar"), bracketed notes and commands
-					// ("Create the room", #349) have no subject, so no primary verb; at WARN this
-					// flooded the log on every whole-project analysis.
-					log.debug(e.toString());
+					NLPText command = findCommandVerb(text);
+					if (command != null) {
+						text.setPrimaryVerb(command);
+						text.setImperative(true);
+					} else {
+						// #268: expected, not a problem. Names ("Webinar") and bracketed notes have
+						// no verb; at WARN this flooded the log on every whole-project analysis.
+						log.debug(e.toString());
+					}
 				}
 			}
 		}
 		return text;
+	}
+
+	/**
+	 * Issue #349: the verb of a command - the root of the dependency parse when it is a base-form
+	 * verb, or a {@code VBP} that is the text's first word - or null.
+	 */
+	protected NLPText findCommandVerb(NLPText text) {
+		for (GrammaticalRelation relation : text.getGrammaticalRelations()) {
+			if (GrammaticalRelationType.ROOT.equals(relation.getType())) {
+				NLPText root = relation.getDependent();
+				if (root == null || root == NLPText.ROOT) {
+					return null;
+				}
+				if (root.is(ParseTag.VB)) {
+					return root;
+				}
+				List<NLPText> leaves = text.getLeaves();
+				if (root.is(ParseTag.VBP) && !leaves.isEmpty() && leaves.get(0) == root) {
+					return root;
+				}
+				return null;
+			}
+		}
+		return null;
 	}
 
 	protected GrammaticalRelation findPrimarySubjectRelation(NLPText text) {

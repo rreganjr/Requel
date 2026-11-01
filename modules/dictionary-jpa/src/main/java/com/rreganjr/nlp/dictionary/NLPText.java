@@ -210,6 +210,16 @@ public interface NLPText extends Cloneable {
 	public void setPrimaryVerb(NLPText primaryVerb);
 
 	/**
+	 * Issue #349: whether the sentence is a command ("Create the room"): it has no subject, and its
+	 * primary verb is the base-form verb at the root of its dependency parse. It tells "no actor
+	 * stated" apart from "no verb found" (no primary verb at all). Analysis state only.
+	 */
+	public boolean isImperative();
+
+	/** Issue #349: mark the sentence as a command; see {@link #isImperative()}. */
+	public void setImperative(boolean imperative);
+
+	/**
 	 * @param verb -
 	 *            an NLPText representing the verb to get the semantic role for.
 	 * @return The semantic role of this NLPText for the supplied verb or null.
