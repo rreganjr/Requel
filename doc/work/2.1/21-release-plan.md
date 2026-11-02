@@ -45,6 +45,17 @@ features grouped by area. Size is a rough guess in working days, before each tic
 | 7 | #381 Force the built-in admin to change its password | 3 | Every install starts as admin/admin. Touches login, the API filter, MCP and tokens, and the UI. |
 | 8 | #380 In-place upgrade from 1.0.x | 5 | Prototype works. Stays on 2.1 (decided 2026-10-27; "Backlog" in its body predates the milestone). |
 
+### Phase 4b — hardening (added 2026-11-01)
+
+Taken next, ahead of the rest of Phase 6. Smallest first; #446 goes after #448 because both touch
+password handling.
+
+| # | Issue | Size | Notes |
+|---|---|---|---|
+| 8a | #447 Tag query endpoints: project scoping | 2 | Backend only. Also pins the test JVMs to UTC. |
+| 8b | #448 Login hardening | 3 | |
+| 8c | #446 Account settings: password change flow | 5 | Angular change and e2e; a Flyway migration. |
+
 ### Phase 5 — gateway and MCP features
 
 | # | Issue | Size | Notes |
@@ -59,6 +70,7 @@ features grouped by area. Size is a rough guess in working days, before each tic
 |---|---|---|---|
 | 12 | #349 Primary verb for imperative text | 2 | Decide at review: actor check on scenario names or not. |
 | 13 | #348 Glossary rename keeps a synonym and offers a referer rewrite | 5 | UI dialog plus gateway result change. |
+| 13a | #459 A step with no actor: an example built from the step, and one-click rewrites | 3 | Added 2026-11-01, follow-on to #349. A new position kind that rewrites a name. |
 
 ### Phase 7 — AI assistants
 
