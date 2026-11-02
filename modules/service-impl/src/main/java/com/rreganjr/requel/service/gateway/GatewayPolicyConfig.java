@@ -77,8 +77,8 @@ public class GatewayPolicyConfig {
             // registered and reachable through /api/commands; only the machine surface drops them.
             // ConvertStepToScenario stays because the steps array genuinely cannot express it.
             "EditScenario", "CopyScenario", "DeleteScenario", "ConvertStepToScenario",
-            // Glossary
-            "EditGlossaryTerm", "DeleteGlossaryTerm",
+            // Glossary (#348: ReplaceTermText edits each referer through its own Edit* command)
+            "EditGlossaryTerm", "DeleteGlossaryTerm", "ReplaceTermText",
             // Project dictionary (#319; Project[Edit] at the command layer)
             "AddProjectDictionaryWord", "DeleteProjectDictionaryWord",
             // Ignored assistant findings (#320; Project[Edit] at the command layer)

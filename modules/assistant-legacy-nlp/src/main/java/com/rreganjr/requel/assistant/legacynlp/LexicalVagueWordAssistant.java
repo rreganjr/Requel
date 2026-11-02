@@ -49,6 +49,7 @@ import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.EvidenceRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
 import com.rreganjr.requel.assistant.core.context.RedactablePatterns;
+import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.TextEntity;
 
 /**
@@ -135,6 +136,11 @@ public class LexicalVagueWordAssistant implements RequelAssistant<TextEntity> {
 		return "Vague words";
 	}
 
+	/** #348: a glossary term with a canonical term is a synonym of it. */
+	static boolean isSynonym(TextEntity target) {
+		return target instanceof GlossaryTerm term && term.getCanonicalTerm() != null;
+	}
+
 	@Override
 	public AssistantResult analyze(AssistantContext context, TextEntity target) {
 		String entityType = target.getProjectOrDomainEntityInterface().getSimpleName();
@@ -146,10 +152,15 @@ public class LexicalVagueWordAssistant implements RequelAssistant<TextEntity> {
 		// #268: a failure on one property leaves the other's findings and marks the result
 		// incomplete, so nothing is auto-resolved on the strength of it.
 		PropertyChecks checks = new PropertyChecks(log, "vague-word", targetRef);
-		checks.run(PROP_NAME, target.getName(),
-				() -> analyzeProperty(builder, targetRef, PROP_NAME, target.getName()));
-		checks.run(PROP_TEXT, target.getText(),
-				() -> analyzeProperty(builder, targetRef, PROP_TEXT, target.getText()));
+		// #348: a synonym is the non-preferred word by definition (a renamed term's old name, say),
+		// so calling it vague only invites a rename into its canonical term. Nothing is reported,
+		// and the removals below retire anything reported on it before.
+		if (!isSynonym(target)) {
+			checks.run(PROP_NAME, target.getName(),
+					() -> analyzeProperty(builder, targetRef, PROP_NAME, target.getName()));
+			checks.run(PROP_TEXT, target.getText(),
+					() -> analyzeProperty(builder, targetRef, PROP_TEXT, target.getText()));
+		}
 		return LegacyLexicalIssues.withRemovals(checks.finish(builder).build(), target, targetRef,
 				LegacyLexicalIssues.VAGUE_WORD, checks);
 	}

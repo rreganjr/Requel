@@ -32,6 +32,7 @@ import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ListPageComponent } from '../../shared/list-page';
 import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-table';
 import { AppTagComponent } from '../../shared/app-tag';
+import { ENTITY_ROUTES } from '../../shared/entity-routes';
 import { IssueSeverity, STALE_LABEL, STALE_TOOLTIP, severityLabel, severityRank } from '../../models/annotation';
 import { issueSeverityIcon, issueSeverityTone, RqTone } from '../../shared/severity';
 
@@ -63,19 +64,6 @@ const SEVERITY_FILTER_OPTIONS: { label: string; value: SeverityFilter }[] = [
   { label: 'Medium and up', value: 'MEDIUM' },
   { label: 'High only', value: 'HIGH' },
 ];
-
-/** Maps entity type simple names to their Angular route segment. */
-const ENTITY_ROUTES: Record<string, string> = {
-  Goal: 'goals',
-  Story: 'stories',
-  Actor: 'actors',
-  Scenario: 'scenarios',
-  UseCase: 'use-cases',
-  UserStakeholder: 'stakeholders',
-  NonUserStakeholder: 'stakeholders',
-  GlossaryTerm: 'terms',
-  ReportGenerator: 'reports',
-};
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,

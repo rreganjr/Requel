@@ -148,4 +148,20 @@ export class TermEditorPage {
       .click();
     await this.page.waitForURL(/\/terms\/\d+/);
   }
+
+  /** #348: the "Still uses an old name" panel lists this referer under the synonym. */
+  async expectSynonymUse(synonym: string, refererName: string): Promise<void> {
+    const use = this.page.getByTestId('term-synonym-use')
+      .filter({ has: this.page.getByTestId('term-synonym-use-name').filter({ hasText: synonym }) });
+    await expect(use.getByTestId('term-synonym-use-row').filter({ hasText: refererName }))
+      .toBeVisible({ timeout: 15_000 });
+  }
+
+  /** #348: Replace all for a synonym, waiting for the command and the reload. */
+  async replaceAll(): Promise<void> {
+    await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/api/commands/ReplaceTermText') && r.ok()),
+      this.page.getByTestId('term-synonym-replace-all').click(),
+    ]);
+  }
 }

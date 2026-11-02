@@ -78,6 +78,7 @@ class WriteInputDtoConstructionTest {
 			"RemoveGoalFromGoalContainerInput",
 			"RemoveScenarioFromUseCaseInput",
 			"RemoveStoryFromStoryContainerInput",
+			"ReplaceTermTextInput",
 			"SetPrimaryScenarioInput");
 
 	@Test
