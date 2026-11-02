@@ -43,9 +43,11 @@ public class PasswordChangeService {
     static final int MAX_PASSWORD_LENGTH = 128;
 
     private final UserRepository userRepository;
+    private final SignInRevocation signInRevocation;
 
-    public PasswordChangeService(UserRepository userRepository) {
+    public PasswordChangeService(UserRepository userRepository, SignInRevocation signInRevocation) {
         this.userRepository = userRepository;
+        this.signInRevocation = signInRevocation;
     }
 
     /**
@@ -81,7 +83,10 @@ public class PasswordChangeService {
 
         user.resetPassword(next);
         user.setMustChangePassword(false);
-        return userRepository.merge(user);
+        User saved = userRepository.merge(user);
+        // #446: the user's other sign-ins end; their personal access tokens are kept.
+        signInRevocation.afterPasswordChange(saved, false);
+        return saved;
     }
 
     /** The change was refused; the transaction rolls back. */

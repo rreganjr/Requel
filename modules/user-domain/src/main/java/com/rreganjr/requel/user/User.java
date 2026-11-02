@@ -90,6 +90,14 @@ public interface User extends OrganizedEntity, com.rreganjr.platform.identity.Us
 	public void setMustChangePassword(boolean mustChangePassword);
 
 	/**
+	 * Issue #446: when the password last changed, the user's own change or an admin reset, to the
+	 * second. A login or OAuth token issued before it is refused.
+	 *
+	 * @return the time, or null if the password hasn't changed since this was recorded.
+	 */
+	public java.time.Instant getPasswordChangedAt();
+
+	/**
 	 * The user's email address. The system will use this for sending
 	 * communcations to the user and may be included in generated documents or
 	 * presented to other users of the system for contacting this user.

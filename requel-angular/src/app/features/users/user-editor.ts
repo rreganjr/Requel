@@ -22,7 +22,7 @@ import { Component, OnInit, signal, computed, ChangeDetectionStrategy, inject, D
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { InputText } from 'primeng/inputtext';
@@ -35,6 +35,7 @@ import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { UserDto } from '../../models/user';
 import { RoleDto } from '../../models/role';
 import { UserService } from '../../core/user.service';
+import { AuthService } from '../../core/auth.service';
 import { CommandService, isNetworkError } from '../../core/command.service';
 import { LoadingStateComponent } from '../../shared/loading-state';
 import { ErrorStateComponent } from '../../shared/error-state';
@@ -63,6 +64,7 @@ const SEPARATOR = '; ';
   selector: 'app-user-editor',
   standalone: true,
   imports: [
+    RouterLink,
     PageHeaderComponent,
     AppCardComponent,
     ReactiveFormsModule,
@@ -146,6 +148,14 @@ const SEPARATOR = '; ';
                         placeholder="Select or type organization" />
             </app-field>
 
+            <!-- #446: an admin's own password changes on the Change Password page, which asks
+                 for the current one; resetting someone else's stays here. -->
+            @if (isSelf()) {
+              <div class="password-row">
+                <span class="password-label">Password</span>
+                <a routerLink="/change-password" data-testid="user-change-own-password">Change password</a>
+              </div>
+            } @else {
             <app-field label="Password" controlId="password" [control]="form.controls.password"
                        [submitted]="submitted()"
                        [helper]="isNew() ? '' : 'Leave blank to keep the current password.'">
@@ -158,6 +168,7 @@ const SEPARATOR = '; ';
               <p-password appFieldControl inputId="repassword" formControlName="repassword"
                           [feedback]="false" [toggleMask]="true" autocomplete="new-password" />
             </app-field>
+            }
           </app-field-group>
 
           <!-- #381: the user can sign in, but must choose a new password before anything else. -->
@@ -220,6 +231,9 @@ const SEPARATOR = '; ';
     /* The local .form-grid { 1fr 1fr } is gone — app-field-group owns the columns now
        (issue #172), and app-field owns each row. */
     app-field input, app-field p-password, app-field p-select { width: 100%; }
+    .password-row { display: flex; justify-content: space-between; align-items: center;
+                    padding: var(--rq-space-3) 0; }
+    .password-label { font-weight: 600; }
     .must-change-password { display: flex; width: fit-content; margin-block-start: var(--rq-space-4); }
     .roles-section { margin-block: var(--rq-space-6); }
     .roles-section h2 { margin: 0 0 var(--rq-space-3); }
@@ -248,6 +262,14 @@ export class UserEditorComponent implements OnInit, DirtyCheckable {
   // error state replaces the form only when the initial load fails.
   readonly loadError = signal<string | null>(null);
   private lastUsernameParam: string | null = null;
+
+  private readonly authService = inject(AuthService);
+  /** The username in the route, as a signal so {@link isSelf} follows it. */
+  private readonly editedUsername = signal<string | null>(null);
+  /** #446: the admin is editing their own account, so the password rows give way to a link. */
+  readonly isSelf = computed(() =>
+    !this.isNew() && this.editedUsername() !== null
+      && this.editedUsername() === this.authService.user()?.username);
 
   /**
    * Mirrors the backend `@Size(max = ValidationLimits.ARTIFACT_NAME_MAX)` (#171). Bound with
@@ -373,6 +395,7 @@ export class UserEditorComponent implements OnInit, DirtyCheckable {
     this.loadError.set(null);
     this.submitted.set(false);
     this.lastUsernameParam = usernameParam;
+    this.editedUsername.set(usernameParam);
     this.userId = null;
     this.userVersion = 0;
 
@@ -455,8 +478,8 @@ export class UserEditorComponent implements OnInit, DirtyCheckable {
         userRolePermissionNames: this.selectedPermissionsPayload(value.userRoleNames),
       };
 
-      // Only include password if set
-      if (value.password) {
+      // Only include password if set (#446: never for your own account)
+      if (value.password && !this.isSelf()) {
         input['password'] = value.password;
         input['repassword'] = value.repassword;
       }

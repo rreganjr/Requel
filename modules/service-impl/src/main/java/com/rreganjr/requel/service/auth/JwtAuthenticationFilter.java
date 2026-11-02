@@ -95,13 +95,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * Validate a login JWT (signature, expiry), then load its account by the token's user id
      * (#445) and set the context with that account's current username and roles, as the PAT path
      * does. A token with no user id (issued before 2.0.3), or whose account is gone, leaves the
-     * context unauthenticated so protected endpoints return 401.
+     * context unauthenticated so protected endpoints return 401, as does one issued before the
+     * user's last password change (#446).
      */
     private void authenticateJwt(String token) {
         try {
             Claims claims = jwtService.parseToken(token);
             User user = userRepository.findUserById(JwtService.userId(claims));
-            if (user == null) {
+            // #446: a token from before the user's last password change is no longer good.
+            Date issuedAt = claims.getIssuedAt();
+            if (user == null || SignInRevocation.predatesPasswordChange(user,
+                    issuedAt == null ? null : issuedAt.toInstant())) {
                 SecurityContextHolder.clearContext();
                 return;
             }

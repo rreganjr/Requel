@@ -34,13 +34,13 @@ test.describe('Edit account', () => {
     await page.close();
   });
 
-  test('change password → can log back in with new password', async ({ browser, request }) => {
+  test('change password from /account → older sign-ins end, the new password works', async ({ browser, request }) => {
     const username = `e2e-pwd-${Date.now()}`;
     const initialPassword = 'InitialPass123!';
     const newPassword = 'NewPass456!';
     await createUser(request, username, 'Password Test User', initialPassword);
 
-    // Log in as the new user and change the password via /account
+    // Log in as the new user
     const ctx1 = await browser.newContext();
     const pg1 = await ctx1.newPage();
     await pg1.goto('/login');
@@ -48,25 +48,37 @@ test.describe('Edit account', () => {
     await pg1.locator('p-password input').fill(initialPassword);
     await pg1.getByRole('button', { name: 'Login' }).click();
     await pg1.waitForURL('**/');
+    const oldToken = await pg1.evaluate(() => localStorage.getItem('requel_token'));
+    expect(oldToken).toBeTruthy();
 
+    // #446: /account has no password rows, only a link to the Change Password page.
     await pg1.goto('/account');
     await pg1.waitForLoadState('domcontentloaded');
+    await expect(pg1.locator('#password')).toHaveCount(0);
+    await pg1.getByTestId('account-change-password').click();
+    await pg1.waitForURL('**/change-password');
+
+    // Tokens carry their issue time to the second; make sure the change is in a later one.
+    await pg1.waitForTimeout(1100);
 
     // p-password needs pressSequentially to fire per-char input events for Angular's CVA
-    // #password is now the real input, not the p-password host (issue #132).
-    const pwInput = pg1.locator('#password');
-    await pwInput.focus();
-    await pwInput.pressSequentially(newPassword);
-    const rpwInput = pg1.locator('#repassword');
-    await rpwInput.focus();
-    await rpwInput.pressSequentially(newPassword);
-
+    for (const [id, value] of [['currentPassword', initialPassword], ['newPassword', newPassword],
+                               ['confirmPassword', newPassword]] as const) {
+      const input = pg1.locator(`#${id}`);
+      await input.focus();
+      await input.pressSequentially(value);
+    }
     const [res] = await Promise.all([
-      pg1.waitForResponse(r => r.url().includes('/api/commands/EditUser')),
-      pg1.getByTestId('account-save').click(),
+      pg1.waitForResponse(r => r.url().includes('/api/auth/password')),
+      pg1.getByTestId('change-password-submit').click(),
     ]);
-    if (!res.ok()) throw new Error(`EditUser failed: ${res.status()} ${await res.text()}`);
+    if (!res.ok()) throw new Error(`Password change failed: ${res.status()} ${await res.text()}`);
+    await pg1.waitForURL(url => !url.pathname.endsWith('/change-password'));
     await ctx1.close();
+
+    // The token from before the change no longer works.
+    const me = await request.get('/api/auth/me', { headers: { Authorization: `Bearer ${oldToken}` } });
+    expect(me.status()).toBe(401);
 
     // Verify: fresh context, log in with the new password
     const ctx2 = await browser.newContext();

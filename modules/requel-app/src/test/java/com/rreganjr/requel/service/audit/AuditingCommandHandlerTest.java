@@ -333,6 +333,7 @@ class AuditingCommandHandlerTest {
         @Override public void setUsername(String s) {}
         @Override public void setPassword(String s) {}
         @Override public void setRepassword(String s) {}
+        @Override public boolean isPasswordReset() { return false; }
         @Override public void setName(String s) {}
         @Override public void setEmailAddress(String s) {}
         @Override public void setPhoneNumber(String s) {}
