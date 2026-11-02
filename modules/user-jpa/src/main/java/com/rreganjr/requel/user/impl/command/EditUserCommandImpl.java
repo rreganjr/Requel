@@ -71,6 +71,12 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 	private Map<String, Set<String>> userRolePermissionNames = new HashMap<String, Set<String>>();
 	private User editedBy;
 	private Integer expectedVersion;
+	/** #446: set when this edit reset another user's password. */
+	private boolean passwordReset;
+
+	/** #446: the refusal a self-edit that sends a password gets. */
+	static final String OWN_PASSWORD_MESSAGE =
+			"Change your own password on the Change Password page.";
 
 	/**
 	 * @param userRepository
@@ -85,11 +91,13 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 	 */
 	@Override
 	public void execute() {
-		boolean isAdmin = getEditedBy() != null && getEditedBy().hasRole(SystemAdminUserRole.class);
+		// A null editedBy is a system call (initializers, the dev-only reset endpoints), which may
+		// do what an admin may.
+		boolean isAdmin = getEditedBy() == null || getEditedBy().hasRole(SystemAdminUserRole.class);
 		UserImpl userImpl = (UserImpl) getUser();
 		if (userImpl == null) {
 			// Only admins can create new users; null editedBy = system bootstrap (initializers)
-			if (!isAdmin && getEditedBy() != null) {
+			if (!isAdmin) {
 				throw new AuthorizationException("Only administrators can create user accounts.");
 			}
 			userImpl = createUser();
@@ -137,8 +145,15 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 		Organization organization = getOrCreateOrganization(getOrganizationName());
 		userImpl.setName(getName());
 		if (!StringUtils.isEmpty(getPassword())) {
+			// #446: your own password changes only through the Change Password page, which checks
+			// the current one; admins included, so a stolen token can't take over an account.
+			if (isOwnAccount(userImpl)) {
+				throw EntityValidationException.validationFailed(User.class, "password",
+						OWN_PASSWORD_MESSAGE);
+			}
 			if (getPassword().equals(getRepassword())) {
 				userImpl.resetPassword(getPassword());
+				passwordReset = true;
 			} else {
 				throw EntityValidationException.passwordAndRePasswordDontMatch(User.class);
 			}
@@ -159,6 +174,16 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 			}
 		}
 		return getUserRepository().merge(userImpl);
+	}
+
+	/** Whether the caller is editing their own account (never for a system call). */
+	private boolean isOwnAccount(UserImpl userImpl) {
+		return getEditedBy() != null && userImpl.getUsername().equals(getEditedBy().getUsername());
+	}
+
+	@Override
+	public boolean isPasswordReset() {
+		return passwordReset;
 	}
 
 	private Organization getOrCreateOrganization(String organizationName) {

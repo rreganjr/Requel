@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { signal } from '@angular/core';
+import { provideRouter } from '@angular/router';
 import { EditAccountComponent } from './edit-account';
 import { AuthService } from '../../core/auth.service';
 import { CommandService } from '../../core/command.service';
@@ -32,6 +33,7 @@ describe('EditAccountComponent', () => {
       imports: [EditAccountComponent],
       providers: [
         provideNoopAnimations(),
+        provideRouter([]),
         { provide: AuthService, useValue: authServiceMock },
         { provide: CommandService, useValue: commandServiceMock },
         { provide: UserService, useValue: userServiceMock }
@@ -44,7 +46,7 @@ describe('EditAccountComponent', () => {
   /** Edit the form the way a user would, leaving it dirty. */
   function patch(values: Partial<{
     name: string; emailAddress: string; phoneNumber: string;
-    organizationName: string; password: string; repassword: string;
+    organizationName: string;
   }>): void {
     comp.form.patchValue(values);
     comp.form.markAsDirty();
@@ -148,12 +150,9 @@ describe('EditAccountComponent', () => {
       expect(comp.hasUnsavedChanges()).toBe(true);
     });
 
-    it('marks pristine and clears the password rows after a successful save', async () => {
-      patch({ name: 'Updated', password: 'hunter2', repassword: 'hunter2' });
+    it('marks pristine after a successful save', async () => {
+      patch({ name: 'Updated' });
       await comp.onSave();
-
-      expect(comp.form.controls.password.value).toBe('');
-      expect(comp.form.controls.repassword.value).toBe('');
       expect(comp.form.pristine).toBe(true);
     });
 
@@ -177,89 +176,40 @@ describe('EditAccountComponent', () => {
       expect(save()?.disabled).toBe(false);
     });
 
-    it('keeps the ids the e2e page objects locate, with #password on the real input', () => {
+    it('keeps the ids the e2e page objects locate', () => {
       fixture.detectChanges();
       const el = fixture.nativeElement as HTMLElement;
 
       expect(el.querySelector('input#username')).not.toBeNull();
       expect(el.querySelector('input#name')).not.toBeNull();
       expect(el.querySelector('input#email')).not.toBeNull();
-      // The id lands on the inner input, not the p-password host — the e2e locators
-      // changed from .locator('#password').locator('input') to .locator('#password').
-      expect(el.querySelector('#password')?.tagName.toLowerCase()).toBe('input');
-      expect(el.querySelector('#repassword')?.tagName.toLowerCase()).toBe('input');
     });
   });
 
-  describe('optional password (issue #132)', () => {
+  describe('password (issue #446)', () => {
     beforeEach(async () => {
       fixture.detectChanges();
       await fixture.whenStable();
     });
 
-    /**
-     * "Leave blank to keep current" needs no conditional branch: Angular's minLength
-     * returns null for an empty value, and passwordsMatch is satisfied when both rows
-     * are empty. This asserts that reading of the semantics, since it is the reason
-     * there is no isNew-style flag here.
-     */
-    it('is valid with both password rows blank', () => {
-      patch({ name: 'Updated' });
-      expect(comp.form.valid).toBe(true);
+    it('has no password rows; your own password changes on the Change Password page', () => {
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('#password')).toBeNull();
+      expect(el.querySelector('#repassword')).toBeNull();
+      expect('password' in comp.form.controls).toBe(false);
+
+      const link = el.querySelector<HTMLAnchorElement>('[data-testid="account-change-password"]');
+      expect(link).not.toBeNull();
+      expect(link!.getAttribute('href')).toBe('/change-password');
     });
 
-    it('omits password from the payload when blank', async () => {
+    it('never sends a password', async () => {
       patch({ name: 'Updated' });
       await comp.onSave();
 
       const input = commandServiceMock.execute.mock.calls[0][1] as Record<string, unknown>;
       expect('password' in input).toBe(false);
       expect('repassword' in input).toBe(false);
-    });
-
-    it('includes password and repassword when set', async () => {
-      patch({ name: 'Updated', password: 'hunter2', repassword: 'hunter2' });
-      await comp.onSave();
-
-      expect(commandServiceMock.execute).toHaveBeenCalledWith(
-        'EditUser',
-        expect.objectContaining({ password: 'hunter2', repassword: 'hunter2' })
-      );
-    });
-
-    it('reports a mismatch on the confirm row and blocks the save', async () => {
-      patch({ name: 'Updated', password: 'hunter2', repassword: 'hunter3' });
-
-      expect(comp.form.controls.repassword.hasError('passwordMismatch')).toBe(true);
-      expect(comp.form.invalid).toBe(true);
-
-      await comp.onSave();
-      expect(commandServiceMock.execute).not.toHaveBeenCalled();
-    });
-
-    it('clears the mismatch when the confirm row catches up', () => {
-      patch({ password: 'hunter2', repassword: 'hunter3' });
-      comp.form.controls.repassword.setValue('hunter2');
-      expect(comp.form.controls.repassword.errors).toBeNull();
-    });
-
-    it('re-flags a mismatch when the password changes after confirming', () => {
-      patch({ name: 'Updated', password: 'hunter2', repassword: 'hunter2' });
-      expect(comp.form.valid).toBe(true);
-
-      comp.form.controls.password.setValue('hunter3');
-      expect(comp.form.controls.repassword.hasError('passwordMismatch')).toBe(true);
-    });
-
-    it('rejects a password over the server maximum', () => {
-      patch({ password: 'x'.repeat(129), repassword: 'x'.repeat(129) });
-      expect(comp.form.controls.password.hasError('maxlength')).toBe(true);
-    });
-
-    it('accepts a password at exactly the server maximum', () => {
-      const pw = 'x'.repeat(128);
-      patch({ name: 'Updated', password: pw, repassword: pw });
-      expect(comp.form.controls.password.valid).toBe(true);
     });
   });
 
@@ -285,19 +235,18 @@ describe('EditAccountComponent', () => {
       expect(comp.errorMessage()).toBeNull();
     });
 
-    it('routes a password violation onto the password control (#176)', async () => {
+    it('shows a password violation page-level, since there is no password row (#446)', async () => {
       commandServiceMock.execute.mockResolvedValue({
         success: false,
-        violations: [{ field: 'password', message: 'Password is not acceptable.' }],
+        violations: [{ field: 'password',
+          message: 'validation failed: Change your own password on the Change Password page.' }],
         error: 'Validation failed',
       });
-      patch({ name: 'Updated', password: 'hunter2', repassword: 'hunter2' });
+      patch({ name: 'Updated' });
 
       await comp.onSave();
 
-      expect(comp.form.controls.password.errors).toEqual({
-        server: 'Password is not acceptable.',
-      });
+      expect(comp.errorMessage()).toContain('Change Password page');
     });
 
     /**

@@ -70,7 +70,7 @@ public class DevAdminResetController {
      * All other fields (name, email, phone, org, roles) are preserved, and "must change password"
      * is cleared (#381).
      *
-     * <p>Sets editedBy to admin itself (admin editing own account) so the authorization
+     * <p>Runs as a system call (no editedBy, #446), so the authorization
      * chain allows the update without requiring a live security context.</p>
      *
      * @return 204 No Content on success, 404 if admin does not exist, 500 on error.
@@ -85,8 +85,8 @@ public class DevAdminResetController {
 
             EditUserCommand cmd = userCommandFactory.newEditUserCommand();
             cmd.setUser(admin);
-            // admin editing own account: auth requirement returns null → no role check
-            cmd.setEditedBy(admin);
+            // No editedBy: a system call. #446: an account can't change its own password through
+            // EditUser, so this can't run as the admin editing itself.
             cmd.setUsername(admin.getUsername());
             cmd.setName(admin.getName());
             cmd.setEmailAddress(admin.getEmailAddress());

@@ -126,6 +126,7 @@ public class UserImpl implements User, Serializable {
 	private Organization organization;
 	private boolean editable = true;
 	private boolean mustChangePassword;
+	private java.time.Instant passwordChangedAt;
 	private Set<UserRole> userRoles;
 	// start at 1 so hibernate recognizes the new
 	// instance as the initial value and not stale.
@@ -249,6 +250,9 @@ public class UserImpl implements User, Serializable {
 	public final void resetPassword(String password) {
 		if (isValidPassword(password)) {
 			_resetPassword(password);
+			// #446: a real change; the sign-in rehash calls _resetPassword directly and isn't one.
+			setPasswordChangedAt(java.time.Instant.now()
+					.truncatedTo(java.time.temporal.ChronoUnit.SECONDS));
 		} else {
 			// This is needed because hibernate checks nullability before
 			// doing validation and throws a PropertyValueException for
@@ -407,6 +411,22 @@ public class UserImpl implements User, Serializable {
 	@Override
 	public void setMustChangePassword(boolean mustChangePassword) {
 		this.mustChangePassword = mustChangePassword;
+	}
+
+	/**
+	 * Issue #446: when the password last changed (the user's own change or an admin reset), to the
+	 * second. Sign-ins from before it end. Null for a user whose password hasn't changed since this
+	 * was added. Not exported, like the password itself.
+	 */
+	@Override
+	@Column(name = "password_changed_at")
+	@XmlTransient
+	public java.time.Instant getPasswordChangedAt() {
+		return passwordChangedAt;
+	}
+
+	public void setPasswordChangedAt(java.time.Instant passwordChangedAt) {
+		this.passwordChangedAt = passwordChangedAt;
 	}
 
 	@XmlElementWrapper(name = "userRoles", namespace = "http://www.rreganjr.com/requel")
@@ -650,6 +670,7 @@ public class UserImpl implements User, Serializable {
 		setPhoneNumber(existingUser.getPhoneNumber());
 		setEditable(existingUser.isEditable());
 		setMustChangePassword(existingUser.isMustChangePassword());
+		setPasswordChangedAt(existingUser.getPasswordChangedAt());
 		setOrganization(existingUser.getOrganization());
 		setEncryptedPassword(existingUser.getEncryptedPassword());
 		setPasswordSalt(existingUser.getPasswordSalt());

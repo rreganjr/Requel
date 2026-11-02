@@ -162,4 +162,10 @@ public interface EditUserCommand extends Command {
 	 *        {@code null} to skip the optimistic-lock check
 	 */
 	public void setExpectedVersion(Integer expectedVersion);
+
+	/**
+	 * Issue #446: whether this edit reset another user's password (an admin reset, or a system
+	 * call). A self-edit never changes the password, so it is never one. Read after execution.
+	 */
+	public boolean isPasswordReset();
 }

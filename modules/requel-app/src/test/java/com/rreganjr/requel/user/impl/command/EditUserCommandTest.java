@@ -37,7 +37,8 @@ import org.junit.jupiter.api.Test;
  * {@code EditUserCommand} is the single command covering user creation, profile
  * update, password change, and role assignment. There are no separate
  * {@code DeleteUser} or {@code ChangePassword} commands in this codebase;
- * password changes go through {@code EditUser} via setPassword/setRepassword,
+ * an admin resets another user's password through {@code EditUser} (your own goes through
+ * {@code /api/auth/password}, #446),
  * and user deletion is not yet implemented.
  *
  * Authorization rules enforced by the command:
@@ -205,28 +206,81 @@ public class EditUserCommandTest extends AbstractIntegrationTestCase {
     // Password change (via EditUser)
     // -------------------------------------------------------------------------
 
+    /** #446: your own password changes only through the Change Password page. */
     @Test
-    public void changePassword() throws Exception {
+    public void aUserCannotChangeTheirOwnPasswordThroughEditUser() throws Exception {
         long ts = System.currentTimeMillis();
         User user = createUser("passwd-user-" + ts, "oldPass1!", "Password User");
-        assertTrue(user.isPassword("oldPass1!"), "initial password should authenticate");
 
-        // User changes their own password
+        EntityValidationException refused = assertThrows(EntityValidationException.class,
+                () -> getCommandHandler().execute(selfEdit(user, "newPass2!")));
+        assertArrayEquals(new String[] { "password" }, refused.getEntityPropertyNames());
+        assertTrue(refused.getMessage().contains("Change your own password on the Change Password page."));
+        User reloaded = getUserRepository().findUserByUsername(user.getUsername());
+        assertTrue(reloaded.isPassword("oldPass1!"), "the password is unchanged");
+    }
+
+    /** #446: an admin is no exception; a stolen admin token can't change the admin's password. */
+    @Test
+    public void anAdminCannotChangeTheirOwnPasswordThroughEditUser() throws Exception {
+        long ts = System.currentTimeMillis();
+        User selfAdmin = createUserWithRole("self-admin-" + ts, "oldPass1!", "Self Admin",
+                SystemAdminUserRole.class.getSimpleName());
+
+        assertThrows(EntityValidationException.class,
+                () -> getCommandHandler().execute(selfEdit(selfAdmin, "newPass2!")));
+        assertTrue(getUserRepository().findUserByUsername(selfAdmin.getUsername())
+                .isPassword("oldPass1!"));
+    }
+
+    @Test
+    public void aSelfEditWithoutAPasswordStillSaves() throws Exception {
+        long ts = System.currentTimeMillis();
+        User user = createUser("passwd-keep-" + ts, "oldPass1!", "Before");
+        EditUserCommand cmd = selfEdit(user, null);
+        cmd.setName("After");
+        cmd = getCommandHandler().execute(cmd);
+        assertEquals("After", cmd.getUser().getName());
+        assertFalse(cmd.isPasswordReset());
+        assertTrue(cmd.getUser().isPassword("oldPass1!"));
+    }
+
+    /** #446: an admin resetting someone else's password works, and records the change. */
+    @Test
+    public void anAdminResetsAnotherUsersPassword() throws Exception {
+        long ts = System.currentTimeMillis();
+        User user = createUser("passwd-reset-" + ts, "oldPass1!", "Reset User");
+        User admin = getUserRepository().findUserByUsername("admin");
+
+        EditUserCommand cmd = selfEdit(user, "newPass2!");
+        cmd.setEditedBy(admin);
+        java.time.Instant before = java.time.Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+        cmd = getCommandHandler().execute(cmd);
+
+        assertTrue(cmd.isPasswordReset());
+        User updated = cmd.getUser();
+        assertTrue(updated.isPassword("newPass2!"), "new password should authenticate");
+        assertFalse(updated.isPassword("oldPass1!"), "old password should no longer work");
+        assertNotNull(updated.getPasswordChangedAt());
+        assertFalse(updated.getPasswordChangedAt().isBefore(before));
+    }
+
+    /** An edit of {@code user} by {@code user}, with {@code password} (null for none). */
+    private EditUserCommand selfEdit(User user, String password) {
         EditUserCommand cmd = getUserCommandFactory().newEditUserCommand();
         cmd.setEditedBy(user);
         cmd.setUser(user);
         cmd.setUsername(user.getUsername());
         cmd.setName(user.getName());
         cmd.setEmailAddress(user.getEmailAddress());
+        cmd.setPhoneNumber("");
         cmd.setOrganizationName(
                 user.getOrganization() != null ? user.getOrganization().getName() : "TestOrg");
-        cmd.setPassword("newPass2!");
-        cmd.setRepassword("newPass2!");
-        cmd = getCommandHandler().execute(cmd);
-
-        User updated = cmd.getUser();
-        assertTrue(updated.isPassword("newPass2!"), "new password should authenticate");
-        assertFalse(updated.isPassword("oldPass1!"), "old password should no longer work");
+        if (password != null) {
+            cmd.setPassword(password);
+            cmd.setRepassword(password);
+        }
+        return cmd;
     }
 
     @Test
