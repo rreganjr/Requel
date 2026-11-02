@@ -23,6 +23,7 @@ package com.rreganjr.requel.service.config;
 import org.springframework.security.authentication.CredentialsExpiredException;
 import org.springframework.security.web.authentication.ExceptionMappingAuthenticationFailureHandler;
 import com.rreganjr.requel.service.auth.OAuth2ConsentController;
+import com.rreganjr.requel.service.auth.LoginThrottledException;
 import com.rreganjr.requel.service.auth.OAuth2LoginPageController;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.JWKSet;
@@ -291,7 +292,11 @@ public class AuthorizationServerConfig {
         handler.setExceptionMappings(java.util.Map.of(
                 CredentialsExpiredException.class.getName(),
                 OAuth2LoginPageController.LOGIN_PAGE_URI + "?error="
-                        + OAuth2LoginPageController.PASSWORD_CHANGE_ERROR));
+                        + OAuth2LoginPageController.PASSWORD_CHANGE_ERROR,
+                // #448: the sign-in limits refused the attempt.
+                LoginThrottledException.class.getName(),
+                OAuth2LoginPageController.LOGIN_PAGE_URI + "?error="
+                        + OAuth2LoginPageController.THROTTLED_ERROR));
         return handler;
     }
 

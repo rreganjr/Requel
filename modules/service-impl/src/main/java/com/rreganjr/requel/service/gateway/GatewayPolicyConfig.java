@@ -117,7 +117,8 @@ public class GatewayPolicyConfig {
             // Identity / user management — out of scope by design. RepairProjectStakeholders
             // creates stakeholder rows and grants permissions, so it belongs here with
             // EditUserStakeholder rather than on the allowlist (issue #256); admins run it
-            // through /api/commands from the admin UI.
+            // through /api/commands from the admin UI. "Login" is no longer a command at all
+            // (#448); it stays here so it can never be allowlisted back in.
             "Login", "EditUser", "EditUserStakeholder", "RepairProjectStakeholders",
             // Installation-wide dictionary (#319): administrators manage it from the admin UI;
             // it changes spell checking in every project, not one a client is working in.

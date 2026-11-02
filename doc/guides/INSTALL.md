@@ -189,6 +189,34 @@ Set these as environment variables (shown) or as `--property=value` arguments.
 | `REQUEL_OAUTH_SEED_CLI_CLIENT` | `true` | Registers the `requel-cli` OAuth client, for `requel-cli login --oauth` |
 | `REQUEL_OAUTH_DCR_ALLOW_ANONYMOUS_LOOPBACK` | `false` | Lets an MCP client on the same machine register itself over OAuth (not under Docker) |
 | `REQUEL_OAUTH_DCR_ENABLED` / `_REGISTRAR_CLIENT_SECRET` | `false` / none | Gated OAuth client registration for MCP clients; see [Connect the CLI or an AI client](#connect-the-cli-or-an-ai-client) |
+| `SERVER_FORWARD_HEADERS_STRATEGY` | none | Set to `native` behind a reverse proxy, so Requel sees each client's address; see [Sign-in limits](#sign-in-limits) |
+| `REQUEL_LOGIN_THROTTLE_*` | see below | The sign-in limits |
+
+### Sign-in limits
+
+Requel limits failed sign-in attempts, through the app, the CLI and the OAuth sign-in page an MCP
+client opens, and wrong current passwords on a password change. Failures are counted over a
+sliding 15 minutes:
+
+| Counted by | Setting | Default | Then |
+|---|---|---|---|
+| username and client address | `REQUEL_LOGIN_THROTTLE_PER_PAIR` | 5 | the wait doubles with each further failure (1 s, 2 s, 4 s ...), at most 15 minutes |
+| client address, any username | `REQUEL_LOGIN_THROTTLE_PER_SOURCE` | 50 | 15 minutes |
+| username, any address | `REQUEL_LOGIN_THROTTLE_PER_USERNAME` | 50 | the wait doubles, at most 15 minutes |
+
+The window and the longest wait are `REQUEL_LOGIN_THROTTLE_WINDOW` and
+`REQUEL_LOGIN_THROTTLE_MAX_WAIT` (both `PT15M`). Nothing locks an account for good: once the wait
+is over the right password works, and a successful sign-in clears that username and address. The
+counts live in memory and a restart clears them. Each refused attempt is logged at WARN and
+counted in the `requel.login.throttled` metric.
+
+**Behind a reverse proxy**, every request reaches Requel from the proxy's address, so all users
+would share one per-address count. Set `SERVER_FORWARD_HEADERS_STRATEGY=native`: Tomcat then takes
+the client's address from the proxy's `X-Forwarded-For` header. It accepts that header only from
+private and loopback addresses; for a proxy on a public address, also set
+`SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` to a regular expression matching it. Don't set it without
+a proxy: anyone could then send their own `X-Forwarded-For` and pick the address they are counted
+under. The Compose file leaves it off for that reason.
 
 ## Before you expose it
 
@@ -197,6 +225,8 @@ Set these as environment variables (shown) or as `--property=value` arguments.
 - The **admin** password is no longer `admin` (Requel makes you change it at the first sign-in).
 - The `dev` profile is **not** active.
 - Requel sits behind HTTPS (a reverse proxy such as nginx or Caddy terminating TLS).
+- Behind that proxy, `SERVER_FORWARD_HEADERS_STRATEGY=native` is set, so the
+  [sign-in limits](#sign-in-limits) count each client's address, not the proxy's.
 - The database is backed up on a schedule.
 
 ## Troubleshooting

@@ -49,6 +49,9 @@ public class OAuth2LoginPageController {
     /** The {@code error} value for a user who must change their password first (#381). */
     public static final String PASSWORD_CHANGE_ERROR = "password_change";
 
+    /** The {@code error} value for an attempt the sign-in limits refused (#448). */
+    public static final String THROTTLED_ERROR = "throttled";
+
     @GetMapping(LOGIN_PAGE_URI)
     @ResponseBody
     public String loginPage(@RequestParam(required = false) String error,
@@ -62,6 +65,9 @@ public class OAuth2LoginPageController {
             banner = "<p class=\"msg err\">You must change your password in Requel before"
                     + " connecting an application. Sign in to Requel in your browser, change it,"
                     + " then try again.</p>";
+        } else if (THROTTLED_ERROR.equals(error)) {
+            banner = "<p class=\"msg err\">Too many sign-in attempts. Wait a few minutes and try"
+                    + " again.</p>";
         } else if (error != null) {
             banner = "<p class=\"msg err\">Invalid username or password.</p>";
         } else if (logout != null) {

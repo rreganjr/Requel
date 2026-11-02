@@ -29,6 +29,22 @@ import { CommandResult } from '../models/command';
 const TOKEN_KEY = 'requel_token';
 const USER_KEY = 'requel_user';
 
+/** #448: shown when the server's 429 carries no message of its own. */
+export const TOO_MANY_ATTEMPTS_MESSAGE = 'Too many sign-in attempts. Try again in a few minutes.';
+
+/**
+ * #448: the sign-in limits refused the attempt (429). Rethrown as an Error carrying the server's
+ * message ("Too many sign-in attempts. Try again in 3 minutes."), which the login and
+ * change-password pages show as they are; any other error passes through unchanged.
+ */
+function rethrowTooManyAttempts(err: unknown): never {
+  if (err instanceof HttpErrorResponse && err.status === 429) {
+    const message = (err.error as { message?: unknown } | null)?.message;
+    throw new Error(typeof message === 'string' && message ? message : TOO_MANY_ATTEMPTS_MESSAGE);
+  }
+  throw err;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
 
@@ -41,9 +57,14 @@ export class AuthService {
   constructor(private http: HttpClient, private router: Router) {}
 
   async login(request: LoginRequest): Promise<void> {
-    const response = await firstValueFrom(
-      this.http.post<LoginResponse>(`${environment.apiBaseUrl}/auth/login`, request)
-    );
+    let response: LoginResponse;
+    try {
+      response = await firstValueFrom(
+        this.http.post<LoginResponse>(`${environment.apiBaseUrl}/auth/login`, request)
+      );
+    } catch (err: unknown) {
+      rethrowTooManyAttempts(err);
+    }
     this.setSession(response.token, response.user);
   }
 
@@ -51,7 +72,7 @@ export class AuthService {
    * #381: change the signed-in user's password. On success the server returns a fresh token (the
    * old one may carry the password-change restriction), which replaces the session. A refusal
    * (422) comes back as the CommandResult so the form can show its field violations; anything
-   * else throws.
+   * else throws (#448: a 429 as an Error carrying the server's message).
    */
   async changePassword(request: ChangePasswordRequest): Promise<CommandResult | null> {
     try {
@@ -64,7 +85,7 @@ export class AuthService {
       if (err instanceof HttpErrorResponse && err.status === 422 && err.error) {
         return err.error as CommandResult;
       }
-      throw err;
+      rethrowTooManyAttempts(err);
     }
   }
 

@@ -29,6 +29,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.web.authentication.WebAuthenticationDetails;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -53,10 +54,15 @@ public class RequelUserAuthenticationProvider implements AuthenticationProvider 
 
     private final UserRepository userRepository;
     private final UserDtoMapper userDtoMapper;
+    private final LoginThrottle loginThrottle;
+    private final PasswordCheck passwordCheck;
 
-    public RequelUserAuthenticationProvider(UserRepository userRepository, UserDtoMapper userDtoMapper) {
+    public RequelUserAuthenticationProvider(UserRepository userRepository, UserDtoMapper userDtoMapper,
+            LoginThrottle loginThrottle, PasswordCheck passwordCheck) {
         this.userRepository = userRepository;
         this.userDtoMapper = userDtoMapper;
+        this.loginThrottle = loginThrottle;
+        this.passwordCheck = passwordCheck;
     }
 
     @Override
@@ -64,17 +70,27 @@ public class RequelUserAuthenticationProvider implements AuthenticationProvider 
         String username = authentication.getName();
         String password = authentication.getCredentials() == null
                 ? null : authentication.getCredentials().toString();
+        // #448: the sign-in limits, keyed on the username and the browser's address.
+        String source = (authentication.getDetails() instanceof WebAuthenticationDetails details)
+                ? details.getRemoteAddress() : null;
+        LoginThrottle.Refusal refusal = loginThrottle.check("form", username, source);
+        if (refusal != null) {
+            throw new LoginThrottledException(refusal);
+        }
 
         User user;
         try {
             user = userRepository.findUserByUsername(username);
         } catch (RuntimeException e) {
             // NoSuchUserException (or any lookup failure) — do not disclose which; treat as bad creds.
+            user = null;
+        }
+        // #448: an unknown user costs the same hashing work as a wrong password.
+        if (password == null || !passwordCheck.matches(user, password)) {
+            loginThrottle.recordFailure(username, source);
             throw new BadCredentialsException("Invalid username or password");
         }
-        if (user == null || password == null || !user.isPassword(password)) {
-            throw new BadCredentialsException("Invalid username or password");
-        }
+        loginThrottle.recordSuccess(username, source);
         // #381: no OAuth token (MCP client, `requel login --oauth`) for a user who must change
         // their password; the password was right, so the form can say what to do instead.
         if (user.isMustChangePassword()) {
