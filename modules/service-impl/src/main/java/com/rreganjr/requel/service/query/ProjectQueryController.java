@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,6 +51,8 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.TermTextMatcher;
+import com.rreganjr.requel.project.TextEntity;
 import com.rreganjr.requel.project.ReportGenerator;
 import com.rreganjr.requel.project.command.GenerateReportCommand;
 import com.rreganjr.requel.project.Scenario;
@@ -86,6 +89,7 @@ import com.rreganjr.requel.annotation.impl.IssueImpl;
 import com.rreganjr.requel.annotation.spi.AnnotationFreshness;
 import com.rreganjr.requel.service.command.AnnotationCommandRegistrar;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
+import com.rreganjr.requel.service.api.dto.SynonymUseDto;
 import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.api.dto.ReportGeneratorDto;
 import com.rreganjr.requel.service.api.dto.GoalDto;
@@ -1214,7 +1218,7 @@ public class ProjectQueryController {
                 t.getCreatedBy() != null ? t.getCreatedBy().getDisplayName() : null,
                 t.getCanonicalTerm() != null ? t.getCanonicalTerm().getId() : null,
                 t.getCanonicalTerm() != null ? t.getCanonicalTerm().getName() : null,
-                null, null);
+                null, null, null);
     }
 
     public static GlossaryTermDto toGlossaryTermDetailDto(GlossaryTerm t) {
@@ -1232,7 +1236,44 @@ public class ProjectQueryController {
                 t.getCreatedBy() != null ? t.getCreatedBy().getDisplayName() : null,
                 t.getCanonicalTerm() != null ? t.getCanonicalTerm().getId() : null,
                 t.getCanonicalTerm() != null ? t.getCanonicalTerm().getName() : null,
-                alternates, referers);
+                alternates, referers, synonymUses(t));
+    }
+
+    /**
+     * #348: for each synonym (alternate term), the referers (the term's or the synonym's) whose
+     * name or text still use it, so a client can offer to replace it with the term's name.
+     * Synonyms no referer uses are left out.
+     */
+    static List<SynonymUseDto> synonymUses(GlossaryTerm t) {
+        List<SynonymUseDto> uses = new ArrayList<>();
+        List<GlossaryTerm> synonyms = t.getAlternateTerms().stream()
+                .sorted(Comparator.comparing(GlossaryTerm::getName, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+        for (GlossaryTerm synonym : synonyms) {
+            // Referers of the term and of the synonym: the glossary check links text that uses
+            // the old name to the synonym itself.
+            Map<String, ProjectOrDomainEntity> linked = new LinkedHashMap<>();
+            for (Set<ProjectOrDomainEntity> referers : List.of(t.getReferers(), synonym.getReferers())) {
+                for (ProjectOrDomainEntity e : referers) {
+                    if (e != null) {
+                        linked.putIfAbsent(e.getProjectOrDomainEntityInterface().getSimpleName()
+                                + "#" + e.getId(), e);
+                    }
+                }
+            }
+            List<EntityReferenceDto> using = linked.values().stream()
+                    .filter(e -> (TermTextMatcher.contains(e.getName(), synonym.getName())
+                            || (e instanceof TextEntity text
+                                    && TermTextMatcher.contains(text.getText(), synonym.getName()))))
+                    .map(e -> new EntityReferenceDto(
+                            e.getProjectOrDomainEntityInterface().getSimpleName(), e.getId(), e.getName()))
+                    .sorted(Comparator.comparing(EntityReferenceDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .toList();
+            if (!using.isEmpty()) {
+                uses.add(new SynonymUseDto(synonym.getId(), synonym.getName(), using));
+            }
+        }
+        return uses;
     }
 
     /**

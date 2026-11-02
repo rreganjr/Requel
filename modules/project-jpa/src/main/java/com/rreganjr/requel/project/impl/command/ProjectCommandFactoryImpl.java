@@ -46,6 +46,7 @@ import com.rreganjr.requel.project.command.CopyStoryCommand;
 import com.rreganjr.requel.project.command.CopyUseCaseCommand;
 import com.rreganjr.requel.project.command.DeleteActorCommand;
 import com.rreganjr.requel.project.command.DeleteGlossaryTermCommand;
+import com.rreganjr.requel.project.command.ReplaceTermTextCommand;
 import com.rreganjr.requel.project.command.DeleteGoalCommand;
 import com.rreganjr.requel.project.command.DeleteGoalRelationCommand;
 import com.rreganjr.requel.project.command.DeleteProjectCommand;
@@ -441,6 +442,12 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	public DeleteGlossaryTermCommand newDeleteGlossaryTermCommand() {
 		return (DeleteGlossaryTermCommand) getCreationStrategy().newInstance(
 				DeleteGlossaryTermCommandImpl.class);
+	}
+
+	@Override
+	public ReplaceTermTextCommand newReplaceTermTextCommand() {
+		return (ReplaceTermTextCommand) getCreationStrategy().newInstance(
+				ReplaceTermTextCommandImpl.class);
 	}
 
 	@Override

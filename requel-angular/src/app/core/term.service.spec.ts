@@ -33,4 +33,20 @@ describe('TermService', () => {
     const result = await promise;
     expect(result.id).toBe(4);
   });
+  it('replaceTermText() posts ReplaceTermText with the referers as type and id (#348)', async () => {
+    const promise = service.replaceTermText('My Project', 4, 9, [
+      { entityType: 'Story', id: 7, name: 'Checklist' },
+      { entityType: 'Goal', id: 3, name: 'Rehearse' },
+    ]);
+    const req = httpMock.expectOne('/api/commands/ReplaceTermText');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({
+      projectName: 'My Project', termId: 4, synonymId: 9,
+      referers: [{ entityType: 'Story', id: 7 }, { entityType: 'Goal', id: 3 }],
+    });
+    req.flush({ success: true, entityType: null, error: null, violations: null,
+      entity: { applied: [{ entityType: 'Story', id: 7, name: 'Checklist' }], refused: [], unchanged: [] } });
+    const result = await promise;
+    expect(result.entity?.applied.length).toBe(1);
+  });
 });

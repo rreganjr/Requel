@@ -119,6 +119,14 @@ public class DeleteGlossaryTermCommandImpl extends AbstractEditProjectCommand im
 		for (GlossaryTerm alternateTerm : glossaryTerm.getAlternateTerms()) {
 			((GlossaryTermImpl) alternateTerm).setCanonicalTerm(null);
 		}
+		// #348: an alternate term is in its canonical term's alternates, which cascade PERSIST: left
+		// there, the delete is undone at flush and the row stays behind, out of the project's
+		// glossary, where it blocks deleting the project.
+		GlossaryTerm canonicalTerm = glossaryTerm.getCanonicalTerm();
+		if (canonicalTerm != null) {
+			canonicalTerm.getAlternateTerms().remove(glossaryTerm);
+			((GlossaryTermImpl) glossaryTerm).setCanonicalTerm(null);
+		}
 		try {
 			AddGlossaryTermPosition addGlossaryTermPosition = getProjectRepository()
 					.findAddGlossaryTermPosition(glossaryTerm.getProjectOrDomain(),

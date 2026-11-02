@@ -348,6 +348,13 @@ public interface ProjectCommandFactory extends CommandFactory {
 
 	public DeleteGlossaryTermCommand newDeleteGlossaryTermCommand();
 
+	/**
+	 * Issue #348: replace a glossary term's synonym with its name in the term's referers.
+	 *
+	 * @return a new {@link ReplaceTermTextCommand}
+	 */
+	public ReplaceTermTextCommand newReplaceTermTextCommand();
+
 	public DeleteReportGeneratorCommand newDeleteReportGeneratorCommand();
 
 	public DeleteScenarioCommand newDeleteScenarioCommand();

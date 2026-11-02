@@ -40,6 +40,9 @@ import jakarta.validation.constraints.Size;
         + " to keep the current name, and term names are unique within the project, ignoring"
         + " case. canonicalTermId makes this term an alternate of another term in the project;"
         + " leaving it null keeps any existing link, and this command cannot remove one."
+        + " Renaming a term keeps its old name as a synonym (an alternate term), unless only the"
+        + " case changes or that name is already taken; the result's synonymUses then lists the"
+        + " referers still using it, for ReplaceTermText."
         + CommandDescriptions.PARTIAL_UPDATE)
 @RequiredOnCreate(id = "termId")
 public record EditGlossaryTermInput(

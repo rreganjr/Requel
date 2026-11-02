@@ -845,6 +845,12 @@ export interface GlossaryTermDetail {
   canonicalTermName?: string;
   alternateTerms?: { entityType: string; id: number; name: string }[];
   referers?: { entityType: string; id: number; name: string }[];
+  /** #348: per synonym, the referers whose name or text still says it (detail only). */
+  synonymUses?: {
+    synonymId: number;
+    synonymName: string;
+    referers: { entityType: string; id: number; name: string }[];
+  }[];
 }
 
 /**

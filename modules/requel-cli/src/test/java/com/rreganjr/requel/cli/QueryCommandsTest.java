@@ -165,7 +165,7 @@ class QueryCommandsTest {
     void glossaryTerms() {
         QueryGateway gw = mock(QueryGateway.class);
         when(gw.getGlossaryTerms("Demo")).thenReturn(List.of(
-                new GlossaryTermDto(1L, 0, "SLA", "Service level agreement", "ron", null, null, null, null)));
+                new GlossaryTermDto(1L, 0, "SLA", "Service level agreement", "ron", null, null, null, null, null)));
         GlossaryCommand cmd = new GlossaryCommand();
         cmd.parent = parent(OutputFormat.TEXT);
         cmd.queryOverride = gw;

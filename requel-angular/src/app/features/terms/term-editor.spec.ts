@@ -10,6 +10,7 @@ import { AiReviewButtonComponent } from '../../shared/ai-review-button';
 import { TermService } from '../../core/term.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
+import { AnnouncerService } from '../../core/announcer.service';
 
 const MOCK_TERMS = [
   { id: 1, name: 'Actor', text: 'A participant.' },
@@ -32,6 +33,7 @@ describe('TermEditorComponent', () => {
     getTerm: ReturnType<typeof vi.fn>;
     saveTerm: ReturnType<typeof vi.fn>;
     deleteTerm: ReturnType<typeof vi.fn>;
+    replaceTermText: ReturnType<typeof vi.fn>;
   };
   let permissionServiceMock: { loadForProject: ReturnType<typeof vi.fn>; canEdit: ReturnType<typeof vi.fn>; canDelete: ReturnType<typeof vi.fn> };
   let eventStreamServiceMock: { events$: unknown; addSubscription: ReturnType<typeof vi.fn>; removeSubscription: ReturnType<typeof vi.fn> };
@@ -48,7 +50,8 @@ describe('TermEditorComponent', () => {
       listTerms: vi.fn().mockResolvedValue(MOCK_TERMS),
       getTerm: vi.fn().mockResolvedValue(MOCK_TERM),
       saveTerm: vi.fn().mockResolvedValue({ success: true, entity: MOCK_TERM }),
-      deleteTerm: vi.fn().mockResolvedValue({ success: true })
+      deleteTerm: vi.fn().mockResolvedValue({ success: true }),
+      replaceTermText: vi.fn().mockResolvedValue({ success: true, entity: { applied: [], refused: [], unchanged: [] } })
     };
     permissionServiceMock = {
       loadForProject: vi.fn().mockResolvedValue(undefined),
@@ -582,5 +585,90 @@ describe('TermEditorComponent', () => {
     fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
     fixture.detectChanges();
     expect(button.dirty()).toBe(true);
+  });
+  // #348: the referers that still say an old name, with Replace per row and Replace all.
+  describe('still uses an old name (#348)', () => {
+    const STORY = { entityType: 'Story', id: 7, name: 'Dry-run event checklist' };
+    const GOAL = { entityType: 'Goal', id: 3, name: 'Rehearse' };
+    const RENAMED = {
+      ...MOCK_TERM, name: 'Dry-run webinar',
+      alternateTerms: [{ entityType: 'GlossaryTerm', id: 9, name: 'Dry-run event' }],
+      synonymUses: [{ synonymId: 9, synonymName: 'Dry-run event', referers: [STORY, GOAL] }],
+    };
+
+    async function open(term: unknown): Promise<HTMLElement> {
+      termServiceMock.getTerm.mockResolvedValue(term);
+      paramMap$.next(convertToParamMap({ name: 'proj1', termId: '2' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    function click(el: HTMLElement, testid: string, index = 0): void {
+      (el.querySelectorAll(`[data-testid="${testid}"] button`)[index] as HTMLButtonElement).click();
+    }
+
+    it('is hidden when nothing uses a synonym', async () => {
+      const el = await open({ ...MOCK_TERM, synonymUses: [] });
+      expect(el.querySelector('[data-testid="term-synonym-uses-section"]')).toBeNull();
+    });
+
+    it('lists each referer, linked to its page, with Replace and Replace all', async () => {
+      const el = await open(RENAMED);
+      expect(el.querySelector('[data-testid="term-synonym-uses-section"]')).not.toBeNull();
+      expect(el.querySelector('[data-testid="term-synonym-use-name"]')?.textContent).toContain('Dry-run event');
+      expect(el.querySelectorAll('[data-testid="term-synonym-use-row"]').length).toBe(2);
+      const link = el.querySelector('[data-testid="term-synonym-use-link"]') as HTMLAnchorElement;
+      expect(link.getAttribute('href')).toBe('/projects/proj1/stories/7');
+      expect(el.querySelectorAll('[data-testid="term-synonym-replace"]').length).toBe(2);
+      expect(el.querySelector('[data-testid="term-synonym-replace-all"]')).not.toBeNull();
+    });
+
+    it('offers Replace only on the referers the user can edit', async () => {
+      permissionServiceMock.canEdit.mockImplementation((type: string) => type !== 'Goal');
+      const el = await open(RENAMED);
+      expect(el.querySelectorAll('[data-testid="term-synonym-replace"]').length).toBe(1);
+      // One editable referer: its own Replace is enough.
+      expect(el.querySelector('[data-testid="term-synonym-replace-all"]')).toBeNull();
+    });
+
+    it('Replace sends just that referer', async () => {
+      const el = await open(RENAMED);
+      click(el, 'term-synonym-replace', 0);
+      await flush();
+      expect(termServiceMock.replaceTermText).toHaveBeenCalledWith('proj1', 2, 9, [STORY]);
+    });
+
+    it('Replace all sends every referer, then announces the outcome and reloads', async () => {
+      const announce = vi.spyOn(TestBed.inject(AnnouncerService), 'announce');
+      const el = await open(RENAMED);
+      termServiceMock.replaceTermText.mockResolvedValue({ success: true, entity: {
+        applied: [STORY], refused: [GOAL], unchanged: [] } });
+      const loadsBefore = termServiceMock.getTerm.mock.calls.length;
+
+      click(el, 'term-synonym-replace-all');
+      await flush();
+
+      expect(termServiceMock.replaceTermText).toHaveBeenCalledWith('proj1', 2, 9, [STORY, GOAL]);
+      expect(announce).toHaveBeenCalledWith(
+        'Replaced "Dry-run event" with "Dry-run webinar" in 1 item. Not changed, you can\'t edit: Goal "Rehearse".');
+      expect(termServiceMock.getTerm.mock.calls.length).toBeGreaterThan(loadsBefore);
+      expect(comp.replacing()).toBeNull();
+    });
+
+    it('shows the error when the command fails', async () => {
+      await open(RENAMED);
+      termServiceMock.replaceTermText.mockResolvedValue({ success: false, error: 'Validation failed' });
+      await comp.onReplace(RENAMED.synonymUses[0], [STORY]);
+      expect(comp.errorMessage()).toBe('Validation failed');
+    });
+
+    it('counts referers that no longer use the old name', () => {
+      comp.termName.set('Dry-run webinar');
+      expect(comp.replaceSummary('Dry-run event', { applied: [STORY, GOAL], refused: [], unchanged: [STORY] }))
+        .toBe('Replaced "Dry-run event" with "Dry-run webinar" in 2 items. 1 item no longer used it.');
+    });
   });
 });

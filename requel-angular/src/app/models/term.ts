@@ -30,4 +30,23 @@ export interface GlossaryTermDto {
   canonicalTermName: string | null;
   alternateTerms: EntityReferenceDto[] | null;
   referers: EntityReferenceDto[] | null;
+  /**
+   * #348: per synonym, the referers whose name or text still says it. Set on the detail only
+   * (null in the list); empty when nothing does.
+   */
+  synonymUses?: SynonymUseDto[] | null;
+}
+
+/** #348: a synonym (an old name) and the referers that still use it. */
+export interface SynonymUseDto {
+  synonymId: number;
+  synonymName: string;
+  referers: EntityReferenceDto[];
+}
+
+/** #348: what ReplaceTermText did with each referer it was given. */
+export interface ReplaceTermTextResultDto {
+  applied: EntityReferenceDto[];
+  refused: EntityReferenceDto[];
+  unchanged: EntityReferenceDto[];
 }

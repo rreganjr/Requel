@@ -26,12 +26,7 @@ import { ConfirmationService } from 'primeng/api';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { IgnoredFindingDto } from '../models/dictionary';
 import { AppDataTableComponent, DataTableColumn } from './app-data-table';
-
-/** The project route segment for each entity type an ignore can be on; Step has no page. */
-const ENTITY_ROUTES: Record<string, string> = {
-  Goal: 'goals', Story: 'stories', Actor: 'actors', Scenario: 'scenarios',
-  UseCase: 'use-cases', GlossaryTerm: 'terms', ReportGenerator: 'reports',
-};
+import { entityRoute } from './entity-routes';
 
 /** Readable names for the assistants' finding types. */
 const FINDING_TYPES: Record<string, string> = {
@@ -110,8 +105,7 @@ export class IgnoredFindingListComponent implements OnInit {
 
   /** The entity's page, or null for a type without one (a scenario step). */
   entityLink(f: IgnoredFindingDto): string[] | null {
-    const segment = ENTITY_ROUTES[f.entityType];
-    return segment ? ['/projects', this.projectName, segment, String(f.entityId)] : null;
+    return entityRoute(this.projectName, f.entityType, f.entityId);
   }
 
   confirmRemove(f: IgnoredFindingDto): void {

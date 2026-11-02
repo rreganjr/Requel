@@ -73,6 +73,7 @@ import com.rreganjr.requel.project.command.DeleteActorCommand;
 import com.rreganjr.requel.project.command.DeleteReportGeneratorCommand;
 import com.rreganjr.requel.project.command.EditReportGeneratorCommand;
 import com.rreganjr.requel.project.command.DeleteGlossaryTermCommand;
+import com.rreganjr.requel.project.command.ReplaceTermTextCommand;
 import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.DeleteProjectCommand;
 import com.rreganjr.requel.project.command.DeleteGoalCommand;
@@ -140,6 +141,9 @@ import com.rreganjr.requel.service.api.dto.RemoveScenarioFromUseCaseInput;
 import com.rreganjr.requel.service.api.dto.SetPrimaryScenarioInput;
 import com.rreganjr.requel.service.api.dto.RemoveStoryFromStoryContainerInput;
 import com.rreganjr.requel.service.api.dto.DeleteGlossaryTermInput;
+import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
+import com.rreganjr.requel.service.api.dto.ReplaceTermTextInput;
+import com.rreganjr.requel.service.api.dto.ReplaceTermTextResultDto;
 import com.rreganjr.requel.service.api.dto.DeleteReportGeneratorInput;
 import com.rreganjr.requel.service.api.dto.EditGlossaryTermInput;
 import com.rreganjr.requel.service.api.dto.EditReportGeneratorInput;
@@ -783,6 +787,27 @@ public class ProjectCommandRegistrar {
                     c.setGlossaryTerm(findTermById(project, i.termId()));
                 });
 
+        // #348: rewrite a term's synonym (a renamed term's old name, say) in its referers.
+        registry.register("ReplaceTermText", ReplaceTermTextInput.class,
+                factory::newReplaceTermTextCommand,
+                (cmd, input) -> {
+                    ReplaceTermTextCommand c = (ReplaceTermTextCommand) cmd;
+                    ReplaceTermTextInput i = (ReplaceTermTextInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setProject(project);
+                    c.setGlossaryTerm(findTermById(project, i.termId()));
+                    c.setSynonym(findTermById(project, i.synonymId()));
+                    c.setTargets(i.referers() == null ? List.of() : i.referers().stream()
+                            .map(r -> new ReplaceTermTextCommand.Target(r.entityType(), r.id()))
+                            .toList());
+                },
+                null,
+                cmd -> {
+                    ReplaceTermTextCommand c = (ReplaceTermTextCommand) cmd;
+                    return new ReplaceTermTextResultDto(refs(c.getApplied()), refs(c.getRefused()),
+                            refs(c.getUnchanged()));
+                });
+
         // Dictionary (#319). The project pair is gated on Project[Edit] and allowed on the
         // gateway; the installation pair requires the administrator role and is denied there.
         registry.register("AddProjectDictionaryWord", AddProjectDictionaryWordInput.class,
@@ -1097,6 +1122,12 @@ public class ProjectCommandRegistrar {
             if (a.getId().equals(actorId)) return a;
         }
         throw new NotFoundInputException("Actor not found: " + actorId);
+    }
+
+    private static List<EntityReferenceDto> refs(List<ReplaceTermTextCommand.Outcome> outcomes) {
+        return outcomes.stream()
+                .map(o -> new EntityReferenceDto(o.entityType(), o.entityId(), o.name()))
+                .toList();
     }
 
     private static GlossaryTerm findTermById(Project project, Long termId) {
