@@ -58,7 +58,9 @@ jobs:
   build-and-test:
     name: Build & test
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The Maven build with unit + integration tests runs ~25-30 min, so a slow runner (or two
+    # builds at once) hit the old 30-min limit and cancelled healthy runs. Same headroom as E2E.
+    timeout-minutes: 60
 
     steps:
       - name: Check out
