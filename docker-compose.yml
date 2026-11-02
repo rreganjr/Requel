@@ -43,6 +43,11 @@ services:
       # Playwright's global-setup. Example:
       #   SPRING_PROFILES_ACTIVE=dev docker compose up -d
       - "SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-}"
+      # Behind a reverse proxy (nginx, Caddy ...), uncomment so the sign-in limits count each
+      # client's address instead of the proxy's (doc/guides/INSTALL.md, "Sign-in limits"). Leave it
+      # off without a proxy: Tomcat trusts X-Forwarded-For from private addresses, and Docker
+      # connections from this machine arrive from one, so a client could pick its own address.
+      # - "SERVER_FORWARD_HEADERS_STRATEGY=native"
     restart: unless-stopped
 
 networks:

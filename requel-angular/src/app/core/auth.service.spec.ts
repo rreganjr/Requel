@@ -6,7 +6,7 @@ import { Component } from '@angular/core';
 
 @Component({ template: '' })
 class StubLoginComponent {}
-import { AuthService } from './auth.service';
+import { AuthService, TOO_MANY_ATTEMPTS_MESSAGE } from './auth.service';
 import { LoginResponse, UserDto } from '../models/user';
 
 const MOCK_USER: UserDto = {
@@ -100,6 +100,40 @@ describe('AuthService', () => {
     const fresh = TestBed.inject(AuthService);
     httpMock = TestBed.inject(HttpTestingController);
     expect(fresh.user()?.username).toBe('admin');
+  });
+
+  describe('sign-in limits (#448)', () => {
+    it('login() rethrows a 429 as an Error carrying the server message', async () => {
+      const promise = service.login({ username: 'admin', password: 'guess' });
+      httpMock.expectOne('/api/auth/login').flush(
+        { error: 'TOO_MANY_ATTEMPTS', message: 'Too many sign-in attempts. Try again in 3 minutes.' },
+        { status: 429, statusText: 'Too Many Requests' });
+      await expect(promise).rejects.toThrow('Too many sign-in attempts. Try again in 3 minutes.');
+      expect(service.isAuthenticated()).toBe(false);
+    });
+
+    it('login() falls back to a generic sentence when the 429 has no message', async () => {
+      const promise = service.login({ username: 'admin', password: 'guess' });
+      httpMock.expectOne('/api/auth/login').flush(null, { status: 429, statusText: 'Too Many Requests' });
+      await expect(promise).rejects.toThrow(TOO_MANY_ATTEMPTS_MESSAGE);
+    });
+
+    it('login() leaves a 401 as it was', async () => {
+      const promise = service.login({ username: 'admin', password: 'guess' });
+      httpMock.expectOne('/api/auth/login').flush(
+        { error: 'UNAUTHORIZED', message: 'Invalid username or password' },
+        { status: 401, statusText: 'Unauthorized' });
+      await expect(promise).rejects.not.toBeInstanceOf(Error);
+    });
+
+    it('changePassword() rethrows a 429 as an Error carrying the server message', async () => {
+      const promise = service.changePassword(
+        { currentPassword: 'guess', newPassword: 'new', confirmPassword: 'new' });
+      httpMock.expectOne('/api/auth/password').flush(
+        { error: 'TOO_MANY_ATTEMPTS', message: 'Too many sign-in attempts. Try again in 1 minute.' },
+        { status: 429, statusText: 'Too Many Requests' });
+      await expect(promise).rejects.toThrow('Too many sign-in attempts. Try again in 1 minute.');
+    });
   });
 
   describe('changePassword (#381)', () => {

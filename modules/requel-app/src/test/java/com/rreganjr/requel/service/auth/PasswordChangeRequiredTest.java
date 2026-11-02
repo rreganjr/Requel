@@ -132,6 +132,12 @@ class PasswordChangeRequiredTest {
         when(repository.findUserByUsername("ron")).thenReturn(user);
         UserDtoMapper mapper = mock(UserDtoMapper.class);
         when(mapper.getRoleStrings(user)).thenReturn(List.of("ProjectUserRole"));
-        return new RequelUserAuthenticationProvider(repository, mapper);
+        // #448: the sign-in limits are switched off; LoginThrottleIT covers them on this path.
+        @SuppressWarnings("unchecked")
+        LoginThrottle throttle = new LoginThrottle(false, java.time.Duration.ofMinutes(15),
+                java.time.Duration.ofMinutes(15), 5, 50, 50,
+                mock(org.springframework.beans.factory.ObjectProvider.class),
+                mock(org.springframework.beans.factory.ObjectProvider.class));
+        return new RequelUserAuthenticationProvider(repository, mapper, throttle, new PasswordCheck());
     }
 }

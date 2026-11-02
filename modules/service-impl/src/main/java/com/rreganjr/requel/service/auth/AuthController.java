@@ -28,8 +28,11 @@ import com.rreganjr.requel.service.api.dto.LoginRequest;
 import com.rreganjr.requel.service.api.dto.LoginResponse;
 import com.rreganjr.requel.service.api.dto.UserDto;
 import com.rreganjr.requel.user.UserRepository;
+import com.rreganjr.requel.user.exception.NoSuchUserException;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -37,6 +40,10 @@ import org.springframework.web.bind.annotation.*;
 /**
  * Authentication endpoints: login and current user info.
  * These are conventional REST, not command dispatch.
+ *
+ * <p>Issue #448: login and the current-password check on a password change go through
+ * {@link LoginThrottle}. A refused attempt is answered 429 with {@code Retry-After}, without
+ * checking the password, and every failed check does the same hashing work ({@link PasswordCheck}).
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -49,55 +56,89 @@ public class AuthController {
     private final UserDtoMapper userDtoMapper;
     private final CurrentUserResolver currentUserResolver;
     private final PasswordChangeService passwordChangeService;
+    private final LoginThrottle loginThrottle;
+    private final PasswordCheck passwordCheck;
 
     public AuthController(UserRepository userRepository, JwtService jwtService,
                           UserDtoMapper userDtoMapper, CurrentUserResolver currentUserResolver,
-                          PasswordChangeService passwordChangeService) {
+                          PasswordChangeService passwordChangeService, LoginThrottle loginThrottle,
+                          PasswordCheck passwordCheck) {
         this.userRepository = userRepository;
         this.jwtService = jwtService;
         this.userDtoMapper = userDtoMapper;
         this.currentUserResolver = currentUserResolver;
         this.passwordChangeService = passwordChangeService;
+        this.loginThrottle = loginThrottle;
+        this.passwordCheck = passwordCheck;
     }
 
     /**
      * POST /api/auth/login — authenticate with username/password, return JWT + UserDto.
      */
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletRequest http) {
+        String source = http.getRemoteAddr();
+        LoginThrottle.Refusal refusal = loginThrottle.check("api", request.username(), source);
+        if (refusal != null) {
+            return tooManyAttempts(refusal);
+        }
         try {
-            User user = userRepository.findUserByUsername(request.username());
-            if (user.isPassword(request.password())) {
+            User user = findUser(request.username());
+            if (passwordCheck.matches(user, request.password())) {
+                loginThrottle.recordSuccess(request.username(), source);
                 var roles = userDtoMapper.getRoleStrings(user);
                 var permissions = userDtoMapper.getPermissionStrings(user);
                 String token = jwtService.generateToken(user, roles, permissions);
                 UserDto userDto = userDtoMapper.toDto(user);
                 return ResponseEntity.ok(new LoginResponse(token, userDto));
             }
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ErrorResponse.of("UNAUTHORIZED", "Invalid username or password"));
         } catch (Exception e) {
             log.debug("Login failed for user '{}': {}", request.username(), e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ErrorResponse.of("UNAUTHORIZED", "Invalid username or password"));
+        }
+        loginThrottle.recordFailure(request.username(), source);
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ErrorResponse.of("UNAUTHORIZED", "Invalid username or password"));
+    }
+
+    /** The account a username names, or null for none (a blank or unknown username). */
+    private User findUser(String username) {
+        if (username == null || username.isBlank()) {
+            return null;
+        }
+        try {
+            return userRepository.findUserByUsername(username);
+        } catch (NoSuchUserException e) {
+            return null;
         }
     }
 
-    /**
-     * POST /api/auth/password — the signed-in user changes their own password (#381). This is the
-     * one write a user who must change their password can make (see
-     * {@link PasswordChangeRequiredFilter}). Returns a fresh token + UserDto, since the caller's
-     * token may carry the password-change claim; 422 with field violations when refused.
-     */
+    /** 429 with Retry-After, the same for every refused path (#448). */
+    static ResponseEntity<ErrorResponse> tooManyAttempts(LoginThrottle.Refusal refusal) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(refusal.retryAfterSeconds()))
+                .body(ErrorResponse.of("TOO_MANY_ATTEMPTS", refusal.message()));
+    }
+
     @PostMapping("/password")
-    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request,
+                                            HttpServletRequest http) {
         User user = currentUserResolver.resolve();
+        String username = user.getUsername();
+        String source = http.getRemoteAddr();
+        LoginThrottle.Refusal refusal = loginThrottle.check("password-change", username, source);
+        if (refusal != null) {
+            return tooManyAttempts(refusal);
+        }
         try {
-            user = passwordChangeService.changePassword(user.getUsername(), request);
+            user = passwordChangeService.changePassword(username, request);
         } catch (PasswordChangeService.PasswordChangeRefusedException e) {
+            if (e.getViolations().stream().anyMatch(v -> "currentPassword".equals(v.field()))) {
+                loginThrottle.recordFailure(username, source);
+            }
             return ResponseEntity.unprocessableEntity()
                     .body(CommandResult.validationFailure(e.getMessage(), e.getViolations()));
         }
+        loginThrottle.recordSuccess(username, source);
         var roles = userDtoMapper.getRoleStrings(user);
         var permissions = userDtoMapper.getPermissionStrings(user);
         String token = jwtService.generateToken(user, roles, permissions);
