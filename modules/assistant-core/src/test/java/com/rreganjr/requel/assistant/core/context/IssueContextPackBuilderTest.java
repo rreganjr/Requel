@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Test;
 
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.Issue;
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.annotation.Position;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
@@ -59,6 +60,8 @@ class IssueContextPackBuilderTest {
 				.thenAnswer(invocation -> Goal.class);
 
 		Issue otherIssue = stubIssue(301L, 1, "missing actor", false);
+		when(otherIssue.getSeverity()).thenReturn(IssueSeverity.LOW);
+		when(targetOpen.getSeverity()).thenReturn(IssueSeverity.HIGH);
 		Goal otherGoal = mock(Goal.class);
 		when(otherGoal.getId()).thenReturn(100L);
 		when(otherGoal.getVersion()).thenReturn(1);
@@ -83,9 +86,11 @@ class IssueContextPackBuilderTest {
 		assertThat(pack.targetIssues().get(0).id()).isEqualTo(201L);
 		assertThat(pack.targetIssues().get(0).version()).isEqualTo(3);
 		assertThat(pack.targetIssues().get(0).text()).isEqualTo("ambiguous");
+		assertThat(pack.targetIssues().get(0).severity()).as("#337").isEqualTo("HIGH");
 		assertThat(pack.projectOpenIssues()).hasSize(1);
 		assertThat(pack.projectOpenIssues().get(0).id()).isEqualTo(301L);
 		assertThat(pack.projectOpenIssues().get(0).text()).isEqualTo("missing actor");
+		assertThat(pack.projectOpenIssues().get(0).severity()).isEqualTo("LOW");
 		assertThat(pack.projectOpenIssues().get(0).target().entityType()).isEqualTo("Goal");
 	}
 

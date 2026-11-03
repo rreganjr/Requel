@@ -106,7 +106,7 @@ public class AssistantDefinitionsIT extends AbstractLexicalAssistantTest {
 	public void theBundledReviewDefinitionIsSeeded() {
 		AssistantDefinition review = bundledReview();
 		assertEquals(DefinitionSource.BUNDLED, review.source());
-		assertEquals(1, review.version());
+		assertEquals(2, review.version(), "#337 bumped the bundled review to 2");
 		assertTrue(review.enabled());
 		assertEquals(1, jdbcTemplate.queryForObject(
 				"SELECT COUNT(*) FROM assistant_definitions WHERE definition_key = ?"
@@ -232,7 +232,7 @@ public class AssistantDefinitionsIT extends AbstractLexicalAssistantTest {
 
 		assertEquals("SUCCEEDED", run.getStatus(), run.getErrorSummary());
 		assertEquals(REVIEW, run.getTemplateId());
-		assertEquals("1", run.getTemplateVersion());
+		assertEquals("2", run.getTemplateVersion());
 		assertEquals("BUNDLED", run.getTemplateSource());
 		assertEquals(1, run.getEvidenceUnverified(),
 				"'warp drive' is not in the goal; 'fast' is");

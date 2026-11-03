@@ -27,9 +27,11 @@ import com.rreganjr.requel.assistant.api.EntityRef;
 /**
  * Pack-level view of an unresolved (or recently resolved) issue. Carries
  * {@code id} and {@code version} so the applicator can detect stale state.
+ *
+ * @param severity {@code LOW}, {@code MEDIUM} or {@code HIGH} (#337)
  */
 public record IssueSnapshot(Long id, int version, String text, boolean mustBeResolved,
-		boolean resolved, EntityRef target, List<PositionSnapshot> positions) {
+		boolean resolved, String severity, EntityRef target, List<PositionSnapshot> positions) {
 
 	public IssueSnapshot {
 		positions = positions == null ? List.of() : List.copyOf(positions);

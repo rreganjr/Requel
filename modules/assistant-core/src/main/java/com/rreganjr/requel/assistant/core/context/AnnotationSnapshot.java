@@ -27,8 +27,11 @@ import java.time.Instant;
  * so the assistant applicator can reject stale AI output by comparing the
  * persisted annotation's optimistic-lock version against the snapshot the
  * assistant produced findings against.
+ *
+ * @param severity an issue's severity ({@code LOW}, {@code MEDIUM} or {@code HIGH}, #337); null
+ *                 for a note
  */
 public record AnnotationSnapshot(Long id, int version, AnnotationKind kind, String text,
-		boolean mustBeResolved, boolean resolved, String createdByUsername,
+		boolean mustBeResolved, boolean resolved, String severity, String createdByUsername,
 		Instant dateCreated) {
 }

@@ -91,6 +91,18 @@ class PerTypeDefinitionsTest {
 		assertThat(bundled).hasSize(8);
 	}
 
+	/** #337: every review definition says what an existing issue's severity means. */
+	@Test
+	void everyReviewDefinitionExplainsTheSeverityOfExistingIssues() {
+		for (AssistantDefinition d : bundled) {
+			assertThat(d.instructions()).as(d.key()).contains("\"annotations\" list")
+					.contains("Each existing issue has a \"severity\" (LOW, MEDIUM or HIGH)")
+					.contains("especially a HIGH one");
+			assertThat(d.version()).as(d.key() + ": a new version, so the seeder upgrades it")
+					.isEqualTo(2);
+		}
+	}
+
 	@Test
 	void theVocabularyIsRenderedIntoTheInstructions() {
 		DefinitionExecutorAssistant goal = executor("ai-review-goal");
