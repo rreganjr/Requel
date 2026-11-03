@@ -206,6 +206,108 @@ class ProjectAuthoringStoreTest {
 		assertThat(store.definitionsFor(PROJECT, AssistantDefinition.POLICY_REVIEW)).hasSize(1);
 	}
 
+	// ---- #371: own() for export, importDefinition() for import ------------------------------
+
+	@Test
+	void ownListsOnlyTheProjectsForksAndItsOwnDefinitions() {
+		store.fork(PROJECT, "ai-review-goal", "ron");
+		store.create(PROJECT, draft("POLICY", "house-style", b -> {
+		}), "ron");
+		store.create(OTHER, draft("POLICY", "other-style", b -> {
+		}), "ron");
+
+		assertThat(store.own(PROJECT)).extracting(View::key)
+				.containsExactlyInAnyOrder("ai-review-goal", "house-style");
+		assertThat(store.own(PROJECT)).filteredOn(v -> v.key().equals("ai-review-goal"))
+				.singleElement().satisfies(v -> {
+					assertThat(v.forkedFromVersion()).isEqualTo(3);
+					assertThat(v.bundledVersion()).isEqualTo(3);
+				});
+	}
+
+	@Test
+	void anImportedCopyOfABundledDefinitionKeepsTheVersionItWasCopiedFrom() {
+		List<String> problems = store.importDefinition(PROJECT, draft("REVIEW", "ai-review-goal",
+				b -> {
+					b.scope = Set.of("Goal");
+					b.instructions = "Goals name a measurable outcome.";
+				}), 2, "ron");
+
+		assertThat(problems).isEmpty();
+		assertThat(store.own(PROJECT)).singleElement().satisfies(v -> {
+			assertThat(v.key()).isEqualTo("ai-review-goal");
+			assertThat(v.source()).isEqualTo("PROJECT");
+			assertThat(v.instructions()).isEqualTo("Goals name a measurable outcome.");
+			assertThat(v.forkedFromVersion()).as("from the file").isEqualTo(2);
+			assertThat(v.bundledVersion()).as("this install's, so it reads out of date")
+					.isEqualTo(3);
+		});
+	}
+
+	@Test
+	void anImportedDefinitionOfTheProjectsOwnIsCreated() {
+		assertThat(store.importDefinition(PROJECT, draft("POLICY", "house-style", b -> {
+		}), null, "ron")).isEmpty();
+		assertThat(store.own(PROJECT)).singleElement().satisfies(v -> {
+			assertThat(v.key()).isEqualTo("house-style");
+			assertThat(v.kind()).isEqualTo("POLICY");
+			assertThat(v.forkedFromVersion()).isNull();
+		});
+	}
+
+	@Test
+	void aCopyOfADefinitionThisInstallDoesntBundleBecomesTheProjectsOwn() {
+		assertThat(store.importDefinition(PROJECT, draft("REVIEW", "ai-review-widget", b -> b.scope =
+				Set.of("Story")), 4, "ron")).isEmpty();
+		assertThat(store.own(PROJECT)).singleElement().satisfies(v -> {
+			assertThat(v.key()).isEqualTo("ai-review-widget");
+			assertThat(v.forkedFromVersion()).isNull();
+			assertThat(v.bundledVersion()).isNull();
+		});
+	}
+
+	@Test
+	void anInvalidImportedDefinitionIsReportedAndNothingIsWritten() {
+		@SuppressWarnings("unchecked")
+		ObjectProvider<RequelAssistant<?>> beans = mock(ObjectProvider.class);
+		RequelAssistant<?> lexical = mock(RequelAssistant.class);
+		when(lexical.assistantId()).thenReturn("legacy-lexical");
+		doAnswer(inv -> {
+			Consumer<RequelAssistant<?>> each = inv.getArgument(0);
+			each.accept(lexical);
+			return null;
+		}).when(beans).forEach(any());
+		store.setBeanAssistants(beans);
+
+		assertThat(store.importDefinition(PROJECT, draft("POLICY", "house-style",
+				b -> b.executorBean = "commandHandler"), null, "ron")).anyMatch(p -> p.startsWith("executorBean"));
+		assertThat(store.importDefinition(PROJECT, draft("POLICY", "House Style", b -> {
+		}), null, "ron")).anyMatch(p -> p.startsWith("key"));
+		assertThat(store.importDefinition(PROJECT, draft("POLICY", "legacy-lexical", b -> {
+		}), null, "ron")).anyMatch(p -> p.startsWith("key"));
+		assertThat(store.importDefinition(PROJECT, draft("POLICY", "house-style",
+				b -> b.instructions = "x".repeat(64001)), null, "ron"))
+				.anyMatch(p -> p.startsWith("instructions"));
+		assertThat(store.importDefinition(PROJECT, draft("POLICY", "house-style",
+				b -> b.scope = Set.of("Spaceship")), null, "ron")).anyMatch(p -> p.startsWith("scope"));
+		assertThat(store.importDefinition(PROJECT, draft("POLICY", "house-style",
+				b -> b.providers = List.of("telepathy")), null, "ron"))
+				.anyMatch(p -> p.startsWith("contextProviders"));
+		assertThat(store.importDefinition(PROJECT, draft("POLICY", "ai-review-goal", b -> {
+		}), 3, "ron")).anyMatch(p -> p.startsWith("kind"));
+		// two specific reviews of the same type collide
+		assertThat(store.importDefinition(PROJECT, draft("REVIEW", "goals-too",
+				b -> b.scope = Set.of("Goal")), null, "ron")).anyMatch(p -> p.startsWith("scope"));
+		assertThat(store.own(PROJECT)).as("nothing written").isEmpty();
+
+		store.setMaxPerProject(1);
+		assertThat(store.importDefinition(PROJECT, draft("POLICY", "first", b -> {
+		}), null, "ron")).isEmpty();
+		assertThat(store.importDefinition(PROJECT, draft("POLICY", "second", b -> {
+		}), null, "ron")).anyMatch(p -> p.contains("the limit is 1"));
+		assertThat(store.own(PROJECT)).extracting(View::key).containsExactly("first");
+	}
+
 	@Test
 	void aForkRecordsItsOriginAndAnEditBumpsTheVersion() {
 		View fork = store.fork(PROJECT, "ai-review-goal", "ron");

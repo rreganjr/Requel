@@ -52,17 +52,18 @@
                 <targetPath>doc/samples</targetPath>
             </testResource>
             <!--
-              The published schema at website/integration/2.0 must stay byte-identical to
+              The published schema at website/integration/2.1 must stay byte-identical to
               doc/samples/project.xsd; the 1.0 copy silently drifted for years and ended up
               advertised by every export while being unloadable. Copy it onto the test classpath so
               ProjectSchemaNameLengthTest can fail the build the moment the two diverge again.
+              (#371: 2.1 has its own schema; the 2.0 copy is frozen, as 1.0 is.)
             -->
             <testResource>
-                <directory>${project.basedir}/../../website/integration/2.0</directory>
+                <directory>${project.basedir}/../../website/integration/2.1</directory>
                 <includes>
                     <include>project.xsd</include>
                 </includes>
-                <targetPath>website/integration/2.0</targetPath>
+                <targetPath>website/integration/2.1</targetPath>
             </testResource>
         </testResources>
         <plugins>

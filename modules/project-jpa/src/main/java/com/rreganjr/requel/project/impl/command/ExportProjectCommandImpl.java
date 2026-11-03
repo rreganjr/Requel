@@ -175,6 +175,39 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 	 * Issue #272: one carrier per source, each with its links to entities still in the project,
 	 * referenced by IDREF.
 	 */
+	/**
+	 * Issue #371: the project's customized copies of bundled definitions and its own, in the
+	 * order the store lists them.
+	 */
+	private java.util.List<com.rreganjr.requel.utils.jaxb.imports.AssistantDefinitionXml> exportAssistantDefinitions(
+			ProjectImpl projectImpl) {
+		java.util.List<com.rreganjr.requel.utils.jaxb.imports.AssistantDefinitionXml> carriers =
+				new java.util.ArrayList<>();
+		if (getAssistantDefinitions() == null || projectImpl.getId() == null) {
+			return carriers;
+		}
+		for (com.rreganjr.requel.project.ProjectAssistantDefinitions.View view
+				: getAssistantDefinitions().own(projectImpl.getId())) {
+			java.util.List<com.rreganjr.requel.utils.jaxb.imports.AssistantDefinitionXml.Budget> budgets =
+					new java.util.ArrayList<>();
+			new java.util.TreeMap<>(view.contextBudgets()).forEach((provider, characters) -> budgets
+					.add(new com.rreganjr.requel.utils.jaxb.imports.AssistantDefinitionXml.Budget(
+							provider, characters)));
+			java.util.List<com.rreganjr.requel.utils.jaxb.imports.AssistantDefinitionXml.Entry> vocabulary =
+					new java.util.ArrayList<>();
+			for (com.rreganjr.requel.project.ProjectAssistantDefinitions.Vocabulary entry
+					: view.vocabulary()) {
+				vocabulary.add(new com.rreganjr.requel.utils.jaxb.imports.AssistantDefinitionXml.Entry(
+						entry.type(), entry.description(), entry.category()));
+			}
+			carriers.add(new com.rreganjr.requel.utils.jaxb.imports.AssistantDefinitionXml(
+					view.key(), view.kind(), view.forkedFromVersion(), view.localOnly(),
+					view.displayName(), new java.util.ArrayList<>(new java.util.TreeSet<>(view.scope())),
+					view.contextProviders(), budgets, view.instructions(), vocabulary));
+		}
+		return carriers;
+	}
+
 	private java.util.List<com.rreganjr.requel.project.impl.ExternalSourceXml> exportExternalSources(
 			ProjectImpl projectImpl) {
 		java.util.List<com.rreganjr.requel.project.impl.ExternalSourceXml> carriers =
@@ -277,6 +310,9 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 				// Issue #272: the project's external sources and their entity links.
 				projectImpl.setExportExternalSources(exportExternalSources(projectImpl));
 
+				// Issue #371: the project's own assistant definitions; bundled ones aren't exported.
+				projectImpl.setExportAssistantDefinitions(exportAssistantDefinitions(projectImpl));
+
 				// Issue #275: which annotations are stale on which entities (#270).
 				staleMarked = markStale(projectImpl);
 			}
@@ -284,9 +320,11 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 			JAXBContext context = JAXBContext.newInstance(CLASSES_FOR_JAXB);
 			Marshaller marshaller = context.createMarshaller();
 			marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
-			// Exports advertise the 2.0 schema (issue #171), published in-repo at
-			// website/integration/2.0/project.xsd and byte-identical to the copy the round-trip ITs
-			// validate against (asserted by ProjectSchemaNameLengthTest).
+			// Exports advertise the 2.1 schema, published in-repo at
+			// website/integration/2.1/project.xsd and byte-identical to the copy the round-trip ITs
+			// validate against (asserted by ProjectSchemaNameLengthTest). Issue #371: 2.1 got its
+			// own schema because a 2.0 install reads a 2.1 file without complaint and drops what it
+			// doesn't know (rewrite positions, assistant definitions); the 2.0 copy (#171) is frozen.
 			//
 			// The 1.0 copy this replaces is frozen: it predates annotationRef, primaryActorRef and the
 			// password fields, and does not compile as a schema at all (non-deterministic content
@@ -294,9 +332,9 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 			// in the wild still reference 1.0, which is why that file stays where it is.
 			//
 			// Published by .github/workflows/pages.yml, which deploys website/ to GitHub Pages on
-			// pushes to master. That the publish is automated is the point: 1.0 rotted because
+			// pushes to master and release/**. That the publish is automated is the point: 1.0 rotted because
 			// uploading it to requel.sourceforge.net was a manual step nobody repeated.
-			marshaller.setProperty(Marshaller.JAXB_SCHEMA_LOCATION, "http://www.rreganjr.com/requel https://rreganjr.github.io/Requel/integration/2.0/project.xsd");
+			marshaller.setProperty(Marshaller.JAXB_SCHEMA_LOCATION, "http://www.rreganjr.com/requel https://rreganjr.github.io/Requel/integration/2.1/project.xsd");
 			jaxbAdapterConfigurer.configure(marshaller);
 			marshaller.marshal(project, getOutputStream());
 		} catch (Exception e) {

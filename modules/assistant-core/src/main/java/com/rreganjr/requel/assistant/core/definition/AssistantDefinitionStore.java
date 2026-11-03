@@ -325,6 +325,70 @@ public class AssistantDefinitionStore implements ProjectAssistantDefinitions {
 	}
 
 	@Override
+	@Transactional(readOnly = true)
+	public List<ProjectAssistantDefinitions.View> own(Long projectId) {
+		Objects.requireNonNull(projectId, "projectId");
+		List<ProjectAssistantDefinitions.View> views = new ArrayList<>();
+		for (AssistantDefinition definition : visibleTo(projectId)) {
+			if (definition.source() != DefinitionSource.PROJECT
+					|| !projectId.equals(definition.projectId())) {
+				continue;
+			}
+			AssistantDefinitionEntity bundledRow = find(definition.key(), null);
+			AssistantDefinitionEntity row = find(definition.key(), projectId);
+			views.add(view(definition, bundledRow == null ? null : toDefinition(bundledRow),
+					row == null ? 0 : row.getLockVersion(), List.of()));
+		}
+		return views;
+	}
+
+	/**
+	 * #371. Every check runs before anything is written, and an invalid definition comes back as
+	 * problems: an exception leaving this transactional method would mark the import's transaction
+	 * rollback-only.
+	 */
+	@Override
+	@Transactional
+	public List<String> importDefinition(Long projectId, ProjectAssistantDefinitions.Draft draft,
+			Integer forkedFromVersion, String by) {
+		Objects.requireNonNull(projectId, "projectId");
+		List<Problem> problems = new ArrayList<>();
+		DefinitionKind kind = kind(draft.kind(), problems);
+		String key = draft.key() == null ? null : draft.key().strip();
+		AssistantDefinitionEntity bundledRow = key == null ? null : find(key, null);
+		AssistantDefinition bundled = bundledRow == null ? null : toDefinition(bundledRow);
+		if (key != null && find(key, projectId) != null) {
+			problems.add(new Problem("key", "the project already has a definition " + key));
+		}
+		AssistantDefinition definition;
+		if (bundled != null) {
+			// A customized copy: the bundled definition's task and output schema, the file's content.
+			if (kind != null && kind != bundled.kind()) {
+				problems.add(new Problem("kind", "a customized " + key + " must be a "
+						+ bundled.kind() + " definition, as the bundled one is"));
+			}
+			definition = fromDraft(key, bundled.kind(), bundled.taskType(),
+					bundled.outputSchemaName(), bundled.outputSchemaVersion(), draft, 1, projectId,
+					forkedFromVersion == null ? bundled.version() : forkedFromVersion,
+					bundled.enabled());
+		} else {
+			// Decision 5: a copy of a definition this install doesn't bundle is the project's own.
+			definition = fromDraft(key, kind, taskType(kind), outputSchema(kind),
+					outputSchemaVersion(kind), draft, 1, projectId, null, true);
+		}
+		problems.addAll(AssistantDefinitionValidator.projectProblems(definition, null, bundled,
+				reservedKeys(), projectCount(projectId), maxPerProject, draft.executorBean()));
+		try {
+			validator.validate(definition, neighbours(definition), problems);
+		} catch (InvalidAssistantDefinitionException e) {
+			return e.fieldProblems().stream()
+					.map(problem -> problem.field() + ": " + problem.message()).toList();
+		}
+		write(definition, null, List.of(), by);
+		return List.of();
+	}
+
+	@Override
 	@Transactional
 	public ProjectAssistantDefinitions.View edit(Long projectId, String key, int lockVersion,
 			ProjectAssistantDefinitions.Draft draft, String by) {

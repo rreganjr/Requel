@@ -107,6 +107,29 @@ public interface ProjectAssistantDefinitions {
 		return Optional.empty();
 	}
 
+	/**
+	 * #371: the definitions {@code projectId} owns - its customized copies of bundled definitions
+	 * and its own keys - as a project export writes them. Bundled definitions aren't included.
+	 */
+	default List<View> own(Long projectId) {
+		return List.of();
+	}
+
+	/**
+	 * #371: write one definition from an imported project file into {@code projectId}, through
+	 * the checks a create or a customize meets. The key of a definition bundled with this install
+	 * becomes a customized copy of it, recording {@code forkedFromVersion} (the file's, else the
+	 * bundled version); any other key becomes the project's own definition.
+	 *
+	 * @return the problems, in which case nothing was written; empty when it was written. An
+	 *         invalid definition is reported here, never thrown, so it can't roll back the import
+	 *         it is part of.
+	 */
+	default List<String> importDefinition(Long projectId, Draft draft, Integer forkedFromVersion,
+			String by) {
+		throw new UnsupportedOperationException("authoring is not available");
+	}
+
 	/** A new project-only definition. */
 	default View create(Long projectId, Draft draft, String by) {
 		throw new UnsupportedOperationException("authoring is not available");
