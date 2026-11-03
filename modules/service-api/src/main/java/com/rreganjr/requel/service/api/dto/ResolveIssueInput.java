@@ -34,14 +34,17 @@ import jakarta.validation.constraints.NotNull;
         + " Accepting a position does what it proposes: Position only marks the issue resolved;"
         + " IgnorePosition also keeps the assistant from raising that finding on the entity again;"
         + " ChangeSpellingPosition rewrites the word in every entity the issue is on"
-        + " (all or nothing: refused if you can't edit one of them); AddWordToDictionaryPosition"
+        + " (all or nothing: refused if you can't edit one of them); RewriteNamePosition sets the"
+        + " name of the entity the issue is on, refused if the name has changed since it was"
+        + " proposed; AddWordToDictionaryPosition"
         + " adds the word to the project's dictionary; AddActorPosition adds the phrase as an actor"
         + " in the entities the issue is on; AddGlossaryTermPosition adds it to the glossary."
         + " Needs Annotation[Edit] on the project, plus Edit on what the position changes. A"
         + " position that isn't one of the issue's, or an issue in another project, is refused."
         + " Resolving an issue that is already resolved records the new position.",
         authorization = "Annotation[Edit], plus Edit on what the accepted position changes:"
-                + " ChangeSpellingPosition, every entity the issue is on; AddActorPosition,"
+                + " ChangeSpellingPosition and RewriteNamePosition, every entity the issue is on;"
+                + " AddActorPosition,"
                 + " Actor[Edit]; AddGlossaryTermPosition, GlossaryTerm[Edit]")
 public record ResolveIssueInput(
         @NotBlank String projectName,

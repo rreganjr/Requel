@@ -29,9 +29,6 @@ import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
-import com.rreganjr.platform.command.AuthorizableCommand;
-import com.rreganjr.platform.command.AuthorizationException;
-import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.validator.EntityValidationException;
 import com.rreganjr.requel.annotation.Annotatable;
@@ -43,9 +40,6 @@ import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.impl.LexicalIssue;
 import com.rreganjr.requel.annotation.spi.AnnotatableTextEditRegistry;
 import com.rreganjr.requel.annotation.spi.AnnotatableTextEditor;
-import com.rreganjr.requel.project.Project;
-import com.rreganjr.requel.project.ProjectScopedCommand;
-import com.rreganjr.requel.project.StakeholderAuthorizationChecker;
 
 /**
  * Resolves a spelling issue by correcting the word in every entity the issue applies to.
@@ -168,29 +162,9 @@ public class ResolveIssueWithChangeSpellingPositionCommandImpl extends ResolveIs
 		return editor.newEditCommand(annotatable, propertyName, corrected, getEditedBy());
 	}
 
-	/**
-	 * Refuse before anything is written if the user cannot make this edit.
-	 * <p>
-	 * Only {@code RequiresStakeholderPermission} is pre-checked, which is what every
-	 * {@code Edit*Command} declares. Any other requirement is left to the command handler, so
-	 * a new requirement type is enforced but not pre-flighted rather than silently skipped.
-	 */
 	private void requireAuthorized(Command edit, Annotatable annotatable) {
-		if (!(edit instanceof AuthorizableCommand authorizable)) {
-			return;
-		}
-		if (!(authorizable.getAuthorizationRequirement() instanceof RequiresStakeholderPermission requirement)) {
-			return;
-		}
-		Project project = (edit instanceof ProjectScopedCommand scoped) ? scoped.getProject()
-				: getProject();
-		if (!StakeholderAuthorizationChecker.isSatisfied(project, getEditedBy(),
-				requirement.entityType(), requirement.permissionType())) {
-			throw new AuthorizationException("Requires stakeholder permission: "
-					+ requirement.entityType().getSimpleName() + "["
-					+ requirement.permissionType() + "] to correct the spelling in "
-					+ annotatable.getClass().getSimpleName() + " " + annotatable);
-		}
+		TextEdits.requireAuthorized(edit, annotatable, getProject(), getEditedBy(),
+				"correct the spelling in");
 	}
 
 	/**

@@ -192,6 +192,8 @@ public class AnnotationCommandRegistrar {
 
         // Spelling/dictionary positions — driven by NLP analysis
         registry.register("EditChangeSpellingPosition", factory::newEditChangeSpellingPositionCommand);
+        // #459: assistant-internal, like EditChangeSpellingPosition.
+        registry.register("EditRewriteNamePosition", factory::newEditRewriteNamePositionCommand);
         registry.register("EditAddWordToDictionaryPosition", factory::newEditAddWordToDictionaryPositionCommand);
 
         // Arguments

@@ -22,8 +22,12 @@ package com.rreganjr.requel.assistant.legacynlp;
 
 import java.text.MessageFormat;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -95,9 +99,23 @@ public class StepStructureAssistant implements RequelAssistant<Step> {
 	public static final String ASSISTANT_ID = "legacy-step-structure";
 
 	private static final String DO_NOTHING_MSG = "Do nothing.";
+	/** #349: when the step's verb can't be found to build an example from. */
 	static final String NO_ACTOR_MSG = "The step \"{0}\" doesn''t say who does it. Name the actor,"
-			+ " for example \"The host starts the livestream\", or write \"The system ...\" when"
-			+ " the system responds.";
+			+ " as in \"<actor> does something\", or write \"The system ...\" when the system"
+			+ " responds.";
+	/** #459: one primary actor; {1} the step rewritten for it, {2} for the system. */
+	static final String NO_ACTOR_ACTOR_MSG = "The step \"{0}\" doesn''t say who does it. Name the"
+			+ " actor, for example \"{1}\", or \"{2}\" when the system does it.";
+	/** #459: use cases with different primary actors share the step; {1} lists them. */
+	static final String NO_ACTOR_SHARED_MSG = "The step \"{0}\" doesn''t say who does it, and the"
+			+ " use cases that share it have different primary actors ({1}). Split the step, or"
+			+ " name the actor, for example \"{2}\" when the system does it.";
+	/** #459: the step is in no use case, so there is no actor to name. */
+	static final String NO_ACTOR_NO_USE_CASE_MSG = "The step \"{0}\" doesn''t say who does it,"
+			+ " and it isn''t in a use case. Name the actor, for example \"{1}\".";
+	static final String REWRITE_MSG = "Rewrite as \"{0}\".";
+	/** #459: the longest name a rewrite may propose (ValidationLimits.ARTIFACT_NAME_MAX). */
+	static final int MAX_NAME_LENGTH = 255;
 	static final String UNREADABLE_STEP_MSG = "Requel couldn''t read \"{0}\" as \"<actor> does"
 			+ " something\" or a command. A step names who does it.";
 	static final String UNREADABLE_SCENARIO_MSG = "Requel couldn''t read \"{0}\" as \"<actor> does"
@@ -159,8 +177,7 @@ public class StepStructureAssistant implements RequelAssistant<Step> {
 		if (text.isImperative()) {
 			// #349: a command. Fine for a scenario's name; a step should say who does it.
 			if (!scenario) {
-				emitAdvisoryIssue(builder, targetRef, "no-actor",
-						MessageFormat.format(NO_ACTOR_MSG, name), name);
+				emitNoActorIssue(builder, targetRef, step, name, text.getPrimaryVerb().getText());
 			}
 			return;
 		}
@@ -275,27 +292,123 @@ public class StepStructureAssistant implements RequelAssistant<Step> {
 
 	private void checkActorUseCaseAssociations(AssistantResult.Builder builder, EntityRef targetRef,
 			Step step, Actor actor) {
+		for (UseCase useCase : useCasesOf(step)) {
+			if (!useCase.getActors().contains(actor) && !actor.equals(useCase.getPrimaryActor())) {
+				String key = ASSISTANT_ID + ":" + targetRef.entityType() + ":" + targetRef.entityId()
+						+ ":actor-not-in-usecase:" + actor.getName() + ":" + useCase.getName();
+				emitGeneralIssue(builder, targetRef, key,
+						MessageFormat.format(ACTOR_NOT_IN_USECASE_MSG, actor.getName(),
+								useCase.getName()),
+						"actor-not-in-usecase", actor.getName());
+			}
+		}
+	}
+
+	/**
+	 * The use cases a step is in, by name: those whose primary or additional scenarios contain
+	 * it, directly or through scenarios used as steps. #459: additional scenarios count too;
+	 * {@code Scenario.getUsingUseCases()} covers only the use cases a scenario is primary in.
+	 */
+	static List<UseCase> useCasesOf(Step step) {
 		Deque<Scenario> toVisit = new ArrayDeque<>(step.getUsingScenarios());
-		Set<Scenario> visited = new HashSet<>();
+		Set<Scenario> containing = new HashSet<>();
 		while (!toVisit.isEmpty()) {
 			Scenario scenario = toVisit.poll();
-			if (scenario == null || !visited.add(scenario)) {
+			if (scenario == null || !containing.add(scenario)) {
 				continue;
 			}
 			toVisit.addAll(scenario.getUsingScenarios());
-			for (UseCase useCase : scenario.getUsingUseCases()) {
-				if (!useCase.getActors().contains(actor)
-						&& !actor.equals(useCase.getPrimaryActor())) {
-					String key = ASSISTANT_ID + ":" + targetRef.entityType() + ":"
-							+ targetRef.entityId() + ":actor-not-in-usecase:" + actor.getName() + ":"
-							+ useCase.getName();
-					emitGeneralIssue(builder, targetRef, key,
-							MessageFormat.format(ACTOR_NOT_IN_USECASE_MSG, actor.getName(),
-									useCase.getName()),
-							"actor-not-in-usecase", actor.getName());
+		}
+		Set<UseCase> useCases = new LinkedHashSet<>();
+		for (Scenario scenario : containing) {
+			useCases.addAll(scenario.getUsingUseCases());
+		}
+		if (!containing.isEmpty() && step.getProjectOrDomain() != null) {
+			for (UseCase useCase : step.getProjectOrDomain().getUseCases()) {
+				if (containing.contains(useCase.getScenario()) || useCase.getAdditionalScenarios()
+						.stream().anyMatch(containing::contains)) {
+					useCases.add(useCase);
 				}
 			}
 		}
+		List<UseCase> sorted = new ArrayList<>(useCases);
+		sorted.sort(Comparator.comparing(UseCase::getName,
+				Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
+		return sorted;
+	}
+
+	/**
+	 * #459: a step written as a command. The example is the step itself rewritten to name its
+	 * actor, and each rewrite is a position that sets the step's name to it.
+	 * <ul>
+	 * <li>One primary actor across the step's use cases: rewrites for it, each additional actor
+	 * and the system.</li>
+	 * <li>Use cases with different primary actors share the step: only the system rewrite, since
+	 * naming one actor makes a shared step wrong in the others.</li>
+	 * <li>No use case: no rewrites; there is no actor to name.</li>
+	 * </ul>
+	 * Keyed by finding type as before, so a re-run updates the issue in place; the applicator
+	 * replaces the rewrites a re-run no longer offers.
+	 */
+	private void emitNoActorIssue(AssistantResult.Builder builder, EntityRef targetRef, Step step,
+			String name, String verb) {
+		String key = ASSISTANT_ID + ":" + targetRef.entityType() + ":" + targetRef.entityId()
+				+ ":no-actor";
+		List<EvidenceRef> evidence = List.of(EvidenceRef.ofLocator("property=name"),
+				EvidenceRef.ofSnippet(name));
+		String system = StepVerbs.rewrite(name, verb, "the system");
+		List<UseCase> useCases = useCasesOf(step);
+		Map<String, String> rewrites = new LinkedHashMap<>();
+		String text;
+		if (system == null) {
+			text = MessageFormat.format(NO_ACTOR_MSG, name);
+		} else if (useCases.isEmpty()) {
+			text = MessageFormat.format(NO_ACTOR_NO_USE_CASE_MSG, name,
+					StepVerbs.rewrite(name, verb, "<actor>"));
+		} else {
+			List<Actor> primaries = useCases.stream().map(UseCase::getPrimaryActor)
+					.filter(java.util.Objects::nonNull).distinct()
+					.sorted(Comparator.comparing(Actor::getName,
+							Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+					.toList();
+			if (primaries.size() == 1) {
+				Actor primary = primaries.get(0);
+				String example = StepVerbs.rewrite(name, verb, primary.getName());
+				text = MessageFormat.format(NO_ACTOR_ACTOR_MSG, name, example, system);
+				rewrites.put(primary.getName(), example);
+				useCases.stream().flatMap(useCase -> useCase.getActors().stream())
+						.filter(actor -> !actor.equals(primary) && actor.getName() != null)
+						.distinct()
+						.sorted(Comparator.comparing(Actor::getName, String.CASE_INSENSITIVE_ORDER))
+						.forEach(actor -> rewrites.putIfAbsent(actor.getName(),
+								StepVerbs.rewrite(name, verb, actor.getName())));
+			} else {
+				String shared = useCases.stream()
+						.map(useCase -> useCase.getName() + ": " + (useCase.getPrimaryActor() == null
+								? "no primary actor" : useCase.getPrimaryActor().getName()))
+						.collect(java.util.stream.Collectors.joining("; "));
+				text = MessageFormat.format(NO_ACTOR_SHARED_MSG, name, shared, system);
+			}
+			rewrites.put(null, system);
+		}
+		builder.annotationAction(new AnnotationAction(key,
+				AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE, targetRef, null, text, "LOW",
+				null, evidence, Map.of("mustResolve", Boolean.FALSE, "findingType", "no-actor")));
+		for (Map.Entry<String, String> rewrite : rewrites.entrySet()) {
+			String proposed = rewrite.getValue();
+			if (proposed == null || proposed.length() > MAX_NAME_LENGTH) {
+				continue;
+			}
+			String suffix = rewrite.getKey() == null ? "system" : "actor:" + rewrite.getKey();
+			builder.annotationAction(new AnnotationAction(key + ":rewrite:" + suffix,
+					AnnotationAction.ActionType.CREATE_OR_UPDATE_POSITION, null, key,
+					MessageFormat.format(REWRITE_MSG, proposed), null, null, evidence,
+					Map.of("kind", "REWRITE_NAME", "proposedName", proposed,
+							"expectedName", name)));
+		}
+		builder.annotationAction(new AnnotationAction(key + ":do-nothing",
+				AnnotationAction.ActionType.CREATE_OR_UPDATE_POSITION, null, key, DO_NOTHING_MSG,
+				null, null, evidence, Map.of()));
 	}
 
 	private void emitGeneralIssue(AssistantResult.Builder builder, EntityRef targetRef,

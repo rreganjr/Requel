@@ -41,6 +41,7 @@ import com.rreganjr.requel.annotation.command.EditAddWordToDictionaryPositionCom
 import com.rreganjr.requel.annotation.command.EditIgnorePositionCommand;
 import com.rreganjr.requel.annotation.command.EditArgumentCommand;
 import com.rreganjr.requel.annotation.command.EditChangeSpellingPositionCommand;
+import com.rreganjr.requel.annotation.command.EditRewriteNamePositionCommand;
 import com.rreganjr.requel.annotation.command.EditIssueCommand;
 import com.rreganjr.requel.annotation.command.EditLexicalIssueCommand;
 import com.rreganjr.requel.annotation.command.EditNoteCommand;
@@ -53,6 +54,7 @@ import com.rreganjr.requel.annotation.impl.AddWordToDictionaryPosition;
 import com.rreganjr.requel.annotation.impl.IgnorePosition;
 import com.rreganjr.requel.annotation.impl.ChangeSpellingPosition;
 import com.rreganjr.requel.annotation.impl.PositionImpl;
+import com.rreganjr.requel.annotation.impl.RewriteNamePosition;
 
 /**
  * @author ron
@@ -69,6 +71,8 @@ public class AnnotationCommandFactoryImpl extends AbstractCommandFactory impleme
 	static {
 		register(PositionImpl.class, ResolveIssueCommandImpl.class);
 		register(ChangeSpellingPosition.class, ResolveIssueWithChangeSpellingPositionCommandImpl.class);
+		// Issue #459.
+		register(RewriteNamePosition.class, ResolveIssueWithRewriteNamePositionCommandImpl.class);
 		register(AddWordToDictionaryPosition.class, ResolveIssueWithAddWordToDictionaryPositionCommandImpl.class);
 		// Issue #320: an ignore resolves like a plain position; the ignored finding is recorded by
 		// FindingResolutionTrackingCommandHandler after the resolve.
@@ -158,6 +162,12 @@ public class AnnotationCommandFactoryImpl extends AbstractCommandFactory impleme
 	public EditPositionCommand newEditPositionCommand() {
 		return (EditPositionCommand) getCreationStrategy().newInstance(
 				EditPositionCommandImpl.class);
+	}
+
+	@Override
+	public EditRewriteNamePositionCommand newEditRewriteNamePositionCommand() {
+		return (EditRewriteNamePositionCommand) getCreationStrategy().newInstance(
+				EditRewriteNamePositionCommandImpl.class);
 	}
 
 	@Override
