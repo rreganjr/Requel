@@ -37,6 +37,7 @@ import org.junit.jupiter.api.Test;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.Issue;
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.annotation.Note;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
@@ -257,6 +258,94 @@ class EntityContextPackBuilderTest {
 
 		assertThat(((GoalSnapshot) pack.snapshot()).text())
 				.isEqualTo("call 555-123-4567 or [REDACTED:EMAIL]");
+	}
+
+	// ---- #337: severity, and the order the cap and budget cut in ------------------------------
+
+	@Test
+	void anIssueCarriesItsSeverityAndANoteNone() {
+		Goal goal = goal("G", "text");
+		LinkedHashSet<Annotation> annotations = new LinkedHashSet<>();
+		annotations.add(issue(401L, "high one", IssueSeverity.HIGH, false));
+		annotations.add(stubNote(402L, 1, "a note"));
+		when(goal.getAnnotations()).thenReturn(annotations);
+		when(goal.getGlossaryTerms()).thenReturn(Set.of());
+
+		EntityContextPack pack = builder.build(goal);
+
+		assertThat(pack.annotations()).extracting(AnnotationSnapshot::severity)
+				.containsExactly("HIGH", null);
+	}
+
+	@Test
+	void openIssuesComeFirstByLevelThenNotesThenResolvedIssues() {
+		Goal goal = goal("G", "text");
+		LinkedHashSet<Annotation> annotations = mixed();
+		when(goal.getAnnotations()).thenReturn(annotations);
+		when(goal.getGlossaryTerms()).thenReturn(Set.of());
+
+		EntityContextPack pack = builder.build(goal);
+
+		assertThat(pack.annotations()).extracting(AnnotationSnapshot::id)
+				.containsExactly(504L, 506L, 505L, 501L, 502L, 507L, 503L);
+	}
+
+	@Test
+	void theCapDropsLowBeforeHigh() {
+		ContextPackSizeLimits limits = new ContextPackSizeLimits();
+		limits.setMaxAnnotationsPerEntity(3);
+		Goal goal = goal("G", "text");
+		LinkedHashSet<Annotation> annotations = mixed();
+		when(goal.getAnnotations()).thenReturn(annotations);
+		when(goal.getGlossaryTerms()).thenReturn(Set.of());
+
+		EntityContextPack pack = new EntityContextPackBuilder(new NoOpRedactionPolicy(), limits,
+				fixedClock).build(goal);
+
+		assertThat(pack.annotations()).extracting(AnnotationSnapshot::id)
+				.containsExactly(504L, 506L, 505L);
+		assertThat(pack.metadata().truncationNotes())
+				.anyMatch(note -> note.contains("annotations list capped at 3"));
+	}
+
+	@Test
+	void theCharacterBudgetDropsLowBeforeHigh() {
+		ContextPackSizeLimits limits = new ContextPackSizeLimits();
+		limits.setMaxTotalCharacters(20); // the target (2) and two 10-character issues reach it
+		Goal goal = goal("G", "t");
+		LinkedHashSet<Annotation> annotations = new LinkedHashSet<>();
+		annotations.add(issue(601L, "low issue.", IssueSeverity.LOW, false));
+		annotations.add(issue(602L, "high issu.", IssueSeverity.HIGH, false));
+		annotations.add(issue(603L, "mid issue.", IssueSeverity.MEDIUM, false));
+		when(goal.getAnnotations()).thenReturn(annotations);
+		when(goal.getGlossaryTerms()).thenReturn(Set.of());
+
+		EntityContextPack pack = new EntityContextPackBuilder(new NoOpRedactionPolicy(), limits,
+				fixedClock).build(goal);
+
+		assertThat(pack.annotations()).extracting(AnnotationSnapshot::id)
+				.containsExactly(602L, 603L);
+		assertThat(pack.metadata().truncationNotes())
+				.anyMatch(note -> note.contains("total-character budget"));
+	}
+
+	/** In entity order: LOW, note, resolved HIGH, HIGH, MEDIUM, HIGH, note. */
+	private static LinkedHashSet<Annotation> mixed() {
+		LinkedHashSet<Annotation> annotations = new LinkedHashSet<>();
+		annotations.add(issue(501L, "low", IssueSeverity.LOW, false));
+		annotations.add(stubNote(502L, 1, "note one"));
+		annotations.add(issue(503L, "resolved high", IssueSeverity.HIGH, true));
+		annotations.add(issue(504L, "high one", IssueSeverity.HIGH, false));
+		annotations.add(issue(505L, "medium", IssueSeverity.MEDIUM, false));
+		annotations.add(issue(506L, "high two", IssueSeverity.HIGH, false));
+		annotations.add(stubNote(507L, 1, "note two"));
+		return annotations;
+	}
+
+	private static Issue issue(long id, String text, IssueSeverity severity, boolean resolved) {
+		Issue issue = stubIssue(id, 1, text, false, resolved);
+		when(issue.getSeverity()).thenReturn(severity);
+		return issue;
 	}
 
 	private static Issue stubIssue(long id, int version, String text, boolean mustBeResolved,
