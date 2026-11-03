@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.annotation.impl;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 import jakarta.xml.bind.annotation.XmlAttribute;
@@ -62,6 +63,7 @@ public class ChangeSpellingPosition extends PositionImpl {
 	/**
 	 * @return the proposed word for changing the spelling of the issue word.
 	 */
+	@Column(name = "proposed_word") // named, so RewriteNamePosition can share the column (#459)
 	@XmlAttribute(name = "proposedWord")
 	public String getProposedWord() {
 		return proposedWord;

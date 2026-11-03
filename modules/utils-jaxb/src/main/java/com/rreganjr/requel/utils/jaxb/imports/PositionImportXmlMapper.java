@@ -47,6 +47,8 @@ public class PositionImportXmlMapper {
                 .text(text)
                 .positionType(elementName)
                 .proposedWord(xml.getProposedWord())
+                .proposedName(xml.getProposedName())
+                .expectedName(xml.getExpectedName())
                 .argumentExternalIds(new HashSet<>())
                 .arguments(argumentDrafts)
                 .build();

@@ -55,6 +55,7 @@ import com.rreganjr.requel.annotation.NoSuchPositionException;
 import com.rreganjr.requel.annotation.Note;
 import com.rreganjr.requel.annotation.Position;
 import com.rreganjr.requel.annotation.impl.AbstractAnnotation;
+import com.rreganjr.requel.annotation.impl.RewriteNamePosition;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.DeleteArgumentCommand;
 import com.rreganjr.requel.annotation.command.DeleteIssueCommand;
@@ -63,6 +64,7 @@ import com.rreganjr.requel.annotation.command.DeletePositionCommand;
 import com.rreganjr.requel.annotation.command.EditArgumentCommand;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.annotation.command.EditChangeSpellingPositionCommand;
+import com.rreganjr.requel.annotation.command.EditRewriteNamePositionCommand;
 import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.annotation.command.EditIssueCommand;
 import com.rreganjr.requel.annotation.command.EditLexicalIssueCommand;
@@ -370,6 +372,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 					+ " findings", result.assistantId(), context.runId(),
 					result.metadata().get("failedProperties"));
 		} else {
+			prunePositionsNotReported(result, createdByActionKey, editedBy);
 			Set<EntityRef> corpusScope = corpusScope(result);
 			if (corpusScope != null) {
 				reconcileCorpusFindings(result.assistantId(), cleanupPolicy, corpusScope,
@@ -864,6 +867,10 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 			return new AppliedAction(position.getId());
 		}
 
+		if ("REWRITE_NAME".equalsIgnoreCase(kind)) {
+			return applyRewriteNamePosition(action, issue, text, editedBy, createdByActionKey);
+		}
+
 		EditPositionCommand command;
 		if ("CHANGE_SPELLING".equalsIgnoreCase(kind)) {
 			EditChangeSpellingPositionCommand changeSpelling = annotationCommandFactory
@@ -890,6 +897,95 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		Position position = command.getPosition();
 		createdByActionKey.put(action.actionKey(), position);
 		return new AppliedAction(position.getId());
+	}
+
+	/**
+	 * Issue #459: a position that rewrites the name of the entity the issue is on. It is found
+	 * among the issue's own positions by its proposed name (two steps can't share a name, so a
+	 * rewrite's text is never another issue's), and updated with the name it was built from.
+	 */
+	private AppliedAction applyRewriteNamePosition(AnnotationAction action, Issue issue,
+			String text, User editedBy, Map<String, Object> createdByActionKey) throws Exception {
+		String proposedName = stringMeta(action, "proposedName");
+		EditRewriteNamePositionCommand command = annotationCommandFactory
+				.newEditRewriteNamePositionCommand();
+		for (Position candidate : issue.getPositions()) {
+			if (org.hibernate.Hibernate.unproxy(candidate) instanceof RewriteNamePosition rewrite
+					&& java.util.Objects.equals(rewrite.getProposedName(), proposedName)) {
+				command.setPosition(rewrite);
+				break;
+			}
+		}
+		command.setIssue(issue);
+		command.setText(text);
+		command.setProposedName(proposedName);
+		command.setExpectedName(stringMeta(action, "expectedName"));
+		command.setEditedBy(editedBy);
+		command = commandHandler.execute(command);
+		Position position = command.getPosition();
+		createdByActionKey.put(action.actionKey(), position);
+		return new AppliedAction(position.getId());
+	}
+
+	/**
+	 * Issue #459: the positions an issue had that this run, re-reporting the issue, no longer
+	 * offered are deleted - a rewrite for an actor that no longer applies, or a suggestion that
+	 * dropped out. Only for an open issue the run gave at least one position, and only positions
+	 * the assistant wrote, with no argument by anyone else, on no other issue. Positions carry no
+	 * action key, so "not offered" is "not among the positions this run applied to the issue".
+	 */
+	private void prunePositionsNotReported(AssistantResult result,
+			Map<String, Object> createdByActionKey, User editedBy) {
+		Map<Long, Set<Long>> offeredByIssue = new HashMap<Long, Set<Long>>();
+		Map<Long, Issue> issues = new HashMap<Long, Issue>();
+		for (AnnotationAction action : result.annotationActions()) {
+			if (action.actionType() != AnnotationAction.ActionType.CREATE_OR_UPDATE_POSITION
+					|| !(createdByActionKey.get(action.actionKey()) instanceof Position position)
+					|| !(createdByActionKey.get(action.parentActionKey()) instanceof Issue issue)) {
+				continue;
+			}
+			issues.put(issue.getId(), issue);
+			offeredByIssue.computeIfAbsent(issue.getId(), id -> new HashSet<Long>())
+					.add(position.getId());
+		}
+		for (Map.Entry<Long, Set<Long>> entry : offeredByIssue.entrySet()) {
+			Issue issue = issues.get(entry.getKey());
+			if (issue.isResolved()) {
+				continue;
+			}
+			for (Position position : new ArrayList<Position>(issue.getPositions())) {
+				if (entry.getValue().contains(position.getId()) || !isAssistantOnly(position)
+						|| position.getIssues().size() > 1) {
+					continue;
+				}
+				DeletePositionCommand command = annotationCommandFactory.newDeletePositionCommand();
+				command.setPosition(position);
+				command.setEditedBy(editedBy);
+				try {
+					commandHandler.execute(command);
+				} catch (RuntimeException e) {
+					throw e;
+				} catch (Exception e) {
+					throw new IllegalStateException("Failed to delete position " + position.getId()
+							+ " no longer offered on issue " + issue.getId(), e);
+				}
+			}
+		}
+	}
+
+	/** Written by the assistant, with no argument by anyone else. */
+	private static boolean isAssistantOnly(Position position) {
+		if (!User.isAssistant(position.getCreatedBy())) {
+			return false;
+		}
+		if (position.getArguments() != null) {
+			for (Argument argument : position.getArguments()) {
+				if (!User.isAssistant(argument.getCreatedBy())) {
+					return false;
+				}
+			}
+		}
+		return true;
 	}
 
 	/**

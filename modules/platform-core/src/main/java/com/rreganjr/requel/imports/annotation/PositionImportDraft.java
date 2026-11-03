@@ -30,6 +30,8 @@ public class PositionImportDraft {
     private final String text;
     private final String positionType;
     private final String proposedWord;
+    private final String proposedName;
+    private final String expectedName;
     private final Set<String> argumentExternalIds;
     private final java.util.List<ArgumentDraft> arguments;
 
@@ -39,6 +41,8 @@ public class PositionImportDraft {
         this.text = builder.text;
         this.positionType = builder.positionType;
         this.proposedWord = builder.proposedWord;
+        this.proposedName = builder.proposedName;
+        this.expectedName = builder.expectedName;
         this.argumentExternalIds = Collections.unmodifiableSet(new HashSet<>(builder.argumentExternalIds));
         this.arguments = java.util.List.copyOf(builder.arguments);
     }
@@ -68,6 +72,16 @@ public class PositionImportDraft {
         return proposedWord;
     }
 
+    /** #459: a rewriteNamePosition's new name. */
+    public String getProposedName() {
+        return proposedName;
+    }
+
+    /** #459: the name a rewriteNamePosition was built from. */
+    public String getExpectedName() {
+        return expectedName;
+    }
+
     public Set<String> getArgumentExternalIds() {
         return argumentExternalIds;
     }
@@ -84,6 +98,8 @@ public class PositionImportDraft {
         private String text;
         private String positionType;
         private String proposedWord;
+        private String proposedName;
+        private String expectedName;
         private Set<String> argumentExternalIds = new HashSet<>();
         private java.util.List<ArgumentDraft> arguments = new java.util.ArrayList<>();
 
@@ -101,6 +117,12 @@ public class PositionImportDraft {
         }
         public Builder proposedWord(String proposedWord) {
             this.proposedWord = proposedWord; return this;
+        }
+        public Builder proposedName(String proposedName) {
+            this.proposedName = proposedName; return this;
+        }
+        public Builder expectedName(String expectedName) {
+            this.expectedName = expectedName; return this;
         }
         public Builder argumentExternalIds(Set<String> ids) {
             if (ids != null) this.argumentExternalIds.addAll(ids);

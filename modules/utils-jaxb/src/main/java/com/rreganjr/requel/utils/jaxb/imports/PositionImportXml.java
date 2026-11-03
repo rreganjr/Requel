@@ -45,6 +45,13 @@ public class PositionImportXml {
     @XmlAttribute(name = "proposedWord")
     private String proposedWord;
 
+    /** #459: rewriteNamePosition. */
+    @XmlAttribute(name = "proposedName")
+    private String proposedName;
+
+    @XmlAttribute(name = "expectedName")
+    private String expectedName;
+
     @XmlElementWrapper(name = "arguments", namespace = "http://www.rreganjr.com/requel")
     @XmlElement(name = "argument", namespace = "http://www.rreganjr.com/requel")
     private List<ArgumentImportXml> arguments = new ArrayList<>();
@@ -53,6 +60,8 @@ public class PositionImportXml {
     public String getCreatedBy() { return createdBy; }
     public String getText() { return text; }
     public String getProposedWord() { return proposedWord; }
+    public String getProposedName() { return proposedName; }
+    public String getExpectedName() { return expectedName; }
     public List<ArgumentImportXml> getArguments() { return arguments; }
 
     @XmlAccessorType(XmlAccessType.FIELD)

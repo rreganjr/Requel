@@ -525,6 +525,7 @@ describe('AnnotationsSectionComponent (method coverage)', () => {
   it('resolveLabel() returns correct label for known position types', () => {
     expect(comp.resolveLabel('AddWordToDictionaryPosition')).toBe('Add to Dictionary');
     expect(comp.resolveLabel('ChangeSpellingPosition')).toBe('Fix Spelling');
+    expect(comp.resolveLabel('RewriteNamePosition')).toBe('Rewrite');
     expect(comp.resolveLabel('AddActorPosition')).toBe('Add as Actor');
     expect(comp.resolveLabel('AddGlossaryTermPosition')).toBe('Add to Glossary');
     expect(comp.resolveLabel('IgnorePosition')).toBe('Ignore');

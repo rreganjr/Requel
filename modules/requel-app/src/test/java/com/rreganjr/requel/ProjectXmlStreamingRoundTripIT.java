@@ -545,6 +545,60 @@ class ProjectXmlStreamingRoundTripIT {
 				.map(com.rreganjr.requel.annotation.Issue.class::cast).collect(Collectors.toList());
 	}
 
+	/** Issue #459: a RewriteNamePosition round-trips with its proposed and expected names. */
+	@Test
+	@Transactional
+	void rewriteNamePositionRoundTrip() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		Goal goal = originalProject.getGoals().iterator().next();
+		String ts = Long.toString(System.nanoTime());
+
+		com.rreganjr.requel.annotation.command.EditIssueCommand issueCommand =
+				annotationCommandFactory.newEditIssueCommand();
+		issueCommand.setEditedBy(projectUser);
+		issueCommand.setGroupingObject(originalProject);
+		issueCommand.setAnnotatable(goal);
+		issueCommand.setText("Rename me " + ts);
+		issueCommand.setMustBeResolved(false);
+		com.rreganjr.requel.annotation.Issue issue = commandHandler.execute(issueCommand).getIssue();
+		com.rreganjr.requel.annotation.command.EditRewriteNamePositionCommand rewrite =
+				annotationCommandFactory.newEditRewriteNamePositionCommand();
+		rewrite.setEditedBy(projectUser);
+		rewrite.setIssue(issue);
+		rewrite.setText("Rewrite as \"Host renames " + ts + "\".");
+		rewrite.setProposedName("Host renames " + ts);
+		rewrite.setExpectedName(goal.getName());
+		commandHandler.execute(rewrite);
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		assertThat(new String(exportedBytes, StandardCharsets.UTF_8)).as("exported XML")
+				.contains("<rewriteNamePosition ");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		Project reimported = importProject(exportedBytes, projectUser,
+				originalProject.getName() + " Rewrite " + Instant.now().toEpochMilli());
+		entityManager.flush();
+
+		Goal importedGoal = reimported.getGoals().stream()
+				.filter(candidate -> candidate.getName().equals(goal.getName())).findFirst()
+				.orElseThrow();
+		com.rreganjr.requel.annotation.impl.RewriteNamePosition imported = importedGoal
+				.getAnnotations().stream().map(org.hibernate.Hibernate::unproxy)
+				.filter(com.rreganjr.requel.annotation.Issue.class::isInstance)
+				.map(com.rreganjr.requel.annotation.Issue.class::cast)
+				.filter(candidate -> candidate.getText().equals("Rename me " + ts))
+				.flatMap(candidate -> candidate.getPositions().stream())
+				.map(org.hibernate.Hibernate::unproxy)
+				.filter(com.rreganjr.requel.annotation.impl.RewriteNamePosition.class::isInstance)
+				.map(com.rreganjr.requel.annotation.impl.RewriteNamePosition.class::cast)
+				.findFirst().orElseThrow(() -> new AssertionError("no RewriteNamePosition imported"));
+		assertThat(imported.getProposedName()).isEqualTo("Host renames " + ts);
+		assertThat(imported.getExpectedName()).isEqualTo(goal.getName());
+	}
+
 	/**
 	 * Issue #320: ignored findings and the IgnorePosition marker round-trip, with each key
 	 * rebuilt for the entity's new id and pointing at the imported issue.

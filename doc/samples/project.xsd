@@ -31,6 +31,8 @@
   <xs:element name="addWordToDictionaryPosition" type="tns:addWordToDictionaryPosition"/>
   <xs:element name="ignorePosition" type="tns:ignorePosition"/>
 
+  <xs:element name="rewriteNamePosition" type="tns:rewriteNamePosition"/>
+
   <xs:element name="argument" type="tns:argument"/>
 
   <xs:element name="assistantUserRole" type="tns:assistantUserRole"/>
@@ -163,6 +165,18 @@
     <xs:complexContent>
       <xs:extension base="tns:position">
         <xs:sequence/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <!-- A position that sets the name of the entity its issue is on (issue #459): proposedName is
+       the new name, expectedName the name it was built from. -->
+  <xs:complexType name="rewriteNamePosition">
+    <xs:complexContent>
+      <xs:extension base="tns:position">
+        <xs:sequence/>
+        <xs:attribute name="proposedName" type="xs:string"/>
+        <xs:attribute name="expectedName" type="xs:string"/>
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
@@ -681,6 +695,7 @@
                     <xs:element ref="tns:addActorPosition"/>
                     <xs:element ref="tns:addGlossaryTermPosition"/>
                     <xs:element ref="tns:ignorePosition"/>
+                    <xs:element ref="tns:rewriteNamePosition"/>
                   </xs:choice>
                 </xs:sequence>
               </xs:complexType>

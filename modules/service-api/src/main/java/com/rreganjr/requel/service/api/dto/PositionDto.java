@@ -27,7 +27,8 @@ import java.util.List;
  * <p>
  * positionType is the position's persisted discriminator with its package stripped and a trailing
  * "Impl" removed — "Position" for a plain position, otherwise its subtype ("AddActorPosition",
- * "AddGlossaryTermPosition", "AddWordToDictionaryPosition", "ChangeSpellingPosition") — so the UI
+ * "AddGlossaryTermPosition", "AddWordToDictionaryPosition", "ChangeSpellingPosition",
+ * "RewriteNamePosition") — so the UI
  * can label and dispatch the correct ResolveIssue command variant. It is stable across runs and
  * builds, and never carries a generated proxy class name; see PositionTypes (issue #253).
  */
