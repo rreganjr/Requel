@@ -139,6 +139,12 @@ class ProjectXmlStreamingRoundTripIT {
 	private AnnotationCommandFactory annotationCommandFactory;
 
 	@Autowired
+	private com.rreganjr.requel.project.ProjectAssistantDefinitions assistantDefinitions;
+
+	@Autowired
+	private com.rreganjr.requel.project.ProjectAssistantSettingsStore assistantSettings;
+
+	@Autowired
 	private ApplicationContext applicationContext;
 
 	@Autowired
@@ -543,6 +549,82 @@ class ProjectXmlStreamingRoundTripIT {
 				.map(org.hibernate.Hibernate::unproxy)
 				.filter(com.rreganjr.requel.annotation.Issue.class::isInstance)
 				.map(com.rreganjr.requel.annotation.Issue.class::cast).collect(Collectors.toList());
+	}
+
+	/**
+	 * Issue #371: the project's own assistant definitions round-trip, arrive switched off, a copy
+	 * whose bundled version moved on reads out of date, and an invalid one in the file is skipped
+	 * while the rest imports. The export points at the 2.1 schema.
+	 */
+	@Test
+	@Transactional
+	void assistantDefinitionsRoundTrip() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		Long id = originalProject.getId();
+		var bundledGoal = assistantDefinitions.bundled("ai-review-goal").orElseThrow();
+		var fork = assistantDefinitions.fork(id, "ai-review-goal", "project");
+		assistantDefinitions.edit(id, "ai-review-goal", fork.lockVersion(),
+				new com.rreganjr.requel.project.ProjectAssistantDefinitions.Draft(null,
+						"ai-review-goal", "Our goal review", java.util.Set.of("Goal"),
+						java.util.List.of("entity"), java.util.Map.of(),
+						"Goals name a measurable outcome.", bundledGoal.vocabulary(), false, null),
+				"project");
+		assistantDefinitions.create(id, new com.rreganjr.requel.project.ProjectAssistantDefinitions.Draft(
+				"POLICY", "house-style", "House style", java.util.Set.of(),
+				java.util.List.of("entity", "project-names"), java.util.Map.of("project-names", 2000),
+				"Check the house style.", java.util.List.of(
+						new com.rreganjr.requel.project.ProjectAssistantDefinitions.Vocabulary(
+								"RULE_BROKEN", "A house rule is broken.", null)),
+				true, null), "project");
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		String xml = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(xml).as("exported XML").contains("<assistantDefinitions>")
+				.contains("integration/2.1/project.xsd");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		// The bundled goal review the copy came from moves on, and the file brings one bad definition.
+		String edited = xml.replaceFirst("forkedFromVersion=\"\\d+\"",
+				"forkedFromVersion=\"" + (bundledGoal.version() - 1) + "\"")
+				.replace("</assistantDefinitions>", "<assistantDefinition key=\"Not A Key\" kind="
+						+ "\"POLICY\"><displayName>Bad</displayName><instructions>x</instructions>"
+						+ "</assistantDefinition></assistantDefinitions>");
+		Project reimported = importProject(edited.getBytes(StandardCharsets.UTF_8), projectUser,
+				originalProject.getName() + " Definitions " + Instant.now().toEpochMilli());
+		entityManager.flush();
+		Long newId = reimported.getId();
+
+		var imported = assistantDefinitions.own(newId);
+		assertThat(imported).extracting(com.rreganjr.requel.project.ProjectAssistantDefinitions.View::key)
+				.as("the bad key is skipped, the rest imports")
+				.containsExactlyInAnyOrder("ai-review-goal", "house-style");
+		assertThat(imported).filteredOn(v -> v.key().equals("ai-review-goal")).singleElement()
+				.satisfies(v -> {
+					assertThat(v.displayName()).isEqualTo("Our goal review");
+					assertThat(v.instructions()).isEqualTo("Goals name a measurable outcome.");
+					assertThat(v.forkedFromVersion()).isEqualTo(bundledGoal.version() - 1);
+					assertThat(v.bundledVersion()).as("so it reads out of date")
+							.isEqualTo(bundledGoal.version());
+				});
+		assertThat(imported).filteredOn(v -> v.key().equals("house-style")).singleElement()
+				.satisfies(v -> {
+					assertThat(v.kind()).isEqualTo("POLICY");
+					assertThat(v.localOnly()).isTrue();
+					assertThat(v.contextProviders()).containsExactly("entity", "project-names");
+					assertThat(v.contextBudgets()).containsEntry("project-names", 2000);
+					assertThat(v.vocabulary()).extracting(
+							com.rreganjr.requel.project.ProjectAssistantDefinitions.Vocabulary::description)
+							.containsExactly("A house rule is broken.");
+				});
+		assertThat(assistantSettings.disabledAssistants(newId))
+				.as("imported definitions arrive switched off")
+				.contains("ai-review-goal", "house-style");
+		// the original keeps its own, switched on
+		assertThat(assistantSettings.disabledAssistants(id)).doesNotContain("ai-review-goal",
+				"house-style");
 	}
 
 	/** Issue #459: a RewriteNamePosition round-trips with its proposed and expected names. */

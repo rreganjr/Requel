@@ -63,7 +63,7 @@ class ProjectSchemaNameLengthTest {
 
     private static final String SAMPLE = "doc/samples/Requel.xml";
     private static final String SCHEMA = "doc/samples/project.xsd";
-    private static final String PUBLISHED_SCHEMA = "website/integration/2.0/project.xsd";
+    private static final String PUBLISHED_SCHEMA = "website/integration/2.1/project.xsd";
 
     private static byte[] sampleXml;
 
@@ -148,9 +148,10 @@ class ProjectSchemaNameLengthTest {
         // anyone who followed the schemaLocation could not build a validator at all. Nothing failed,
         // because nothing compared them.
         //
-        // #171 froze 1.0 and published the current schema at website/integration/2.0. This asserts
-        // the published copy and the copy the round-trip ITs validate against never diverge again.
-        // If it fails, copy doc/samples/project.xsd over website/integration/2.0/project.xsd.
+        // #171 froze 1.0 and published the current schema at website/integration/2.0; #371 froze
+        // 2.0 and publishes 2.1's at website/integration/2.1. This asserts the published copy and
+        // the copy the round-trip ITs validate against never diverge again.
+        // If it fails, copy doc/samples/project.xsd over website/integration/2.1/project.xsd.
         byte[] tested = readClasspath(SCHEMA);
         byte[] published = readClasspath(PUBLISHED_SCHEMA);
 

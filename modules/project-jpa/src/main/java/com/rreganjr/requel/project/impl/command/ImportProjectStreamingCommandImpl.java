@@ -359,6 +359,10 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
         // the links are keyed by the entities' new ids.
         importExternalSources(xmlBytes, targetProject, unitOfWork, createdBy);
 
+        // Issue #371: the project's own assistant definitions, switched off until someone turns
+        // each one on.
+        importAssistantDefinitions(xmlBytes, targetProject, createdBy);
+
         // Import tag assignments (issue #112, Phase 5) AFTER the project and its entities are
         // persisted, so the tag @ManyToAny never references a transient entity. Entities are resolved
         // here (this command owns the unit of work) and applied through the TagImportHandler SPI, so
@@ -368,6 +372,53 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
             com.rreganjr.requel.tagging.Taggable taggable = resolveTaggable(ta, targetProject, unitOfWork);
             if (taggable != null) {
                 tagImportHandler.assignImportedTag(taggable, ta.getToken(), createdBy);
+            }
+        }
+    }
+
+    /**
+     * Issue #371: write each assistant definition in the file into the imported project through
+     * the checks a create or a customize meets, and switch it off there, since its instructions
+     * come from a file. One that breaks a rule is skipped with a WARN naming its problems; the
+     * rest of the import goes ahead. Nothing in the file sets the project's other assistant
+     * switches or its data-handling settings: the importing install's defaults apply.
+     */
+    private void importAssistantDefinitions(byte[] xmlBytes, Project targetProject,
+            User createdBy) {
+        if (getAssistantDefinitions() == null || targetProject.getId() == null) {
+            return;
+        }
+        var definitions = new com.rreganjr.requel.utils.jaxb.imports.AssistantDefinitionStaxImporter()
+                .readAssistantDefinitions(new ByteArrayInputStream(xmlBytes));
+        String by = createdBy == null ? null : createdBy.getUsername();
+        for (com.rreganjr.requel.utils.jaxb.imports.AssistantDefinitionXml xml : definitions) {
+            java.util.Map<String, Integer> budgets = new java.util.LinkedHashMap<>();
+            for (var budget : xml.getContextBudgets()) {
+                if (budget != null && budget.getProvider() != null && budget.getCharacters() != null) {
+                    budgets.put(budget.getProvider(), budget.getCharacters());
+                }
+            }
+            java.util.List<com.rreganjr.requel.project.ProjectAssistantDefinitions.Vocabulary> vocabulary =
+                    new java.util.ArrayList<>();
+            for (var entry : xml.getVocabulary()) {
+                vocabulary.add(entry == null ? null
+                        : new com.rreganjr.requel.project.ProjectAssistantDefinitions.Vocabulary(
+                                entry.getType(), entry.getDescription(), entry.getCategory()));
+            }
+            var draft = new com.rreganjr.requel.project.ProjectAssistantDefinitions.Draft(
+                    xml.getKind(), xml.getKey(), xml.getDisplayName(),
+                    new java.util.LinkedHashSet<>(xml.getScope()), xml.getContextProviders(),
+                    budgets, xml.getInstructions(), vocabulary, xml.isLocalOnly(), null);
+            java.util.List<String> problems = getAssistantDefinitions().importDefinition(
+                    targetProject.getId(), draft, xml.getForkedFromVersion(), by);
+            if (!problems.isEmpty()) {
+                log.warn("import: assistant definition " + xml.getKey() + " was skipped: "
+                        + String.join("; ", problems));
+                continue;
+            }
+            if (getAssistantSettingsStore() != null) {
+                getAssistantSettingsStore().setEnabled(targetProject.getId(), xml.getKey().strip(),
+                        false, createdBy);
             }
         }
     }
