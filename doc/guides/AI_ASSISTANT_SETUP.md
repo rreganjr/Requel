@@ -269,7 +269,8 @@ Use this when you start Requel from the jar (or `mvn spring-boot:run`) directly 
    > **Pick a model that fits your RAM.** A small model like `qwen2.5:3b` (~2 GB, and notably
    > better at structured JSON than similarly sized models) or `llama3.2:3b` runs comfortably and
    > is fine for proving the pipeline. Big models (e.g. `llama3.1` 8B) need 6–8 GB+ or Ollama gets
-   > killed mid-run — see the OOM note in Section 7.
+   > killed mid-run — see the OOM note in Section 7. For real reviews see
+   > [Section 4c](#4c-a-local-model-big-enough-for-real-reviews), including the context length.
 
 2. Point Requel at it (same terminal you start Requel from):
 
@@ -282,6 +283,54 @@ Use this when you start Requel from the jar (or `mvn spring-boot:run`) directly 
    ```
 
 3. Start Requel and use it as normal (Section 5).
+
+### 4c. A local model big enough for real reviews
+
+The small models above prove the pipeline; for reviews worth reading you need a larger model and
+three settings. Issue #365 scored the review definitions on two models that fit a 36 GB Apple
+Silicon Mac; the results are in `doc/work/2.1/365-local-model-eval.md`.
+
+| Model | Ollama tag | Download | Per review | Planted flaws found | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Gemma 4, 26B mixture-of-experts (4B active) | `gemma4:26b` | ~18 GB | ~14 s | 80% | **use this one**; every reply valid, policy pass clean |
+| Qwen 3.6, 27B dense | `qwen3.6:27b` | ~17 GB | ~70 s | 84% | more false findings; sometimes replies `{}` |
+
+The frontier model the definitions were tuned on finds 100%. Both local models find the plain
+flaws (a person named instead of a role, two actions in one step, a circular definition) every
+time and miss the subtle goal flaws (a duplicate of another goal, a rule stated only as who may
+*not*, an unstated assumption, an "every alert" goal that no alerts satisfy).
+
+1. **Set Ollama's context length.** A review prompt is the definition's instructions plus the
+   entity's context pack (up to `requel.ai.max-input-tokens`, 16,000 by default), and a prompt
+   longer than the context is cut without an error, so the model reviews half a prompt. Older
+   Ollama releases default to 4,096 tokens; newer ones pick a default from the GPU memory. Set it
+   explicitly:
+
+   ```bash
+   osascript -e 'quit app "Ollama"'     # macOS: the menu-bar app holds the port; quit it first
+   OLLAMA_CONTEXT_LENGTH=32768 ollama serve
+   ```
+
+   (With Docker, pass `-e OLLAMA_CONTEXT_LENGTH=32768` to `docker run`.) Check with `ollama ps`
+   while a model is loaded: `PROCESSOR` should read `100% GPU`. A CPU/GPU split means the model
+   and its context don't fit; use 24576.
+2. Pull the model, e.g. `ollama pull gemma4:26b`, and start Requel with the `ai-ollama` profile
+   and `REQUEL_AI_MODEL=gemma4:26b` (Section 3a).
+3. **Turn thinking off.** Both models reason before they answer unless told not to. Add this to
+   the `java -jar` command (or set `SPRING_AI_OPENAI_CHAT_OPTIONS_REASONINGEFFORT=none`):
+
+   ```bash
+   --spring.ai.openai.chat.options.reasoning-effort=none
+   ```
+
+   With thinking on, `qwen3.6:27b` took about 4 minutes per review instead of about 70 s, and
+   found no more flaws (it did raise fewer false ones). The thinking also counts against the
+   output cap (`REQUEL_AI_MAX_OUTPUT_TOKENS`, 4,000), and 3 reviews in 39 used it all up and
+   failed with no answer.
+
+To see exactly what Requel sends a local model and what comes back, run
+`scripts/ai-eval/capture-proxy.py` between them and point `REQUEL_AI_BASE_URL` at it; see
+`scripts/ai-eval/README.md`.
 
 ### 4b. Everything in Docker (Requel + database + Ollama together)
 

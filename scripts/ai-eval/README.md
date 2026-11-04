@@ -68,6 +68,33 @@ Each run imports the fixture under a new name (`AI Eval YYYYMMDD-HHMMSS`), so ru
 Entities are reviewed one at a time. With `--runs 3` and the `cli` provider a full run takes
 about an hour.
 
+## Local models and the capture proxy (#365)
+
+Requel doesn't record what it sends a provider or what comes back. For a local OpenAI-compatible
+server, `capture-proxy.py` sits in between and keeps both:
+
+```bash
+python3 scripts/ai-eval/capture-proxy.py --out target/ai-eval/capture-qwen
+# then start Requel with REQUEL_AI_BASE_URL=http://localhost:11435 (the proxy) instead of 11434
+```
+
+Each exchange is written as `NNNN-request.json` and `NNNN-response.json`, and one line per
+exchange is printed:
+
+```
+0007 qwen3.6:27b 200 41.2s prompt=7311 completion=912 finish=stop reasoning=0 json=ok
+```
+
+| Field | Look for |
+|---|---|
+| `json` | `ok`: the reply's content parses as JSON (an `ok` reply can still fail Requel's schema check, e.g. an empty `{}`). `BAD` or `EMPTY`: that run fails; open `NNNN-response.json`, `choices[0].message.content` |
+| `finish` | `length`: the reply hit the output cap (`REQUEL_AI_MAX_OUTPUT_TOKENS`, 4000) and was cut. With `reasoning` well above 0, the thinking used up the cap; turn thinking off (setup guide, section 4c) |
+| `prompt` | tokens in; near the server's context length means the prompt was cut (see `doc/guides/AI_ASSISTANT_SETUP.md`, section 4c) |
+| `reasoning` | characters of thinking the model returned beside the reply |
+
+Set up Ollama as in `doc/guides/AI_ASSISTANT_SETUP.md` section 4c first; its default context
+length cuts review prompts.
+
 ## How a run is scored
 
 For each review of an entity the script posts `POST /api/ai/reviews`, then polls
