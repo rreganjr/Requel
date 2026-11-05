@@ -53,6 +53,36 @@
   </section>
 
   <section>
+    <h2>What&rsquo;s new in 2.1</h2>
+    <div class="card">
+      <ul class="features">
+        <li><strong>Upgrade from 1.x in place.</strong> Point 2.1 at a Requel 1.0.x or 1.1 database,
+          turn on one setting, and it is upgraded where it stands; no export and re-import.</li>
+        <li><strong>Better-written scenarios.</strong> Requel checks that a step reads as
+          &ldquo;&lt;actor&gt; does something&rdquo; or &ldquo;the system does something&rdquo;,
+          offers one-click rewrites for a step that doesn&rsquo;t say who does it, and checks that a
+          scenario&rsquo;s steps take turns between an actor and the system.</li>
+        <li><strong>Glossary renames that carry through.</strong> Renaming a term keeps the old name
+          as a synonym and offers to rewrite the requirements that use it.</li>
+        <li><strong>AI review from anywhere.</strong> Ask for a review from the editor, over MCP or
+          with <code>requel-cli</code>. A project&rsquo;s own review definitions travel with its
+          export (a new <a href="./integration/2.1/project.xsd">2.1 project schema</a>), and the
+          reviewer sees the severity of open issues so it doesn&rsquo;t repeat them. For a local
+          model, the setup guide now recommends one measured against the same fixture as the cloud
+          models.</li>
+        <li><strong>More from MCP and the CLI.</strong> Resolve an issue by choosing a position,
+          filter open issues by minimum severity (in the UI too), and get errors that say whether
+          something conflicted or wasn&rsquo;t found. Updates need a name only when creating.</li>
+        <li><strong>Account security.</strong> The built-in admin has to change its default
+          password at first sign-in, everyone can change their password from account settings, and
+          sign-in is hardened.</li>
+        <li><strong>Fixes:</strong> deleting a use case&rsquo;s primary scenario explains what to do
+          instead of failing, and copying a scenario keeps the scenarios nested in it.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
     <h2>What&rsquo;s new in 2.0</h2>
     <div class="card">
       <ul class="features">
