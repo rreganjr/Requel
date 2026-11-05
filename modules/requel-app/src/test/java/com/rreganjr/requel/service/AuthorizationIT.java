@@ -1033,7 +1033,7 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
         mockMvc.perform(get("/api/projects/" + testProjectName + "/assistants")
                         .header("Authorization", "Bearer " + deleterToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(4))
+                .andExpect(jsonPath("$.length()").value(5))
                 .andExpect(jsonPath("$[?(@.assistantId == 'legacy-lexical-complexity')].enabled")
                         .value(org.hamcrest.Matchers.contains(false)))
                 .andExpect(jsonPath("$[?(@.assistantId == 'legacy-lexical')].enabled")

@@ -20,8 +20,11 @@
  */
 package com.rreganjr.requel.project.command;
 
+import java.util.List;
+
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
+import com.rreganjr.requel.project.Scenario;
 
 /**
  * Implemented by edit commands that opt into assistant analysis via the
@@ -40,6 +43,12 @@ import com.rreganjr.requel.project.ProjectOrDomainEntity;
 public interface AnalysisRequestSource {
 
 	/**
+	 * #455: the task type of a run that only re-checks the order of a scenario's steps. Only the
+	 * step-sequence assistant serves it, so the run does no lexical or AI work.
+	 */
+	String STEP_SEQUENCE_TASK = "STEP_SEQUENCE";
+
+	/**
 	 * @return the edited entity to analyze, or {@code null} to skip analysis for
 	 *         this execution.
 	 */
@@ -50,4 +59,16 @@ public interface AnalysisRequestSource {
 	 *         resulting annotation writes mirrors this user.
 	 */
 	User getAnalysisTriggeredBy();
+
+	/**
+	 * #455: scenarios whose step order this edit may have changed the reading of, other than the
+	 * analysis target: the scenarios that use an edited or deleted step. Each is dispatched with
+	 * {@link #STEP_SEQUENCE_TASK}. Collected while the command runs, since it is read after the
+	 * command's transaction.
+	 *
+	 * @return the scenarios to re-check, empty by default; never null.
+	 */
+	default List<Scenario> getStepSequenceTargets() {
+		return List.of();
+	}
 }

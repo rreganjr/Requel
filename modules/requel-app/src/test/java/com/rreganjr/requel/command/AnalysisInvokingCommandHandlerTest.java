@@ -22,19 +22,27 @@ package com.rreganjr.requel.command;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
+import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.Scenario;
+import com.rreganjr.requel.project.Step;
+import com.rreganjr.requel.project.command.AnalysisRequestSource;
 import com.rreganjr.requel.project.command.AnalyzeProjectCommand;
 
-/** Issue #268: the whole-project path of the handler. */
+/** Issue #268: the whole-project path of the handler; #455: the step-sequence re-checks. */
 class AnalysisInvokingCommandHandlerTest {
 
 	private final CommandHandler inner = mock(CommandHandler.class);
@@ -73,5 +81,60 @@ class AnalysisInvokingCommandHandlerTest {
 		when(dispatcher.dispatchProject(any(), any())).thenThrow(new IllegalStateException("down"));
 
 		assertThat(handler.execute(command)).isSameAs(command);
+	}
+
+	/** #455: a command that is an analysis source, as the step and scenario commands are. */
+	interface SourceCommand extends Command, AnalysisRequestSource {
+	}
+
+	@Test
+	void stepSequenceTargetsAreDispatchedWithTheStepSequenceTask() throws Exception {
+		SourceCommand edit = mock(SourceCommand.class);
+		Step step = mock(Step.class);
+		Scenario first = mock(Scenario.class);
+		Scenario second = mock(Scenario.class);
+		User ron = mock(User.class);
+		when(edit.getAnalysisTarget()).thenReturn(step);
+		when(edit.getAnalysisTriggeredBy()).thenReturn(ron);
+		when(edit.getStepSequenceTargets()).thenReturn(List.of(first, second));
+		when(inner.execute(edit)).thenReturn(edit);
+
+		handler.execute(edit);
+
+		verify(dispatcher).dispatch(step, ron);
+		verify(dispatcher).dispatch(first, ron, AnalysisRequestSource.STEP_SEQUENCE_TASK);
+		verify(dispatcher).dispatch(second, ron, AnalysisRequestSource.STEP_SEQUENCE_TASK);
+	}
+
+	/** A delete analyzes nothing itself but still re-checks the scenarios that lost the step. */
+	@Test
+	void stepSequenceTargetsAreDispatchedWithoutAnAnalysisTarget() throws Exception {
+		SourceCommand delete = mock(SourceCommand.class);
+		Scenario scenario = mock(Scenario.class);
+		User ron = mock(User.class);
+		when(delete.getAnalysisTriggeredBy()).thenReturn(ron);
+		when(delete.getStepSequenceTargets()).thenReturn(List.of(scenario));
+		when(inner.execute(delete)).thenReturn(delete);
+
+		handler.execute(delete);
+
+		verify(dispatcher, never()).dispatch(any(), any());
+		verify(dispatcher).dispatch(scenario, ron, AnalysisRequestSource.STEP_SEQUENCE_TASK);
+	}
+
+	@Test
+	void aFailedStepSequenceDispatchIsLoggedAndTheRestStillGo() throws Exception {
+		SourceCommand edit = mock(SourceCommand.class);
+		Scenario failing = mock(Scenario.class);
+		Scenario next = mock(Scenario.class);
+		User ron = mock(User.class);
+		when(edit.getAnalysisTriggeredBy()).thenReturn(ron);
+		when(edit.getStepSequenceTargets()).thenReturn(List.of(failing, next));
+		when(inner.execute(edit)).thenReturn(edit);
+		doThrow(new IllegalStateException("down")).when(dispatcher).dispatch(eq(failing), any(),
+				any());
+
+		assertThat(handler.execute(edit)).isSameAs(edit);
+		verify(dispatcher).dispatch(next, ron, AnalysisRequestSource.STEP_SEQUENCE_TASK);
 	}
 }
