@@ -107,7 +107,7 @@ class StepSequenceAssistantTest {
 
 		AnnotationAction issue = actions.get(0);
 		assertThat(issue.actionType()).isEqualTo(AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE);
-		assertThat(issue.actionKey()).isEqualTo("legacy-step-sequence:Scenario:2:sequence");
+		assertThat(issue.actionKey()).matches("legacy-step-sequence:Scenario:2:sequence:[0-9a-f]{12}");
 		assertThat(issue.targetRef()).isEqualTo(EntityRef.of("Scenario", 2L));
 		assertThat(issue.severity()).isEqualTo("LOW");
 		assertThat(issue.metadata()).containsEntry("mustResolve", false)
@@ -117,9 +117,9 @@ class StepSequenceAssistantTest {
 				+ " a slip\" are both system steps, with no actor step between them. An actor acts"
 				+ " and the system responds: add the step that's missing, or combine two steps by"
 				+ " the same actor unless something outside the system happens between them.");
-		assertThat(actions).hasSize(2);
-		assertThat(actions.get(1).text()).isEqualTo("Do nothing.");
-		assertThat(actions.get(1).parentActionKey()).isEqualTo(issue.actionKey());
+		assertThat(positions(actions)).containsExactly(
+				"Merge into \"The system records the loan and prints a slip\".", "Do nothing.");
+		assertThat(actions.get(2).parentActionKey()).isEqualTo(issue.actionKey());
 	}
 
 	@Test
@@ -245,7 +245,10 @@ class StepSequenceAssistantTest {
 				"Member fills in the form", "Member submits it", "The system records the request",
 				"The system emails the clerk");
 
-		assertThat(actions).hasSize(2);
+		assertThat(positions(actions)).containsExactly(
+				"Merge into \"Member fills in the form and submits it\".",
+				"Merge into \"The system records the request and emails the clerk\".",
+				"Do nothing.");
 		assertThat(actions.get(0).text()).contains(": it starts with the system step \"The system"
 				+ " shows the form\"; \"Member fills in the form\" and \"Member submits it\" are both"
 				+ " by Member, with nothing from the system between them; \"The system records the"
@@ -270,7 +273,133 @@ class StepSequenceAssistantTest {
 		assertThat(assistant.analyze(context(), scenario).annotationActions()).isEmpty();
 	}
 
+	// ---- #472: merging a pair -------------------------------------------------------------------
+
+	@Test
+	void aSameActorPairGetsAMergePositionBeforeDoNothing() {
+		actorStep("Member fills in the form", "Member");
+		actorStep("The member submits it", "The member");
+		systemStep("The system records the request");
+		Step fills = step("Member fills in the form");
+		Step submits = step("The member submits it");
+
+		List<AnnotationAction> actions = assistant.analyze(context(),
+				scenario(List.of(fills, submits, step("The system records the request"))))
+				.annotationActions();
+
+		AnnotationAction merge = actions.get(1);
+		assertThat(merge.actionType())
+				.isEqualTo(AnnotationAction.ActionType.CREATE_OR_UPDATE_POSITION);
+		assertThat(merge.text()).isEqualTo(
+				"Merge into \"Member fills in the form and submits it\".");
+		assertThat(merge.actionKey()).isEqualTo(actions.get(0).actionKey() + ":merge:"
+				+ fills.getId() + ":" + submits.getId());
+		assertThat(merge.metadata()).containsEntry("kind", "MERGE_STEPS")
+				.containsEntry("proposedName", "Member fills in the form and submits it")
+				.containsEntry("expectedName", "Member fills in the form")
+				.containsEntry("expectedSecondName", "The member submits it");
+		assertThat(actions.get(2).text()).isEqualTo("Do nothing.");
+	}
+
+	@Test
+	void aCommandSecondStepIsConjugatedAndATrailingPeriodDropped() {
+		inUseCase(member);
+		actorStep("Member fills in the form.", "Member");
+		readings.put("Submit the form", StepReading.command("Submit"));
+
+		assertThat(positions(analyze("Member fills in the form.", "Submit the form")))
+				.containsExactly("Merge into \"Member fills in the form and submits the form\".",
+						"Do nothing.");
+	}
+
+	@Test
+	void noMergeWhenTheFirstStepIsACommand() {
+		inUseCase(member);
+		readings.put("Fill in the form", StepReading.command("Fill"));
+		actorStep("Member submits it", "Member");
+
+		assertThat(positions(analyze("Fill in the form", "Member submits it")))
+				.containsExactly("Do nothing.");
+	}
+
+	@Test
+	void noMergeWhenTheSecondStepDoesntStartWithItsSubject() {
+		actorStep("Member fills in the form", "Member");
+		actorStep("Then the member submits it", "the member");
+
+		assertThat(positions(analyze("Member fills in the form", "Then the member submits it")))
+				.containsExactly("Do nothing.");
+	}
+
+	@Test
+	void noMergeWhenTheFirstStepIsSharedWithAnotherScenario() {
+		actorStep("Member fills in the form", "Member");
+		actorStep("Member submits it", "Member");
+		Step fills = step("Member fills in the form");
+		when(fills.getUsingScenarios()).thenReturn(Set.of(mock(Scenario.class)));
+
+		assertThat(positions(assistant.analyze(context(),
+				scenario(List.of(fills, step("Member submits it")))).annotationActions()))
+				.containsExactly("Do nothing.");
+	}
+
+	@Test
+	void noMergeWithASubScenario() {
+		systemStep("The system shows the account");
+		systemStep("The system renews the loan");
+		Scenario renew = mock(Scenario.class);
+		when(renew.getName()).thenReturn("The system renews the loan");
+		when(renew.getProjectOrDomain()).thenReturn(project);
+
+		assertThat(positions(assistant.analyze(context(),
+				scenario(List.of(step("The system shows the account"), renew)))
+				.annotationActions())).containsExactly("Do nothing.");
+	}
+
+	@Test
+	void noMergeLongerThanANameCanBe() {
+		String longer = "Member fills in the " + "very ".repeat(50) + "long form";
+		actorStep(longer, "Member");
+		actorStep("Member submits it", "Member");
+
+		assertThat(positions(analyze(longer, "Member submits it"))).containsExactly("Do nothing.");
+	}
+
+	@Test
+	void aScenarioStartingWithASystemStepGetsNoMerge() {
+		systemStep("The system shows the form");
+		actorStep("Member fills in the form", "Member");
+
+		assertThat(positions(analyze("The system shows the form", "Member fills in the form")))
+				.containsExactly("Do nothing.");
+	}
+
+	/** #472: the same breaks keep their key; different ones get another. */
+	@Test
+	void theIssueIsKeyedByTheBreaksItLists() {
+		actorStep("Member asks for a drill", "Member");
+		systemStep("The system records the loan");
+		systemStep("The system prints a slip");
+		systemStep("The system emails the member");
+
+		String once = analyze("Member asks for a drill", "The system records the loan",
+				"The system prints a slip").get(0).actionKey();
+		String again = analyze("Member asks for a drill", "The system records the loan",
+				"The system prints a slip").get(0).actionKey();
+		String other = analyze("Member asks for a drill", "The system records the loan",
+				"The system emails the member").get(0).actionKey();
+
+		assertThat(again).isEqualTo(once);
+		assertThat(other).isNotEqualTo(once).startsWith("legacy-step-sequence:Scenario:2:sequence:");
+	}
+
 	// ---- helpers --------------------------------------------------------------------------------
+
+	private static List<String> positions(List<AnnotationAction> actions) {
+		return actions.stream()
+				.filter(a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_POSITION)
+				.map(AnnotationAction::text).toList();
+	}
 
 	private void actorStep(String name, String subject) {
 		readings.put(name, StepReading.subject(subject));
@@ -320,8 +449,11 @@ class StepSequenceAssistantTest {
 		return scenario;
 	}
 
+	private long nextStepId = 100;
+
 	private Step step(String name) {
 		Step step = mock(Step.class);
+		when(step.getId()).thenReturn(nextStepId++);
 		when(step.getName()).thenReturn(name);
 		when(step.getProjectOrDomain()).thenReturn(project);
 		return step;

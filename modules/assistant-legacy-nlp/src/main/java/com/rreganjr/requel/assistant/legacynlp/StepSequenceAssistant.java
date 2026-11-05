@@ -63,6 +63,9 @@ import com.rreganjr.requel.project.command.AnalysisRequestSource;
  * scenario's use cases when they have exactly one. A scenario used as a step counts the same way,
  * by its name. Anything else (unreadable, the project named as the actor, a command with no single
  * primary actor) is unknown and breaks the sequence: no pair is checked across it.
+ * <p>
+ * #472: each same-actor or two-system pair that can be merged into one step gets a position that
+ * does it ("Merge into ..."), before "Do nothing.".
  *
  * <p>
  * A separate assistant from {@link StepStructureAssistant}: stale findings are reconciled per
@@ -92,6 +95,9 @@ public class StepSequenceAssistant implements RequelAssistant<Scenario> {
 			+ " actor step between them";
 	static final String SAME_ACTOR_MSG = "\"{0}\" and \"{1}\" are both by {2}, with nothing from the"
 			+ " system between them";
+	/** #472: a position that merges a pair into one step. */
+	static final String MERGE_MSG = "Merge into \"{0}\".";
+	static final String MERGE_KIND = "MERGE_STEPS";
 
 	private final Function<String, StepReading> reader;
 
@@ -146,9 +152,10 @@ public class StepSequenceAssistant implements RequelAssistant<Scenario> {
 		try {
 			List<String> breaks = new ArrayList<>();
 			List<String> names = new ArrayList<>();
-			findBreaks(scenario, breaks, names);
+			List<Merge> merges = new ArrayList<>();
+			findBreaks(scenario, breaks, names, merges);
 			if (!breaks.isEmpty()) {
-				emitIssue(builder, targetRef, scenario.getName(), breaks, names);
+				emitIssue(builder, targetRef, scenario.getName(), breaks, names, merges);
 			}
 		} catch (RuntimeException e) {
 			log.warn("step-sequence analysis of {} failed; skipping: {}", targetRef, e.toString());
@@ -166,46 +173,97 @@ public class StepSequenceAssistant implements RequelAssistant<Scenario> {
 		}
 	}
 
-	private void findBreaks(Scenario scenario, List<String> breaks, List<String> names) {
+	/** #472: two steps in a row that can be merged into one named {@code merged}. */
+	private record Merge(Step first, Step second, String merged) {
+	}
+
+	private void findBreaks(Scenario scenario, List<String> breaks, List<String> names,
+			List<Merge> merges) {
 		List<Step> steps = scenario.getSteps();
 		if (steps == null || steps.isEmpty()) {
 			return;
 		}
 		PrimaryActor primary = new PrimaryActor(scenario);
+		Step previousStep = null;
+		StepReading previousReading = null;
 		Turn previous = null;
-		String previousName = null;
 		for (int index = 0; index < steps.size(); index++) {
 			Step step = steps.get(index);
 			String name = step.getName();
-			Turn turn = turnOf(step, primary);
+			StepReading reading = readingOf(step);
+			Turn turn = reading == null ? null : turnOf(step, reading, primary);
 			if (index == 0) {
 				if (turn != null && turn.system()) {
 					breaks.add(MessageFormat.format(STARTS_WITH_SYSTEM_MSG, name));
 					names.add(name);
 				}
 			} else if (previous != null && turn != null) {
+				String previousName = previousStep.getName();
+				boolean pair = false;
 				if (previous.system() && turn.system()) {
 					breaks.add(MessageFormat.format(TWO_SYSTEM_STEPS_MSG, previousName, name));
-					names.add(previousName);
-					names.add(name);
+					pair = true;
 				} else if (previous.sameActorAs(turn)) {
 					breaks.add(MessageFormat.format(SAME_ACTOR_MSG, previousName, name,
 							previous.actor()));
+					pair = true;
+				}
+				if (pair) {
 					names.add(previousName);
 					names.add(name);
+					Merge merge = mergeOf(scenario, previousStep, previousReading, step, reading);
+					if (merge != null) {
+						merges.add(merge);
+					}
 				}
 			}
+			previousStep = step;
+			previousReading = reading;
 			previous = turn;
-			previousName = name;
 		}
 	}
 
-	private Turn turnOf(Step step, PrimaryActor primary) {
-		String name = step.getName();
-		if (name == null || name.isBlank()) {
+	/**
+	 * #472: the merge of two steps, or null when there is none to offer: the first must read
+	 * "&lt;subject&gt; ..." and the second must have a predicate ({@link StepVerbs#predicate});
+	 * neither may be a scenario used as a step; the first may not be used by another scenario
+	 * (renaming it would rename it there); and the merged name must fit a name.
+	 */
+	private static Merge mergeOf(Scenario scenario, Step first, StepReading firstReading,
+			Step second, StepReading secondReading) {
+		if (isScenario(first) || isScenario(second)
+				|| firstReading.kind() != StepReading.Kind.SUBJECT) {
 			return null;
 		}
-		StepReading reading = reader.apply(name);
+		if (first.getUsingScenarios() != null && first.getUsingScenarios().stream()
+				.anyMatch(other -> !other.equals(scenario))) {
+			return null;
+		}
+		String rest = StepVerbs.predicate(second.getName(), secondReading);
+		if (rest == null) {
+			return null;
+		}
+		String head = first.getName().trim();
+		while (head.endsWith(".")) {
+			head = head.substring(0, head.length() - 1).trim();
+		}
+		String merged = head + " and " + rest;
+		return merged.length() > StepStructureAssistant.MAX_NAME_LENGTH ? null
+				: new Merge(first, second, merged);
+	}
+
+	/** A scenario used as a step; asked of the entity, since a step may be a lazy proxy. */
+	private static boolean isScenario(Step step) {
+		return step instanceof Scenario
+				|| Scenario.class.equals(step.getProjectOrDomainEntityInterface());
+	}
+
+	private StepReading readingOf(Step step) {
+		String name = step.getName();
+		return name == null || name.isBlank() ? null : reader.apply(name);
+	}
+
+	private Turn turnOf(Step step, StepReading reading, PrimaryActor primary) {
 		switch (reading.kind()) {
 		case COMMAND:
 			Actor actor = primary.get();
@@ -260,10 +318,26 @@ public class StepSequenceAssistant implements RequelAssistant<Scenario> {
 		}
 	}
 
+	/**
+	 * #472: the issue is keyed by the breaks it lists, not the scenario alone. An unchanged
+	 * scenario keeps its issue; a different set of breaks is a new issue. Otherwise, once a
+	 * person resolved the issue (by accepting one merge, say), the breaks left over would be
+	 * written onto the resolved issue and never show.
+	 */
+	static String digest(List<String> breaks) {
+		try {
+			byte[] hash = java.security.MessageDigest.getInstance("SHA-256")
+					.digest(String.join("\n", breaks).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+			return java.util.HexFormat.of().formatHex(hash, 0, 6);
+		} catch (java.security.NoSuchAlgorithmException e) {
+			throw new IllegalStateException("SHA-256 is always available", e);
+		}
+	}
+
 	private void emitIssue(AssistantResult.Builder builder, EntityRef targetRef, String scenarioName,
-			List<String> breaks, List<String> names) {
+			List<String> breaks, List<String> names, List<Merge> merges) {
 		String key = ASSISTANT_ID + ":" + targetRef.entityType() + ":" + targetRef.entityId()
-				+ ":sequence";
+				+ ":sequence:" + digest(breaks);
 		List<EvidenceRef> evidence = new ArrayList<>();
 		evidence.add(EvidenceRef.ofLocator("property=steps"));
 		names.stream().distinct().map(EvidenceRef::ofSnippet).forEach(evidence::add);
@@ -271,6 +345,17 @@ public class StepSequenceAssistant implements RequelAssistant<Scenario> {
 		builder.annotationAction(new AnnotationAction(key,
 				AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE, targetRef, null, text, "LOW",
 				null, evidence, Map.of("mustResolve", Boolean.FALSE, "findingType", FINDING_TYPE)));
+		for (Merge merge : merges) {
+			builder.annotationAction(new AnnotationAction(
+					key + ":merge:" + merge.first().getId() + ":" + merge.second().getId(),
+					AnnotationAction.ActionType.CREATE_OR_UPDATE_POSITION, null, key,
+					MessageFormat.format(MERGE_MSG, merge.merged()), null, null,
+					List.of(EvidenceRef.ofSnippet(merge.first().getName()),
+							EvidenceRef.ofSnippet(merge.second().getName())),
+					Map.of("kind", MERGE_KIND, "proposedName", merge.merged(), "expectedName",
+							merge.first().getName(), "expectedSecondName",
+							merge.second().getName())));
+		}
 		builder.annotationAction(new AnnotationAction(key + ":do-nothing",
 				AnnotationAction.ActionType.CREATE_OR_UPDATE_POSITION, null, key, DO_NOTHING_MSG,
 				null, null, evidence, Map.of()));

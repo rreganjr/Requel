@@ -26,7 +26,9 @@ import org.springframework.context.annotation.Configuration;
 import com.rreganjr.requel.annotation.impl.command.AnnotationCommandFactoryImpl;
 import com.rreganjr.requel.project.impl.AddActorPosition;
 import com.rreganjr.requel.project.impl.AddGlossaryTermPosition;
+import com.rreganjr.requel.project.impl.MergeStepsPosition;
 import com.rreganjr.requel.project.impl.command.ResolveIssueWithAddActorPositionCommandImpl;
+import com.rreganjr.requel.project.impl.command.ResolveIssueWithMergeStepsPositionCommandImpl;
 import com.rreganjr.requel.project.impl.command.ResolveIssueWithAddGlossaryTermPositionCommandImpl;
 
 /**
@@ -42,5 +44,8 @@ public class PositionCommandRegistration {
 				ResolveIssueWithAddActorPositionCommandImpl.class);
 		AnnotationCommandFactoryImpl.addPositionResolverCommand(AddGlossaryTermPosition.class,
 				ResolveIssueWithAddGlossaryTermPositionCommandImpl.class);
+		// #472: merge two steps of a scenario
+		AnnotationCommandFactoryImpl.addPositionResolverCommand(MergeStepsPosition.class,
+				ResolveIssueWithMergeStepsPositionCommandImpl.class);
 	}
 }

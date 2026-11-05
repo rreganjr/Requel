@@ -79,10 +79,8 @@ final class StepVerbs {
 		if (name == null || verb == null || verb.isBlank() || subject == null) {
 			return null;
 		}
-		Matcher m = Pattern.compile("(?<![\\p{L}\\p{N}-])(?:[\\p{L}\\p{N}]+-)*"
-				+ Pattern.quote(verb.trim()) + "(?:-[\\p{L}\\p{N}]+)*(?![\\p{L}\\p{N}])",
-				Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE).matcher(name);
-		if (!m.find()) {
+		Matcher m = verbIn(name, verb);
+		if (m == null) {
 			return null;
 		}
 		String word = m.group();
@@ -90,6 +88,51 @@ final class StepVerbs {
 		String after = name.substring(m.end());
 		String lead = before.isEmpty() ? upperFirst(subject) : subject;
 		return before + lead + " " + thirdPerson(word) + after;
+	}
+
+	/**
+	 * #472: what a step does, without its subject, to follow "and" in a merged step: "Member
+	 * submits it" → "submits it"; a command is conjugated, "Submit the form" → "submits the form".
+	 * Null when the step can't be read that way: it is unreadable, its subject isn't at the start
+	 * of the name, or a command's verb isn't its first word.
+	 */
+	static String predicate(String name, StepReading reading) {
+		if (name == null || reading == null) {
+			return null;
+		}
+		String n = name.trim();
+		switch (reading.kind()) {
+		case SUBJECT: {
+			String subject = reading.subject() == null ? "" : reading.subject().trim();
+			if (subject.isEmpty() || n.length() <= subject.length()
+					|| !n.regionMatches(true, 0, subject, 0, subject.length())
+					|| !Character.isWhitespace(n.charAt(subject.length()))) {
+				return null;
+			}
+			String rest = n.substring(subject.length()).trim();
+			return rest.isEmpty() ? null : rest;
+		}
+		case COMMAND: {
+			Matcher m = verbIn(n, reading.verb());
+			if (m == null || m.start() != 0) {
+				return null;
+			}
+			return thirdPerson(m.group()) + n.substring(m.end());
+		}
+		default:
+			return null;
+		}
+	}
+
+	/** The verb as a whole word in {@code name}, widened to a hyphenated word, or null. */
+	private static Matcher verbIn(String name, String verb) {
+		if (verb == null || verb.isBlank()) {
+			return null;
+		}
+		Matcher m = Pattern.compile("(?<![\\p{L}\\p{N}-])(?:[\\p{L}\\p{N}]+-)*"
+				+ Pattern.quote(verb.trim()) + "(?:-[\\p{L}\\p{N}]+)*(?![\\p{L}\\p{N}])",
+				Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE).matcher(name);
+		return m.find() ? m : null;
 	}
 
 	private static String lowerFirst(String s) {

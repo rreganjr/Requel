@@ -21,6 +21,8 @@
 package com.rreganjr.requel.assistant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Clock;
@@ -42,6 +44,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.annotation.Issue;
+import com.rreganjr.requel.annotation.Position;
 import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.EntityRef;
@@ -59,6 +62,8 @@ import com.rreganjr.requel.project.command.EditProjectAssistantSettingCommand;
 import com.rreganjr.requel.project.command.EditScenarioCommand;
 import com.rreganjr.requel.project.command.EditScenarioStepCommand;
 import com.rreganjr.requel.project.impl.ScenarioImpl;
+import com.rreganjr.requel.project.impl.StepImpl;
+import com.rreganjr.validator.EntityValidationException;
 
 /**
  * Issue #455: whether a scenario's steps alternate between an actor and the system, with the real
@@ -71,6 +76,9 @@ public class StepSequenceAssistantIT extends AbstractLexicalAssistantTest {
 	private static final String HOST_ENDS = "The host ends the livestream";
 	private static final String SYSTEM_SAVES = "The system saves the recording";
 	private static final String SYSTEM_EMAILS = "The system sends the recording to the host";
+	private static final String HOST_SHARES = "The host shares the screen";
+	private static final String MERGED = "The host starts the livestream and shares the screen";
+	private static final String MERGE = "Merge into \"" + MERGED + "\".";
 
 	@Autowired
 	private StepSequenceAssistant assistant;
@@ -109,7 +117,8 @@ public class StepSequenceAssistantIT extends AbstractLexicalAssistantTest {
 		assertEquals("step-sequence", issue.metadata().get("findingType"));
 		assertTrue(issue.text().contains("\"" + SYSTEM_SAVES + "\" and \"" + SYSTEM_EMAILS
 				+ "\" are both system steps"), issue.text());
-		assertEquals(List.of("Do nothing."), positions(actions));
+		assertEquals(List.of("Merge into \"The system saves the recording and sends the recording"
+				+ " to the host\".", "Do nothing."), positions(actions));
 	}
 
 	@Test
@@ -203,6 +212,171 @@ public class StepSequenceAssistantIT extends AbstractLexicalAssistantTest {
 		assertEquals(List.of(), sequenceIssues(scenario.getId()));
 	}
 
+	// ---- #472: merging two steps ----------------------------------------------------------------
+
+	@Test
+	void acceptingTheMergeLeavesOneStepAndAReRunRaisesNothing() throws Exception {
+		Scenario scenario = newScenario(List.of(HOST_STARTS, HOST_SHARES, SYSTEM_SHOWS));
+		runQueued(scenario, null);
+		Issue issue = openSequenceIssue(scenario.getId());
+		assertEquals(java.util.Set.of(MERGE, "Do nothing."), positionTexts(issue));
+		Long sharesId = stepNamed(scenario, HOST_SHARES).getId();
+
+		resolve(issue, positionWithText(issue, MERGE), null, projectUser());
+
+		assertEquals(List.of(MERGED, SYSTEM_SHOWS), stepNames(scenario));
+		assertEquals(null, freshStep(sharesId), "the dropped step, used nowhere else, is deleted");
+		assertTrue(sequenceIssues(scenario.getId()).stream().allMatch(Issue::isResolved));
+		runQueued(scenario, null);
+		assertEquals(List.of(), openSequenceIssues(scenario.getId()));
+	}
+
+	@Test
+	void aMergeIsRefusedOnceTheSecondStepIsRenamed() throws Exception {
+		Scenario scenario = newScenario(List.of(HOST_STARTS, HOST_SHARES, SYSTEM_SHOWS));
+		runQueued(scenario, null);
+		Issue issue = openSequenceIssue(scenario.getId());
+		Position merge = positionWithText(issue, MERGE);
+		renameStep(stepNamed(scenario, HOST_SHARES), "The host mutes the audience");
+
+		assertThrows(EntityValidationException.class,
+				() -> resolve(issue, merge, null, projectUser()));
+		assertEquals(List.of(HOST_STARTS, "The host mutes the audience", SYSTEM_SHOWS),
+				stepNames(scenario));
+	}
+
+	@Test
+	void aMergeIsRefusedOnceTheStepsAreReordered() throws Exception {
+		Scenario scenario = newScenario(List.of(HOST_STARTS, HOST_SHARES, SYSTEM_SHOWS));
+		runQueued(scenario, null);
+		Issue issue = openSequenceIssue(scenario.getId());
+		Position merge = positionWithText(issue, MERGE);
+		setSteps(scenario, List.of(stepNamed(scenario, HOST_SHARES),
+				stepNamed(scenario, HOST_STARTS), stepNamed(scenario, SYSTEM_SHOWS)));
+
+		assertThrows(EntityValidationException.class,
+				() -> resolve(issue, merge, null, projectUser()));
+		assertEquals(List.of(HOST_SHARES, HOST_STARTS, SYSTEM_SHOWS), stepNames(scenario));
+	}
+
+	@Test
+	void aMergeLeavesAnotherScenarioThatUsesTheSecondStepAlone() throws Exception {
+		Scenario scenario = newScenario(List.of(HOST_STARTS, HOST_SHARES, SYSTEM_SHOWS));
+		Step shares = stepNamed(scenario, HOST_SHARES);
+		Scenario other = newScenario(List.of());
+		setSteps(other, List.of(shares));
+		runQueued(scenario, null);
+		Issue issue = openSequenceIssue(scenario.getId());
+
+		resolve(issue, positionWithText(issue, MERGE), null, projectUser());
+
+		assertEquals(List.of(MERGED, SYSTEM_SHOWS), stepNames(scenario));
+		assertEquals(List.of(HOST_SHARES), stepNames(other));
+		assertEquals(HOST_SHARES, freshStep(shares.getId()).getName());
+	}
+
+	@Test
+	void aMergeIsRefusedOnceTheFirstStepIsShared() throws Exception {
+		Scenario scenario = newScenario(List.of(HOST_STARTS, HOST_SHARES, SYSTEM_SHOWS));
+		runQueued(scenario, null);
+		Issue issue = openSequenceIssue(scenario.getId());
+		Position merge = positionWithText(issue, MERGE);
+		Scenario other = newScenario(List.of());
+		setSteps(other, List.of(stepNamed(scenario, HOST_STARTS)));
+
+		assertThrows(EntityValidationException.class,
+				() -> resolve(issue, merge, null, projectUser()));
+		assertEquals(List.of(HOST_STARTS, HOST_SHARES, SYSTEM_SHOWS), stepNames(scenario));
+	}
+
+	@Test
+	void aSharedFirstStepGetsNoMerge() throws Exception {
+		Scenario scenario = newScenario(List.of(HOST_STARTS, HOST_SHARES, SYSTEM_SHOWS));
+		Scenario other = newScenario(List.of());
+		setSteps(other, List.of(stepNamed(scenario, HOST_STARTS)));
+
+		runQueued(scenario, null);
+
+		assertEquals(java.util.Set.of("Do nothing."),
+				positionTexts(openSequenceIssue(scenario.getId())));
+	}
+
+	@Test
+	void aReRunKeepsTheSameMergePosition() throws Exception {
+		Scenario scenario = newScenario(List.of(HOST_STARTS, HOST_SHARES, SYSTEM_SHOWS));
+		runQueued(scenario, null);
+		Long first = positionWithText(openSequenceIssue(scenario.getId()), MERGE).getId();
+
+		runPostEdit(scenario);
+
+		Issue issue = openSequenceIssue(scenario.getId());
+		assertEquals(first, positionWithText(issue, MERGE).getId());
+		assertEquals(2, issue.getPositions().size());
+	}
+
+	/** Two breaks, two merges; accepting one resolves the issue, and the re-run raises the other. */
+	@Test
+	void afterOneMergeTheReRunRaisesTheRemainingBreak() throws Exception {
+		Scenario scenario = newScenario(List.of(HOST_STARTS, HOST_SHARES, SYSTEM_SHOWS,
+				SYSTEM_SAVES));
+		runQueued(scenario, null);
+		Issue issue = openSequenceIssue(scenario.getId());
+		assertEquals(3, issue.getPositions().size());
+
+		resolve(issue, positionWithText(issue, MERGE), null, projectUser());
+		runQueued(scenario, null);
+
+		Issue remaining = openSequenceIssue(scenario.getId());
+		assertTrue(remaining.getText().contains("are both system steps"), remaining.getText());
+		assertFalse(remaining.getText().contains("are both by Host"), remaining.getText());
+	}
+
+	private java.util.Set<String> positionTexts(Issue issue) {
+		return issue.getPositions().stream().map(Position::getText)
+				.collect(Collectors.toSet());
+	}
+
+	private List<String> stepNames(Scenario scenario) {
+		EntityManager em = entityManagerFactory.createEntityManager();
+		try {
+			return em.find(ScenarioImpl.class, scenario.getId()).getSteps().stream()
+					.map(Step::getName).toList();
+		} finally {
+			em.close();
+		}
+	}
+
+	private Step freshStep(Long stepId) {
+		EntityManager em = entityManagerFactory.createEntityManager();
+		try {
+			return em.find(StepImpl.class, stepId);
+		} finally {
+			em.close();
+		}
+	}
+
+	/** Sets the scenario's steps to {@code steps}, existing ones, in that order. */
+	private void setSteps(Scenario scenario, List<Step> steps) throws Exception {
+		User user = projectUser();
+		List<EditScenarioStepCommand> commands = new ArrayList<>();
+		for (Step step : steps) {
+			EditScenarioStepCommand command = getProjectCommandFactory().newEditScenarioStepCommand();
+			command.setEditedBy(user);
+			command.setProjectOrDomain(project);
+			command.setStep(step);
+			command.setName(step.getName());
+			command.setScenarioTypeName(ScenarioType.Primary.name());
+			commands.add(command);
+		}
+		EditScenarioCommand command = getProjectCommandFactory().newEditScenarioCommand();
+		command.setEditedBy(user);
+		command.setProjectOrDomain(project);
+		command.setScenario(inTransaction(
+				() -> getProjectRepository().findById(Scenario.class, scenario.getId())));
+		command.setStepCommands(commands);
+		getCommandHandler().execute(command);
+	}
+
 	// ---- helpers --------------------------------------------------------------------------------
 
 	private List<AnnotationAction> analyze(Scenario scenario) {
@@ -246,7 +420,10 @@ public class StepSequenceAssistantIT extends AbstractLexicalAssistantTest {
 					.filter(issue -> issue.getText() != null
 							&& issue.getText().contains("don't alternate"))
 					.collect(Collectors.toList());
-			issues.forEach(Issue::isResolved);
+			issues.forEach(issue -> {
+				issue.isResolved();
+				issue.getPositions().forEach(Position::getText);
+			});
 			return issues;
 		} finally {
 			em.close();

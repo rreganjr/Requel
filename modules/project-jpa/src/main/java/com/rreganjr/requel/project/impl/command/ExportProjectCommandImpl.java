@@ -94,6 +94,8 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 		classes.add(com.rreganjr.requel.annotation.impl.RewriteNamePosition.class);
 		classes.add(AddGlossaryTermPosition.class);
 		classes.add(AddActorPosition.class);
+		// #472
+		classes.add(com.rreganjr.requel.project.impl.MergeStepsPosition.class);
 		// Issue #313: the project's own dictionary words, reachable from
 		// AbstractProjectOrDomain.getDictionaryWords().
 		classes.add(com.rreganjr.nlp.dictionary.ProjectDictionaryWord.class);

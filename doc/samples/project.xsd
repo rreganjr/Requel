@@ -33,6 +33,8 @@
 
   <xs:element name="rewriteNamePosition" type="tns:rewriteNamePosition"/>
 
+  <xs:element name="mergeStepsPosition" type="tns:mergeStepsPosition"/>
+
   <xs:element name="argument" type="tns:argument"/>
 
   <xs:element name="assistantUserRole" type="tns:assistantUserRole"/>
@@ -177,6 +179,20 @@
         <xs:sequence/>
         <xs:attribute name="proposedName" type="xs:string"/>
         <xs:attribute name="expectedName" type="xs:string"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <!-- A position that merges two steps in a row of the scenario its issue is on (issue #472):
+       proposedName is the first step's new name, expectedName and expectedSecondName the two
+       steps' names it was built from. -->
+  <xs:complexType name="mergeStepsPosition">
+    <xs:complexContent>
+      <xs:extension base="tns:position">
+        <xs:sequence/>
+        <xs:attribute name="proposedName" type="xs:string"/>
+        <xs:attribute name="expectedName" type="xs:string"/>
+        <xs:attribute name="expectedSecondName" type="xs:string"/>
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
@@ -696,6 +712,7 @@
                     <xs:element ref="tns:addGlossaryTermPosition"/>
                     <xs:element ref="tns:ignorePosition"/>
                     <xs:element ref="tns:rewriteNamePosition"/>
+                    <xs:element ref="tns:mergeStepsPosition"/>
                   </xs:choice>
                 </xs:sequence>
               </xs:complexType>

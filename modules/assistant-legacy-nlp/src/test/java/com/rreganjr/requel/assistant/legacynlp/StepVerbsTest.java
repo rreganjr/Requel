@@ -90,4 +90,35 @@ class StepVerbsTest {
 		assertThat(StepVerbs.rewrite("Start the stream", "end", "Host")).isNull();
 		assertThat(StepVerbs.rewrite(null, "end", "Host")).isNull();
 	}
+
+	// ---- #472: the predicate a merged step takes after "and" ------------------------------------
+
+	@Test
+	void aSubjectStepLosesItsSubject() {
+		assertThat(StepVerbs.predicate("Member submits it", StepReading.subject("Member")))
+				.isEqualTo("submits it");
+		assertThat(StepVerbs.predicate("The system shows the date",
+				StepReading.subject("The system"))).isEqualTo("shows the date");
+		assertThat(StepVerbs.predicate("the member signs.", StepReading.subject("The member")))
+				.isEqualTo("signs.");
+	}
+
+	@Test
+	void aCommandIsConjugated() {
+		assertThat(StepVerbs.predicate("Submit the form", StepReading.command("Submit")))
+				.isEqualTo("submits the form");
+		assertThat(StepVerbs.predicate("Force-stop the stream", StepReading.command("stop")))
+				.isEqualTo("force-stops the stream");
+	}
+
+	@Test
+	void noPredicateWhenTheStepDoesntStartWithItsSubjectOrVerb() {
+		assertThat(StepVerbs.predicate("Then the member signs", StepReading.subject("the member")))
+				.isNull();
+		assertThat(StepVerbs.predicate("Members sign", StepReading.subject("Member"))).isNull();
+		assertThat(StepVerbs.predicate("Member", StepReading.subject("Member"))).isNull();
+		assertThat(StepVerbs.predicate("Then submit the form", StepReading.command("submit")))
+				.isNull();
+		assertThat(StepVerbs.predicate("Webinar", StepReading.unreadable())).isNull();
+	}
 }
