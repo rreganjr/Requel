@@ -35,6 +35,7 @@ import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.platform.command.AuthorizableCommand;
@@ -43,6 +44,7 @@ import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholde
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.UseCase;
+import com.rreganjr.requel.project.command.AnalysisRequestSource;
 import com.rreganjr.requel.project.command.DeleteScenarioStepCommand;
 import com.rreganjr.validator.EntityValidationException;
 import com.rreganjr.requel.project.command.DeleteScenarioCommand;
@@ -60,7 +62,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("deleteScenarioCommand")
 @Scope("prototype")
 public class DeleteScenarioCommandImpl extends AbstractDeleteProjectEntityCommand implements
-		DeleteScenarioCommand, ProjectScopedCommand, AuthorizableCommand {
+		DeleteScenarioCommand, AnalysisRequestSource, ProjectScopedCommand, AuthorizableCommand {
 
 	@Override
 	public AuthorizationRequirement getAuthorizationRequirement() {
@@ -68,6 +70,7 @@ public class DeleteScenarioCommandImpl extends AbstractDeleteProjectEntityComman
 	}
 
 	private Scenario scenario;
+	private List<Scenario> stepSequenceTargets = List.of();
 
 	/**
 	 * @param assistantManager
@@ -128,6 +131,11 @@ public class DeleteScenarioCommandImpl extends AbstractDeleteProjectEntityComman
 		for (Scenario scenarioReferer : scenarioReferers) {
 			scenarioReferer.getSteps().remove(scenario);
 		}
+		// #455: the scenarios that used this one as a step are re-checked for step order, unless
+		// this delete is a step of a bigger one (a use case, a project).
+		if (getAuthorizingCommand() == null) {
+			stepSequenceTargets = new ArrayList<Scenario>(scenarioReferers);
+		}
 		// #341: the scenario's own plain steps went nowhere: nothing deleted them and there is no
 		// cascade, so each stayed in `scenarios` holding its name. Detach the step list, then
 		// delete each plain step no other scenario uses, as EditScenario does for a dropped step
@@ -163,4 +171,19 @@ public class DeleteScenarioCommandImpl extends AbstractDeleteProjectEntityComman
 		return null;
 	}
 
+	/** #455: deleting a scenario analyzes nothing itself. */
+	@Override
+	public ProjectOrDomainEntity getAnalysisTarget() {
+		return null;
+	}
+
+	@Override
+	public User getAnalysisTriggeredBy() {
+		return getEditedBy();
+	}
+
+	@Override
+	public List<Scenario> getStepSequenceTargets() {
+		return stepSequenceTargets;
+	}
 }

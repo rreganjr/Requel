@@ -40,10 +40,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
-import com.rreganjr.nlp.dictionary.NLPText;
-import com.rreganjr.nlp.dictionary.SemanticRole;
-import com.rreganjr.nlp.impl.srl.SemanticRoleCollector;
-import com.rreganjr.nlp.impl.srl.SemanticRoleCollectorFunction;
 import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
@@ -168,29 +164,21 @@ public class StepStructureAssistant implements RequelAssistant<Step> {
 			return;
 		}
 		boolean scenario = Scenario.class.equals(step.getProjectOrDomainEntityInterface());
-		NLPText text = nlpProcessorFactory.processText(name);
-		if (text.getPrimaryVerb() == null) {
+		StepReading reading = StepReading.read(nlpProcessorFactory, name);
+		if (reading.kind() == StepReading.Kind.UNREADABLE) {
 			emitAdvisoryIssue(builder, targetRef, "unreadable", MessageFormat.format(
 					scenario ? UNREADABLE_SCENARIO_MSG : UNREADABLE_STEP_MSG, name), name);
 			return;
 		}
-		if (text.isImperative()) {
+		if (reading.kind() == StepReading.Kind.COMMAND) {
 			// #349: a command. Fine for a scenario's name; a step should say who does it.
 			if (!scenario) {
-				emitNoActorIssue(builder, targetRef, step, name, text.getPrimaryVerb().getText());
+				emitNoActorIssue(builder, targetRef, step, name, reading.verb());
 			}
 			return;
 		}
-		Map<SemanticRole, NLPText> roles = new SemanticRoleCollector(
-				new SemanticRoleCollectorFunction(text.getPrimaryVerb())).process(text);
-		NLPText agentText = roles.get(SemanticRole.AGENT);
-		if (agentText == null || agentText.getText().isEmpty()) {
-			emitAdvisoryIssue(builder, targetRef, "unreadable", MessageFormat.format(
-					scenario ? UNREADABLE_SCENARIO_MSG : UNREADABLE_STEP_MSG, name), name);
-			return;
-		}
 
-		String subject = agentText.getText();
+		String subject = reading.subject();
 		if (isSystem(subject)) {
 			return;
 		}
@@ -225,7 +213,7 @@ public class StepStructureAssistant implements RequelAssistant<Step> {
 		return actorName != null && withoutArticle(subject).equalsIgnoreCase(withoutArticle(actorName));
 	}
 
-	private static String withoutArticle(String text) {
+	static String withoutArticle(String text) {
 		String s = text.trim();
 		for (String article : new String[] { "the ", "a ", "an " }) {
 			if (s.regionMatches(true, 0, article, 0, article.length())) {
@@ -310,7 +298,20 @@ public class StepStructureAssistant implements RequelAssistant<Step> {
 	 * {@code Scenario.getUsingUseCases()} covers only the use cases a scenario is primary in.
 	 */
 	static List<UseCase> useCasesOf(Step step) {
-		Deque<Scenario> toVisit = new ArrayDeque<>(step.getUsingScenarios());
+		return useCasesReachedFrom(step.getUsingScenarios(), step);
+	}
+
+	/**
+	 * #455: the use cases a scenario is in, by name: those whose primary or additional scenarios
+	 * are the scenario itself or contain it through scenarios used as steps.
+	 */
+	static List<UseCase> useCasesOfScenario(Scenario scenario) {
+		return useCasesReachedFrom(List.of(scenario), scenario);
+	}
+
+	private static List<UseCase> useCasesReachedFrom(java.util.Collection<Scenario> start,
+			Step step) {
+		Deque<Scenario> toVisit = new ArrayDeque<>(start);
 		Set<Scenario> containing = new HashSet<>();
 		while (!toVisit.isEmpty()) {
 			Scenario scenario = toVisit.poll();

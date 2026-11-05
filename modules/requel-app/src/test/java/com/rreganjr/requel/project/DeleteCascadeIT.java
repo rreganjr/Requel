@@ -113,7 +113,7 @@ public class DeleteCascadeIT extends AbstractIntegrationTestCase {
 
         assertThrows(NoSuchEntityException.class,
                 () -> getProjectRepository().findById(Goal.class, doomed.getId()));
-        assertEquals(0, countLinks(doomed.getId()),
+        assertEquals(0, countGoalLinks(doomed.getId()),
                 "no annotation_annotatable row may still point at the deleted goal");
 
         Annotation sharedNote = getAnnotationRepository().findAnnotationById(sharedNoteId);
@@ -202,10 +202,15 @@ public class DeleteCascadeIT extends AbstractIntegrationTestCase {
     // Helpers
     // -------------------------------------------------------------------------
 
-    private int countLinks(Long annotatableId) {
+    /**
+     * Links to the goal, by type and id. Ids are per table, so a step or scenario created by an
+     * earlier IT can share the goal's id; counting by id alone counted their links too (#455).
+     */
+    private int countGoalLinks(Long goalId) {
         return jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM annotation_annotatable WHERE annotatable_id = ?",
-                Integer.class, annotatableId);
+                "SELECT COUNT(*) FROM annotation_annotatable WHERE annotatable_type = 'Goal'"
+                        + " AND annotatable_id = ?",
+                Integer.class, goalId);
     }
 
     private Project createProject(User owner, String name) throws Exception {

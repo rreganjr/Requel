@@ -58,9 +58,11 @@ public class ProjectAssistantSettingsIT extends AbstractLexicalAssistantTest {
 	private JdbcTemplate jdbcTemplate;
 
 	@Test
-	public void theFourLexicalAssistantsAreSwitchable() {
+	public void theLexicalAssistantsAndTheStepSequenceCheckAreSwitchable() {
+		// #455: the step-sequence check joins the four lexical assistants
 		assertEquals(Set.of("legacy-lexical", "legacy-lexical-vague-word",
-				"legacy-lexical-glossary-term", "legacy-lexical-complexity"),
+				"legacy-lexical-glossary-term", "legacy-lexical-complexity",
+				"legacy-step-sequence"),
 				Set.copyOf(catalog.switchableAssistants().stream()
 						.map(SwitchableAssistantCatalog.SwitchableAssistant::assistantId).toList()));
 		assertTrue(catalog.switchableAssistants().stream()
