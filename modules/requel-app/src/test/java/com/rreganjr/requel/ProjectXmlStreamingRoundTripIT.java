@@ -681,6 +681,62 @@ class ProjectXmlStreamingRoundTripIT {
 		assertThat(imported.getExpectedName()).isEqualTo(goal.getName());
 	}
 
+	/** Issue #472: a MergeStepsPosition round-trips with its proposed and both expected names. */
+	@Test
+	@Transactional
+	void mergeStepsPositionRoundTrip() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		Goal goal = originalProject.getGoals().iterator().next();
+		String ts = Long.toString(System.nanoTime());
+
+		com.rreganjr.requel.annotation.command.EditIssueCommand issueCommand =
+				annotationCommandFactory.newEditIssueCommand();
+		issueCommand.setEditedBy(projectUser);
+		issueCommand.setGroupingObject(originalProject);
+		issueCommand.setAnnotatable(goal);
+		issueCommand.setText("Merge me " + ts);
+		issueCommand.setMustBeResolved(false);
+		com.rreganjr.requel.annotation.Issue issue = commandHandler.execute(issueCommand).getIssue();
+		com.rreganjr.requel.project.command.EditMergeStepsPositionCommand merge =
+				projectCommandFactory.newEditMergeStepsPositionCommand();
+		merge.setEditedBy(projectUser);
+		merge.setIssue(issue);
+		merge.setText("Merge into \"Host signs in and starts " + ts + "\".");
+		merge.setProposedName("Host signs in and starts " + ts);
+		merge.setExpectedName("Host signs in " + ts);
+		merge.setExpectedSecondName("Host starts " + ts);
+		commandHandler.execute(merge);
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		assertThat(new String(exportedBytes, StandardCharsets.UTF_8)).as("exported XML")
+				.contains("<mergeStepsPosition ");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		Project reimported = importProject(exportedBytes, projectUser,
+				originalProject.getName() + " Merge " + Instant.now().toEpochMilli());
+		entityManager.flush();
+
+		Goal importedGoal = reimported.getGoals().stream()
+				.filter(candidate -> candidate.getName().equals(goal.getName())).findFirst()
+				.orElseThrow();
+		com.rreganjr.requel.project.impl.MergeStepsPosition imported = importedGoal
+				.getAnnotations().stream().map(org.hibernate.Hibernate::unproxy)
+				.filter(com.rreganjr.requel.annotation.Issue.class::isInstance)
+				.map(com.rreganjr.requel.annotation.Issue.class::cast)
+				.filter(candidate -> candidate.getText().equals("Merge me " + ts))
+				.flatMap(candidate -> candidate.getPositions().stream())
+				.map(org.hibernate.Hibernate::unproxy)
+				.filter(com.rreganjr.requel.project.impl.MergeStepsPosition.class::isInstance)
+				.map(com.rreganjr.requel.project.impl.MergeStepsPosition.class::cast)
+				.findFirst().orElseThrow(() -> new AssertionError("no MergeStepsPosition imported"));
+		assertThat(imported.getProposedName()).isEqualTo("Host signs in and starts " + ts);
+		assertThat(imported.getExpectedName()).isEqualTo("Host signs in " + ts);
+		assertThat(imported.getExpectedSecondName()).isEqualTo("Host starts " + ts);
+	}
+
 	/**
 	 * Issue #320: ignored findings and the IgnorePosition marker round-trip, with each key
 	 * rebuilt for the entity's new id and pointing at the imported issue.

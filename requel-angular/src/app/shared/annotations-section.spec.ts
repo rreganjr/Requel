@@ -526,6 +526,7 @@ describe('AnnotationsSectionComponent (method coverage)', () => {
     expect(comp.resolveLabel('AddWordToDictionaryPosition')).toBe('Add to Dictionary');
     expect(comp.resolveLabel('ChangeSpellingPosition')).toBe('Fix Spelling');
     expect(comp.resolveLabel('RewriteNamePosition')).toBe('Rewrite');
+    expect(comp.resolveLabel('MergeStepsPosition')).toBe('Merge');
     expect(comp.resolveLabel('AddActorPosition')).toBe('Add as Actor');
     expect(comp.resolveLabel('AddGlossaryTermPosition')).toBe('Add to Glossary');
     expect(comp.resolveLabel('IgnorePosition')).toBe('Ignore');

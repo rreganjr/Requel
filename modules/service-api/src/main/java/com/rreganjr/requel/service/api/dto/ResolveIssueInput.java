@@ -36,7 +36,9 @@ import jakarta.validation.constraints.NotNull;
         + " ChangeSpellingPosition rewrites the word in every entity the issue is on"
         + " (all or nothing: refused if you can't edit one of them); RewriteNamePosition sets the"
         + " name of the entity the issue is on, refused if the name has changed since it was"
-        + " proposed; AddWordToDictionaryPosition"
+        + " proposed; MergeStepsPosition merges two steps in a row of the scenario the issue is"
+        + " on into the first, refused if either step's name or their order has changed or the"
+        + " first step is shared with another scenario; AddWordToDictionaryPosition"
         + " adds the word to the project's dictionary; AddActorPosition adds the phrase as an actor"
         + " in the entities the issue is on; AddGlossaryTermPosition adds it to the glossary."
         + " Needs Annotation[Edit] on the project, plus Edit on what the position changes. A"
@@ -45,7 +47,8 @@ import jakarta.validation.constraints.NotNull;
         authorization = "Annotation[Edit], plus Edit on what the accepted position changes:"
                 + " ChangeSpellingPosition and RewriteNamePosition, every entity the issue is on;"
                 + " AddActorPosition,"
-                + " Actor[Edit]; AddGlossaryTermPosition, GlossaryTerm[Edit]")
+                + " Actor[Edit]; AddGlossaryTermPosition, GlossaryTerm[Edit]; MergeStepsPosition,"
+                + " Scenario[Edit]")
 public record ResolveIssueInput(
         @NotBlank String projectName,
         @NotNull Long issueId,

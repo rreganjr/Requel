@@ -88,6 +88,7 @@ import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.command.AddGlossaryTermRefererCommand;
 import com.rreganjr.requel.project.command.EditAddActorToProjectPositionCommand;
+import com.rreganjr.requel.project.command.EditMergeStepsPositionCommand;
 import com.rreganjr.requel.project.command.EditAddWordToGlossaryPositionCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.user.UserRepository;
@@ -871,6 +872,10 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 			return applyRewriteNamePosition(action, issue, text, editedBy, createdByActionKey);
 		}
 
+		if ("MERGE_STEPS".equalsIgnoreCase(kind)) {
+			return applyMergeStepsPosition(action, issue, text, editedBy, createdByActionKey);
+		}
+
 		EditPositionCommand command;
 		if ("CHANGE_SPELLING".equalsIgnoreCase(kind)) {
 			EditChangeSpellingPositionCommand changeSpelling = annotationCommandFactory
@@ -920,6 +925,26 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		command.setText(text);
 		command.setProposedName(proposedName);
 		command.setExpectedName(stringMeta(action, "expectedName"));
+		command.setEditedBy(editedBy);
+		command = commandHandler.execute(command);
+		Position position = command.getPosition();
+		createdByActionKey.put(action.actionKey(), position);
+		return new AppliedAction(position.getId());
+	}
+
+	/**
+	 * Issue #472: a position that merges two steps of the scenario the issue is on. The command
+	 * finds an existing merge on the issue by its proposed name, so a re-run updates it in place.
+	 */
+	private AppliedAction applyMergeStepsPosition(AnnotationAction action, Issue issue,
+			String text, User editedBy, Map<String, Object> createdByActionKey) throws Exception {
+		EditMergeStepsPositionCommand command = projectCommandFactory
+				.newEditMergeStepsPositionCommand();
+		command.setIssue(issue);
+		command.setText(text);
+		command.setProposedName(stringMeta(action, "proposedName"));
+		command.setExpectedName(stringMeta(action, "expectedName"));
+		command.setExpectedSecondName(stringMeta(action, "expectedSecondName"));
 		command.setEditedBy(editedBy);
 		command = commandHandler.execute(command);
 		Position position = command.getPosition();

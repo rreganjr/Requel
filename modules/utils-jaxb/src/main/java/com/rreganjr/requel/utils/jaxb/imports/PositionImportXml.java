@@ -52,6 +52,10 @@ public class PositionImportXml {
     @XmlAttribute(name = "expectedName")
     private String expectedName;
 
+    /** #472: mergeStepsPosition. */
+    @XmlAttribute(name = "expectedSecondName")
+    private String expectedSecondName;
+
     @XmlElementWrapper(name = "arguments", namespace = "http://www.rreganjr.com/requel")
     @XmlElement(name = "argument", namespace = "http://www.rreganjr.com/requel")
     private List<ArgumentImportXml> arguments = new ArrayList<>();
@@ -62,6 +66,7 @@ public class PositionImportXml {
     public String getProposedWord() { return proposedWord; }
     public String getProposedName() { return proposedName; }
     public String getExpectedName() { return expectedName; }
+    public String getExpectedSecondName() { return expectedSecondName; }
     public List<ArgumentImportXml> getArguments() { return arguments; }
 
     @XmlAccessorType(XmlAccessType.FIELD)

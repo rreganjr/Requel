@@ -949,6 +949,7 @@ public class ProjectCommandRegistrar {
 
         registry.register("EditAddWordToGlossaryPosition", factory::newEditAddWordToGlossaryPositionCommand);
         registry.register("EditAddActorToProjectPosition", factory::newEditAddActorToProjectPositionCommand);
+        registry.register("EditMergeStepsPosition", factory::newEditMergeStepsPositionCommand); // #472
         registry.register("ReplaceGlossaryTerm", factory::newReplaceGlossaryTermCommand);
 
         // Reports

@@ -266,6 +266,11 @@ public interface ProjectCommandFactory extends CommandFactory {
 	public EditAddActorToProjectPositionCommand newEditAddActorToProjectPositionCommand();
 
 	/**
+	 * Issue #472: a position that merges two steps of a scenario; assistant-internal.
+	 */
+	public EditMergeStepsPositionCommand newEditMergeStepsPositionCommand();
+
+	/**
 	 * @return a new ReplaceGlossaryTermCommand for replacing the term name in
 	 *         the referring entities with the name of the canonical term.
 	 */

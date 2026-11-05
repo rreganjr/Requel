@@ -32,6 +32,7 @@ public class PositionImportDraft {
     private final String proposedWord;
     private final String proposedName;
     private final String expectedName;
+    private final String expectedSecondName;
     private final Set<String> argumentExternalIds;
     private final java.util.List<ArgumentDraft> arguments;
 
@@ -43,6 +44,7 @@ public class PositionImportDraft {
         this.proposedWord = builder.proposedWord;
         this.proposedName = builder.proposedName;
         this.expectedName = builder.expectedName;
+        this.expectedSecondName = builder.expectedSecondName;
         this.argumentExternalIds = Collections.unmodifiableSet(new HashSet<>(builder.argumentExternalIds));
         this.arguments = java.util.List.copyOf(builder.arguments);
     }
@@ -82,6 +84,11 @@ public class PositionImportDraft {
         return expectedName;
     }
 
+    /** #472: the second step's name a mergeStepsPosition was built from. */
+    public String getExpectedSecondName() {
+        return expectedSecondName;
+    }
+
     public Set<String> getArgumentExternalIds() {
         return argumentExternalIds;
     }
@@ -100,6 +107,7 @@ public class PositionImportDraft {
         private String proposedWord;
         private String proposedName;
         private String expectedName;
+        private String expectedSecondName;
         private Set<String> argumentExternalIds = new HashSet<>();
         private java.util.List<ArgumentDraft> arguments = new java.util.ArrayList<>();
 
@@ -123,6 +131,9 @@ public class PositionImportDraft {
         }
         public Builder expectedName(String expectedName) {
             this.expectedName = expectedName; return this;
+        }
+        public Builder expectedSecondName(String expectedSecondName) {
+            this.expectedSecondName = expectedSecondName; return this;
         }
         public Builder argumentExternalIds(Set<String> ids) {
             if (ids != null) this.argumentExternalIds.addAll(ids);
