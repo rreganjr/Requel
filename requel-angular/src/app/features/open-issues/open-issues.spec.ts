@@ -82,6 +82,14 @@ describe('OpenIssuesComponent', () => {
     expect(comp.routeFor(MOCK_ISSUES[0])).toEqual(['/projects', 'proj1', 'goals', 10]);
   });
 
+  it('routeFor links a step issue to the step page (#476)', async () => {
+    fixture.detectChanges();
+    httpTesting.expectOne(r => r.url.includes('open-issues')).flush([]);
+    await flush();
+    expect(comp.routeFor({ ...MOCK_ISSUES[0], entityType: 'Step', entityId: 9 }))
+      .toEqual(['/projects', 'proj1', 'steps', 9]);
+  });
+
   it('routeFor returns null for an unmapped entity type', async () => {
     fixture.detectChanges();
     httpTesting.expectOne(r => r.url.includes('open-issues')).flush([]);

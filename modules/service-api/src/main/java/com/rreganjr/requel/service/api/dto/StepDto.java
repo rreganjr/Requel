@@ -25,7 +25,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 /**
  * Represents a single step in a scenario's step list.
  * When isScenario=true, scenarioId points to the sub-scenario and children
- * are not populated here — navigate to /scenarios/{scenarioId} to see them.
+ * are not populated here — navigate to /scenarios/{scenarioId} to see them. A plain step has its
+ * own page and read, /steps/{id} (#476).
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record StepDto(
@@ -35,5 +36,9 @@ public record StepDto(
     String text,
     String scenarioType,
     boolean isScenario,
-    Long scenarioId
+    Long scenarioId,
+    /** #476: the step's (or sub-scenario's) open issues, for the scenario editor's warning icon. */
+    int openIssues,
+    /** #476: LOW, MEDIUM or HIGH, the highest of those; absent when there are none. */
+    String highestOpenSeverity
 ) {}

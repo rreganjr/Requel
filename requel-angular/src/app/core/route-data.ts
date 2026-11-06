@@ -28,6 +28,7 @@ export type ArtifactType =
   | 'story'
   | 'actor'
   | 'scenario'
+  | 'step'
   | 'use-case'
   | 'term'
   | 'report'

@@ -125,6 +125,7 @@ import com.rreganjr.requel.service.api.dto.DeleteStoryInput;
 import com.rreganjr.requel.service.api.dto.DeleteUseCaseInput;
 import com.rreganjr.requel.service.api.dto.EditActorInput;
 import com.rreganjr.requel.service.api.dto.EditScenarioInput;
+import com.rreganjr.requel.service.api.dto.EditScenarioStepInput;
 import com.rreganjr.requel.service.api.dto.EditStepInput;
 import com.rreganjr.requel.service.api.dto.EditGoalInput;
 import com.rreganjr.requel.service.api.dto.EditGoalRelationInput;
@@ -712,7 +713,29 @@ public class ProjectCommandRegistrar {
                     c.setExpectedVersion(i.version()); // #296: was accepted and dropped
                 });
 
-        registry.register("EditScenarioStep", factory::newEditScenarioStepCommand);
+        // #476: one step on its own, for the step page and the gateway. A scenario is edited with
+        // EditScenario, so a scenario's id is refused here.
+        registry.register("EditScenarioStep", EditScenarioStepInput.class,
+                factory::newEditScenarioStepCommand,
+                (cmd, input) -> {
+                    EditScenarioStepCommand c = (EditScenarioStepCommand) cmd;
+                    EditScenarioStepInput i = (EditScenarioStepInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    Step step = ProjectQueryController.findPlainStep(project, i.stepId());
+                    if (step == null) {
+                        throw new NotFoundInputException("Step not found: " + i.stepId()
+                                + ". A scenario is edited with EditScenario.");
+                    }
+                    c.setProjectOrDomain(project);
+                    c.setStep(step);
+                    c.setExpectedVersion(i.version());
+                    c.setName(i.name() != null ? i.name() : step.getName());
+                    if (i.text() != null) c.setText(i.text());
+                    c.setScenarioTypeName(i.scenarioTypeName() != null
+                            ? i.scenarioTypeName() : step.getType().name());
+                },
+                null,
+                cmd -> ProjectQueryController.toStepDetailDto(((EditScenarioStepCommand) cmd).getStep()));
         registry.register("CopyUseCase", CopyUseCaseInput.class,
                 factory::newCopyUseCaseCommand,
                 (cmd, input) -> {

@@ -73,10 +73,13 @@ public class GatewayPolicyConfig {
             // on save: send a step with no stepId to create it, with its stepId to edit it, and
             // omit it to delete it. EditScenarioStep, CopyScenarioStep and DeleteScenarioStep were
             // therefore removed from this list in issue #252 — they were registered without an
-            // input DTO, so each advertised an empty MCP schema and was uncallable. They remain
-            // registered and reachable through /api/commands; only the machine surface drops them.
+            // input DTO, so each advertised an empty MCP schema and was uncallable.
             // ConvertStepToScenario stays because the steps array genuinely cannot express it.
-            "EditScenario", "CopyScenario", "DeleteScenario", "ConvertStepToScenario",
+            // #476: EditScenarioStep is back, with an input: editing one step through EditScenario
+            // means resending every step, and a step left out is deleted. CopyScenarioStep and
+            // DeleteScenarioStep stay off; removing a step is done through EditScenario.
+            "EditScenario", "EditScenarioStep", "CopyScenario", "DeleteScenario",
+            "ConvertStepToScenario",
             // Glossary (#348: ReplaceTermText edits each referer through its own Edit* command)
             "EditGlossaryTerm", "DeleteGlossaryTerm", "ReplaceTermText",
             // Project dictionary (#319; Project[Edit] at the command layer)

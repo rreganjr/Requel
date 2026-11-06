@@ -185,7 +185,10 @@ the same dispatch path, not a second write path.
   access).
 - **Allowlist:** project + entity `Edit*`; `Add*/Remove*` association commands;
   `SetPrimaryScenarioOnUseCase`; `EditGoalRelation`; `ConvertStepToScenario`; `Copy*`; entity
-  `Delete*`; `EditGlossaryTerm`; `EditNonUserStakeholder`; annotation commands (`EditNote`,
+  `Delete*`; `EditScenarioStep` (#476), which edits one step in place and so in every scenario
+  that uses it, where `EditScenario` would need every step resent and drops any left out.
+  `CopyScenarioStep` and `DeleteScenarioStep` stay off; a step is removed from a scenario through
+  `EditScenario`; `EditGlossaryTerm`; `EditNonUserStakeholder`; annotation commands (`EditNote`,
   `EditIssue`, …); report commands if desired.
 - Writes are **opt-in** per deployment and ideally per project (via `AssistantProjectSettings`).
   Default off.

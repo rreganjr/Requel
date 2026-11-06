@@ -60,6 +60,7 @@ export const artifactNameResolver: ResolveFn<string | null> = (route) => {
     case 'story': return nameOf(inject(StoryService).getStory(projectName, id));
     case 'actor': return nameOf(inject(ActorService).getActor(projectName, id));
     case 'scenario': return nameOf(inject(ScenarioService).getScenario(projectName, id));
+    case 'step': return nameOf(inject(ScenarioService).getStep(projectName, id));
     case 'use-case': return nameOf(inject(UseCaseService).getUseCase(projectName, id));
     case 'term': return nameOf(inject(TermService).getTerm(projectName, id));
     case 'report': return nameOf(inject(ReportService).getReport(projectName, id));

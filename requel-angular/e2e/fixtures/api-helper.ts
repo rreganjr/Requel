@@ -502,6 +502,26 @@ export async function addStepsToUseCaseScenario(
   return useCase.scenarioId;
 }
 
+/**
+ * #476: replace a scenario's steps with plain steps named `stepNames` (via EditScenario) and
+ * return their ids, in order.
+ */
+export async function setScenarioSteps(
+  api: APIRequestContext,
+  scenario: ScenarioFixture,
+  stepNames: string[]
+): Promise<number[]> {
+  const token = await getAdminToken(api);
+  const result = await command(api, token, 'EditScenario', {
+    projectName: scenario.projectName,
+    scenarioId: scenario.id,
+    name: scenario.name,
+    steps: stepNames.map(name => ({ name, scenarioTypeName: 'Primary', isScenario: false })),
+  });
+  const entity = result['entity'] as { steps: { id: number }[] };
+  return entity.steps.map(step => step.id);
+}
+
 export async function getScenarioStepCount(
   api: APIRequestContext,
   projectName: string,
