@@ -80,6 +80,7 @@ import com.rreganjr.requel.project.exception.ReportGenerationException;
 import com.rreganjr.requel.project.NonUserStakeholder;
 import com.rreganjr.requel.service.api.dto.ActorDto;
 import com.rreganjr.requel.service.api.dto.ScenarioDto;
+import com.rreganjr.requel.service.api.dto.StepDetailDto;
 import com.rreganjr.requel.service.api.dto.StepDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.annotation.Annotation;
@@ -625,6 +626,50 @@ public class ProjectQueryController {
     }
 
     /**
+     * GET /api/projects/{name}/steps/{stepId} — one plain step and the scenarios that use it
+     * (#476). 404 for a scenario, which has its own read, and for a step not in this project.
+     */
+    @GetMapping("/{name}/steps/{stepId}")
+    public ResponseEntity<?> getStep(@PathVariable String name, @PathVariable Long stepId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            Step step = findPlainStep(project, stepId);
+            return step == null ? ResponseEntity.notFound().build()
+                    : ResponseEntity.ok(toStepDetailDto(step));
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /** #476: a plain step (not a scenario) used by one of the project's scenarios, or null. */
+    public static Step findPlainStep(Project project, Long stepId) {
+        for (Scenario scenario : project.getScenarios()) {
+            for (Step step : scenario.getSteps()) {
+                if (step.getId().equals(stepId)) {
+                    return Scenario.class.equals(step.getProjectOrDomainEntityInterface())
+                            ? null : step;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** #476: a step and the scenarios that use it, by name. */
+    public static StepDetailDto toStepDetailDto(Step step) {
+        List<EntityReferenceDto> usedIn = step.getUsingScenarios().stream()
+                .map(s -> new EntityReferenceDto("Scenario", s.getId(), s.getName()))
+                .sorted(Comparator.comparing(EntityReferenceDto::name))
+                .toList();
+        return new StepDetailDto(step.getId(), step.getVersion(), step.getName(), step.getText(),
+                step.getType() != null ? step.getType().name() : null,
+                step.getCreatedBy() != null ? step.getCreatedBy().getDisplayName() : null,
+                usedIn);
+    }
+
+    /**
      * GET /api/projects/{name}/use-cases — list of use cases (summary, no sub-tables).
      */
     @GetMapping("/{name}/use-cases")
@@ -934,6 +979,18 @@ public class ProjectQueryController {
         List<StepDto> steps = new ArrayList<>();
         for (Step step : scenario.getSteps()) {
             boolean isScenario = step instanceof Scenario;
+            int openIssues = 0;
+            String highestOpenSeverity = null;
+            for (Annotation annotation : step.getAnnotations()) {
+                if (annotation instanceof IssueImpl issue && issue.getResolvedByPosition() == null) {
+                    openIssues++;
+                    String severity = issue.getSeverity() != null ? issue.getSeverity().name() : null;
+                    if (AnnotationCommandRegistrar.severityRank(severity)
+                            > AnnotationCommandRegistrar.severityRank(highestOpenSeverity)) {
+                        highestOpenSeverity = severity;
+                    }
+                }
+            }
             steps.add(new StepDto(
                     step.getId(),
                     step.getVersion(),
@@ -941,7 +998,9 @@ public class ProjectQueryController {
                     step.getText(),
                     step.getType() != null ? step.getType().name() : null,
                     isScenario,
-                    isScenario ? step.getId() : null));
+                    isScenario ? step.getId() : null,
+                    openIssues,
+                    highestOpenSeverity));
         }
         List<EntityReferenceDto> referencedBy = List.of();
         if (scenario.getProjectOrDomain() instanceof Project project) {

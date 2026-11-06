@@ -540,6 +540,67 @@ class ProjectQueryControllerTest {
         assertEquals("Checkout", dto.referencedBy().get(0).name());
     }
 
+    /** #476: each step carries its open-issue count and the highest open severity. */
+    @Test
+    void toScenarioDetailDtoCountsEachStepsOpenIssues() {
+        Scenario scenario = stubScenario(80L, "Borrow");
+        when(scenario.getProjectOrDomain()).thenReturn(mock(Project.class));
+        Step flagged = stubStep(81L, "Download the receipt");
+        IssueImpl low = new IssueImpl(project, "low", false, user);
+        low.setSeverity(com.rreganjr.requel.annotation.IssueSeverity.LOW);
+        IssueImpl medium = new IssueImpl(project, "medium", false, user);
+        medium.setSeverity(com.rreganjr.requel.annotation.IssueSeverity.MEDIUM);
+        IssueImpl resolvedHigh = mock(IssueImpl.class);
+        when(resolvedHigh.getResolvedByPosition()).thenReturn(mock(com.rreganjr.requel.annotation.Position.class));
+        when(resolvedHigh.getSeverity()).thenReturn(com.rreganjr.requel.annotation.IssueSeverity.HIGH);
+        when(flagged.getAnnotations()).thenReturn(new java.util.LinkedHashSet<>(List.of(low, medium, resolvedHigh)));
+        Step clean = stubStep(82L, "Member signs");
+        when(clean.getAnnotations()).thenReturn(Collections.emptySet());
+        when(scenario.getSteps()).thenReturn(List.of(flagged, clean));
+
+        com.rreganjr.requel.service.api.dto.ScenarioDto dto = ProjectQueryController.toScenarioDetailDto(scenario);
+
+        assertEquals(2, dto.steps().get(0).openIssues());
+        assertEquals("MEDIUM", dto.steps().get(0).highestOpenSeverity());
+        assertEquals(0, dto.steps().get(1).openIssues());
+        assertNull(dto.steps().get(1).highestOpenSeverity());
+    }
+
+    /** #476: a plain step and the scenarios that use it. */
+    @Test
+    void getStepReturnsTheStepAndTheScenariosUsingIt() throws Exception {
+        Scenario a = stubScenario(90L, "B scenario");
+        Scenario b = stubScenario(91L, "A scenario");
+        Step step = stubStep(92L, "Member signs");
+        when(step.getUsingScenarios()).thenReturn(Set.of(a, b));
+        when(a.getSteps()).thenReturn(List.of(step));
+        when(b.getSteps()).thenReturn(List.of(step));
+        when(project.getScenarios()).thenReturn(new java.util.LinkedHashSet<>(List.of(a, b)));
+
+        mockMvc.perform(get("/api/projects/TestProject/steps/92"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Member signs"))
+                .andExpect(jsonPath("$.scenarioType").value("Primary"))
+                .andExpect(jsonPath("$.usedIn[0].name").value("A scenario"))
+                .andExpect(jsonPath("$.usedIn[1].name").value("B scenario"));
+    }
+
+    /** #476: a scenario id, an unknown id, and no access. */
+    @Test
+    void getStepIs404ForAScenarioOrAnUnknownIdAnd403WithoutAccess() throws Exception {
+        Scenario parent = stubScenario(93L, "Parent");
+        Scenario sub = stubScenario(94L, "Sub");
+        when(parent.getSteps()).thenReturn(List.of(sub));
+        when(sub.getSteps()).thenReturn(List.of());
+        when(project.getScenarios()).thenReturn(new java.util.LinkedHashSet<>(List.of(parent, sub)));
+
+        mockMvc.perform(get("/api/projects/TestProject/steps/94")).andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/projects/TestProject/steps/999")).andExpect(status().isNotFound());
+
+        when(stakeholder.matchesUser(user)).thenReturn(false);
+        mockMvc.perform(get("/api/projects/TestProject/steps/94")).andExpect(status().isForbidden());
+    }
+
     // -------------------------------------------------------------------------
     // Stories
     // -------------------------------------------------------------------------

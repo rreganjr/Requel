@@ -817,6 +817,74 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
     }
 
     /**
+     * Issue #476: EditScenarioStep is back on the gateway with an input, so one step can be edited
+     * without resending the scenario's whole step list. The step keeps its place, the scenario's
+     * other step is untouched, and the result is the step with the scenarios using it.
+     */
+    @Test
+    void editScenarioStepRenamesOneStepAlone() throws Exception {
+        authenticate(editorUsername);
+        String ts = Long.toString(System.currentTimeMillis());
+        GatewayResult created = gateway.execute(new GatewayRequest("EditScenario",
+                Map.of("projectName", projectName,
+                        "name", "gw-one-step-scenario-" + ts,
+                        "scenarioTypeName", ScenarioType.Primary.name(),
+                        "steps", List.of(
+                                Map.of("name", "gw-first-step-" + ts, "isScenario", false),
+                                Map.of("name", "gw-second-step-" + ts, "isScenario", false)))));
+        ScenarioDto scenario = (ScenarioDto) created.result();
+        Long stepId = scenario.steps().get(0).id();
+
+        GatewayResult edited = gateway.execute(new GatewayRequest("EditScenarioStep",
+                Map.of("projectName", projectName, "stepId", stepId,
+                        "name", "gw-renamed-step-" + ts)));
+
+        com.rreganjr.requel.service.api.dto.StepDetailDto step =
+                (com.rreganjr.requel.service.api.dto.StepDetailDto) edited.result();
+        assertEquals("gw-renamed-step-" + ts, step.name());
+        assertEquals(List.of(scenario.id()), step.usedIn().stream().map(r -> r.id()).toList());
+        ScenarioDto reread = new TransactionTemplate(transactionManager).execute(status ->
+                com.rreganjr.requel.service.query.ProjectQueryController.toScenarioDetailDto(
+                        getProjectRepository().findById(Scenario.class, scenario.id())));
+        assertEquals(List.of("gw-renamed-step-" + ts, "gw-second-step-" + ts),
+                reread.steps().stream().map(s -> s.name()).toList());
+    }
+
+    /** Issue #476: a scenario's id is refused; scenarios are edited with EditScenario. */
+    @Test
+    void editScenarioStepRefusesAScenario() throws Exception {
+        authenticate(editorUsername);
+        GatewayResult created = gateway.execute(new GatewayRequest("EditScenario",
+                Map.of("projectName", projectName,
+                        "name", "gw-not-a-step-" + System.currentTimeMillis(),
+                        "scenarioTypeName", ScenarioType.Primary.name())));
+        Long scenarioId = ((ScenarioDto) created.result()).id();
+
+        assertThrows(GatewayException.class, () -> gateway.execute(new GatewayRequest(
+                "EditScenarioStep", Map.of("projectName", projectName, "stepId", scenarioId,
+                        "name", "renamed"))));
+    }
+
+    /** Issue #476: without access to the project, EditScenarioStep is refused. */
+    @Test
+    void editScenarioStepNeedsAccess() throws Exception {
+        authenticate(editorUsername);
+        GatewayResult created = gateway.execute(new GatewayRequest("EditScenario",
+                Map.of("projectName", projectName,
+                        "name", "gw-guarded-" + System.currentTimeMillis(),
+                        "scenarioTypeName", ScenarioType.Primary.name(),
+                        "steps", List.of(Map.of("name", "gw-guarded-step-"
+                                + System.currentTimeMillis(), "isScenario", false)))));
+        Long stepId = ((ScenarioDto) created.result()).steps().get(0).id();
+
+        authenticate(noAccessUsername);
+        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
+                new GatewayRequest("EditScenarioStep",
+                        Map.of("projectName", projectName, "stepId", stepId, "name", "blocked"))));
+        assertEquals(GatewayException.Kind.UNAUTHORIZED, ex.getKind());
+    }
+
+    /**
      * Issue #254 on the surface it was actually reported from. Sending a steps entry whose name is
      * already taken used to fail with "The name conflicts with an existing ProjectOrDomainEntity",
      * naming neither the step nor the entity it hit, and appearing to blame the scenario — which

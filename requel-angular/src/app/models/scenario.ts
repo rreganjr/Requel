@@ -28,6 +28,21 @@ export interface StepDto {
   scenarioType: string | null;
   isScenario: boolean;
   scenarioId: number | null;
+  /** #476: the step's (or sub-scenario's) open issues, for the row's warning icon. */
+  openIssues?: number;
+  /** #476: LOW, MEDIUM or HIGH, the highest of those; absent when there are none. */
+  highestOpenSeverity?: string | null;
+}
+
+/** #476: a plain step on its own page, with the scenarios that use it. */
+export interface StepDetailDto {
+  id: number;
+  version: number;
+  name: string;
+  text: string | null;
+  scenarioType: string | null;
+  createdBy: string | null;
+  usedIn: EntityReferenceDto[] | null;
 }
 
 export interface ScenarioDto {

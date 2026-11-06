@@ -668,4 +668,63 @@ describe('ScenarioEditorComponent', () => {
     fixture.detectChanges();
     expect(button.dirty()).toBe(true);
   });
+
+  describe('#476: step pages and the open-issues icon', () => {
+    const WITH_ISSUES = {
+      ...MOCK_SCENARIO,
+      steps: [
+        { ...MOCK_STEPS[0], openIssues: 2, highestOpenSeverity: 'MEDIUM' },
+        { ...MOCK_STEPS[1], openIssues: 0 },
+        { id: 30, name: 'Pay the fine', text: null, scenarioType: 'Primary', isScenario: true, scenarioId: 30,
+          openIssues: 1, highestOpenSeverity: 'HIGH' },
+      ],
+    };
+
+    async function loadWithIssues(): Promise<HTMLElement> {
+      scenarioServiceMock.getScenario.mockResolvedValue(WITH_ISSUES);
+      paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('shows the icon only on rows with open issues, with the count and severity', async () => {
+      const el = await loadWithIssues();
+      const rows = el.querySelectorAll('[data-testid="scenario-step-row"]');
+      const first = rows[0].querySelector('[data-testid="scenario-step-issues"]');
+      expect(first?.getAttribute('aria-label')).toBe('2 open issues, highest MEDIUM');
+      expect(first?.getAttribute('data-severity')).toBe('MEDIUM');
+      expect(first?.classList.contains('tone-warning')).toBe(true);
+      expect(rows[1].querySelector('[data-testid="scenario-step-issues"]')).toBeNull();
+      const sub = rows[2].querySelector('[data-testid="scenario-step-issues"]');
+      expect(sub?.getAttribute('aria-label')).toBe('1 open issue, highest HIGH');
+    });
+
+    it('links the icon to the step page, or to the sub-scenario page', async () => {
+      await loadWithIssues();
+      expect(comp.stepPageLink(stepAt(0))).toEqual(['/projects', 'proj1', 'steps', 1]);
+      expect(comp.stepPageLink(stepAt(2))).toEqual(['/projects', 'proj1', 'scenarios', 30]);
+    });
+
+    it('the pencil on a saved step opens its page; a new step opens the popup', async () => {
+      await loadWithIssues();
+      comp.onStepPencil(stepAt(0));
+      expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'steps', 1]);
+      expect(comp.editingStep()).toBeNull();
+
+      comp.addStep();
+      const added = stepAt(comp.stepsForm.length - 1);
+      comp.onStepPencil(added);
+      expect(comp.editingStep()).toBe(added);
+    });
+
+    it('the pencil on a saved step is disabled while the scenario has unsaved changes', async () => {
+      await loadWithIssues();
+      expect(comp.stepPencilDisabled(stepAt(0))).toBe(false);
+      comp.detailsForm.controls.name.setValue('Renamed');
+      comp.detailsForm.controls.name.markAsDirty();
+      expect(comp.stepPencilDisabled(stepAt(0))).toBe(true);
+    });
+  });
 });

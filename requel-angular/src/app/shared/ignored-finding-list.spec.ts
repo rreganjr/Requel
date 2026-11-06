@@ -40,15 +40,23 @@ describe('IgnoredFindingListComponent (#320)', () => {
     expect(comp.findingTypeLabel('something-new')).toBe('something-new');
   });
 
-  it('links the entity to its page, and a step (no page) is plain text', async () => {
+  it('links the entity to its page, a step included (#476)', async () => {
     const { el, comp } = await render();
     expect(comp.entityLink(FINDINGS[0])).toEqual(['/projects', 'Proj A', 'goals', '3']);
-    expect(comp.entityLink(FINDINGS[1])).toBeNull();
+    expect(comp.entityLink(FINDINGS[1])).toEqual(['/projects', 'Proj A', 'steps', '9']);
     const entities = Array.from(el.querySelectorAll('[data-testid="ign-entity"]'));
     expect(entities[0].tagName).toBe('A');
     expect(entities[0].textContent).toContain('groal intake');
-    expect(entities[1].tagName).toBe('SPAN');
+    expect(entities[1].tagName).toBe('A');
     expect(entities[1].textContent).toContain('Step 9');
+  });
+
+  it('shows an entity with no page as plain text', async () => {
+    const { el, comp } = await render({ findings: [{ ...FINDINGS[1], entityType: 'Mystery' }] });
+    expect(comp.entityLink(comp.findings[0])).toBeNull();
+    const entity = el.querySelector('[data-testid="ign-entity"]');
+    expect(entity?.tagName).toBe('SPAN');
+    expect(entity?.textContent).toContain('Mystery 9');
   });
 
   it('emits remove only after the user confirms', async () => {

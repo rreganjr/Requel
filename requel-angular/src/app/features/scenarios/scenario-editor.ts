@@ -66,6 +66,7 @@ import {
 } from '../../shared/app-form-wizard';
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
+import { issueSeverityTone } from '../../shared/severity';
 
 const SCENARIO_TYPE_OPTIONS = [
   { label: 'Primary', value: 'Primary' },
@@ -248,6 +249,21 @@ type StepGroup = FormGroup<{
         (selected)="onReferrerSelected($event)"
         (closed)="showReferrerSelector = false" />
 
+      <!-- #476: a warning icon on a row whose step or sub-scenario has open issues, colored by the
+           highest severity; it opens the page where they can be seen and resolved. -->
+      <ng-template #stepIssuesIcon let-group>
+        @if (issuesOf(group); as issues) {
+          <a class="step-issues" data-testid="scenario-step-issues"
+             [class]="'step-issues tone-' + issueTone(issues.highestOpenSeverity)"
+             [attr.data-severity]="issues.highestOpenSeverity"
+             [routerLink]="stepPageLink(group)"
+             [attr.aria-label]="issuesLabel(issues)"
+             [pTooltip]="issuesLabel(issues)" tooltipPosition="top">
+            <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+          </a>
+        }
+      </ng-template>
+
       <ng-template #referencedBySection let-heading="heading">
         <app-relationship-section #scenarioReferencedBySection
           title="Referenced By" [showHeading]="heading"
@@ -360,6 +376,7 @@ type StepGroup = FormGroup<{
                      data-testid="scenario-step-link"
                      [routerLink]="['/projects', projectName, 'scenarios', group.controls.stepId.value!]">{{ group.controls.name.value }}</a>
                   <span class="step-type-badge">{{ group.controls.scenarioType.value }}</span>
+                  <ng-container [ngTemplateOutlet]="stepIssuesIcon" [ngTemplateOutletContext]="{ $implicit: group }" />
                   @if (canEdit()) {
                     <p-button icon="pi pi-times" severity="danger" [text]="true"
                               data-testid="scenario-step-remove" [ariaLabel]="'Remove ' + group.controls.name.value + ' from scenario'"
@@ -378,11 +395,17 @@ type StepGroup = FormGroup<{
                          [attr.aria-describedby]="stepNameErr.message() ? 'scenario-step-name-error-' + stepIndex : null"
                          (keydown)="$event.stopPropagation()"
                          (blur)="onStepNameChange()" />
+                  <ng-container [ngTemplateOutlet]="stepIssuesIcon" [ngTemplateOutletContext]="{ $implicit: group }" />
                   @if (canEdit()) {
+                    <!-- #476: a saved step opens its own page (annotations, used in); a new one,
+                         not saved yet, keeps the popup. Disabled while the scenario has unsaved
+                         changes, because the step page saves on its own. -->
                     <p-button icon="pi pi-pencil" [text]="true" size="small"
                               data-testid="scenario-step-edit" ariaLabel="Edit step details"
-                              pTooltip="Edit details" tooltipPosition="top"
-                              (onClick)="openStepEdit(group)" />
+                              [disabled]="stepPencilDisabled(group)"
+                              [pTooltip]="stepPencilDisabled(group) ? 'Save the scenario first' : 'Edit details'"
+                              tooltipPosition="top"
+                              (onClick)="onStepPencil(group)" />
                     <p-button icon="pi pi-plus" severity="secondary" [text]="true"
                               data-testid="scenario-step-add-below" ariaLabel="Add step below"
                               size="small" pTooltip="Add step below" tooltipPosition="top"
@@ -477,6 +500,11 @@ type StepGroup = FormGroup<{
     .step-name-input { flex: 1; min-width: 0; font-size: 0.9rem; }
     .step-name { flex: 1; font-size: 0.9rem; }
     .step-icon { color: var(--p-text-secondary-color); font-size: 0.85rem; flex-shrink: 0; }
+    /* #476: the open-issues icon, colored by the highest open severity. */
+    .step-issues { display: inline-flex; align-items: center; padding: 0 var(--rq-space-1); text-decoration: none; }
+    .step-issues.tone-danger { color: var(--rq-tag-danger-fg); }
+    .step-issues.tone-warning { color: var(--rq-tag-warning-fg); }
+    .step-issues.tone-info, .step-issues.tone-neutral { color: var(--rq-tag-info-fg); }
     .step-type-badge {
       font-size: 0.75rem; padding: 0.1rem 0.4rem;
       background: var(--p-surface-200); border-radius: 4px;
@@ -883,6 +911,46 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     this.stepsForm.removeAt(event.previousIndex);
     this.stepsForm.insert(event.currentIndex, group);
     this.markStepsDirty();
+  }
+
+  /**
+   * #476: the open-issue summary of a row's step or sub-scenario, from the last scenario read, or
+   * null when it has none (or is new and not saved yet).
+   */
+  issuesOf(group: StepGroup): StepDto | null {
+    const id = group.controls.stepId.value;
+    if (id == null) return null;
+    const step = (this.scenario()?.steps ?? []).find(s => s.id === id);
+    return step && (step.openIssues ?? 0) > 0 ? step : null;
+  }
+
+  issuesLabel(step: StepDto): string {
+    const n = step.openIssues ?? 0;
+    const severity = step.highestOpenSeverity ? `, highest ${step.highestOpenSeverity}` : '';
+    return `${n} open issue${n === 1 ? '' : 's'}${severity}`;
+  }
+
+  issueTone(severity: string | null | undefined): string {
+    return issueSeverityTone(severity);
+  }
+
+  /** #476: the page of a row's step, or of the scenario used as that step. */
+  stepPageLink(group: StepGroup): (string | number)[] {
+    return ['/projects', this.projectName,
+      group.controls.isScenario.value ? 'scenarios' : 'steps', group.controls.stepId.value!];
+  }
+
+  /** #476: the step page saves on its own, so it can't open over unsaved scenario changes. */
+  stepPencilDisabled(group: StepGroup): boolean {
+    return group.controls.stepId.value != null && this.hasUnsavedChanges();
+  }
+
+  onStepPencil(group: StepGroup): void {
+    if (group.controls.stepId.value != null) {
+      void this.router.navigate(this.stepPageLink(group));
+    } else {
+      this.openStepEdit(group);
+    }
   }
 
   openStepEdit(group: StepGroup): void {

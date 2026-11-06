@@ -27,6 +27,7 @@ export const ENTITY_ROUTES: Readonly<Record<string, string>> = {
   Story: 'stories',
   Actor: 'actors',
   Scenario: 'scenarios',
+  Step: 'steps',
   UseCase: 'use-cases',
   UserStakeholder: 'stakeholders',
   NonUserStakeholder: 'stakeholders',
