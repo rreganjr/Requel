@@ -4,7 +4,8 @@ import {
 } from './fixtures/api-helper';
 
 // #476 (rc1): a saved step's pencil opens the step's own page, where its issues can be seen and
-// resolved; a row whose step has open issues shows a warning icon; Open Issues links step issues.
+// resolved; a row whose step has open issues shows a warning icon (#478: in the pencil's place);
+// Open Issues links step issues.
 // The issues are added through the API so the test doesn't depend on analysis timing.
 
 const PROJECT_NAME = `e2e-step-page-${Date.now()}`;
@@ -20,7 +21,7 @@ test.afterAll(async ({ request }) => {
 
 test.describe('Step page (#476)', () => {
 
-  test('icon on the row, pencil opens the step page, resolve and rename there', async ({ adminContext, request }) => {
+  test('the triangle on the row opens the step page; resolve and rename there', async ({ adminContext, request }) => {
     const ts = Date.now();
     const scenario = await createScenario(request, PROJECT_NAME, `e2e-step-page-scenario-${ts}`);
     const [stepId] = await setScenarioSteps(request, scenario,
@@ -36,12 +37,14 @@ test.describe('Step page (#476)', () => {
     ]);
 
     const rows = page.getByTestId('scenario-step-row');
+    // #478: the triangle takes the pencil's place on a row with open issues.
     const icon = rows.nth(0).getByTestId('scenario-step-issues');
     await expect(icon).toBeVisible();
     await expect(icon).toHaveAttribute('data-severity', 'HIGH');
-    await expect(icon).toHaveAttribute('aria-label', /open issue/);
+    await expect(icon.locator('button')).toHaveAttribute('aria-label', /open issue/);
+    await expect(rows.nth(0).getByTestId('scenario-step-edit')).toHaveCount(0);
 
-    await rows.nth(0).getByTestId('scenario-step-edit').click();
+    await icon.locator('button').click();
     await page.waitForURL(new RegExp(`/projects/${enc}/steps/${stepId}$`));
     await expect(page.getByTestId('step-name')).toHaveValue(`Member fills in the form ${ts}`);
     await expect(page.getByTestId('step-used-in-row')).toHaveCount(1);
@@ -74,7 +77,7 @@ test.describe('Step page (#476)', () => {
     await page.close();
   });
 
-  test('the pencil is disabled while the scenario has unsaved changes', async ({ adminContext, request }) => {
+  test('the step button is disabled while the scenario has unsaved changes', async ({ adminContext, request }) => {
     const ts = Date.now();
     const scenario = await createScenario(request, PROJECT_NAME, `e2e-step-page-dirty-${ts}`);
     await setScenarioSteps(request, scenario, [`Member signs in ${ts}`]);
@@ -85,7 +88,10 @@ test.describe('Step page (#476)', () => {
       page.goto(`/projects/${enc}/scenarios/${scenario.id}`),
     ]);
     const row = page.getByTestId('scenario-step-row').nth(0);
-    const pencil = row.getByTestId('scenario-step-edit').locator('button');
+    // #478: analysis may have put an issue on the step, so the row shows the pencil or the
+    // triangle; both follow the same rule.
+    const pencil = row.locator('[data-testid="scenario-step-edit"], [data-testid="scenario-step-issues"]')
+      .locator('button');
     await expect(pencil).toBeEnabled();
 
     await page.getByTestId('scenario-name').fill(`e2e-step-page-dirty-renamed-${ts}`);

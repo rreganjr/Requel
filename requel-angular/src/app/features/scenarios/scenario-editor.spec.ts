@@ -689,16 +689,53 @@ describe('ScenarioEditorComponent', () => {
       return fixture.nativeElement as HTMLElement;
     }
 
-    it('shows the icon only on rows with open issues, with the count and severity', async () => {
+    it('shows the triangle in place of the pencil on a row with open issues (#478)', async () => {
       const el = await loadWithIssues();
       const rows = el.querySelectorAll('[data-testid="scenario-step-row"]');
       const first = rows[0].querySelector('[data-testid="scenario-step-issues"]');
-      expect(first?.getAttribute('aria-label')).toBe('2 open issues, highest MEDIUM');
       expect(first?.getAttribute('data-severity')).toBe('MEDIUM');
-      expect(first?.classList.contains('tone-warning')).toBe(true);
-      expect(rows[1].querySelector('[data-testid="scenario-step-issues"]')).toBeNull();
-      const sub = rows[2].querySelector('[data-testid="scenario-step-issues"]');
+      expect(first?.querySelector('button')?.getAttribute('aria-label')).toBe('2 open issues, highest MEDIUM');
+      expect(rows[0].querySelector('[data-testid="scenario-step-edit"]')).toBeNull();
+      expect(comp.issueButtonSeverity('MEDIUM')).toBe('warn');
+      expect(comp.issueButtonSeverity('HIGH')).toBe('danger');
+      expect(comp.issueButtonSeverity('LOW')).toBe('info');
+    });
+
+    it('shows the pencil and no triangle on a clean row', async () => {
+      const el = await loadWithIssues();
+      const row = el.querySelectorAll('[data-testid="scenario-step-row"]')[1];
+      expect(row.querySelector('[data-testid="scenario-step-issues"]')).toBeNull();
+      expect(row.querySelector('[data-testid="scenario-step-edit"]')).not.toBeNull();
+    });
+
+    it('keeps the linked triangle beside the name on a sub-scenario row', async () => {
+      const el = await loadWithIssues();
+      const sub = el.querySelectorAll('[data-testid="scenario-step-row"]')[2]
+        .querySelector('[data-testid="scenario-step-issues"]');
+      expect(sub?.tagName).toBe('A');
       expect(sub?.getAttribute('aria-label')).toBe('1 open issue, highest HIGH');
+      expect(sub?.classList.contains('tone-danger')).toBe(true);
+    });
+
+    it('the triangle opens the step page, and is disabled while the scenario is dirty', async () => {
+      const el = await loadWithIssues();
+      const button = () => el.querySelectorAll('[data-testid="scenario-step-row"]')[0]
+        .querySelector('[data-testid="scenario-step-issues"] button') as HTMLButtonElement;
+      button().click();
+      expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'steps', 1]);
+
+      comp.detailsForm.controls.name.setValue('Renamed');
+      comp.detailsForm.controls.name.markAsDirty();
+      fixture.detectChanges();
+      expect(button().disabled).toBe(true);
+    });
+
+    it('shows the triangle without edit permission, with no pencil', async () => {
+      permissionServiceMock.canEdit.mockReturnValue(false);
+      const el = await loadWithIssues();
+      const rows = el.querySelectorAll('[data-testid="scenario-step-row"]');
+      expect(rows[0].querySelector('[data-testid="scenario-step-issues"]')).not.toBeNull();
+      expect(rows[1].querySelector('[data-testid="scenario-step-edit"]')).toBeNull();
     });
 
     it('links the icon to the step page, or to the sub-scenario page', async () => {

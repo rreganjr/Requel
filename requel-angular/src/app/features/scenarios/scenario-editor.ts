@@ -249,8 +249,9 @@ type StepGroup = FormGroup<{
         (selected)="onReferrerSelected($event)"
         (closed)="showReferrerSelector = false" />
 
-      <!-- #476: a warning icon on a row whose step or sub-scenario has open issues, colored by the
-           highest severity; it opens the page where they can be seen and resolved. -->
+      <!-- #476: a warning icon on a sub-scenario row with open issues, colored by the highest
+           severity; it opens the page where they can be seen and resolved. (#478: a plain step's
+           row shows it as a button in the pencil's place instead.) -->
       <ng-template #stepIssuesIcon let-group>
         @if (issuesOf(group); as issues) {
           <a class="step-issues" data-testid="scenario-step-issues"
@@ -395,17 +396,30 @@ type StepGroup = FormGroup<{
                          [attr.aria-describedby]="stepNameErr.message() ? 'scenario-step-name-error-' + stepIndex : null"
                          (keydown)="$event.stopPropagation()"
                          (blur)="onStepNameChange()" />
-                  <ng-container [ngTemplateOutlet]="stepIssuesIcon" [ngTemplateOutletContext]="{ $implicit: group }" />
-                  @if (canEdit()) {
-                    <!-- #476: a saved step opens its own page (annotations, used in); a new one,
-                         not saved yet, keeps the popup. Disabled while the scenario has unsaved
-                         changes, because the step page saves on its own. -->
+                  <!-- #476: a saved step opens its own page (annotations, used in); a new one,
+                       not saved yet, keeps the popup. Disabled while the scenario has unsaved
+                       changes, because the step page saves on its own. #478: one button - the
+                       pencil, or, when the step has open issues, the triangle in its place,
+                       colored by the highest severity (shown read-only too). -->
+                  @if (issuesOf(group); as issues) {
+                    <p-button icon="pi pi-exclamation-triangle" [text]="true" size="small"
+                              data-testid="scenario-step-issues"
+                              [attr.data-severity]="issues.highestOpenSeverity"
+                              [severity]="issueButtonSeverity(issues.highestOpenSeverity)"
+                              [ariaLabel]="issuesLabel(issues)"
+                              [disabled]="stepPencilDisabled(group)"
+                              [pTooltip]="stepPencilDisabled(group) ? 'Save the scenario first' : issuesLabel(issues)"
+                              tooltipPosition="top"
+                              (onClick)="onStepPencil(group)" />
+                  } @else if (canEdit()) {
                     <p-button icon="pi pi-pencil" [text]="true" size="small"
                               data-testid="scenario-step-edit" ariaLabel="Edit step details"
                               [disabled]="stepPencilDisabled(group)"
                               [pTooltip]="stepPencilDisabled(group) ? 'Save the scenario first' : 'Edit details'"
                               tooltipPosition="top"
                               (onClick)="onStepPencil(group)" />
+                  }
+                  @if (canEdit()) {
                     <p-button icon="pi pi-plus" severity="secondary" [text]="true"
                               data-testid="scenario-step-add-below" ariaLabel="Add step below"
                               size="small" pTooltip="Add step below" tooltipPosition="top"
@@ -932,6 +946,15 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
 
   issueTone(severity: string | null | undefined): string {
     return issueSeverityTone(severity);
+  }
+
+  /**
+   * #478: the step row's triangle is a p-button, whose inner button a component style can't
+   * reach, so its color is the button's own severity, mapped from the issue tone.
+   */
+  issueButtonSeverity(severity: string | null | undefined): 'danger' | 'warn' | 'info' {
+    const tone = issueSeverityTone(severity);
+    return tone === 'danger' ? 'danger' : tone === 'warning' ? 'warn' : 'info';
   }
 
   /** #476: the page of a row's step, or of the scenario used as that step. */
