@@ -44,6 +44,7 @@ import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.command.AnalysisRequestSource;
 import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
+import com.rreganjr.requel.project.impl.AbstractProjectOrDomain;
 import com.rreganjr.requel.project.impl.GlossaryTermImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
 import com.rreganjr.platform.identity.User;
@@ -179,6 +180,14 @@ public class EditGlossaryTermCommandImpl extends AbstractEditProjectOrDomainEnti
 		}
 
 		glossaryTermImpl = getProjectRepository().merge(glossaryTermImpl);
+		boolean renamed = previousName != null && !previousName.equals(glossaryTermImpl.getName());
+		if (renamed && projectOrDomain instanceof AbstractProjectOrDomain sorted) {
+			// #480: the merge renamed a term in the project's glossary, a set sorted by name, so
+			// the term now sits where its old name sorted. Put the set in order before anything
+			// changes it (the synonym below does), or Hibernate's diff of it at flush deletes the
+			// join row of a term it can't find.
+			sorted.resortGlossaryTerms();
+		}
 
 		if (getReferers() != null) {
 			// remove the term for all its referers
