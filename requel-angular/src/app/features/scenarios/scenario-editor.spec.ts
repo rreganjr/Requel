@@ -28,7 +28,8 @@ const flush = () => new Promise(r => setTimeout(r, 0));
 
 describe('ScenarioEditorComponent', () => {
   let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
-  let scenarioServiceMock: { getScenario: ReturnType<typeof vi.fn> };
+  let scenarioServiceMock: { getScenario: ReturnType<typeof vi.fn>; listSteps: ReturnType<typeof vi.fn>;
+    listScenarios: ReturnType<typeof vi.fn> };
   let commandServiceMock: { execute: ReturnType<typeof vi.fn> };
   let permissionServiceMock: { loadForProject: ReturnType<typeof vi.fn>; canEdit: ReturnType<typeof vi.fn>; canDelete: ReturnType<typeof vi.fn> };
   let eventStreamServiceMock: { events$: typeof EMPTY; addSubscription: ReturnType<typeof vi.fn>; removeSubscription: ReturnType<typeof vi.fn> };
@@ -46,7 +47,8 @@ describe('ScenarioEditorComponent', () => {
   beforeEach(() => {
     paramMap$ = new BehaviorSubject(convertToParamMap({ name: 'proj1', scenarioId: 'new' }));
 
-    scenarioServiceMock = { getScenario: vi.fn().mockResolvedValue(MOCK_SCENARIO) };
+    scenarioServiceMock = { getScenario: vi.fn().mockResolvedValue(MOCK_SCENARIO),
+      listSteps: vi.fn().mockResolvedValue([]), listScenarios: vi.fn().mockResolvedValue([]) };
     commandServiceMock = {
       execute: vi.fn().mockResolvedValue({ success: true, entity: MOCK_SCENARIO })
     };
@@ -687,6 +689,105 @@ describe('ScenarioEditorComponent', () => {
     fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
     fixture.detectChanges();
     expect(button.dirty()).toBe(true);
+  });
+
+  describe('#483: reusing an existing step', () => {
+    const STEPS = [
+      { id: 1, name: MOCK_STEPS[0].name, text: null, scenarioType: 'Primary', usedIn: 1 },
+      { id: 40, name: 'Download the receipt', text: 'As a PDF', scenarioType: 'Alternative', usedIn: 2 },
+      { id: 41, name: 'Downscale the image', text: null, scenarioType: 'Primary', usedIn: 1 },
+    ];
+
+    async function loadExisting(): Promise<void> {
+      scenarioServiceMock.listSteps.mockResolvedValue(STEPS);
+      paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+    }
+
+    it('suggests matching steps, case aside, without the steps already in the scenario', async () => {
+      await loadExisting();
+      await comp.filterStepSuggestions('DOWN');
+      expect(comp.stepSuggestions().map(step => step.id)).toEqual([40, 41]);
+      expect(scenarioServiceMock.listSteps).toHaveBeenCalledTimes(1);
+
+      await comp.filterStepSuggestions(MOCK_STEPS[0].name.slice(0, 5));
+      expect(comp.stepSuggestions().map(step => step.id)).not.toContain(1);
+
+      await comp.filterStepSuggestions('down');
+      expect(scenarioServiceMock.listSteps).toHaveBeenCalledTimes(1);
+    });
+
+    it('a new step\'s name field is an autocomplete whose input keeps the step-name test id',
+      async () => {
+        await loadExisting();
+        comp.addStep();
+        fixture.detectChanges();
+        const rows = (fixture.nativeElement as HTMLElement)
+          .querySelectorAll('[data-testid="scenario-step-row"]');
+        const last = rows[rows.length - 1];
+        expect(last.querySelector('[data-testid="scenario-step-name-suggest"]')).not.toBeNull();
+        expect(last.querySelector('input[data-testid="scenario-step-name"]')).not.toBeNull();
+        expect(rows[0].querySelector('[data-testid="scenario-step-name-suggest"]')).toBeNull();
+      });
+
+    it('picking a suggestion links that step, and Save sends it by id with its notes', async () => {
+      await loadExisting();
+      comp.addStep();
+      const group = stepAt(comp.stepsForm.length - 1);
+
+      comp.onStepSuggestionSelected(group, STEPS[1]);
+
+      expect(group.getRawValue()).toMatchObject({ stepId: 40, name: 'Download the receipt',
+        text: 'As a PDF', scenarioType: 'Alternative', isNew: false });
+      commandServiceMock.execute.mockResolvedValue({ success: true, entity: MOCK_SCENARIO });
+      await comp.onSave();
+      const [, input] = commandServiceMock.execute.mock.calls.at(-1)!;
+      expect(input.steps.at(-1)).toMatchObject({ stepId: 40, name: 'Download the receipt',
+        text: 'As a PDF', scenarioTypeName: 'Alternative' });
+    });
+
+    it('a refused save whose new step is named like an existing one gets the editor\'s message',
+      async () => {
+        await loadExisting();
+        comp.addStep();
+        stepAt(comp.stepsForm.length - 1).controls.name.setValue('download the receipt');
+        commandServiceMock.execute.mockResolvedValue({ success: false, status: 409,
+          code: 'CONFLICT', error: 'The name conflicts with an existing Step: ... send its id as stepId' });
+
+        await comp.onSave();
+
+        expect(comp.errorMessage()).toBe("Another step in this project is already named"
+          + " 'download the receipt'. Pick it from the suggestions to reuse it, or choose a"
+          + ' different name.');
+      });
+
+    it('a new step named like a scenario points to Add Sub-scenario', async () => {
+      await loadExisting();
+      scenarioServiceMock.listScenarios.mockResolvedValue([{ id: 30, name: 'Pay the fine' }]);
+      comp.addStep();
+      stepAt(comp.stepsForm.length - 1).controls.name.setValue('Pay the fine');
+      commandServiceMock.execute.mockResolvedValue({ success: false, status: 409,
+        code: 'CONFLICT', error: 'The name conflicts with an existing Scenario: ...' });
+
+      await comp.onSave();
+
+      expect(comp.errorMessage()).toBe("A scenario in this project is already named 'Pay the"
+        + " fine'. Use Add Sub-scenario to include it as a step, or choose a different name.");
+    });
+
+    it('any other conflict shows the server\'s message', async () => {
+      await loadExisting();
+      comp.addStep();
+      stepAt(comp.stepsForm.length - 1).controls.name.setValue('A brand new step');
+      commandServiceMock.execute.mockResolvedValue({ success: false, status: 409,
+        code: 'CONFLICT', error: 'Something else conflicted.' });
+
+      await comp.onSave();
+
+      expect(comp.errorMessage()).toBe('Something else conflicted.');
+    });
   });
 
   describe('#476: step pages and the open-issues icon', () => {
