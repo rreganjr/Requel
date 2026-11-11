@@ -351,7 +351,7 @@ describe('ScenarioEditorComponent', () => {
     it('a 409 keeps the step and reports the stale-version message', async () => {
       fixture.detectChanges();
       await flush();
-      commandServiceMock.execute.mockResolvedValue({ success: false, status: 409, error: 'Conflict' });
+      commandServiceMock.execute.mockResolvedValue({ success: false, status: 409, code: 'STALE_VERSION', error: 'Conflict' });
       comp.scenarioId = 15;
       comp.detailsForm.controls.name.setValue('Whatever');
 
@@ -362,6 +362,26 @@ describe('ScenarioEditorComponent', () => {
       expect(request.complete).not.toHaveBeenCalled();
       expect(request.fail).toHaveBeenCalledWith(expect.stringContaining('changed elsewhere'));
     });
+
+    it('a 409 that is not a stale version shows the server message, with no refetch (#482)',
+      async () => {
+        paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+        fixture.detectChanges();
+        await flush();
+        scenarioServiceMock.getScenario.mockClear();
+        const conflict = 'The name conflicts with an existing Step: step 5 in this project already'
+          + " uses the name 'Download the receipt'.";
+        commandServiceMock.execute.mockResolvedValue({ success: false, status: 409,
+          code: 'CONFLICT', error: conflict });
+        comp.detailsForm.controls.name.setValue('My rename');
+        comp.detailsForm.controls.name.markAsDirty();
+
+        await comp.onSave();
+
+        expect(comp.errorMessage()).toBe(conflict);
+        expect(scenarioServiceMock.getScenario).not.toHaveBeenCalled();
+        expect(comp.detailsForm.controls.name.value).toBe('My rename');
+      });
   });
 
   // #185. Unlike the other editors in this issue, scenario-editor is render-gated - the form sits
@@ -378,7 +398,7 @@ describe('ScenarioEditorComponent', () => {
       comp.detailsForm.controls.name.markAsDirty();
 
       // The save conflicts; the recovery refetch returns a scenario that moved on.
-      commandServiceMock.execute.mockResolvedValue({ success: false, status: 409, error: 'Conflict' });
+      commandServiceMock.execute.mockResolvedValue({ success: false, status: 409, code: 'STALE_VERSION', error: 'Conflict' });
       scenarioServiceMock.getScenario.mockResolvedValue({
         ...MOCK_SCENARIO, version: 9, name: 'Renamed elsewhere'
       });

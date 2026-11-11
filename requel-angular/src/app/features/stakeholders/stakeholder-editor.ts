@@ -40,7 +40,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { StakeholderDto, StakeholderPermissionDto, StakeholderPermissionRules, UserStakeholderDetails } from '../../models/stakeholder';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { StakeholderService } from '../../core/stakeholder.service';
-import { CommandService, isNetworkError } from '../../core/command.service';
+import { CommandService, isNetworkError, isStaleVersion } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
@@ -1033,7 +1033,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
    * current and the user can retry. Returns whether it handled the result.
    */
   private async recoverFromStaleVersion(result: CommandResult<unknown>): Promise<boolean> {
-    if (result.status !== 409 || this.stakeholderId == null) {
+    if (!isStaleVersion(result) || this.stakeholderId == null) {
       return false;
     }
     await this.loadStakeholder(false);

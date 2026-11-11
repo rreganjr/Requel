@@ -38,7 +38,8 @@ import {
   DefinitionKind,
   ProjectDefinitionDto, REVIEWABLE_TYPES, kindLabel,
 } from '../../models/assistant-definition';
-import { FieldViolation } from '../../models/command';
+import { CommandResult, FieldViolation } from '../../models/command';
+import { isStaleVersion } from '../../core/command.service';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 
 /** Rough characters the server allows for instructions: requel.ai.max-input-tokens × 4. */
@@ -357,7 +358,7 @@ export class ProjectDefinitionEditorComponent implements OnInit, DirtyCheckable 
           this.show(result.entity);
         }
       } else {
-        this.showFailure(result.violations, result.error, result.status);
+        this.showFailure(result.violations, result.error, isStaleVersion(result));
       }
     } finally {
       this.saving.set(false);
@@ -373,7 +374,7 @@ export class ProjectDefinitionEditorComponent implements OnInit, DirtyCheckable 
       if (result.success) {
         await this.load();
       } else {
-        this.showFailure(result.violations, result.error, result.status);
+        this.showFailure(result.violations, result.error, isStaleVersion(result));
       }
     } finally {
       this.saving.set(false);
@@ -390,8 +391,7 @@ export class ProjectDefinitionEditorComponent implements OnInit, DirtyCheckable 
       this.current()!.lockVersion), 'Deleted');
   }
 
-  private async drop(write: () => Promise<{ success: boolean; error: string | null;
-                       violations: FieldViolation[] | null; status?: number }>,
+  private async drop(write: () => Promise<CommandResult>,
                      done: string): Promise<void> {
     this.saving.set(true);
     this.clearErrors();
@@ -402,7 +402,7 @@ export class ProjectDefinitionEditorComponent implements OnInit, DirtyCheckable 
         this.saved = JSON.stringify(this.draft);
         this.router.navigate(['/projects', this.projectName, 'definitions']);
       } else {
-        this.showFailure(result.violations, result.error, result.status);
+        this.showFailure(result.violations, result.error, isStaleVersion(result));
       }
     } finally {
       this.saving.set(false);
@@ -428,8 +428,10 @@ export class ProjectDefinitionEditorComponent implements OnInit, DirtyCheckable 
 
   /** Each problem on its field; the rest listed under the form. */
   private showFailure(violations: FieldViolation[] | null, error: string | null,
-                      status?: number): void {
-    if (status === 409) {
+                      stale: boolean): void {
+    // #482: only a stale version means someone else changed it; another 409 (a key already
+    // taken, a business rule) shows the server's message.
+    if (stale) {
       this.errorMessage.set('Someone else changed this definition. Reload it and make your'
         + ' change again.');
       return;

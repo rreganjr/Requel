@@ -102,7 +102,8 @@ export class CommandService {
         error: (body as ErrorResponse)?.message ?? err.message,
         entity: null,
         violations: null,
-        status: err.status
+        status: err.status,
+        code: (body as ErrorResponse)?.error ?? undefined
       };
     }
     return {
@@ -114,6 +115,19 @@ export class CommandService {
       status: 0
     };
   }
+}
+
+/** The server's error code for a stale version (#482). */
+export const STALE_VERSION = 'STALE_VERSION';
+
+/**
+ * True when a command was refused because the caller's version is stale: someone else saved
+ * the entity since it was loaded. The editors reload for this, and only this (#482). The server
+ * answers 409 for other refusals too (a name already taken, a business rule), and those show the
+ * server's message instead.
+ */
+export function isStaleVersion(result: CommandResult): boolean {
+  return result.status === 409 && result.code === STALE_VERSION;
 }
 
 /**
