@@ -63,3 +63,15 @@ export interface EditStepInput {
   scenarioTypeName: string | null;
   isScenario: boolean;
 }
+
+/**
+ * Issue #483: a plain step in the project's step list (`GET /api/projects/{name}/steps`), which
+ * the scenario editor suggests when a new step is named. `usedIn` is how many scenarios use it.
+ */
+export interface StepSummaryDto {
+  id: number;
+  name: string;
+  text?: string | null;
+  scenarioType?: string | null;
+  usedIn: number;
+}

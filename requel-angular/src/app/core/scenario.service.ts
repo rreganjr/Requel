@@ -21,7 +21,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { ScenarioDto, StepDetailDto } from '../models/scenario';
+import { ScenarioDto, StepDetailDto, StepSummaryDto } from '../models/scenario';
 import { environment } from '../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
@@ -43,6 +43,12 @@ export class ScenarioService {
   }
 
   /** #476: a plain step and the scenarios that use it. */
+  /** #483: the project's plain steps, by name, for the scenario editor's suggestions. */
+  listSteps(projectName: string): Promise<StepSummaryDto[]> {
+    return firstValueFrom(this.http.get<StepSummaryDto[]>(
+      `${this.base}/projects/${encodeURIComponent(projectName)}/steps`));
+  }
+
   getStep(projectName: string, stepId: number): Promise<StepDetailDto> {
     return firstValueFrom(
       this.http.get<StepDetailDto>(`${this.base}/projects/${encodeURIComponent(projectName)}/steps/${stepId}`)

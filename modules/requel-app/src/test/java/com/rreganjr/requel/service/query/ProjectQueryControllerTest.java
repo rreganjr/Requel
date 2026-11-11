@@ -601,6 +601,41 @@ class ProjectQueryControllerTest {
         mockMvc.perform(get("/api/projects/TestProject/steps/94")).andExpect(status().isForbidden());
     }
 
+    /**
+     * #483: the project's plain steps, once each though shared, by name, with how many scenarios
+     * use them; a scenario used as a step isn't listed.
+     */
+    @Test
+    void listStepsReturnsThePlainStepsOnceEachByNameWithTheirUse() throws Exception {
+        Scenario a = stubScenario(95L, "First");
+        Scenario b = stubScenario(96L, "Second");
+        Step shared = stubStep(97L, "member signs in");
+        Step own = stubStep(98L, "Download the receipt");
+        when(shared.getUsingScenarios()).thenReturn(Set.of(a, b));
+        when(own.getUsingScenarios()).thenReturn(Set.of(a));
+        when(a.getSteps()).thenReturn(List.of(own, shared, b));
+        when(b.getSteps()).thenReturn(List.of(shared));
+        when(project.getScenarios()).thenReturn(new java.util.LinkedHashSet<>(List.of(a, b)));
+
+        mockMvc.perform(get("/api/projects/TestProject/steps"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value(98))
+                .andExpect(jsonPath("$[0].name").value("Download the receipt"))
+                .andExpect(jsonPath("$[0].scenarioType").value("Primary"))
+                .andExpect(jsonPath("$[0].usedIn").value(1))
+                .andExpect(jsonPath("$[1].name").value("member signs in"))
+                .andExpect(jsonPath("$[1].usedIn").value(2));
+    }
+
+    /** #483: no access is 403. */
+    @Test
+    void listStepsIs403WithoutAccess() throws Exception {
+        when(project.getScenarios()).thenReturn(new java.util.LinkedHashSet<>());
+        when(stakeholder.matchesUser(user)).thenReturn(false);
+        mockMvc.perform(get("/api/projects/TestProject/steps")).andExpect(status().isForbidden());
+    }
+
     // -------------------------------------------------------------------------
     // Stories
     // -------------------------------------------------------------------------

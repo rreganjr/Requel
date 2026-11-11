@@ -30,6 +30,7 @@ import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
+import { AutoComplete } from 'primeng/autocomplete';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { MessageModule } from 'primeng/message';
@@ -42,7 +43,7 @@ import { TooltipModule } from 'primeng/tooltip';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { CommandResult } from '../../models/command';
-import { ScenarioDto, StepDto, EditStepInput } from '../../models/scenario';
+import { ScenarioDto, StepDto, EditStepInput, StepSummaryDto } from '../../models/scenario';
 import { ScenarioService } from '../../core/scenario.service';
 import { CommandService, isNetworkError, isStaleVersion } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
@@ -99,12 +100,15 @@ type StepGroup = FormGroup<{
   isNew: FormControl<boolean>;
 }>;
 
+/** #483: how many existing steps a new step's name suggests at most. */
+const STEP_SUGGESTION_LIMIT = 10;
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-scenario-editor',
   standalone: true,
   imports: [AiReviewButtonComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet,
-            ReactiveFormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
+            ReactiveFormsModule, ButtonModule, InputText, AutoComplete, TextareaModule, SelectModule,
             MessageModule, SubmitErrorComponent, UpdateBannerComponent, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
             ScenarioSelectorDialogComponent, AnnotationsSectionComponent, SourcesSectionComponent, LoadingStateComponent,
             ErrorStateComponent, AppFieldComponent, AppFieldControlDirective,
@@ -385,17 +389,46 @@ type StepGroup = FormGroup<{
                               (onClick)="removeStep(group)" />
                   }
                 } @else {
-                  <input pInputText [formControl]="group.controls.name"
-                         class="step-name-input"
-                         data-testid="scenario-step-name"
-                         placeholder="Step description..."
-                         [attr.aria-label]="'Step ' + (stepIndex + 1) + ' description'"
-                         [attr.maxlength]="nameMaxLength"
-                         [readonly]="!canEdit()"
-                         [attr.aria-invalid]="stepNameErr.message() ? 'true' : null"
-                         [attr.aria-describedby]="stepNameErr.message() ? 'scenario-step-name-error-' + stepIndex : null"
-                         (keydown)="$event.stopPropagation()"
-                         (blur)="onStepNameChange()" />
+                  @if (group.controls.isNew.value && canEdit()) {
+                    <!-- #483: a new step's name suggests the project's existing steps; picking one
+                         links that step instead of adding a new one. -->
+                    <p-autoComplete [formControl]="group.controls.name"
+                                    class="step-name-input step-name-suggest"
+                                    data-testid="scenario-step-name-suggest"
+                                    [suggestions]="stepSuggestions()"
+                                    optionLabel="name"
+                                    [minQueryLength]="2"
+                                    [showEmptyMessage]="false"
+                                    [delay]="150"
+                                    appendTo="body"
+                                    placeholder="Step description..."
+                                    [pt]="stepNameInputPt(stepIndex, stepNameErr.message())"
+                                    (completeMethod)="filterStepSuggestions($event.query)"
+                                    (onFocus)="loadStepList()"
+                                    (onSelect)="onStepSuggestionSelected(group, $event.value)"
+                                    (keydown)="$event.stopPropagation()"
+                                    (onBlur)="onStepNameChange()">
+                      <ng-template #item let-step>
+                        <div class="step-suggestion" data-testid="scenario-step-suggestion">
+                          <span class="step-suggestion-name">{{ step.name }}</span>
+                          <span class="step-suggestion-meta">{{ step.scenarioType }} &middot;
+                            used in {{ step.usedIn }} {{ step.usedIn === 1 ? 'scenario' : 'scenarios' }}</span>
+                        </div>
+                      </ng-template>
+                    </p-autoComplete>
+                  } @else {
+                    <input pInputText [formControl]="group.controls.name"
+                           class="step-name-input"
+                           data-testid="scenario-step-name"
+                           placeholder="Step description..."
+                           [attr.aria-label]="'Step ' + (stepIndex + 1) + ' description'"
+                           [attr.maxlength]="nameMaxLength"
+                           [readonly]="!canEdit()"
+                           [attr.aria-invalid]="stepNameErr.message() ? 'true' : null"
+                           [attr.aria-describedby]="stepNameErr.message() ? 'scenario-step-name-error-' + stepIndex : null"
+                           (keydown)="$event.stopPropagation()"
+                           (blur)="onStepNameChange()" />
+                  }
                   <!-- #476: a saved step opens its own page (annotations, used in); a new one,
                        not saved yet, keeps the popup. Disabled while the scenario has unsaved
                        changes, because the step page saves on its own. #478: one button - the
@@ -512,6 +545,12 @@ type StepGroup = FormGroup<{
     .drag-handle:active { cursor: grabbing; }
 
     .step-name-input { flex: 1; min-width: 0; font-size: 0.9rem; }
+    /* #483: the autocomplete fills the row like the plain input, and its suggestions show each
+       step's type and use under its name. */
+    .step-name-suggest { display: flex; }
+    .step-name-suggest ::ng-deep .p-autocomplete-input { width: 100%; font-size: 0.9rem; }
+    .step-suggestion { display: flex; flex-direction: column; }
+    .step-suggestion-meta { font-size: 0.8rem; color: var(--rq-text-muted-color); }
     .step-name { flex: 1; font-size: 0.9rem; }
     .step-icon { color: var(--p-text-secondary-color); font-size: 0.85rem; flex-shrink: 0; }
     /* #476: the open-issues icon, colored by the highest open severity. */
@@ -848,6 +887,113 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   onStepNameChange(): void {
     this.markStepsDirty();
   }
+  /** #483: the project's plain steps, loaded on the first focus of a new step's name. */
+  private readonly stepList = signal<StepSummaryDto[] | null>(null);
+  private stepListLoad: Promise<StepSummaryDto[]> | null = null;
+  readonly stepSuggestions = signal<StepSummaryDto[]>([]);
+
+  /** #483: loads the project's steps once per editor visit; a failure just means no suggestions. */
+  loadStepList(): Promise<StepSummaryDto[]> {
+    if (!this.stepListLoad) {
+      this.stepListLoad = this.scenarioService.listSteps(this.projectName)
+        .then(steps => {
+          this.stepList.set(steps);
+          return steps;
+        })
+        .catch(() => {
+          this.stepListLoad = null;
+          return [] as StepSummaryDto[];
+        });
+    }
+    return this.stepListLoad;
+  }
+
+  /**
+   * #483: the existing steps whose names contain `query`, case aside, without the steps already
+   * in this scenario. Up to 10.
+   */
+  async filterStepSuggestions(query: string): Promise<void> {
+    const steps = await this.loadStepList();
+    const needle = (query ?? '').trim().toLowerCase();
+    const inScenario = new Set(this.stepsForm.getRawValue()
+      .filter(step => !step.isScenario && step.stepId != null)
+      .map(step => step.stepId));
+    this.stepSuggestions.set(needle.length === 0 ? [] : steps
+      .filter(step => !inScenario.has(step.id) && step.name.toLowerCase().includes(needle))
+      .slice(0, STEP_SUGGESTION_LIMIT));
+  }
+
+  /**
+   * #483: links an existing step in place of the new one: the row takes its id, name, notes and
+   * type, and is no longer new, so Save sends it by `stepId` and keeps its notes.
+   */
+  onStepSuggestionSelected(group: StepGroup, step: StepSummaryDto): void {
+    group.patchValue({
+      stepId: step.id,
+      name: step.name,
+      text: step.text ?? null,
+      scenarioType: step.scenarioType ?? group.controls.scenarioType.value,
+      isNew: false,
+    });
+    this.stepSuggestions.set([]);
+    this.markStepsDirty();
+    this.announcer.announce(`Linked the existing step ${step.name}.`);
+  }
+
+  /** #483: puts the step name's test id, label and error wiring on the autocomplete's input. */
+  stepNameInputPt(stepIndex: number, error: string | null | undefined): object {
+    return {
+      pcInputText: {
+        root: {
+          'data-testid': 'scenario-step-name',
+          'aria-label': 'Step ' + (stepIndex + 1) + ' description',
+          maxlength: this.nameMaxLength,
+          'aria-invalid': error ? 'true' : null,
+          'aria-describedby': error ? 'scenario-step-name-error-' + stepIndex : null,
+        },
+      },
+    };
+  }
+
+  /** #483: the name of a new step that is also a scenario's name, if any. */
+  private async newStepNamedLikeAScenario(): Promise<string | undefined> {
+    let scenarios: ScenarioDto[];
+    try {
+      scenarios = await this.scenarioService.listScenarios(this.projectName);
+    } catch {
+      return undefined;
+    }
+    return this.stepsForm.getRawValue()
+      .filter(step => !step.isScenario && step.stepId == null)
+      .map(step => step.name.trim())
+      .find(name => scenarios.some(scenario => scenario.name.toLowerCase() === name.toLowerCase()));
+  }
+
+  /**
+   * #483: the message for a refused save. A 409 `CONFLICT` (#482) where a new step is named like
+   * an existing step, or like a scenario, gets the editor's own words, since the server's are for
+   * API callers; any other refusal shows the server's message.
+   */
+  private async refusalMessage(result: CommandResult<unknown>, fallback: string): Promise<string> {
+    if (result.status === 409 && result.code === 'CONFLICT') {
+      const steps = await this.loadStepList();
+      const taken = this.stepsForm.getRawValue()
+        .filter(step => !step.isScenario && step.stepId == null)
+        .map(step => step.name.trim())
+        .find(name => steps.some(existing => existing.name.toLowerCase() === name.toLowerCase()));
+      if (taken) {
+        return `Another step in this project is already named '${taken}'. Pick it from the `
+          + 'suggestions to reuse it, or choose a different name.';
+      }
+      const scenarioName = await this.newStepNamedLikeAScenario();
+      if (scenarioName) {
+        return `A scenario in this project is already named '${scenarioName}'. Use Add `
+          + 'Sub-scenario to include it as a step, or choose a different name.';
+      }
+    }
+    return result.error ?? fallback;
+  }
+
 
   excludeScenarioIds(): number[] {
     const ids: number[] = [];
@@ -1064,7 +1210,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       request.fail(STALE_VERSION_MESSAGE);
       return;
     }
-    request.fail(result.error ?? 'Save failed.');
+    request.fail(await this.refusalMessage(result, 'Save failed.'));
   }
 
   /** Done on the last step: the scenario is already saved, so just go to it. */
@@ -1180,7 +1326,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       this.showError(STALE_VERSION_MESSAGE);
       return;
     }
-    this.showError(result.error ?? 'Save failed.');
+    this.showError(await this.refusalMessage(result, 'Save failed.'));
     this.retryable.set(isNetworkError(result));
   }
 

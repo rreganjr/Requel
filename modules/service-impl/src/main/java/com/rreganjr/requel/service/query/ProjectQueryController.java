@@ -81,6 +81,7 @@ import com.rreganjr.requel.project.NonUserStakeholder;
 import com.rreganjr.requel.service.api.dto.ActorDto;
 import com.rreganjr.requel.service.api.dto.ScenarioDto;
 import com.rreganjr.requel.service.api.dto.StepDetailDto;
+import com.rreganjr.requel.service.api.dto.StepSummaryDto;
 import com.rreganjr.requel.service.api.dto.StepDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.annotation.Annotation;
@@ -623,6 +624,41 @@ public class ProjectQueryController {
         } catch (AuthorizationException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
+    }
+
+    /**
+     * GET /api/projects/{name}/steps — the project's plain steps, by name, with how many scenarios
+     * use each (#483). The scenario editor suggests them when a new step is named, so an existing
+     * step can be reused. Scenarios used as steps aren't listed: they have their own list.
+     */
+    @GetMapping("/{name}/steps")
+    public ResponseEntity<?> listSteps(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            Map<Long, StepSummaryDto> steps = new HashMap<>();
+            for (Scenario scenario : project.getScenarios()) {
+                for (Step step : scenario.getSteps()) {
+                    if (!Scenario.class.equals(step.getProjectOrDomainEntityInterface())) {
+                        steps.computeIfAbsent(step.getId(), id -> toStepSummaryDto(step));
+                    }
+                }
+            }
+            return ResponseEntity.ok(steps.values().stream()
+                    .sorted(Comparator.comparing(StepSummaryDto::name, String.CASE_INSENSITIVE_ORDER))
+                    .toList());
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /** #483: a plain step for the project's step list. */
+    public static StepSummaryDto toStepSummaryDto(Step step) {
+        return new StepSummaryDto(step.getId(), step.getName(), step.getText(),
+                step.getType() != null ? step.getType().name() : null,
+                step.getUsingScenarios().size());
     }
 
     /**
