@@ -25,6 +25,7 @@ import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.platform.exception.EntityException;
+import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.repository.jpa.BeanValidationException;
@@ -71,7 +72,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * - Happy path: command with no result extractor → 200 with null entity
  * - Unknown command type → 400 Bad Request
  * - AuthorizationException → 403 Forbidden
- * - OptimisticLockException → 409 Conflict
+ * - OptimisticLockException / StaleVersionException → 409 STALE_VERSION (#482)
  * - EntityValidationException → 422 Unprocessable Entity with violations list
  * - BeanValidationException → 422 with per-field violations
  * - EntityException (non-validation) → 409 Conflict
@@ -210,7 +211,23 @@ class CommandControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error").value("Conflict"));
+                .andExpect(jsonPath("$.error").value("STALE_VERSION"));
+    }
+
+    /**
+     * #482: a stale version is a 409 with its own code, so the editors reload only for it; a name
+     * already taken is a 409 CONFLICT, which they show as the server's message.
+     */
+    @Test
+    void staleVersionReturnsConflictCodedStaleVersion() throws Exception {
+        stubCommandThrows("EditGoal", EntityLockException.staleEntity(String.class, null,
+                EntityExceptionActionType.Updating));
+
+        mockMvc.perform(post("/api/commands/EditGoal")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("STALE_VERSION"));
     }
 
     @Test
@@ -324,7 +341,8 @@ class CommandControllerTest {
         mockMvc.perform(post("/api/commands/EditGoal")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("CONFLICT"));
     }
 
     /** #443: a project file the importer refuses is a bad request, with the reason, not a 500. */

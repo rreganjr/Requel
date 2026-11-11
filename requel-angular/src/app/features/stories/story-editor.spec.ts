@@ -360,6 +360,7 @@ describe('StoryEditorComponent', () => {
       commandServiceMock.execute.mockResolvedValue({
         success: false,
         status: 409,
+        code: 'STALE_VERSION',
         error: 'Story has been changed by another user.'
       });
 

@@ -339,6 +339,7 @@ describe('GoalEditorComponent', () => {
       commandServiceMock.execute.mockResolvedValue({
         success: false,
         status: 409,
+        code: 'STALE_VERSION',
         error: 'Goal has been changed by another user.'
       });
 
@@ -356,6 +357,7 @@ describe('GoalEditorComponent', () => {
       commandServiceMock.execute.mockResolvedValue({
         success: false,
         status: 409,
+        code: 'STALE_VERSION',
         error: 'Goal has been changed by another user.'
       });
 
@@ -364,6 +366,24 @@ describe('GoalEditorComponent', () => {
 
       expect(comp.errorMessage()).toContain('changed elsewhere');
     });
+
+    it('shows the server message for a 409 that is not a stale version, with no refetch (#482)',
+      async () => {
+        await renderExisting();
+        goalServiceMock.getGoal.mockClear();
+        commandServiceMock.execute.mockResolvedValue({
+          success: false,
+          status: 409,
+          code: 'CONFLICT',
+          error: 'The name conflicts with an existing Goal.'
+        });
+
+        comp.detailsForm.setValue({ name: 'Taken', text: '' });
+        await comp.onSave();
+
+        expect(comp.errorMessage()).toBe('The name conflicts with an existing Goal.');
+        expect(goalServiceMock.getGoal).not.toHaveBeenCalled();
+      });
 
     it('treats a non-409 failure as an ordinary error, with no refetch', async () => {
       await renderExisting();

@@ -44,7 +44,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { CommandResult } from '../../models/command';
 import { ScenarioDto, StepDto, EditStepInput } from '../../models/scenario';
 import { ScenarioService } from '../../core/scenario.service';
-import { CommandService, isNetworkError } from '../../core/command.service';
+import { CommandService, isNetworkError, isStaleVersion } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
@@ -1156,7 +1156,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
    * can retry. Returns whether it handled the result.
    */
   private async recoverFromStaleVersion(result: CommandResult<unknown>): Promise<boolean> {
-    if (result.status !== 409 || this.scenarioId == null) {
+    if (!isStaleVersion(result) || this.scenarioId == null) {
       return false;
     }
     await this.loadScenario(false);

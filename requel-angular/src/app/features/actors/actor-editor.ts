@@ -38,7 +38,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { ActorDto } from '../../models/actor';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { ActorService } from '../../core/actor.service';
-import { CommandService, isNetworkError } from '../../core/command.service';
+import { CommandService, isNetworkError, isStaleVersion } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
@@ -644,7 +644,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
    * current and the user can retry. Returns whether it handled the result.
    */
   private async recoverFromStaleVersion(result: CommandResult<unknown>): Promise<boolean> {
-    if (result.status !== 409 || this.actorId == null) {
+    if (!isStaleVersion(result) || this.actorId == null) {
       return false;
     }
     await this.loadActor(false);

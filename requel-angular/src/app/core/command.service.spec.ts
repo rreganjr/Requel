@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
-import { CommandService, isNetworkError } from './command.service';
+import { CommandService, isNetworkError, isStaleVersion } from './command.service';
 import { CommandResult } from '../models/command';
 import { EventStreamService } from './event-stream.service';
 
@@ -52,6 +52,25 @@ describe('CommandService', () => {
     expect(result.success).toBe(false);
     expect(result.error).toBe('Name already exists');
   });
+
+  it('execute() carries the error code, so a stale version is told apart from a conflict (#482)',
+    async () => {
+      const stale = service.execute('EditGoal', {});
+      httpMock.expectOne('/api/commands/EditGoal').flush(
+        { error: 'STALE_VERSION', message: 'Goal was changed', timestamp: '' },
+        { status: 409, statusText: 'Conflict' });
+      const staleResult = await stale;
+      expect(staleResult.code).toBe('STALE_VERSION');
+      expect(isStaleVersion(staleResult)).toBe(true);
+
+      const taken = service.execute('EditGoal', {});
+      httpMock.expectOne('/api/commands/EditGoal').flush(
+        { error: 'CONFLICT', message: 'The name conflicts with an existing Goal', timestamp: '' },
+        { status: 409, statusText: 'Conflict' });
+      const takenResult = await taken;
+      expect(isStaleVersion(takenResult)).toBe(false);
+      expect(takenResult.error).toBe('The name conflicts with an existing Goal');
+    });
 
   it('execute() wraps plain ErrorResponse into CommandResult on HTTP error', async () => {
     const promise = service.execute('EditGoal', {});

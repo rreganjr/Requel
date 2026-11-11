@@ -33,6 +33,12 @@ export interface CommandResult<T = unknown> {
    * no status to report.
    */
   status?: number;
+  /**
+   * The error code of a failed command, from the server's error body (`STALE_VERSION`,
+   * `CONFLICT`, `NOT_FOUND`, ...). A 409 is a stale version only when this is `STALE_VERSION`
+   * (#482); every other 409 is a refusal whose `error` says why. See `isStaleVersion`.
+   */
+  code?: string;
 }
 
 export interface FieldViolation {

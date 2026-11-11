@@ -46,7 +46,7 @@ import { EntityReferenceDto } from '../../models/entity-reference';
 import { UseCaseService } from '../../core/use-case.service';
 import { ActorService } from '../../core/actor.service';
 import { ScenarioService } from '../../core/scenario.service';
-import { CommandService, isNetworkError } from '../../core/command.service';
+import { CommandService, isNetworkError, isStaleVersion } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
@@ -790,7 +790,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
    * current and the user can retry. Returns whether it handled the result.
    */
   private async recoverFromStaleVersion(result: CommandResult<unknown>): Promise<boolean> {
-    if (result.status !== 409 || this.useCaseId == null) {
+    if (!isStaleVersion(result) || this.useCaseId == null) {
       return false;
     }
     await this.loadUseCase(false);

@@ -107,7 +107,8 @@ describe('ProjectDefinitionsComponent (#264)', () => {
 
   it('says when someone else changed a definition', async () => {
     const { comp } = await render(true);
-    service['revert'].mockResolvedValue({ success: false, error: 'Conflict', status: 409 });
+    service['revert'].mockResolvedValue({ success: false, error: 'Conflict', status: 409,
+      code: 'STALE_VERSION' });
     await comp.revert(FORK);
     expect(comp.errorMessage()).toContain('Someone else changed');
     service['delete'].mockResolvedValue({ success: false, error: 'nope' });
