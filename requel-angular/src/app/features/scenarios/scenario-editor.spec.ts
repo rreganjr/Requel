@@ -267,6 +267,35 @@ describe('ScenarioEditorComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'scenarios']);
   });
 
+  it('a refused delete shows the server\'s reason, not "Validation failed" (#486)', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+    fixture.detectChanges();
+    await flush();
+    commandServiceMock.execute.mockResolvedValue({ success: false, status: 422, error: 'Validation failed',
+      violations: [{ field: 'scenarioId', message: 'validation failed: "Main" is the primary scenario of'
+        + ' use case "Borrow". Make another scenario its primary scenario, or delete the use case, first.' }] });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cs = fixture.debugElement.injector.get(ConfirmationService);
+    vi.spyOn(cs, 'confirm').mockImplementation((conf: any) => conf.accept?.());
+    comp.onDelete();
+    await flush();
+    expect(comp.errorMessage()).toBe('"Main" is the primary scenario of use case "Borrow". Make another'
+      + ' scenario its primary scenario, or delete the use case, first.');
+    expect(router.navigate).not.toHaveBeenCalledWith(['/projects', 'proj1', 'scenarios']);
+  });
+
+  it('reloads the scenario after an issue on it is resolved, e.g. a merge dropped a step (#486)', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+    fixture.detectChanges();
+    await flush();
+    scenarioServiceMock.getScenario.mockClear();
+    scenarioServiceMock.getScenario.mockResolvedValue({ ...MOCK_SCENARIO, steps: [MOCK_STEPS[0]] });
+    comp.onIssueResolved();
+    await flush();
+    expect(scenarioServiceMock.getScenario).toHaveBeenCalledTimes(1);
+    expect(comp.stepsForm.length).toBe(1);
+  });
+
   it('loadError set (driving the retryable error state) when the initial load fails', async () => {
     scenarioServiceMock.getScenario.mockRejectedValue(new Error('Network error'));
     paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));

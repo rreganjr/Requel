@@ -139,6 +139,27 @@ class DefinitionRegistryTest {
 		assertThat(registry.reviewsFor(story(), 1L)).isEmpty();
 	}
 
+	/** #486: an AI corpus analysis can run while one corpus definition is on in the project. */
+	@Test
+	void anyCorpusReviewAnswersWhetherAnAiCorpusAnalysisCanRun() {
+		String corpus = AssistantDefinition.CORPUS_REVIEW;
+		AssistantDefinition overlaps = definition("overlaps", Set.of());
+		when(store.definitionsFor(1L, corpus)).thenReturn(List.of(overlaps));
+		registry.setSettingsStore(disabling());
+		assertThat(registry.anyCorpusReview(1L)).isTrue();
+
+		registry.setSettingsStore(disabling("overlaps"));
+		assertThat(registry.anyCorpusReview(1L)).isFalse();
+		registry.setSettingsStore(disabling());
+
+		when(store.definitionsFor(1L, corpus)).thenReturn(List.of(overlaps.withEnabled(false)));
+		assertThat(registry.anyCorpusReview(1L)).isFalse();
+
+		when(store.definitionsFor(1L, corpus)).thenReturn(List.of(overlaps));
+		registry.setExecutorFactory(null);
+		assertThat(registry.anyCorpusReview(1L)).isFalse();
+	}
+
 	@Test
 	void noTaskOrNoFactoryMeansNoDefinitions() {
 		when(store.definitionsFor(1L, TASK)).thenReturn(List.of(definition("default", Set.of())));

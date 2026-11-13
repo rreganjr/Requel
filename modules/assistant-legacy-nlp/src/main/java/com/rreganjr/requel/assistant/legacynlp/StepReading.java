@@ -45,7 +45,7 @@ record StepReading(Kind kind, String verb, String subject) {
 		UNREADABLE, COMMAND, SUBJECT
 	}
 
-	private static final StepReading UNREADABLE = new StepReading(Kind.UNREADABLE, null, null);
+	static final StepReading UNREADABLE = new StepReading(Kind.UNREADABLE, null, null);
 
 	static StepReading unreadable() {
 		return UNREADABLE;
@@ -75,5 +75,55 @@ record StepReading(Kind kind, String verb, String subject) {
 			return UNREADABLE;
 		}
 		return subject(agentText.getText());
+	}
+
+	/**
+	 * Issue #486: {@code reading}, or, when the parser couldn't read {@code name}, the step's own
+	 * words: a name that starts with "the system" or one of {@code actorNames} (a leading "the",
+	 * "a" or "an" and case aside), followed by more words, reads as that subject. The parser takes
+	 * "downloads" in "Member downloads the invoice" for a noun and finds no verb, yet that is just
+	 * how a rewrite (#459) words a step, and how a person would. The longest name that fits wins.
+	 */
+	static StepReading withKnownSubjects(StepReading reading, String name,
+			java.util.Collection<String> actorNames) {
+		if (reading == null || reading.kind() != Kind.UNREADABLE || name == null) {
+			return reading;
+		}
+		String trimmed = name.trim();
+		String best = null;
+		java.util.List<String> candidates = new java.util.ArrayList<>();
+		candidates.add("the system");
+		candidates.add("system");
+		if (actorNames != null) {
+			for (String actorName : actorNames) {
+				if (actorName != null && !actorName.isBlank()) {
+					candidates.add(actorName.trim());
+				}
+			}
+		}
+		for (String candidate : candidates) {
+			String written = writtenPrefix(trimmed, candidate);
+			if (written != null && (best == null || written.length() > best.length())) {
+				best = written;
+			}
+		}
+		return best == null ? reading : subject(best);
+	}
+
+	/**
+	 * The start of {@code name} that names {@code subject} as written ("The member" for Member),
+	 * when more words follow it; otherwise null.
+	 */
+	private static String writtenPrefix(String name, String subject) {
+		for (String article : new String[] { "", "the ", "a ", "an " }) {
+			String prefix = article + subject;
+			if (name.length() > prefix.length() + 1
+					&& name.regionMatches(true, 0, prefix, 0, prefix.length())
+					&& Character.isWhitespace(name.charAt(prefix.length()))
+					&& !name.substring(prefix.length()).isBlank()) {
+				return name.substring(0, prefix.length());
+			}
+		}
+		return null;
 	}
 }

@@ -185,6 +185,21 @@ public class SimpleAssistantRegistry implements AssistantRegistry, SwitchableAss
 				disabled);
 	}
 
+	/**
+	 * Issue #486: whether any {@code CORPUS_REVIEW} definition is enabled in {@code projectId}
+	 * after its switches, whatever set kind it covers. False when an AI analysis can't run there:
+	 * no AI (no executor), or every corpus definition switched off.
+	 */
+	public boolean anyCorpusReview(Long projectId) {
+		if (definitionStore == null || executorFactory == null) {
+			return false;
+		}
+		Set<String> disabled = settingsStore == null || projectId == null ? Set.of()
+				: settingsStore.disabledAssistants(projectId);
+		return definitionStore.definitionsFor(projectId, AssistantDefinition.CORPUS_REVIEW)
+				.stream().anyMatch(d -> d.enabled() && !disabled.contains(d.key()));
+	}
+
 	private List<AssistantDefinition> definitionsFor(Object target, Long projectId,
 			String taskType, Set<String> disabled) {
 		if (definitionStore == null || executorFactory == null || taskType == null) {

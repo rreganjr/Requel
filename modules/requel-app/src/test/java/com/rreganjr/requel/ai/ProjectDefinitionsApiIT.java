@@ -198,6 +198,29 @@ public class ProjectDefinitionsApiIT extends AbstractIntegrationTestCase {
 						"description", "a")))).andExpect(status().isUnprocessableEntity());
 	}
 
+	/** #486: a definition switched off for the project is in effect for nothing. */
+	@Test
+	void aDefinitionThatIsOffIsInEffectForNothing() throws Exception {
+		String list = "/api/projects/" + projectName + "/definitions";
+		String on = "$[?(@.key == '" + BUNDLED_GOAL + "')]";
+		mockMvc.perform(get(list).header("Authorization", "Bearer " + authorToken))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath(on + ".inEffectFor[0]").exists());
+
+		command(authorToken, "EditProjectAssistantSetting", Map.of("projectName", projectName,
+				"assistantId", BUNDLED_GOAL, "enabled", false)).andExpect(status().isOk());
+		try {
+			mockMvc.perform(get(list).header("Authorization", "Bearer " + authorToken))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath(on + ".enabled").value(false))
+					.andExpect(jsonPath(on + ".inEffectFor[0]").doesNotExist());
+		} finally {
+			command(authorToken, "EditProjectAssistantSetting", Map.of("projectName",
+					projectName, "assistantId", BUNDLED_GOAL, "enabled", true))
+					.andExpect(status().isOk());
+		}
+	}
+
 	@Test
 	void aForkRecordsItsOriginAndRevertBringsTheBundledOneBack() throws Exception {
 		AssistantDefinition bundled = store.bundled().stream()

@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -44,6 +44,7 @@ import { ErrorStateComponent } from '../../shared/error-state';
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { StepDetailDto } from '../../models/scenario';
+import { ArtifactNameService } from '../../core/artifact-name.service';
 
 const STEP_TYPE_OPTIONS = [
   { label: 'Primary', value: 'Primary' },
@@ -135,7 +136,8 @@ const STEP_TYPE_OPTIONS = [
         </app-card>
 
         @if (stepId() != null) {
-          <app-annotations-section [projectName]="projectName" entityType="Step" [entityId]="stepId()" />
+          <app-annotations-section [projectName]="projectName" entityType="Step" [entityId]="stepId()"
+                                   (resolved)="onIssueResolved()" />
           <app-sources-section [projectName]="projectName" entityType="Step" [entityId]="stepId()" />
         }
       }
@@ -158,6 +160,14 @@ export class StepEditorComponent implements OnInit, DirtyCheckable {
   step = signal<StepDetailDto | null>(null);
   stepId = signal<number | null>(null);
   stepName = signal('Step');
+  /** #486: the breadcrumb and tab title follow this entity's current name (a rename, a rewrite). */
+  private readonly artifactName = inject(ArtifactNameService);
+  private readonly leafNameSync = effect(() => {
+    const name = this.stepName();
+    if (name) {
+      this.artifactName.set(name);
+    }
+  });
   usedIn = computed(() => this.step()?.usedIn ?? []);
   loading = signal(true);
   loadError = signal<string | null>(null);
@@ -265,6 +275,19 @@ export class StepEditorComponent implements OnInit, DirtyCheckable {
     });
   }
 
+
+  /**
+   * #486: an issue was resolved below; a rewrite renames this step. Reload it, keeping unsaved
+   * edits (the change events skip the session that made the change).
+   */
+  onIssueResolved(): void {
+    const id = this.stepId();
+    if (id == null) return;
+    if (this.hasUnsavedChanges()) {
+      this.announcer.announce('Resolving the issue changed this step. Your unsaved changes are preserved.');
+    }
+    void this.loadStep(id, false);
+  }
   async onSave(): Promise<void> {
     this.submitted.set(true);
     clearServerErrors(this.form);

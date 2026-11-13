@@ -65,9 +65,12 @@ const TERMINAL = ['SUCCEEDED', 'FAILED', 'SKIPPED', 'CANCELLED'];
           <p-button label="Find overlaps" icon="pi pi-sitemap" [outlined]="true" size="small"
                     [loading]="busy() && mode() === 'CANDIDATES'" [disabled]="busy()"
                     (onClick)="run('CANDIDATES')" data-testid="corpus-find-overlaps" />
-          <p-button label="Analyse with AI" icon="pi pi-bolt" [outlined]="true" size="small"
-                    [loading]="busy() && mode() === 'ANALYSIS'" [disabled]="busy()"
-                    (onClick)="run('ANALYSIS')" data-testid="corpus-analyse" />
+          @if (aiAvailable()) {
+            <!-- #486: only when an AI analysis can run here (AI on, the project allowlisted). -->
+            <p-button label="Analyse with AI" icon="pi pi-bolt" [outlined]="true" size="small"
+                      [loading]="busy() && mode() === 'ANALYSIS'" [disabled]="busy()"
+                      (onClick)="run('ANALYSIS')" data-testid="corpus-analyse" />
+          }
         </div>
       }
       @if (latest(); as run) {
@@ -116,14 +119,32 @@ export class ProjectCorpusPanelComponent implements OnChanges, OnDestroy {
   readonly status = signal('');
   readonly error = signal<string | null>(null);
   readonly mode = signal<CorpusMode>('CANDIDATES');
+  /** #486: whether an AI corpus analysis can run for this project; off until the server says. */
+  readonly aiAvailable = signal(false);
 
   private timer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private corpus: CorpusService, private goals: GoalService, private useCases: UseCaseService) {}
 
   async ngOnChanges(): Promise<void> {
+    void this.loadAiAvailability();
     await this.loadOptions();
     await this.refresh();
+  }
+
+  /** #486: asks the server whether "Analyse with AI" would run; any failure hides it. */
+  private async loadAiAvailability(): Promise<void> {
+    const projectId = this.projectId();
+    if (projectId == null) {
+      this.aiAvailable.set(false);
+      return;
+    }
+    try {
+      const availability = await this.corpus.aiAvailability(projectId);
+      this.aiAvailable.set(availability.available);
+    } catch {
+      this.aiAvailable.set(false);
+    }
   }
 
   ngOnDestroy(): void {

@@ -49,7 +49,8 @@ public final class AssistantDefinitionDtos {
 				view.taskType(), view.scope(), view.contextProviders(), view.contextBudgets(),
 				view.instructions(), vocabulary, view.localOnly(), view.source(), view.version(),
 				view.forkedFromVersion(), view.bundledVersion(), view.lockVersion(),
-				view.inEffectFor(), enabled);
+				// #486: a definition switched off for the project reviews nothing.
+				Boolean.FALSE.equals(enabled) ? List.of() : view.inEffectFor(), enabled);
 	}
 
 	/** The project author's definition as the store takes it. */

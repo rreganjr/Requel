@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
@@ -29,7 +29,7 @@ import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
-import { isNetworkError } from '../../core/command.service';
+import { isNetworkError, refusalMessage } from '../../core/command.service';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ReportGeneratorDto } from '../../models/report';
@@ -42,6 +42,7 @@ import { LoadingStateComponent } from '../../shared/loading-state';
 import { ErrorStateComponent } from '../../shared/error-state';
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
+import { ArtifactNameService } from '../../core/artifact-name.service';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -189,6 +190,14 @@ import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 export class ReportEditorComponent implements OnInit, DirtyCheckable {
   report = signal<ReportGeneratorDto | null>(null);
   reportName = signal('');
+  /** #486: the breadcrumb and tab title follow this entity's current name (a rename, a rewrite). */
+  private readonly artifactName = inject(ArtifactNameService);
+  private readonly leafNameSync = effect(() => {
+    const name = this.reportName();
+    if (name && !this.isNew()) {
+      this.artifactName.set(name);
+    }
+  });
   reportId = signal<number | null>(null);
   saving = signal(false);
   submitted = signal(false);
@@ -398,7 +407,7 @@ export class ReportEditorComponent implements OnInit, DirtyCheckable {
           this.messageService.add({ severity: 'success', summary: 'Document deleted', life: 3000 });
           this.router.navigate(['/projects', this.projectName, 'reports']);
         } else {
-          this.errorMessage.set(result.error ?? 'Delete failed.');
+          this.errorMessage.set(refusalMessage(result, 'Delete failed.'));
         }
       }
     });

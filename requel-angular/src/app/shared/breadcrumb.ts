@@ -18,9 +18,10 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Route, Router, RouterLink } from '@angular/router';
+import { ArtifactNameService } from '../core/artifact-name.service';
 import { filter, map, startWith } from 'rxjs';
 
 interface Crumb {
@@ -123,6 +124,7 @@ interface Crumb {
 })
 export class BreadcrumbComponent {
   readonly crumbs;
+  private readonly artifactName = inject(ArtifactNameService);
 
   constructor(private readonly router: Router) {
     const url$ = this.router.events.pipe(
@@ -130,8 +132,16 @@ export class BreadcrumbComponent {
       map(() => this.router.url),
       startWith(this.router.url),
     );
-    this.crumbs = toSignal(url$.pipe(map(url => this.build(url))), {
-      initialValue: this.build(this.router.url),
+    const url = toSignal(url$, { initialValue: this.router.url });
+    // #486: the last crumb follows the editor's current name, so a rename shows here too.
+    this.crumbs = computed(() => {
+      const current = url();
+      const crumbs = this.build(current);
+      const name = this.artifactName.nameFor(current);
+      if (name && crumbs.length) {
+        crumbs[crumbs.length - 1] = { ...crumbs[crumbs.length - 1], label: name };
+      }
+      return crumbs;
     });
   }
 

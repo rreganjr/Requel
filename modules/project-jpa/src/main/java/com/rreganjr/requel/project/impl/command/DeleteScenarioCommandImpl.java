@@ -110,9 +110,10 @@ public class DeleteScenarioCommandImpl extends AbstractDeleteProjectEntityComman
 		List<UseCase> primaryOf = getProjectRepository().findUseCasesWithPrimaryScenario(scenario);
 		if (!primaryOf.isEmpty()) {
 			throw EntityValidationException.validationFailed(Scenario.class, "scenarioId",
+					// #486: worded for a person as well as an API caller.
 					"\"" + scenario.getName() + "\" is the primary scenario of use case \""
-							+ primaryOf.get(0).getName() + "\"; make another scenario its primary"
-							+ " (SetPrimaryScenarioOnUseCase) or delete the use case first.");
+							+ primaryOf.get(0).getName() + "\". Make another scenario its primary"
+							+ " scenario, or delete the use case, first.");
 		}
 		User editedBy = getRepository().get(getEditedBy());
 		Set<Annotation> annotations = new HashSet<Annotation>(scenario.getAnnotations());

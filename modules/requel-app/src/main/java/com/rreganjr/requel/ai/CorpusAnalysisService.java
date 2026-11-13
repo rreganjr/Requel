@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.ai;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -29,7 +30,9 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.rreganjr.platform.command.AuthorizationException;
+import com.rreganjr.requel.assistant.ai.AiProperties;
 import com.rreganjr.requel.assistant.api.EntityRef;
+import com.rreganjr.requel.assistant.core.SimpleAssistantRegistry;
 import com.rreganjr.requel.assistant.core.corpus.CorpusFinderAssistant;
 import com.rreganjr.requel.assistant.core.persistence.AssistantRunReadService;
 import com.rreganjr.requel.command.AnalysisRequestDispatcher;
@@ -41,6 +44,7 @@ import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.UserStakeholder;
+import com.rreganjr.requel.service.api.dto.AiReviewAvailabilityDto;
 import com.rreganjr.requel.service.auth.CurrentUserResolver;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.impl.SystemAdminUserRole;
@@ -89,6 +93,11 @@ public class CorpusAnalysisService {
 	private final AnalysisRequestDispatcher dispatcher;
 	private final AssistantRunReadService runReadService;
 	private final TransactionTemplate readTransaction;
+	private AiProperties aiProperties;
+	private SimpleAssistantRegistry registry;
+
+	/** Issue #486: the AI corpus analysis needs a corpus definition in effect. */
+	static final String CORPUS_OFF = "AI corpus analysis is switched off for this project.";
 
 	@Autowired
 	public CorpusAnalysisService(ProjectRepository projectRepository,
@@ -102,6 +111,46 @@ public class CorpusAnalysisService {
 		this.readTransaction.setReadOnly(true);
 	}
 
+	/** Issue #486: without AI properties (AI off at build time) an AI analysis can never run. */
+	@Autowired(required = false)
+	public void setAiProperties(AiProperties aiProperties) {
+		this.aiProperties = aiProperties;
+	}
+
+	/** Issue #486: which corpus definitions are in effect; without it, none is. */
+	@Autowired(required = false)
+	public void setRegistry(SimpleAssistantRegistry registry) {
+		this.registry = registry;
+	}
+
+	/**
+	 * Issue #486: whether an AI corpus analysis ({@code ANALYSIS}) of {@code projectId} can run,
+	 * and why not: AI off on the server, the project not on the allowlist, or no corpus
+	 * definition in effect after the project's switches. The project page
+	 * asks this before it shows "Analyse with AI", the way the editors ask before showing
+	 * "Review with AI" (#387). Same access check as {@link #request}.
+	 */
+	public AiReviewAvailabilityDto availability(Long projectId) {
+		User user = currentUserResolver.resolve();
+		readTransaction.execute(status -> root(projectId, "PROJECT", null, user));
+		String reason = analysisUnavailableReason(projectId);
+		return new AiReviewAvailabilityDto(reason == null, reason);
+	}
+
+	private String analysisUnavailableReason(Long projectId) {
+		if (aiProperties == null || !aiProperties.isEnabled()) {
+			return AiReviewService.AI_OFF;
+		}
+		List<String> allowlist = aiProperties.getProjectAllowlist();
+		if (allowlist != null && !allowlist.isEmpty() && !allowlist.contains(String.valueOf(projectId))) {
+			return AiReviewService.NOT_ALLOWLISTED;
+		}
+		if (registry == null || !registry.anyCorpusReview(projectId)) {
+			return CORPUS_OFF;
+		}
+		return null;
+	}
+
 	/**
 	 * Dispatch a corpus run over the set {@code set} ({@code PROJECT}, {@code GOAL} or
 	 * {@code USE_CASE}; the latter two with {@code rootId}) of {@code projectId}.
@@ -111,11 +160,19 @@ public class CorpusAnalysisService {
 	 * @throws com.rreganjr.platform.exception.NoSuchEntityException if the project or root does
 	 *             not exist
 	 * @throws AuthorizationException without access to the project
+	 * @throws AiReviewUnavailableException for an AI analysis that can't run (#486)
 	 */
 	public void request(Long projectId, String set, Long rootId, String mode) {
 		Mode parsed = Mode.parse(mode);
 		User user = currentUserResolver.resolve();
 		EntityRef root = readTransaction.execute(status -> root(projectId, set, rootId, user));
+		if (parsed == Mode.ANALYSIS) {
+			// #486: refuse an AI analysis that can't run, rather than queue one that is skipped.
+			String reason = analysisUnavailableReason(projectId);
+			if (reason != null) {
+				throw new AiReviewUnavailableException(reason);
+			}
+		}
 		dispatcher.dispatchCorpus(root, projectId, user, parsed.taskType());
 	}
 

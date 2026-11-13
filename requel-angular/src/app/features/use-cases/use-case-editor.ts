@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
@@ -46,7 +46,7 @@ import { EntityReferenceDto } from '../../models/entity-reference';
 import { UseCaseService } from '../../core/use-case.service';
 import { ActorService } from '../../core/actor.service';
 import { ScenarioService } from '../../core/scenario.service';
-import { CommandService, isNetworkError, isStaleVersion } from '../../core/command.service';
+import { CommandService, isNetworkError, isStaleVersion, refusalMessage } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
@@ -66,6 +66,7 @@ import {
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { CommandResult } from '../../models/command';
+import { ArtifactNameService } from '../../core/artifact-name.service';
 
 
 /** Joins page-level violations that resolved to no control. */
@@ -238,6 +239,7 @@ const STALE_VERSION_MESSAGE =
         (closed)="showActorSelector = false" />
 
       <app-annotations-section
+          (resolved)="onIssueResolved()"
         [projectName]="projectName"
         entityType="UseCase"
         [entityId]="useCaseId"
@@ -441,6 +443,14 @@ const STALE_VERSION_MESSAGE =
 export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   isNew = signal(true);
   useCaseName = signal('');
+  /** #486: the breadcrumb and tab title follow this entity's current name (a rename, a rewrite). */
+  private readonly artifactName = inject(ArtifactNameService);
+  private readonly leafNameSync = effect(() => {
+    const name = this.useCaseName();
+    if (name && !this.isNew()) {
+      this.artifactName.set(name);
+    }
+  });
   useCase = signal<UseCaseDto | null>(null);
   errorMessage = signal<string | null>(null);
   retryable = signal(false);
@@ -580,6 +590,20 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     this.announcer.announce('Use case reloaded.');
   }
 
+
+  /**
+   * #486: an issue was resolved in the annotations section; its position may have changed this
+   * use case (a rewrite, a merge, a spelling fix). Reload it as for a change from another session,
+   * keeping unsaved edits.
+   */
+  onIssueResolved(): void {
+    const dirty = this.hasUnsavedChanges();
+    void this.loadUseCase(false);
+    if (dirty) {
+      this.updateAvailable.set(true);
+      this.announcer.announce('Resolving the issue changed this use case. Your unsaved changes are preserved.');
+    }
+  }
   hasUnsavedChanges(): boolean {
     return this.detailsForm.dirty;
   }
@@ -1049,7 +1073,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
           this.projectService.notifyTreeChanged();
           this.router.navigate(['/projects', this.projectName, 'use-cases']);
         } else {
-          this.showError(result.error ?? 'Delete failed.');
+          this.showError(refusalMessage(result, 'Delete failed.'));
         }
       }
     });

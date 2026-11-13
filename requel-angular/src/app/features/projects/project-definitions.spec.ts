@@ -80,6 +80,14 @@ describe('ProjectDefinitionsComponent (#264)', () => {
     expect(el.querySelector('[data-testid="definitions-risk"]')?.textContent).toContain('misleading');
   });
 
+  it('says a definition that is off is not in effect (#486)', async () => {
+    const { el } = await render(true);
+    const covers = (key: string) => el.querySelector(`[data-testid="definition-${key}"] .covers`)
+      ?.textContent?.trim();
+    expect(covers('house-style')).toBe('Off: not in effect');
+    expect(covers('ai-review-goal')).toBe('In effect for Goal');
+  });
+
   it('offers customize, revert or delete according to the source', async () => {
     const { el } = await render(true);
     expect(el.querySelector('[data-testid="definition-fork-ai-review-goal"]')).not.toBeNull();
