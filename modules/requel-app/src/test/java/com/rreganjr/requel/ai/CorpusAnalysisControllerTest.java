@@ -37,6 +37,7 @@ import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.assistant.core.persistence.AssistantRunReadService;
 import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.service.api.dto.AiReviewAvailabilityDto;
 import com.rreganjr.requel.service.api.dto.AiReviewDto;
 import com.rreganjr.requel.service.api.dto.ErrorResponse;
 
@@ -90,5 +91,23 @@ class CorpusAnalysisControllerTest {
 				.badRequest(new IllegalArgumentException("Unknown corpus set: X"));
 		assertThat(bad.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 		assertThat(bad.getBody().error()).isEqualTo("BAD_REQUEST");
+	}
+
+	/** #486: an AI analysis that can't run is a 409 naming why; availability says so up front. */
+	@Test
+	void anUnavailableAnalysisIsAConflictAndAvailabilityIsReported() {
+		ResponseEntity<ErrorResponse> conflict = controller
+				.unavailable(new AiReviewUnavailableException(AiReviewService.AI_OFF));
+		assertThat(conflict.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+		assertThat(conflict.getBody().error()).isEqualTo(AiReviewUnavailableException.CODE);
+		assertThat(conflict.getBody().message()).isEqualTo(AiReviewService.AI_OFF);
+
+		when(service.availability(7L))
+				.thenReturn(new AiReviewAvailabilityDto(false, AiReviewService.AI_OFF));
+		ResponseEntity<AiReviewAvailabilityDto> availability = controller.availability(7L);
+		assertThat(availability.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(availability.getBody().available()).isFalse();
+		when(service.availability(8L)).thenThrow(NoSuchEntityException.byQuery(Project.class, "id", 8L));
+		assertThat(controller.availability(8L).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
 	}
 }

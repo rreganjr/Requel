@@ -65,7 +65,7 @@ import com.rreganjr.requel.project.command.AnalysisRequestSource;
  * primary actor) is unknown and breaks the sequence: no pair is checked across it.
  * <p>
  * #472: each same-actor or two-system pair that can be merged into one step gets a position that
- * does it ("Merge into ..."), before "Do nothing.".
+ * does it ("Merge into ..."), before "Leave the steps as they are." (#486).
  *
  * <p>
  * A separate assistant from {@link StepStructureAssistant}: stale findings are reconciled per
@@ -85,7 +85,11 @@ public class StepSequenceAssistant implements RequelAssistant<Scenario> {
 	public static final String TASK_TYPE = AnalysisRequestSource.STEP_SEQUENCE_TASK;
 	static final String FINDING_TYPE = "step-sequence";
 
-	private static final String DO_NOTHING_MSG = "Do nothing.";
+	/**
+	 * #486: the sequence check's own wording. Positions are shared by their text in a project, so
+	 * a plain "Do nothing." was the one the step-structure check created, and showed its credit.
+	 */
+	static final String DO_NOTHING_MSG = "Leave the steps as they are.";
 	static final String ISSUE_MSG = "The steps of \"{0}\" don''t alternate between an actor and the"
 			+ " system: {1}. An actor acts and the system responds: add the step that''s missing, or"
 			+ " combine two steps by the same actor unless something outside the system happens"
@@ -260,7 +264,10 @@ public class StepSequenceAssistant implements RequelAssistant<Scenario> {
 
 	private StepReading readingOf(Step step) {
 		String name = step.getName();
-		return name == null || name.isBlank() ? null : reader.apply(name);
+		// #486: the parser's reading, or the step's own words when it can't read them.
+		return name == null || name.isBlank() ? null
+				: StepReading.withKnownSubjects(reader.apply(name), name,
+						StepStructureAssistant.actorNames(step));
 	}
 
 	private Turn turnOf(Step step, StepReading reading, PrimaryActor primary) {

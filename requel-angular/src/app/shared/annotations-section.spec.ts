@@ -502,6 +502,17 @@ describe('AnnotationsSectionComponent (method coverage)', () => {
     expect(annotationServiceMock.getAnnotations).toHaveBeenCalledTimes(2);
   });
 
+  it('resolveIssue() tells the host editor, and only when it worked (#486)', async () => {
+    const resolved = vi.fn();
+    comp.resolved.subscribe(resolved);
+    await comp.resolveIssue(MOCK_ISSUE, MOCK_POSITION);
+    expect(resolved).toHaveBeenCalledTimes(1);
+
+    annotationServiceMock.resolveIssue.mockResolvedValue({ success: false, error: 'Stale.' });
+    await comp.resolveIssue(MOCK_ISSUE, MOCK_POSITION);
+    expect(resolved).toHaveBeenCalledTimes(1);
+  });
+
   it('supportTone() maps support levels to app-tag tones', () => {
     expect(comp.supportTone('For')).toBe('success');
     expect(comp.supportTone('StronglyFor')).toBe('success');

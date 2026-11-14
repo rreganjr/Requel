@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
-import { CommandService, isNetworkError, isStaleVersion } from './command.service';
+import { CommandService, isNetworkError, isStaleVersion, refusalMessage } from './command.service';
 import { CommandResult } from '../models/command';
 import { EventStreamService } from './event-stream.service';
 
@@ -134,6 +134,24 @@ describe('CommandService', () => {
       expect(isNetworkError({
         success: true, entityType: 'X', entity: {}, error: null, violations: null,
       })).toBe(false);
+    });
+  });
+
+  describe('refusalMessage (#486)', () => {
+    it('shows field-less violations in place of the generic "Validation failed"', () => {
+      expect(refusalMessage({ success: false, entityType: 'DeleteScenario', entity: null,
+        error: 'Validation failed', violations: [
+          { field: 'scenarioId', message: 'validation failed: "Main" is the primary scenario.' },
+          { field: null, message: 'Another reason.' }] }, 'Delete failed.'))
+        .toBe('"Main" is the primary scenario. Another reason.');
+    });
+
+    it('keeps a specific error, and falls back when there is nothing', () => {
+      expect(refusalMessage({ success: false, entityType: 'X', entity: null,
+        error: 'You do not have permission.', violations: [{ field: 'a', message: 'b' }] }, 'Delete failed.'))
+        .toBe('You do not have permission.');
+      expect(refusalMessage({ success: false, entityType: 'X', entity: null, error: null,
+        violations: null }, 'Delete failed.')).toBe('Delete failed.');
     });
   });
 });

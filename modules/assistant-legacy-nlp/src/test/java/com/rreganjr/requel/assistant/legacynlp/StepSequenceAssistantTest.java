@@ -118,7 +118,7 @@ class StepSequenceAssistantTest {
 				+ " and the system responds: add the step that's missing, or combine two steps by"
 				+ " the same actor unless something outside the system happens between them.");
 		assertThat(positions(actions)).containsExactly(
-				"Merge into \"The system records the loan and prints a slip\".", "Do nothing.");
+				"Merge into \"The system records the loan and prints a slip\".", "Leave the steps as they are.");
 		assertThat(actions.get(2).parentActionKey()).isEqualTo(issue.actionKey());
 	}
 
@@ -248,7 +248,7 @@ class StepSequenceAssistantTest {
 		assertThat(positions(actions)).containsExactly(
 				"Merge into \"Member fills in the form and submits it\".",
 				"Merge into \"The system records the request and emails the clerk\".",
-				"Do nothing.");
+				"Leave the steps as they are.");
 		assertThat(actions.get(0).text()).contains(": it starts with the system step \"The system"
 				+ " shows the form\"; \"Member fills in the form\" and \"Member submits it\" are both"
 				+ " by Member, with nothing from the system between them; \"The system records the"
@@ -298,7 +298,7 @@ class StepSequenceAssistantTest {
 				.containsEntry("proposedName", "Member fills in the form and submits it")
 				.containsEntry("expectedName", "Member fills in the form")
 				.containsEntry("expectedSecondName", "The member submits it");
-		assertThat(actions.get(2).text()).isEqualTo("Do nothing.");
+		assertThat(actions.get(2).text()).isEqualTo("Leave the steps as they are.");
 	}
 
 	@Test
@@ -309,7 +309,7 @@ class StepSequenceAssistantTest {
 
 		assertThat(positions(analyze("Member fills in the form.", "Submit the form")))
 				.containsExactly("Merge into \"Member fills in the form and submits the form\".",
-						"Do nothing.");
+						"Leave the steps as they are.");
 	}
 
 	@Test
@@ -319,7 +319,7 @@ class StepSequenceAssistantTest {
 		actorStep("Member submits it", "Member");
 
 		assertThat(positions(analyze("Fill in the form", "Member submits it")))
-				.containsExactly("Do nothing.");
+				.containsExactly("Leave the steps as they are.");
 	}
 
 	@Test
@@ -328,7 +328,7 @@ class StepSequenceAssistantTest {
 		actorStep("Then the member submits it", "the member");
 
 		assertThat(positions(analyze("Member fills in the form", "Then the member submits it")))
-				.containsExactly("Do nothing.");
+				.containsExactly("Leave the steps as they are.");
 	}
 
 	@Test
@@ -340,7 +340,7 @@ class StepSequenceAssistantTest {
 
 		assertThat(positions(assistant.analyze(context(),
 				scenario(List.of(fills, step("Member submits it")))).annotationActions()))
-				.containsExactly("Do nothing.");
+				.containsExactly("Leave the steps as they are.");
 	}
 
 	@Test
@@ -353,7 +353,7 @@ class StepSequenceAssistantTest {
 
 		assertThat(positions(assistant.analyze(context(),
 				scenario(List.of(step("The system shows the account"), renew)))
-				.annotationActions())).containsExactly("Do nothing.");
+				.annotationActions())).containsExactly("Leave the steps as they are.");
 	}
 
 	@Test
@@ -362,7 +362,7 @@ class StepSequenceAssistantTest {
 		actorStep(longer, "Member");
 		actorStep("Member submits it", "Member");
 
-		assertThat(positions(analyze(longer, "Member submits it"))).containsExactly("Do nothing.");
+		assertThat(positions(analyze(longer, "Member submits it"))).containsExactly("Leave the steps as they are.");
 	}
 
 	@Test
@@ -371,7 +371,7 @@ class StepSequenceAssistantTest {
 		actorStep("Member fills in the form", "Member");
 
 		assertThat(positions(analyze("The system shows the form", "Member fills in the form")))
-				.containsExactly("Do nothing.");
+				.containsExactly("Leave the steps as they are.");
 	}
 
 	/** #472: the same breaks keep their key; different ones get another. */

@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, Input, OnChanges, SimpleChanges, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, OnChanges, SimpleChanges, signal, computed, ChangeDetectionStrategy, output } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormGroup, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -394,6 +394,12 @@ const SUBJECT_LABELS: Record<string, string> = { UseCase: 'Use case', GlossaryTe
 export class AnnotationsSectionComponent implements OnChanges {
   @Input() projectName = '';
   @Input() entityType = '';
+  /**
+   * #486: an issue on the entity was resolved. A position can change the entity itself (a
+   * rewrite renames it, a merge drops a step, a spelling fix edits its text), and the change
+   * events skip the session that made it, so the editor hosting this section reloads on this.
+   */
+  readonly resolved = output<void>();
   @Input() entityId: number | null = null;
 
   /** #266: the other entities a relationship issue is on (not the one this section shows). */
@@ -731,6 +737,7 @@ export class AnnotationsSectionComponent implements OnChanges {
     if (result.success) {
       this.messageService.add({ severity: 'success', summary: 'Issue resolved', life: 3000 });
       await this.load();
+      this.resolved.emit();
     } else {
       this._actionError.set(result.error ?? 'Failed to resolve issue.');
     }

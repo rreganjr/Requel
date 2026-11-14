@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgTemplateOutlet } from '@angular/common';
 import { PageHeaderComponent } from '../../shared/page-header';
@@ -39,7 +39,7 @@ import { CommandResult } from '../../models/command';
 import { GoalDto, GoalRelationDto, GoalRelationTypeDto } from '../../models/goal';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { GoalService } from '../../core/goal.service';
-import { CommandService, isNetworkError, isStaleVersion } from '../../core/command.service';
+import { CommandService, isNetworkError, isStaleVersion, refusalMessage } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
@@ -59,6 +59,7 @@ import {
   WizardCommitRequest,
 } from '../../shared/app-form-wizard';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
+import { ArtifactNameService } from '../../core/artifact-name.service';
 
 /** Wording for the stale-version recovery path, so the 409 case reads as recoverable. */
 const STALE_VERSION_MESSAGE =
@@ -194,6 +195,7 @@ const STALE_VERSION_MESSAGE =
       -->
       @if (goalId != null) {
         <app-annotations-section
+          (resolved)="onIssueResolved()"
           [projectName]="projectName"
           entityType="Goal"
           [entityId]="goalId"
@@ -332,6 +334,14 @@ const STALE_VERSION_MESSAGE =
 export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   isNew = signal(true);
   goalName = signal('');
+  /** #486: the breadcrumb and tab title follow this entity's current name (a rename, a rewrite). */
+  private readonly artifactName = inject(ArtifactNameService);
+  private readonly leafNameSync = effect(() => {
+    const name = this.goalName();
+    if (name && !this.isNew()) {
+      this.artifactName.set(name);
+    }
+  });
   goal = signal<GoalDto | null>(null);
   errorMessage = signal<string | null>(null);
   retryable = signal(false);
@@ -503,6 +513,20 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     return this.relationType(value)?.description ?? '';
   }
 
+
+  /**
+   * #486: an issue was resolved in the annotations section; its position may have changed this
+   * goal (a rewrite, a merge, a spelling fix). Reload it as for a change from another session,
+   * keeping unsaved edits.
+   */
+  onIssueResolved(): void {
+    const dirty = this.hasUnsavedChanges();
+    void this.loadGoal(false);
+    if (dirty) {
+      this.updateAvailable.set(true);
+      this.announcer.announce('Resolving the issue changed this goal. Your unsaved changes are preserved.');
+    }
+  }
   hasUnsavedChanges(): boolean {
     return this.detailsForm.dirty;
   }
@@ -780,7 +804,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
           this.detailsForm.markAsPristine();
           this.router.navigate(['/projects', this.projectName, 'goals']);
         } else {
-          this.showError(result.error ?? 'Delete failed.');
+          this.showError(refusalMessage(result, 'Delete failed.'));
         }
       }
     });

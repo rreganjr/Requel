@@ -164,7 +164,8 @@ public class StepStructureAssistant implements RequelAssistant<Step> {
 			return;
 		}
 		boolean scenario = Scenario.class.equals(step.getProjectOrDomainEntityInterface());
-		StepReading reading = StepReading.read(nlpProcessorFactory, name);
+		StepReading reading = StepReading.withKnownSubjects(
+				StepReading.read(nlpProcessorFactory, name), name, actorNames(step));
 		if (reading.kind() == StepReading.Kind.UNREADABLE) {
 			emitAdvisoryIssue(builder, targetRef, "unreadable", MessageFormat.format(
 					scenario ? UNREADABLE_SCENARIO_MSG : UNREADABLE_STEP_MSG, name), name);
@@ -202,6 +203,15 @@ public class StepStructureAssistant implements RequelAssistant<Step> {
 		emitGeneralIssue(builder, targetRef, key,
 				MessageFormat.format(SUBJECT_DOESNT_MATCH_ACTOR_MSG, subject), "subject-not-actor",
 				subject);
+	}
+
+	/** #486: the names of the project's actors, for {@link StepReading#withKnownSubjects}. */
+	static List<String> actorNames(Step step) {
+		if (step.getProjectOrDomain() == null) {
+			return List.of();
+		}
+		return step.getProjectOrDomain().getActors().stream().map(Actor::getName)
+				.filter(java.util.Objects::nonNull).toList();
 	}
 
 	/**

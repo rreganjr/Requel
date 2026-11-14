@@ -23,6 +23,7 @@ function run(over: Partial<CorpusRunDto> = {}): CorpusRunDto {
 describe('ProjectCorpusPanelComponent (#266)', () => {
   let latest: ReturnType<typeof vi.fn>;
   let request: ReturnType<typeof vi.fn>;
+  let aiAvailability: ReturnType<typeof vi.fn>;
   const flush = () => new Promise(r => setTimeout(r, 0));
 
   async function render(canAnalyze: boolean) {
@@ -30,7 +31,7 @@ describe('ProjectCorpusPanelComponent (#266)', () => {
       imports: [ProjectCorpusPanelComponent],
       providers: [
         provideNoopAnimations(),
-        { provide: CorpusService, useValue: { latest, request } },
+        { provide: CorpusService, useValue: { latest, request, aiAvailability } },
         { provide: GoalService, useValue: { listGoals: vi.fn().mockResolvedValue([{ id: 3, name: 'Two-week loans' }]) } },
         { provide: UseCaseService, useValue: { listUseCases: vi.fn().mockResolvedValue([{ id: 9, name: 'Renew a loan' }]) } },
       ],
@@ -50,6 +51,22 @@ describe('ProjectCorpusPanelComponent (#266)', () => {
   beforeEach(() => {
     latest = vi.fn().mockResolvedValue(null);
     request = vi.fn().mockResolvedValue(undefined);
+    aiAvailability = vi.fn().mockResolvedValue({ available: true, reason: null });
+  });
+
+  it('shows Analyse with AI only when the server says an AI analysis can run (#486)', async () => {
+    aiAvailability.mockResolvedValue({ available: false, reason: 'AI review is off on this server.' });
+    const off = await render(true);
+    const el = off.nativeElement as HTMLElement;
+    expect(aiAvailability).toHaveBeenCalledWith(1);
+    expect(el.querySelector('[data-testid="corpus-analyse"]')).toBeNull();
+    expect(el.querySelector('[data-testid="corpus-find-overlaps"]')).not.toBeNull();
+  });
+
+  it('hides Analyse with AI when the availability check fails (#486)', async () => {
+    aiAvailability.mockRejectedValue(new Error('500'));
+    const failed = await render(true);
+    expect((failed.nativeElement as HTMLElement).querySelector('[data-testid="corpus-analyse"]')).toBeNull();
   });
 
   it('offers the whole project, each goal and each use case as a set', async () => {

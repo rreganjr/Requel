@@ -39,6 +39,7 @@ import org.hibernate.Hibernate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -89,6 +90,9 @@ public class StepSequenceAssistantIT extends AbstractLexicalAssistantTest {
 	@Autowired
 	private AnalysisRequestDispatcher analysisRequestDispatcher;
 
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
+
 	private Project project;
 
 	@BeforeEach
@@ -118,7 +122,7 @@ public class StepSequenceAssistantIT extends AbstractLexicalAssistantTest {
 		assertTrue(issue.text().contains("\"" + SYSTEM_SAVES + "\" and \"" + SYSTEM_EMAILS
 				+ "\" are both system steps"), issue.text());
 		assertEquals(List.of("Merge into \"The system saves the recording and sends the recording"
-				+ " to the host\".", "Do nothing."), positions(actions));
+				+ " to the host\".", "Leave the steps as they are."), positions(actions));
 	}
 
 	@Test
@@ -149,6 +153,36 @@ public class StepSequenceAssistantIT extends AbstractLexicalAssistantTest {
 		Issue again = openSequenceIssue(scenario.getId());
 		assertEquals(first.getId(), again.getId());
 		assertEquals(1, sequenceIssues(scenario.getId()).size());
+	}
+
+	/**
+	 * #486: rc5 sequence issues took the step-structure check's "Do nothing." (positions are
+	 * shared by text). A re-run takes a shared position it no longer offers off its issue, and
+	 * leaves it on the other issue. The shared position is manufactured natively: another
+	 * scenario's merge linked to this scenario's issue.
+	 */
+	@Test
+	void aReRunTakesASharedPositionItNoLongerOffersOffItsIssueOnly() throws Exception {
+		Scenario scenario = newScenario(List.of(HOST_STARTS, SYSTEM_SAVES, SYSTEM_EMAILS));
+		Scenario other = newScenario(List.of("The host joins the livestream",
+				"The system saves the chat", "The system sends the chat to the host"));
+		runQueued(scenario, null);
+		runQueued(other, null);
+		Issue issue = openSequenceIssue(scenario.getId());
+		Issue otherIssue = openSequenceIssue(other.getId());
+		java.util.Set<String> offered = positionTexts(issue);
+		Position shared = otherIssue.getPositions().stream()
+				.filter(position -> !offered.contains(position.getText())).findFirst()
+				.orElseThrow();
+		jdbcTemplate.update("insert into position_issue (position_id, issue_id) values (?, ?)",
+				shared.getId(), issue.getId());
+		assertTrue(positionTexts(openSequenceIssue(scenario.getId())).contains(shared.getText()));
+
+		runPostEdit(scenario);
+
+		assertEquals(offered, positionTexts(openSequenceIssue(scenario.getId())));
+		assertTrue(positionTexts(openSequenceIssue(other.getId())).contains(shared.getText()),
+				"the other issue keeps it");
 	}
 
 	/** Creating a scenario queues no step-sequence re-check: its own analysis covers it. */
@@ -219,7 +253,7 @@ public class StepSequenceAssistantIT extends AbstractLexicalAssistantTest {
 		Scenario scenario = newScenario(List.of(HOST_STARTS, HOST_SHARES, SYSTEM_SHOWS));
 		runQueued(scenario, null);
 		Issue issue = openSequenceIssue(scenario.getId());
-		assertEquals(java.util.Set.of(MERGE, "Do nothing."), positionTexts(issue));
+		assertEquals(java.util.Set.of(MERGE, "Leave the steps as they are."), positionTexts(issue));
 		Long sharesId = stepNamed(scenario, HOST_SHARES).getId();
 
 		resolve(issue, positionWithText(issue, MERGE), null, projectUser());
@@ -297,7 +331,7 @@ public class StepSequenceAssistantIT extends AbstractLexicalAssistantTest {
 
 		runQueued(scenario, null);
 
-		assertEquals(java.util.Set.of("Do nothing."),
+		assertEquals(java.util.Set.of("Leave the steps as they are."),
 				positionTexts(openSequenceIssue(scenario.getId())));
 	}
 

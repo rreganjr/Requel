@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.annotation.command;
 
+import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Position;
 import com.rreganjr.platform.command.EditCommand;
 
@@ -36,4 +37,13 @@ public interface DeletePositionCommand extends EditCommand {
 	 * @param position
 	 */
 	public void setPosition(Position position);
+
+	/**
+	 * Issue #486: the issue the position is being deleted from. A position is shared by its text
+	 * (one position can answer several issues); when it is also on other issues it is only taken
+	 * off this one and stays on the others. Without it, the position is deleted from every issue.
+	 *
+	 * @param issue
+	 */
+	public void setIssue(Issue issue);
 }

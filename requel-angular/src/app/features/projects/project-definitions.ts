@@ -82,7 +82,9 @@ import {
                     </span>
                   }
                   <div class="covers">
-                    {{ d.inEffectFor.length > 0 ? 'In effect for ' + d.inEffectFor.join(', ')
+                    <!-- #486: a definition that is off reviews nothing. -->
+                    {{ d.enabled === false ? 'Off: not in effect'
+                       : d.inEffectFor.length > 0 ? 'In effect for ' + d.inEffectFor.join(', ')
                        : 'Not in effect: other definitions cover its types' }}
                   </div>
                 </div>

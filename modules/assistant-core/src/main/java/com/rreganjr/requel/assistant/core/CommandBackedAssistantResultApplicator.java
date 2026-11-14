@@ -956,7 +956,8 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	 * Issue #459: the positions an issue had that this run, re-reporting the issue, no longer
 	 * offered are deleted - a rewrite for an actor that no longer applies, or a suggestion that
 	 * dropped out. Only for an open issue the run gave at least one position, and only positions
-	 * the assistant wrote, with no argument by anyone else, on no other issue. Positions carry no
+	 * the assistant wrote, with no argument by anyone else. One that is also on another issue
+	 * (positions are shared by text, #486) is taken off this issue only. Positions carry no
 	 * action key, so "not offered" is "not among the positions this run applied to the issue".
 	 */
 	private void prunePositionsNotReported(AssistantResult result,
@@ -979,12 +980,13 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 				continue;
 			}
 			for (Position position : new ArrayList<Position>(issue.getPositions())) {
-				if (entry.getValue().contains(position.getId()) || !isAssistantOnly(position)
-						|| position.getIssues().size() > 1) {
+				if (entry.getValue().contains(position.getId()) || !isAssistantOnly(position)) {
 					continue;
 				}
 				DeletePositionCommand command = annotationCommandFactory.newDeletePositionCommand();
 				command.setPosition(position);
+				// #486: one shared by text with other issues only leaves this one
+				command.setIssue(issue);
 				command.setEditedBy(editedBy);
 				try {
 					commandHandler.execute(command);

@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -32,7 +32,7 @@ import { TableModule } from 'primeng/table';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { UpdateBannerComponent } from '../../shared/app-update-banner';
 import { AnnouncerService } from '../../core/announcer.service';
-import { isNetworkError } from '../../core/command.service';
+import { isNetworkError, refusalMessage } from '../../core/command.service';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { GlossaryTermDto, ReplaceTermTextResultDto, SynonymUseDto } from '../../models/term';
@@ -50,6 +50,7 @@ import { LoadingStateComponent } from '../../shared/loading-state';
 import { ErrorStateComponent } from '../../shared/error-state';
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
+import { ArtifactNameService } from '../../core/artifact-name.service';
 
 
 /**
@@ -295,6 +296,7 @@ const SEPARATOR = '; ';
 
         <!-- Annotations -->
         <app-annotations-section
+          (resolved)="onIssueResolved()"
           [projectName]="projectName"
           entityType="GlossaryTerm"
           [entityId]="termId()"
@@ -331,6 +333,14 @@ const SEPARATOR = '; ';
 export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   term = signal<GlossaryTermDto | null>(null);
   termName = signal('');
+  /** #486: the breadcrumb and tab title follow this entity's current name (a rename, a rewrite). */
+  private readonly artifactName = inject(ArtifactNameService);
+  private readonly leafNameSync = effect(() => {
+    const name = this.termName();
+    if (name && !this.isNew()) {
+      this.artifactName.set(name);
+    }
+  });
   termId = signal<number | null>(null);
   saving = signal(false);
   submitted = signal(false);
@@ -444,6 +454,22 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     this.announcer.announce('Term reloaded.');
   }
 
+
+  /**
+   * #486: an issue was resolved in the annotations section; its position may have changed this
+   * term (a rewrite, a merge, a spelling fix). Reload it as for a change from another session,
+   * keeping unsaved edits.
+   */
+  onIssueResolved(): void {
+    const id = this.termId();
+    if (id == null) return;
+    const dirty = this.hasUnsavedChanges();
+    void this.loadTerm(id, false);
+    if (dirty) {
+      this.updateAvailable.set(true);
+      this.announcer.announce('Resolving the issue changed this term. Your unsaved changes are preserved.');
+    }
+  }
   hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
@@ -622,7 +648,7 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
           this.messageService.add({ severity: 'success', summary: 'Term deleted', life: 3000 });
           this.router.navigate(['/projects', this.projectName, 'terms']);
         } else {
-          this.errorMessage.set(result.error ?? 'Delete failed.');
+          this.errorMessage.set(refusalMessage(result, 'Delete failed.'));
         }
       }
     });

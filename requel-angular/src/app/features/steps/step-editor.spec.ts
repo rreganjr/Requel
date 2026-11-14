@@ -121,6 +121,17 @@ describe('StepEditorComponent (#476)', () => {
     expect((el.querySelector('[data-testid="step-name"]') as HTMLInputElement).readOnly).toBe(true);
   });
 
+  it('reloads the step after an issue on it is resolved, e.g. a rewrite renamed it (#486)', async () => {
+    setUp();
+    await load();
+    scenarioService.getStep.mockResolvedValue({ ...STEP, version: 3, name: 'Member signs in' });
+    comp.onIssueResolved();
+    await flush();
+    expect(scenarioService.getStep).toHaveBeenCalledTimes(2);
+    expect(comp.form.controls.name.value).toBe('Member signs in');
+    expect(comp.step()?.version).toBe(3);
+  });
+
   it('Back goes to the only scenario using the step', async () => {
     setUp();
     scenarioService.getStep.mockResolvedValue({ ...STEP, usedIn: [STEP.usedIn[0]] });

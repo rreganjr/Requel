@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
+import com.rreganjr.requel.service.api.dto.AiReviewAvailabilityDto;
 import com.rreganjr.requel.service.api.dto.AiReviewDto;
 import com.rreganjr.requel.service.api.dto.ErrorResponse;
 
@@ -65,6 +66,19 @@ public class CorpusAnalysisController {
 		}
 	}
 
+	/**
+	 * Issue #486: {@code GET /api/ai/corpus/availability?projectId=} - whether an AI corpus
+	 * analysis of the project can run, and why not.
+	 */
+	@GetMapping("/availability")
+	public ResponseEntity<AiReviewAvailabilityDto> availability(@RequestParam Long projectId) {
+		try {
+			return ResponseEntity.ok(service.availability(projectId));
+		} catch (NoSuchEntityException e) {
+			return ResponseEntity.notFound().build();
+		}
+	}
+
 	@GetMapping
 	public ResponseEntity<AiReviewDto> latest(@RequestParam Long projectId,
 			@RequestParam(defaultValue = "PROJECT") String set,
@@ -82,6 +96,13 @@ public class CorpusAnalysisController {
 	public ResponseEntity<ErrorResponse> forbidden(AuthorizationException e) {
 		return ResponseEntity.status(HttpStatus.FORBIDDEN)
 				.body(ErrorResponse.of("FORBIDDEN", e.getMessage()));
+	}
+
+	/** #486: an AI analysis that can't run is a 409 naming why, as an AI review's is. */
+	@ExceptionHandler(AiReviewUnavailableException.class)
+	public ResponseEntity<ErrorResponse> unavailable(AiReviewUnavailableException e) {
+		return ResponseEntity.status(HttpStatus.CONFLICT)
+				.body(ErrorResponse.of(AiReviewUnavailableException.CODE, e.getMessage()));
 	}
 
 	@ExceptionHandler(IllegalArgumentException.class)

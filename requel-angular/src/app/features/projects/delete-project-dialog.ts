@@ -25,7 +25,7 @@ import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ProjectService } from '../../core/project.service';
-import { CommandService } from '../../core/command.service';
+import { CommandService, refusalMessage } from '../../core/command.service';
 
 /** The minimal project identity the delete flow needs: a name to target and a version to lock on. */
 export interface DeleteProjectTarget {
@@ -200,7 +200,7 @@ export class DeleteProjectDialogComponent {
         this.deleted.emit();
         this.close();
       } else {
-        this.errorMessage.set(result.error ?? 'Delete failed.');
+        this.errorMessage.set(refusalMessage(result, 'Delete failed.'));
       }
     } catch (err: unknown) {
       this.errorMessage.set(err instanceof Error ? err.message : 'Delete failed.');

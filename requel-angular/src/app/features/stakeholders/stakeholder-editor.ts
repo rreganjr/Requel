@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
@@ -40,7 +40,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { StakeholderDto, StakeholderPermissionDto, StakeholderPermissionRules, UserStakeholderDetails } from '../../models/stakeholder';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { StakeholderService } from '../../core/stakeholder.service';
-import { CommandService, isNetworkError, isStaleVersion } from '../../core/command.service';
+import { CommandService, isNetworkError, isStaleVersion, refusalMessage } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
@@ -58,6 +58,7 @@ import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors'
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { CommandResult } from '../../models/command';
 import { DEFINITION_RISK } from '../../models/assistant-definition';
+import { ArtifactNameService } from '../../core/artifact-name.service';
 
 
 /** Joins page-level violations that resolved to no control. */
@@ -337,6 +338,14 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
   isNew = signal(true);
   isUserType = signal(true);
   stakeholderName = signal('');
+  /** #486: the breadcrumb and tab title follow this entity's current name (a rename, a rewrite). */
+  private readonly artifactName = inject(ArtifactNameService);
+  private readonly leafNameSync = effect(() => {
+    const name = this.stakeholderName();
+    if (name && !this.isNew()) {
+      this.artifactName.set(name);
+    }
+  });
   errorMessage = signal<string | null>(null);
   retryable = signal(false);
   /** Sets the inline submit error and, by default, marks it non-retryable. */
@@ -1078,7 +1087,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
         this.projectService.notifyTreeChanged();
         this.router.navigate(['..'], { relativeTo: this.route });
       } else {
-        this.showError(result.error ?? 'Delete failed.');
+        this.showError(refusalMessage(result, 'Delete failed.'));
       }
     } catch {
       this.showError('An unexpected error occurred.');

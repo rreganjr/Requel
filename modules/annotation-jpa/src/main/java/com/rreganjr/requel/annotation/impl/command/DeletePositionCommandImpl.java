@@ -46,6 +46,7 @@ public class DeletePositionCommandImpl extends AbstractEditCommand implements De
 		com.rreganjr.platform.command.AuthorizableCommand {
 
 	private Position position;
+	private Issue issue;
 
 	/**
 	 * @param commandHandler
@@ -71,15 +72,40 @@ public class DeletePositionCommandImpl extends AbstractEditCommand implements De
 	}
 
 	/**
+	 * @see com.rreganjr.requel.annotation.command.DeletePositionCommand#setIssue(com.rreganjr.requel.annotation.Issue)
+	 */
+	@Override
+	public void setIssue(Issue issue) {
+		this.issue = issue;
+	}
+
+	/**
 	 * @see com.rreganjr.command.Command#execute()
 	 */
 	@Override
 	public void execute() throws Exception {
 		Position position = getRepository().get(getPosition());
-		for (Issue issue : position.getIssues()) {
-			issue.getPositions().remove(position);
-			if (position.equals(issue.getResolvedByPosition())) {
-				issue.unresolve();
+		if (issue != null && position.getIssues().size() > 1) {
+			// #486: shared with other issues, so it only leaves this one. By id: a proxy and its
+			// target aren't equal both ways.
+			Long issueId = issue.getId();
+			Long positionId = position.getId();
+			for (Issue linked : position.getIssues()) {
+				if (issueId.equals(linked.getId())
+						&& position.equals(linked.getResolvedByPosition())) {
+					linked.unresolve();
+				}
+				if (issueId.equals(linked.getId())) {
+					linked.getPositions().removeIf(p -> positionId.equals(p.getId()));
+				}
+			}
+			position.getIssues().removeIf(linked -> issueId.equals(linked.getId()));
+			return;
+		}
+		for (Issue onIssue : position.getIssues()) {
+			onIssue.getPositions().remove(position);
+			if (position.equals(onIssue.getResolvedByPosition())) {
+				onIssue.unresolve();
 			}
 		}
 		Set<Argument> arguments = new HashSet<Argument>(position.getArguments());

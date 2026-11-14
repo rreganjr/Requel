@@ -127,6 +127,33 @@ public class StepStructureAssistantIT extends AbstractLexicalAssistantTest {
 				.filter("no-actor"::equals).toList());
 	}
 
+	/**
+	 * #486: the parser finds no verb in "Member downloads the invoice" ("downloads" as a noun),
+	 * but a step that starts with a known actor reads as that actor's.
+	 */
+	@Test
+	void aStepStartingWithAKnownActorReadsAsTheirsWhenTheParserCant() throws Exception {
+		newActor(project, "Member");
+		assertEquals(List.of(), findingTypes(analyzeStep("Member downloads the invoice " + stamp())));
+		assertEquals(List.of(), findingTypes(analyzeStep("The system downloads the invoice " + stamp())));
+	}
+
+	/** #486: every rewrite the check offers reads back as an actor's or the system's step. */
+	@Test
+	void everyRewriteTheCheckOffersReadsBack() throws Exception {
+		newActor(project, "Member");
+		Step step = firstStep(newUseCase("Invoices " + stamp(), "Member",
+				List.of("Download the invoice " + stamp())));
+		List<String> rewrites = rewritesOf(step);
+		assertEquals(2, rewrites.size(), rewrites.toString());
+		for (String rewrite : rewrites) {
+			String proposed = rewrite.substring("Rewrite as \"".length(), rewrite.length() - 2);
+			List<String> findings = findingTypes(analyzeStep(proposed));
+			assertTrue(findings.stream().noneMatch(f -> f.equals("unreadable") || f.equals("no-actor")
+					|| f.equals("subject-not-actor")), proposed + " -> " + findings);
+		}
+	}
+
 	@Test
 	void aStepNamingAnUnknownSubjectGetsTheMustResolveIssue() throws Exception {
 		assertEquals(List.of("subject-not-actor"),
