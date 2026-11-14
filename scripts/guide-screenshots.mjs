@@ -73,7 +73,15 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, dev
 // Not 'networkidle': the live-refresh event stream keeps a request open for good.
 async function open(route) {
   await page.goto(`${BASE}${route}`, { waitUntil: 'load' });
-  await page.locator('main').first().waitFor();
+  try {
+    await page.locator('main').first().waitFor();
+  } catch (e) {
+    // Say where the page went (a redirect to sign-in, an error page) and keep a picture of it.
+    const shot = path.join(root, 'tmp', 'guide-failure.png');
+    mkdirSync(path.dirname(shot), { recursive: true });
+    await page.screenshot({ path: shot, fullPage: true }).catch(() => {});
+    throw new Error(`${route} didn't load: the page is ${page.url()} (screenshot ${shot})`, { cause: e });
+  }
   await page.waitForTimeout(2000);  // let data, lazy panels and skeletons settle
 }
 
@@ -87,6 +95,11 @@ async function logIn({ shoot = false } = {}) {
   await page.locator('p-password input').fill(PASSWORD);
   await page.getByRole('button', { name: 'Login' }).click();
   await page.waitForURL(u => !u.pathname.endsWith('/login'));
+  if (page.url().endsWith('/change-password')) {
+    // #381: a fresh install's admin must choose a new password before anything else opens.
+    throw new Error(`${USER} must change the default password first: sign in at ${BASE}/ in a browser,`
+      + ' set a new one, then run this again with REQUEL_PASSWORD set to it');
+  }
 }
 
 await logIn({ shoot: true });
