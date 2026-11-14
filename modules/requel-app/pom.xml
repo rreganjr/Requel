@@ -500,6 +500,16 @@
             <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <!-- #489: TypedCommandsCatalogIT builds the CLI's typed subcommands from this
+                 server's real command catalog. requel-cli is published shaded, so this brings
+                 copies of its dependencies (spring-web, jackson); they are the versions this
+                 build already uses. Test scope only. -->
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>requel-cli</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
         <!-- JUnit 5 (Jupiter) is provided transitively by spring-boot-starter-test -->
         <dependency>
             <groupId>org.springframework.security</groupId>

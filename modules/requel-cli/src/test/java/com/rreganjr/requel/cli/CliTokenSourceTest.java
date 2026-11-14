@@ -110,6 +110,20 @@ class CliTokenSourceTest {
         assertThat(src.currentToken()).isEqualTo("reqpat_STORED");
     }
 
+    /**
+     * #489: `login --oauth` then `login --token` sends the token. The OAuth tokens used to stay
+     * and win, so after a password change ended them every call was 401.
+     */
+    @Test
+    void aPatSavedAfterAnOAuthLoginIsTheOneSent(@TempDir Path dir) {
+        CredentialStore store = new CredentialStore(dir);
+        store.saveOAuth(URL, new OAuthTokens("AT", "RT", "mcp", Instant.now().plusSeconds(3600)));
+        store.save(URL, "reqpat_STORED");
+
+        CliTokenSource src = new CliTokenSource(null, URL, store, noRefresh());
+        assertThat(src.currentToken()).isEqualTo("reqpat_STORED");
+    }
+
     @Test
     void returnsNullWhenNothingConfigured(@TempDir Path dir) {
         CliTokenSource src = new CliTokenSource(null, URL, new CredentialStore(dir), noRefresh());
