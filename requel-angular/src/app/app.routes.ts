@@ -25,6 +25,7 @@ import { LoginComponent } from './features/auth/login';
 import { accountRoutes } from './features/users/account.routes';
 import { adminRoutes } from './features/admin/admin.routes';
 import { projectRoutes } from './features/projects/projects.routes';
+import { ideaRoutes } from './features/ideas/ideas.routes';
 
 /**
  * Composition root (#142). Per-domain route arrays live beside their features
@@ -48,6 +49,7 @@ export const routes: Routes = [
       ...accountRoutes,
       ...adminRoutes,
       ...projectRoutes,
+      ...ideaRoutes,
     ],
   },
   { path: '**', redirectTo: '' },

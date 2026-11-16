@@ -157,6 +157,9 @@ function persistExpandedProjectNames(names: Set<string>): void {
               <a routerLink="/projects" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="sidebar-link" aria-label="List projects">
                 <i class="pi pi-list"></i> List
               </a>
+              <a routerLink="/ideas/new" routerLinkActive="active" class="sidebar-link" aria-label="Submit a new idea">
+                <i class="pi pi-lightbulb"></i> Submit idea
+              </a>
             </div>
 
             @if (loading()) {
