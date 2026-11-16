@@ -9,24 +9,24 @@ six months, and when the code changes underneath it, it gets updated. It lives i
 
 **Work artifacts** are the paper trail of a single ticket — the plan written before the
 work, the review written against a named commit, the rollup that tracked an epic. They
-are correct *as of when they were written* and are never retro-edited. A plan that says
+are correct _as of when they were written_ and are never retro-edited. A plan that says
 Spring Boot 3.3.4 is not stale; it is a record of what was true that week. These live in
 `work/<release>/`, and each release starts with an empty folder.
 
 If you are reading to find out how something works, read the first kind. If you are
-reading to find out *why* something is the way it is, read the second.
+reading to find out _why_ something is the way it is, read the second.
 
 ## Where things go
 
-| Folder | What belongs there |
-|---|---|
-| `architecture/` | How the system is built: authorization, module boundaries, the annotation registry, the import/unmarshalling strategy, the user/stakeholder model, dictionary loading. |
-| `guides/` | How to run and operate it: releases, Docker, Maven toolchains, connecting an MCP client, AI assistant setup, the agent runbook. |
-| `ui/` | The Angular layer as a system: design guide, shared components, bundle posture, zoneless readiness. |
-| `work/<release>/` | Everything tied to a ticket in that release — `<issue>-<slug>-plan.md`, reviews, rollups, issue drafts. `<release>` is the reactor version's major.minor from the root `pom.xml`. |
-| `work/backlog/` | Proposals and epics not yet scheduled to a release. When one gets an issue, it moves into that release's folder. |
-| `archive/` | Superseded records of completed work that predates this scheme, and `2009-thesis/` for the original Harvard ALM thesis material. |
-| `images/`, `samples/` | Assets. Shared by both kinds of document; they do not move. |
+| Folder                | What belongs there                                                                                                                                                                |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `architecture/`       | How the system is built: authorization, module boundaries, the annotation registry, the import/unmarshalling strategy, the user/stakeholder model, dictionary loading.            |
+| `guides/`             | How to run and operate it: releases, Docker, Maven toolchains, connecting an MCP client, AI assistant setup, the agent runbook.                                                   |
+| `ui/`                 | The Angular layer as a system: design guide, shared components, bundle posture, zoneless readiness.                                                                               |
+| `work/<release>/`     | Everything tied to a ticket in that release — `<issue>-<slug>-plan.md`, reviews, rollups, issue drafts. `<release>` is the reactor version's major.minor from the root `pom.xml`. |
+| `work/backlog/`       | Proposals and epics not yet scheduled to a release. When one gets an issue, it moves into that release's folder.                                                                  |
+| `archive/`            | Superseded records of completed work that predates this scheme, and `2009-thesis/` for the original Harvard ALM thesis material.                                                  |
+| `images/`, `samples/` | Assets. Shared by both kinds of document; they do not move.                                                                                                                       |
 
 ## Adding a document
 
@@ -68,9 +68,9 @@ intended are recorded, with a reason, in `scripts/doc-link-allow.tsv`.
 
 <!-- BEGIN INDEX -->
 
-| Folder | Contents | Files |
-|---|---|---|
-| [backlog](work/backlog/) | proposals, not yet scheduled | 7 |
-| [2.0](work/2.0/INDEX.md) | release 2.0 | 174 |
+| Folder                   | Contents                     | Files |
+| ------------------------ | ---------------------------- | ----- |
+| [backlog](work/backlog/) | proposals, not yet scheduled | 7     |
+| [2.0](work/2.0/INDEX.md) | release 2.0                  | 174   |
 
 <!-- END INDEX -->
