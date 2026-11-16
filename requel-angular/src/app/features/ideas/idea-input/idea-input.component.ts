@@ -17,6 +17,8 @@ export class IdeaInputComponent {
   submissionError: string | null = null;
   selectedFile: File | null = null;
   extractedText: string | null = null;
+  // For now, we'll assume user is PM - in a real app this would be checked against auth service
+  userIsPM = true;
 
   constructor(
     private fb: FormBuilder,
@@ -62,6 +64,11 @@ export class IdeaInputComponent {
   }
 
   async onSubmit(): Promise<void> {
+    if (!this.userIsPM) {
+      this.submissionError = 'Only Project Managers can submit ideas';
+      return;
+    }
+    
     if (this.ideaForm.invalid || this.isSubmitting) {
       this.ideaForm.markAllAsTouched();
       return;
