@@ -8,7 +8,7 @@
         <label for="projectName">Project *</label>
         <input type="text" id="projectName" formControlName="projectName"
                class="form-control" placeholder="Enter project name">
-        @if (projectName && projectName.invalid && projectName.touched) {
+        @if (projectName?.invalid && projectName?.touched) {
           <div class="error-message">Project name is required</div>
         }
       </div>
@@ -17,10 +17,10 @@
         <label for="text">Idea Description *</label>
         <textarea id="text" formControlName="text" class="form-control" rows="6"
                   placeholder="Describe your requirement idea in detail..."></textarea>
-        @if (text && text.invalid && text.touched) {
+        @if (text?.invalid && text?.touched) {
           <div class="error-message">
-            @if (text.errors && text.errors['required']) { Idea description is required }
-            @else if (text.errors && text.errors['minlength']) { Description must be at least 10 characters }
+            @if (text?.errors?.['required']) { Idea description is required }
+            @else if (text?.errors?.['minlength']) { Description must be at least 10 characters }
           </div>
         }
       </div>
