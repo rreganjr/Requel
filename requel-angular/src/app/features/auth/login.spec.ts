@@ -1,15 +1,21 @@
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { LoginComponent } from './login';
 import { AuthService } from '../../core/auth.service';
 
 describe('LoginComponent', () => {
-  let authServiceMock: { login: ReturnType<typeof vi.fn> };
+  let authServiceMock: {
+    login: ReturnType<typeof vi.fn>;
+    mustChangePassword: ReturnType<typeof vi.fn>;
+  };
   let comp: LoginComponent;
 
   beforeEach(() => {
-    authServiceMock = { login: vi.fn().mockResolvedValue(undefined) };
+    authServiceMock = {
+      login: vi.fn().mockResolvedValue(undefined),
+      mustChangePassword: vi.fn().mockReturnValue(false),
+    };
 
     TestBed.configureTestingModule({
       imports: [LoginComponent],
@@ -41,6 +47,22 @@ describe('LoginComponent', () => {
     fill('admin', 'secret');
     await comp.onLogin();
     expect(authServiceMock.login).toHaveBeenCalledWith({ username: 'admin', password: 'secret' });
+  });
+
+  it('goes to the dashboard after a normal sign-in', async () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    fill('admin', 'secret');
+    await comp.onLogin();
+    expect(navigate).toHaveBeenCalledWith(['/']);
+  });
+
+  it('goes to change-password when the user must change it (#381)', async () => {
+    authServiceMock.mustChangePassword.mockReturnValue(true);
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    fill('admin', 'admin');
+    await comp.onLogin();
+    expect(navigate).toHaveBeenCalledWith(['/change-password']);
+    expect(comp.errorMessage()).toBeNull();
   });
 
   it('clears errorMessage and sets loading=false after successful login', async () => {

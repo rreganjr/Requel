@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   - Spring config for the command handler chain (decorator pattern).
-  - Chain: Auditing → CurrentUser → RetryOnLockFailures → ExceptionMapping → Authorizing → Validating → FindingResolutionTracking → AnalysisInvoking → Default
+  - Chain: Auditing → SignInRevocation → CurrentUser → RetryOnLockFailures → ExceptionMapping → Authorizing → Validating → FindingResolutionTracking → AnalysisInvoking → Default
   -
   - Validating is INSIDE Authorizing on purpose (issue #171): a caller who may not run the
   - command gets a 403 and learns nothing about its input shape. Reversing the two means an
@@ -21,6 +21,9 @@
 
 	<!-- create these nested so that only one CommandHandler class is exposed -->
 	<bean id="commandHandler" class="com.rreganjr.requel.service.audit.AuditingCommandHandler" scope="singleton">
+		<constructor-arg index="0">
+		<!-- #446: after an admin password reset, ends that user's other sign-ins -->
+		<bean class="com.rreganjr.requel.service.command.SignInRevocationCommandHandler" scope="singleton">
 		<constructor-arg index="0">
 			<bean class="com.rreganjr.requel.service.command.CurrentUserCommandHandler" scope="singleton">
 				<constructor-arg index="0">
@@ -71,6 +74,11 @@
 					<ref bean="currentUserResolver"/>
 				</constructor-arg>
 			</bean>
+		</constructor-arg>
+		<constructor-arg index="1">
+			<ref bean="signInRevocation"/>
+		</constructor-arg>
+		</bean>
 		</constructor-arg>
 		<constructor-arg index="1">
 			<ref bean="commandAuditLogRepository"/>

@@ -34,7 +34,7 @@ describe('TermEditorComponent accessibility (issue #132)', () => {
   let fixture: any;
   let comp: TermEditorComponent;
 
-  async function render(termId = 'new'): Promise<HTMLElement> {
+  async function render(termId = 'new', term: unknown = MOCK_TERM): Promise<HTMLElement> {
     const paramMap$ = new BehaviorSubject(convertToParamMap({ name: 'proj1', termId }));
     TestBed.configureTestingModule({
       imports: [TermEditorComponent],
@@ -46,7 +46,7 @@ describe('TermEditorComponent accessibility (issue #132)', () => {
           provide: TermService,
           useValue: {
             listTerms: vi.fn().mockResolvedValue([{ id: 1, name: 'Actor', text: '' }]),
-            getTerm: vi.fn().mockResolvedValue(MOCK_TERM),
+            getTerm: vi.fn().mockResolvedValue(term),
             saveTerm: vi.fn().mockResolvedValue({ success: true, entity: MOCK_TERM }),
             deleteTerm: vi.fn().mockResolvedValue({ success: true }),
           },
@@ -87,6 +87,19 @@ describe('TermEditorComponent accessibility (issue #132)', () => {
 
   it('has no axe-core violations on the edit form', async () => {
     await expectNoAxeViolations(await render('2'), EXCLUDE);
+  });
+
+  // #348: the "Still uses an old name" panel, with links and per-row Replace buttons.
+  it('has no axe-core violations with the old-name panel showing', async () => {
+    const el = await render('2', {
+      ...MOCK_TERM, name: 'Dry-run webinar',
+      alternateTerms: [{ entityType: 'GlossaryTerm', id: 9, name: 'Dry-run event' }],
+      synonymUses: [{ synonymId: 9, synonymName: 'Dry-run event', referers: [
+        { entityType: 'Story', id: 7, name: 'Checklist' }, { entityType: 'Goal', id: 3, name: 'Rehearse' },
+      ] }],
+    });
+    expect(el.querySelector('[data-testid="term-synonym-uses-section"]')).not.toBeNull();
+    await expectNoAxeViolations(el, EXCLUDE);
   });
 
   it('has no axe-core violations with the name field in its error state', async () => {

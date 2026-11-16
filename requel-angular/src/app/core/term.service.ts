@@ -21,7 +21,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { GlossaryTermDto } from '../models/term';
+import { EntityReferenceDto } from '../models/entity-reference';
+import { GlossaryTermDto, ReplaceTermTextResultDto } from '../models/term';
 import { CommandService } from './command.service';
 import { projectApiUrl } from './api-url';
 
@@ -43,5 +44,17 @@ export class TermService {
 
   deleteTerm(projectName: string, termId: number) {
     return this.commandService.execute('DeleteGlossaryTerm', { projectName, termId });
+  }
+
+  /**
+   * #348: replace a synonym of the term with the term's name in the given referers. Each is
+   * changed through its own edit; one the caller may not edit comes back refused.
+   */
+  replaceTermText(projectName: string, termId: number, synonymId: number,
+                  referers: EntityReferenceDto[]) {
+    return this.commandService.execute<ReplaceTermTextResultDto>('ReplaceTermText', {
+      projectName, termId, synonymId,
+      referers: referers.map(r => ({ entityType: r.entityType, id: r.id })),
+    });
   }
 }

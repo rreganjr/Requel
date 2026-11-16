@@ -40,6 +40,9 @@ import com.rreganjr.requel.project.command.EditScenarioCommand;
 import com.rreganjr.requel.project.command.EditStoryCommand;
 import com.rreganjr.requel.project.command.EditUserStakeholderCommand;
 import com.rreganjr.requel.project.impl.StakeholderPermissionImpl;
+import com.rreganjr.requel.service.api.dto.GoalDto;
+import com.rreganjr.requel.service.api.dto.ScenarioDto;
+import com.rreganjr.requel.service.api.dto.StoryDto;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.command.EditUserCommand;
 import java.util.Arrays;
@@ -58,6 +61,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A null name must never reach a caller as a NullPointerException (issue #251).
@@ -151,21 +155,66 @@ public class EditNullNameIT extends AbstractIntegrationTestCase {
 
 	// ---- the gateway: a field-level validation error, not an NPE -------------------------------
 
-	/** The reported defect. This threw {@code Cannot invoke "String.trim()" because "name" is null}. */
+	/**
+	 * The reported defect threw {@code Cannot invoke "String.trim()" because "name" is null}. #316
+	 * refused the input instead; #331 accepts it: on update a missing name keeps the current one.
+	 */
 	@Test
-	void editScenarioByIdWithoutANameIsRejectedAsInvalidInput() {
+	void editScenarioByIdWithoutANameKeepsTheCurrentName() throws Exception {
+		authenticate(editorUsername);
+
+		ScenarioDto edited = (ScenarioDto) gateway.execute(new GatewayRequest("EditScenario", Map.of(
+				"projectName", projectName, "scenarioId", scenarioId,
+				"text", "edited without supplying a name"))).result();
+
+		assertEquals(scenarioName, edited.name());
+		assertEquals("edited without supplying a name", edited.text());
+	}
+
+	/** #331's AC: a text-only EditGoal over the gateway changes the text and keeps the name. */
+	@Test
+	void editGoalWithOnlyTheIdAndTextKeepsTheName() throws Exception {
+		authenticate(editorUsername);
+
+		GoalDto edited = (GoalDto) gateway.execute(new GatewayRequest("EditGoal", Map.of(
+				"projectName", projectName, "goalId", goalId, "text", "text only"))).result();
+
+		assertEquals(goalName, edited.name());
+		assertEquals("text only", edited.text());
+	}
+
+	/** #331: creating still needs a name, refused as a field error on name. */
+	@Test
+	void createWithoutANameIsRejectedAsInvalidInput() {
 		authenticate(editorUsername);
 
 		GatewayException thrown = assertThrows(GatewayException.class,
-				() -> gateway.execute(new GatewayRequest("EditScenario", Map.of(
-						"projectName", projectName, "scenarioId", scenarioId,
-						"text", "edited without supplying a name"))));
+				() -> gateway.execute(new GatewayRequest("EditGoal", Map.of(
+						"projectName", projectName, "text", "a goal with no name"))));
 
-		assertEquals(GatewayException.Kind.INVALID_INPUT, thrown.getKind(),
-				"a missing name is a caller error, not an execution failure: " + thrown);
+		assertEquals(GatewayException.Kind.INVALID_INPUT, thrown.getKind());
+		assertTrue(thrown.getMessage().contains("name"), thrown.getMessage());
 	}
 
-	/** Blank is the other half of @NotBlank, and was never covered. */
+	/** #331's AC: an EditStory update without primaryActorName keeps the primary actor. */
+	@Test
+	void editStoryWithoutAPrimaryActorKeepsIt() throws Exception {
+		authenticate(editorUsername);
+		long ts = System.nanoTime();
+		gateway.execute(new GatewayRequest("EditActor", Map.of("projectName", projectName,
+				"name", "nullname-actor-" + ts)));
+		StoryDto story = (StoryDto) gateway.execute(new GatewayRequest("EditStory", Map.of(
+				"projectName", projectName, "name", "nullname-actor-story-" + ts,
+				"storyTypeName", "Success", "primaryActorName", "nullname-actor-" + ts))).result();
+
+		StoryDto edited = (StoryDto) gateway.execute(new GatewayRequest("EditStory", Map.of(
+				"projectName", projectName, "storyId", story.id(), "text", "text only"))).result();
+
+		assertEquals("nullname-actor-" + ts, edited.primaryActorName());
+		assertEquals(story.name(), edited.name());
+	}
+
+	/** A blank name is still refused on update (#331): a name cannot be cleared. */
 	@Test
 	void editScenarioByIdWithABlankNameIsRejectedAsInvalidInput() {
 		authenticate(editorUsername);

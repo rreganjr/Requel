@@ -56,7 +56,8 @@ public class UserCommandRegistrar {
 
     @PostConstruct
     void registerCommands() {
-        registry.register("Login", factory::newLoginCommand);
+        // #448: no "Login" command here. Signing in is /api/auth/login (and the OAuth form), which
+        // apply the sign-in limits; a command would be one more unlimited password check.
 
         registry.register("EditUser", EditUserInput.class,
                 factory::newEditUserCommand,
@@ -85,6 +86,7 @@ public class UserCommandRegistrar {
                     if (i.phoneNumber() != null) c.setPhoneNumber(i.phoneNumber());
                     if (i.organizationName() != null) c.setOrganizationName(i.organizationName());
                     if (i.editable() != null) c.setEditable(i.editable());
+                    if (i.mustChangePassword() != null) c.setMustChangePassword(i.mustChangePassword());
                     if (i.userRoleNames() != null) c.setUserRoleNames(i.userRoleNames());
                     if (i.userRolePermissionNames() != null) c.setUserRolePermissionNames(i.userRolePermissionNames());
                 },

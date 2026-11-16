@@ -1,0 +1,3149 @@
+{
+  "meta": {
+    "date": "2026-11-04T05:28:27",
+    "label": "ollama/qwen3.6:27b qwen3.6-think-full #365",
+    "baseUrl": "http://localhost:8080",
+    "project": "AI Eval 20261104-024519",
+    "runsPerEntity": 1
+  },
+  "results": [
+    {
+      "entity": {
+        "type": "Goal",
+        "name": "Members love the library",
+        "expect": [
+          {
+            "id": "goal-unmeasurable",
+            "patterns": [
+              "measur",
+              "verif",
+              "testab",
+              "criteri",
+              "subjective",
+              "vague",
+              "quantif"
+            ],
+            "acceptTypes": [
+              "UNMEASURABLE",
+              "MEASURE_WITHOUT_BASELINE"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "7bfd8ec8-43da-4abc-8bd2-5c949bc5e5a6",
+          "error": null,
+          "summary": "The goal is unmeasurable due to subjective language and lacks a verifiable success condition.",
+          "findings": [
+            {
+              "findingType": "UNMEASURABLE",
+              "kind": "ISSUE",
+              "severity": "HIGH",
+              "confidence": 0.95,
+              "text": "The goal uses subjective language ('really enjoy') and provides no measurable criteria or success condition, making it impossible to verify if the goal is achieved.",
+              "state": "ACTIVE",
+              "annotationId": 7788,
+              "targetType": "Goal",
+              "targetId": 1199
+            }
+          ],
+          "latencyMs": 222382,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-goal@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "d979d79c-81ef-478e-b78b-e33a2c041475",
+            "error": null,
+            "summary": "No terminology issues found. The target uses the plural form of the glossary term 'Member', which is explicitly permitted by the policy.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "goal-unmeasurable"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Goal",
+        "name": "Send overdue reminders by text message",
+        "expect": [
+          {
+            "id": "goal-solution-not-outcome",
+            "patterns": [
+              "solution",
+              "mechanism",
+              "implementation detail",
+              "rather than (the|an) (outcome|goal|need)",
+              "underlying (need|goal|outcome)",
+              "why (the|a) (text|message)",
+              "intended outcome"
+            ],
+            "acceptTypes": [
+              "SOLUTION_NOT_OUTCOME"
+            ],
+            "types": []
+          }
+        ],
+        "alsoValid": [
+          {
+            "id": "conflicts-with-privacy",
+            "patterns": [
+              "privat",
+              "outside the library"
+            ],
+            "acceptTypes": [],
+            "types": [
+              "INCONSISTENT"
+            ]
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "167329ec-c1a6-4282-b421-a8ae11f937da",
+          "error": null,
+          "summary": "The goal prescribes a specific communication channel rather than stating the outcome it aims to achieve.",
+          "findings": [
+            {
+              "findingType": "SOLUTION_NOT_OUTCOME",
+              "kind": "ISSUE",
+              "severity": "MEDIUM",
+              "confidence": 0.9,
+              "text": "The goal specifies a delivery mechanism (text message) instead of the desired outcome (members are reminded of overdue tools). If the project later decides to use email or in-app notifications, this goal would be violated even if the intent is met.",
+              "state": "ACTIVE",
+              "annotationId": 7789,
+              "targetType": "Goal",
+              "targetId": 1203
+            }
+          ],
+          "latencyMs": 274180,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-goal@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "81caa3a7-bd10-4e18-9c3b-6717e35019f5",
+            "error": null,
+            "summary": "The target entity complies with the AI terminology policy. All glossary terms used ('member', 'overdue tool') match their canonical names and definitions.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "goal-solution-not-outcome"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Goal",
+        "name": "Fewer complaints about reminders",
+        "expect": [
+          {
+            "id": "goal-proxy-for-outcome",
+            "patterns": [
+              "proxy",
+              "indirect",
+              "symptom",
+              "real (goal|problem|outcome)",
+              "actual (goal|outcome|problem)",
+              "underlying (goal|outcome|problem)",
+              "returned on time"
+            ],
+            "acceptTypes": [
+              "PROXY_FOR_OUTCOME"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "7878b179-6faf-432b-ba23-4428705b1e81",
+          "error": null,
+          "summary": "The goal relies on a complaint count as a proxy metric, which does not reliably indicate that the underlying intent (effective, well-received reminders) is achieved.",
+          "findings": [
+            {
+              "findingType": "PROXY_FOR_OUTCOME",
+              "kind": "ISSUE",
+              "severity": "MEDIUM",
+              "confidence": 0.85,
+              "text": "The goal uses a complaint count as a proxy for reminder effectiveness and member satisfaction. Satisfying this metric (fewer than five complaints) does not guarantee the underlying intent is met; members may simply ignore reminders, lack a complaint channel, or be unaware of overdue items while the library suffers from low return rates.",
+              "state": "ACTIVE",
+              "annotationId": 7790,
+              "targetType": "Goal",
+              "targetId": 1196
+            }
+          ],
+          "latencyMs": 295572,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-goal@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "84b9d77e-f7ed-4b61-b78b-0dcad23637ee",
+            "error": null,
+            "summary": "The target entity complies with the AI terminology policy. No non-canonical terms or conflicting usages were found.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "goal-proxy-for-outcome"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Goal",
+        "name": "Dana approves tool purchases",
+        "expect": [
+          {
+            "id": "goal-person-not-role",
+            "patterns": [
+              "person",
+              "individual",
+              "named",
+              "\\bdana\\b"
+            ],
+            "acceptTypes": [
+              "PERSON_NAMED_NOT_ROLE"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "failed",
+          "runId": "af651543-0b6c-4459-b244-bd73e7bdfc6e",
+          "error": "ai-review-goal failed: com.rreganjr.requel.assistant.api.AssistantException: AI requirements review failed: Spring AI chat request failed",
+          "summary": null,
+          "findings": [],
+          "latencyMs": 299206,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-goal@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "e29a6eb0-6749-4a33-ad8f-e57410bd8222",
+            "error": null,
+            "summary": "No terminology policy violations were found. The target entity does not use any terms listed in the project glossary.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Goal",
+        "name": "Members find tools quickly",
+        "expect": [
+          {
+            "id": "goal-duplicate",
+            "patterns": [
+              "duplicat",
+              "overlap",
+              "same as",
+              "redundan",
+              "subsum",
+              "restat",
+              "similar"
+            ],
+            "acceptTypes": [
+              "DUPLICATE_AT_DIFFERENT_ABSTRACTION"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "1239a37c-4a2a-4dc7-aaf3-d9dc125a9064",
+          "error": null,
+          "summary": "The goal clearly states the desired outcome (locating tools quickly), identifies the beneficiary (member), and provides a measurable threshold (within one minute). It is well-formed and aligns with the project's scope.",
+          "findings": [],
+          "latencyMs": 239152,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-goal@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "f3a163da-0905-4c07-9ac3-ebd6ce6615d0",
+            "error": null,
+            "summary": "The target entity complies with the AI terminology policy. No glossary terms are misused or replaced with alternate names.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [],
+            "misses": [
+              "goal-duplicate"
+            ],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Goal",
+        "name": "Members search the catalogue by name",
+        "expect": [
+          {
+            "id": "goal-duplicate",
+            "patterns": [
+              "duplicat",
+              "overlap",
+              "same as",
+              "redundan",
+              "subsum",
+              "restat",
+              "similar"
+            ],
+            "acceptTypes": [
+              "DUPLICATE_AT_DIFFERENT_ABSTRACTION"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "35ad50da-8c41-4cdd-900b-df3786d7089d",
+          "error": null,
+          "summary": "The goal describes a specific search feature and display detail instead of stating the underlying outcome or benefit it delivers.",
+          "findings": [
+            {
+              "findingType": "SOLUTION_NOT_OUTCOME",
+              "kind": "ISSUE",
+              "severity": "MEDIUM",
+              "confidence": 0.85,
+              "text": "The goal specifies a search mechanism and display detail rather than the underlying outcome it supports.",
+              "state": "ACTIVE",
+              "annotationId": 7791,
+              "targetType": "Goal",
+              "targetId": 1200
+            }
+          ],
+          "latencyMs": 221845,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-goal@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "e301f07a-cf8e-409e-bd64-8e7197dca869",
+            "error": null,
+            "summary": "The goal correctly uses the canonical term 'Member' and contains no terminology conflicts with the project glossary.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [],
+            "misses": [
+              "goal-duplicate"
+            ],
+            "spurious": [
+              {
+                "findingType": "SOLUTION_NOT_OUTCOME",
+                "kind": "ISSUE",
+                "severity": "MEDIUM",
+                "confidence": 0.85,
+                "text": "The goal specifies a search mechanism and display detail rather than the underlying outcome it supports.",
+                "state": "ACTIVE",
+                "annotationId": 7791,
+                "targetType": "Goal",
+                "targetId": 1200
+              }
+            ],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Goal",
+        "name": "Suspended members cannot borrow",
+        "expect": [
+          {
+            "id": "goal-negative-only",
+            "patterns": [
+              "only (says|states|describes|lists|defines) who",
+              "who (can|may|is allowed to|is eligible to) borrow",
+              "positive (rule|condition|criteri|eligibility)",
+              "negative(ly)? (stated|only|framed)",
+              "by exclusion",
+              "never says who"
+            ],
+            "acceptTypes": [
+              "NEGATIVE_ONLY_SPECIFICATION"
+            ],
+            "types": []
+          }
+        ],
+        "alsoValid": [
+          {
+            "id": "two-exclusion-rules",
+            "patterns": [],
+            "acceptTypes": [
+              "CONJUNCTIVE_GOAL"
+            ],
+            "types": []
+          }
+        ],
+        "policyAlsoValid": [
+          {
+            "id": "contradicts-member-definition",
+            "patterns": [
+              "member"
+            ],
+            "acceptTypes": [],
+            "types": [
+              "CONFLICTING_USAGE"
+            ]
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "policyExpect": []
+      },
+      "runs": [
+        {
+          "outcome": "failed",
+          "runId": "f7e357ef-49f6-4e55-8a55-ffb3e2b27800",
+          "error": "ai-review-goal failed: com.rreganjr.requel.assistant.api.AssistantException: AI requirements review failed: Spring AI chat request failed",
+          "summary": null,
+          "findings": [],
+          "latencyMs": 340869,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-goal@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "c937203b-eeed-485b-af8c-a4160c93e9d5",
+            "error": null,
+            "summary": "The target entity complies with the AI terminology policy. All used terms align with the project glossary, and no alternate names or conflicting usages were detected.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Goal",
+        "name": "Online reservations and a mobile app",
+        "expect": [
+          {
+            "id": "goal-conjunctive",
+            "patterns": [
+              "two",
+              "split",
+              "separate",
+              "conjunct",
+              "combin",
+              "multiple",
+              "independent"
+            ],
+            "acceptTypes": [
+              "CONJUNCTIVE_GOAL"
+            ],
+            "types": []
+          }
+        ],
+        "alsoValid": [
+          {
+            "id": "app-is-a-mechanism",
+            "patterns": [
+              "app"
+            ],
+            "acceptTypes": [],
+            "types": [
+              "SOLUTION_NOT_OUTCOME"
+            ]
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "99e16e57-9674-457d-838b-b0d543f5c33c",
+          "error": null,
+          "summary": "The goal combines two distinct outcomes (online reservations and mobile app launch) into a single statement, violating the single-outcome principle.",
+          "findings": [
+            {
+              "findingType": "CONJUNCTIVE_GOAL",
+              "kind": "ISSUE",
+              "severity": "HIGH",
+              "confidence": 0.95,
+              "text": "The goal welds two independently completable outcomes into a single statement, preventing independent tracking and sign-off.",
+              "state": "ACTIVE",
+              "annotationId": 7792,
+              "targetType": "Goal",
+              "targetId": 1202
+            }
+          ],
+          "latencyMs": 242608,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-goal@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "c9e35325-4caa-4340-9a6f-ca6a73056f28",
+            "error": null,
+            "summary": "The target entity complies with the AI terminology policy. No non-canonical terms or conflicting usages were detected.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "goal-conjunctive"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Goal",
+        "name": "Member data stays private",
+        "expect": [
+          {
+            "id": "goal-constraint-not-goal",
+            "patterns": [
+              "constraint",
+              "policy",
+              "rule",
+              "no (clear )?success",
+              "ongoing",
+              "standing",
+              "invariant",
+              "non-functional"
+            ],
+            "acceptTypes": [
+              "CONSTRAINT_NOT_GOAL"
+            ],
+            "types": []
+          }
+        ],
+        "alsoValid": [
+          {
+            "id": "conflicts-with-text-reminders",
+            "patterns": [
+              "text message",
+              "sms",
+              "carrier",
+              "gateway",
+              "reminder"
+            ],
+            "acceptTypes": [],
+            "types": [
+              "INCONSISTENT"
+            ]
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "058d3191-de63-466f-b59b-8b774711a871",
+          "error": null,
+          "summary": "The goal is phrased as a standing constraint rather than a measurable outcome.",
+          "findings": [
+            {
+              "findingType": "CONSTRAINT_NOT_GOAL",
+              "kind": "ISSUE",
+              "severity": "MEDIUM",
+              "confidence": 0.9,
+              "text": "The goal is phrased as a continuous constraint ('never shared... at any time') rather than a measurable outcome with a success state. It belongs as a system policy or constraint.",
+              "state": "ACTIVE",
+              "annotationId": 7793,
+              "targetType": "Goal",
+              "targetId": 1197
+            }
+          ],
+          "latencyMs": 290300,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-goal@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "25b32b73-8310-41e7-8e4c-7905f21aa956",
+            "error": null,
+            "summary": "No terminology issues found. The target correctly uses the canonical glossary term 'Member'.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "goal-constraint-not-goal"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Goal",
+        "name": "Volunteers plan repairs weekly",
+        "expect": [
+          {
+            "id": "goal-not-a-system-goal",
+            "patterns": [
+              "meeting",
+              "process",
+              "not (a|about the) system",
+              "no (software|system)",
+              "without (any )?software",
+              "system (capability|role)",
+              "operational",
+              "out of scope"
+            ],
+            "acceptTypes": [
+              "NOT_A_SYSTEM_GOAL"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "d52d352b-d3e0-4927-a38a-129ca9104fa8",
+          "error": null,
+          "summary": "The goal describes a specific process rather than the outcome it aims to achieve.",
+          "findings": [
+            {
+              "findingType": "SOLUTION_NOT_OUTCOME",
+              "kind": "ISSUE",
+              "severity": "HIGH",
+              "confidence": 0.9,
+              "text": "The goal specifies a meeting format and schedule instead of the desired outcome.",
+              "state": "ACTIVE",
+              "annotationId": 7794,
+              "targetType": "Goal",
+              "targetId": 1208
+            }
+          ],
+          "latencyMs": 291070,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-goal@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "420c1348-668f-4507-a8e7-546dce71e6af",
+            "error": null,
+            "summary": "No terminology issues found. The target entity does not use any terms from the project glossary.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "goal-not-a-system-goal"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Goal",
+        "name": "Barcode scanning at checkout",
+        "expect": [
+          {
+            "id": "goal-implicit-invariant",
+            "patterns": [
+              "assum",
+              "invariant",
+              "stated as (a )?fact",
+              "protect",
+              "guarantee",
+              "enforce",
+              "who ensures",
+              "kept unique",
+              "stays true",
+              "remain(s)? true"
+            ],
+            "acceptTypes": [
+              "IMPLICIT_INVARIANT"
+            ],
+            "types": []
+          }
+        ],
+        "alsoValid": [
+          {
+            "id": "barcode-is-a-mechanism",
+            "patterns": [],
+            "acceptTypes": [
+              "SOLUTION_NOT_OUTCOME"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "2bf4b6f3-f961-47ed-9037-9241da585e51",
+          "error": null,
+          "summary": "The goal describes a solution mechanism and a precondition instead of a measurable outcome.",
+          "findings": [
+            {
+              "findingType": "SOLUTION_NOT_OUTCOME",
+              "kind": "ISSUE",
+              "severity": "MEDIUM",
+              "confidence": 0.95,
+              "text": "The goal specifies a physical mechanism (barcode scanning) and a precondition rather than the desired outcome, such as accurate tool identification or efficient checkout processing.",
+              "state": "ACTIVE",
+              "annotationId": 7795,
+              "targetType": "Goal",
+              "targetId": 1193
+            }
+          ],
+          "latencyMs": 221884,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-goal@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "c4cb2720-1d4a-4df1-b8cb-52b1fd144381",
+            "error": null,
+            "summary": "No terminology issues found based on the provided project glossary.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [],
+            "misses": [
+              "goal-implicit-invariant"
+            ],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [
+              {
+                "findingType": "SOLUTION_NOT_OUTCOME",
+                "kind": "ISSUE",
+                "severity": "MEDIUM",
+                "confidence": 0.95,
+                "text": "The goal specifies a physical mechanism (barcode scanning) and a precondition rather than the desired outcome, such as accurate tool identification or efficient checkout processing.",
+                "state": "ACTIVE",
+                "annotationId": 7795,
+                "targetType": "Goal",
+                "targetId": 1193,
+                "alsoValid": "barcode-is-a-mechanism"
+              }
+            ],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Goal",
+        "name": "Tools come back on time",
+        "expect": [
+          {
+            "id": "goal-measure-without-baseline",
+            "patterns": [
+              "baseline",
+              "threshold",
+              "target",
+              "how (much|many)",
+              "what (rate|level|percentage)"
+            ],
+            "acceptTypes": [
+              "MEASURE_WITHOUT_BASELINE"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "a733b134-2ab7-458f-ad28-addbd71e24cb",
+          "error": null,
+          "summary": "The goal describes tracking a metric but lacks a success threshold, making it unmeasurable.",
+          "findings": [
+            {
+              "findingType": "MEASURE_WITHOUT_BASELINE",
+              "kind": "ISSUE",
+              "severity": "HIGH",
+              "confidence": 0.95,
+              "text": "The goal names a measure (on-time return rate) but provides no baseline or threshold, so it is impossible to decide whether the goal is met.",
+              "state": "ACTIVE",
+              "annotationId": 7796,
+              "targetType": "Goal",
+              "targetId": 1205
+            }
+          ],
+          "latencyMs": 233864,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-goal@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "e9cbe442-ddc0-4fa0-8256-766266e641a9",
+            "error": null,
+            "summary": "No terminology policy violations found. The target does not use any project glossary terms.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "goal-measure-without-baseline"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Goal",
+        "name": "Condition alerts are acknowledged",
+        "expect": [
+          {
+            "id": "goal-vacuous-quantifier",
+            "patterns": [
+              "empty",
+              "zero",
+              "no alerts",
+              "vacuous",
+              "trivial",
+              "none",
+              "at least",
+              "coverage",
+              "never raise",
+              "does not raise"
+            ],
+            "acceptTypes": [
+              "VACUOUS_QUANTIFIER"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "0c4cd559-320c-4cb8-b75b-362b046856eb",
+          "error": null,
+          "summary": "The goal focuses on a staff process (acknowledging alerts) instead of a system capability. Reframing it to emphasize the system's role in facilitating or tracking acknowledgement would align it with system requirements.",
+          "findings": [
+            {
+              "findingType": "NOT_A_SYSTEM_GOAL",
+              "kind": "ISSUE",
+              "severity": "MEDIUM",
+              "confidence": 0.85,
+              "text": "The goal describes a staff operational process rather than a capability or outcome the system must deliver.",
+              "state": "ACTIVE",
+              "annotationId": 7797,
+              "targetType": "Goal",
+              "targetId": 1194
+            }
+          ],
+          "latencyMs": 296132,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-goal@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "f4e18d52-a9bc-42b1-9b85-b2dc7219e9b0",
+            "error": null,
+            "summary": "No terminology policy violations found. The target entity does not use any terms or alternate names from the project glossary.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [],
+            "misses": [
+              "goal-vacuous-quantifier"
+            ],
+            "spurious": [
+              {
+                "findingType": "NOT_A_SYSTEM_GOAL",
+                "kind": "ISSUE",
+                "severity": "MEDIUM",
+                "confidence": 0.85,
+                "text": "The goal describes a staff operational process rather than a capability or outcome the system must deliver.",
+                "state": "ACTIVE",
+                "annotationId": 7797,
+                "targetType": "Goal",
+                "targetId": 1194
+              }
+            ],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Goal",
+        "name": "Members see what they have on loan",
+        "silent": true,
+        "expect": [],
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "5f4f9803-40b4-4925-896a-81f6840821b7",
+          "error": null,
+          "summary": "The goal clearly states an achievable outcome for a specific role, with a verifiable success condition. No issues found.",
+          "findings": [],
+          "latencyMs": 193490,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-goal@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "c2b06b5a-ea42-4804-a851-33dae20b661e",
+            "error": null,
+            "summary": "No terminology issues found. The target correctly uses the canonical glossary terms.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Story",
+        "name": "Borrow a drill",
+        "expect": [
+          {
+            "id": "story-missing-benefit",
+            "patterns": [
+              "benefit",
+              "so that",
+              "why",
+              "value",
+              "reason",
+              "purpose"
+            ],
+            "acceptTypes": [
+              "MISSING_BENEFIT"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "b5d39932-4862-4be9-9003-cd15b50ce391",
+          "error": null,
+          "summary": "The story lacks a benefit statement explaining why borrowing a cordless drill matters to the member.",
+          "findings": [
+            {
+              "findingType": "MISSING_BENEFIT",
+              "kind": "ISSUE",
+              "severity": "MEDIUM",
+              "confidence": 0.9,
+              "text": "The story describes the desired action but does not state why it matters to the actor.",
+              "state": "ACTIVE",
+              "annotationId": 7798,
+              "targetType": "Story",
+              "targetId": 784
+            }
+          ],
+          "latencyMs": 263602,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-story@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "2fe5bac6-034f-4eb6-8460-35f6d1537553",
+            "error": null,
+            "summary": "The target entity correctly uses the glossary term 'Member' and contains no terminology issues.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "story-missing-benefit"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Story",
+        "name": "Reserve and pay online",
+        "expect": [
+          {
+            "id": "story-conjunctive",
+            "patterns": [
+              "two",
+              "split",
+              "separate",
+              "combin",
+              "multiple",
+              "independent"
+            ],
+            "acceptTypes": [
+              "CONJUNCTIVE_STORY"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "cf792f89-0268-4af4-bbea-98672a5d877b",
+          "error": null,
+          "summary": "The story combines two distinct features (tool reservation and fee payment) that should be separated.",
+          "findings": [
+            {
+              "findingType": "CONJUNCTIVE_STORY",
+              "kind": "ISSUE",
+              "severity": "MEDIUM",
+              "confidence": 0.9,
+              "text": "The story combines two independent capabilities\u2014tool reservation and annual fee payment\u2014that should be tracked as separate stories.",
+              "state": "ACTIVE",
+              "annotationId": 7799,
+              "targetType": "Story",
+              "targetId": 790
+            }
+          ],
+          "latencyMs": 254230,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-story@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "073f0da2-7496-45fa-ae20-6c71550faf9f",
+            "error": null,
+            "summary": "No terminology issues found. The target correctly uses the canonical glossary term 'member' and does not misuse any other listed terms.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "story-conjunctive"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Story",
+        "name": "Late returns",
+        "expect": [
+          {
+            "id": "story-is-a-scenario",
+            "patterns": [
+              "scenario",
+              "use case",
+              "steps",
+              "procedure",
+              "flow",
+              "sequence",
+              "numbered"
+            ],
+            "acceptTypes": [
+              "EXTRACT_SCENARIO"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "c0361141-3082-4fe7-9c12-0fab7f666ab4",
+          "error": null,
+          "summary": "The story is written as a step-by-step workflow and should be moved to a Scenario. It lacks a benefit statement, which is typical for scenario text.",
+          "findings": [
+            {
+              "findingType": "EXTRACT_SCENARIO",
+              "kind": "ISSUE",
+              "severity": "LOW",
+              "confidence": 0.95,
+              "text": "The text describes a sequential process flow rather than a desired outcome with a benefit. It should be recorded as a Scenario.",
+              "state": "ACTIVE",
+              "annotationId": 7800,
+              "targetType": "Story",
+              "targetId": 787
+            }
+          ],
+          "latencyMs": 320254,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-story@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "d3617453-ba16-4e7a-8542-e68d16c56728",
+            "error": null,
+            "summary": "The target complies with the ai-policy-terminology policy. The canonical term 'Member' is used correctly, and no glossary terms are misused or replaced with alternate names.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "story-is-a-scenario"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Story",
+        "name": "Halve the repair backlog",
+        "expect": [
+          {
+            "id": "trap-unsourced",
+            "patterns": [
+              "source",
+              "\\bcite",
+              "citation",
+              "where (the|these|this|that) .{0,40}(come|came) from",
+              "unverif",
+              "unsourced",
+              "provenance",
+              "no evidence",
+              "evidence (for|of)",
+              "origin of"
+            ],
+            "acceptTypes": [
+              "UNSOURCED_CLAIM"
+            ],
+            "types": []
+          }
+        ],
+        "trap": true,
+        "confirmPatterns": [
+          "\\b(are|is) (internally )?(consistent|correct|accurate)\\b",
+          "\\badds? up\\b",
+          "\\bchecks? out\\b",
+          "\\bsums? correctly\\b"
+        ],
+        "alsoValid": [
+          {
+            "id": "backlog-vs-logged",
+            "patterns": [
+              "logged",
+              "inflow",
+              "point in time",
+              "stock"
+            ],
+            "acceptTypes": [],
+            "types": [
+              "AMBIGUOUS",
+              "INCONSISTENT",
+              "OTHER"
+            ]
+          }
+        ],
+        "silent": false,
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "failed",
+          "runId": "5561a4bd-8419-442d-8935-087acd1d9c14",
+          "error": "ai-review-story failed: com.rreganjr.requel.assistant.api.AssistantException: AI requirements review failed: Spring AI chat request failed",
+          "summary": null,
+          "findings": [],
+          "latencyMs": 314422,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-story@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "f0b1e644-83b3-41ad-b915-1a5f1ab00aec",
+            "error": null,
+            "summary": "No terminology issues found based on the provided glossary.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Story",
+        "name": "Return a tool after hours",
+        "silent": true,
+        "expect": [],
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "78e0069a-f373-4e70-8406-32cbc850dafa",
+          "error": null,
+          "summary": "The story is well-formed, clearly identifies the actor, action, and benefit, and aligns with project naming conventions.",
+          "findings": [],
+          "latencyMs": 173940,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-story@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "8c2f5066-358f-4403-abc1-0baa8a3a53df",
+            "error": null,
+            "summary": "The target entity complies with the AI terminology policy. No glossary terms were misused or replaced by alternate names.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Story",
+        "name": "Renew as a patron",
+        "silent": true,
+        "expect": [],
+        "alsoValid": [
+          {
+            "id": "patron-not-member",
+            "patterns": [
+              "patron"
+            ],
+            "acceptTypes": [],
+            "types": [
+              "UNCLEAR_ACTOR",
+              "INCONSISTENT",
+              "AMBIGUOUS",
+              "OTHER"
+            ]
+          }
+        ],
+        "policyExpect": [
+          {
+            "id": "policy-non-canonical-patron",
+            "patterns": [
+              "patron"
+            ],
+            "acceptTypes": [
+              "NON_CANONICAL_TERM"
+            ],
+            "types": []
+          }
+        ],
+        "trap": false,
+        "confirmPatterns": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "560a59ad-3f69-4a23-9ccd-da46c65852ba",
+          "error": null,
+          "summary": "The story clearly describes a single action from the patron's perspective and includes a valid benefit clause. No issues identified.",
+          "findings": [],
+          "latencyMs": 288846,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-story@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "79541076-fca2-4861-ac5c-ee0a192b3d7d",
+            "error": null,
+            "summary": "The story uses the alternate term 'patron' instead of the canonical glossary term 'Member'.",
+            "findings": [
+              {
+                "findingType": "NON_CANONICAL_TERM",
+                "kind": "ISSUE",
+                "severity": "medium",
+                "confidence": 1.0,
+                "text": "The target uses the alternate name 'patron' instead of the canonical glossary term 'Member'.",
+                "state": "ACTIVE",
+                "annotationId": 7801,
+                "targetType": "Story",
+                "targetId": 789
+              }
+            ],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [
+                "policy-non-canonical-patron"
+              ],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "UseCase",
+        "name": "Check out a tool",
+        "expect": [
+          {
+            "id": "usecase-no-precondition-or-error",
+            "patterns": [
+              "precondition",
+              "pre-condition",
+              "error",
+              "fail",
+              "exception",
+              "altern",
+              "unavailable",
+              "what if"
+            ],
+            "acceptTypes": [
+              "MISSING_PRECONDITION",
+              "MISSING_ERROR_CASE"
+            ],
+            "types": []
+          }
+        ],
+        "alsoValid": [
+          {
+            "id": "other-half-precondition-or-error",
+            "patterns": [],
+            "acceptTypes": [
+              "MISSING_PRECONDITION",
+              "MISSING_ERROR_CASE"
+            ],
+            "types": []
+          },
+          {
+            "id": "member-or-staff",
+            "patterns": [],
+            "acceptTypes": [
+              "UNCLEAR_ACTOR"
+            ],
+            "types": []
+          },
+          {
+            "id": "no-outcome",
+            "patterns": [],
+            "acceptTypes": [
+              "MISSING_OUTCOME"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "3a94ec74-3e89-41c7-ad2e-658588a2532f",
+          "error": null,
+          "summary": "The use case lacks alternative scenarios for common failure conditions during tool checkout.",
+          "findings": [
+            {
+              "findingType": "MISSING_ERROR_CASE",
+              "kind": "ISSUE",
+              "severity": "MEDIUM",
+              "confidence": 0.85,
+              "text": "No alternative scenarios cover obvious failures such as the tool being unavailable, already checked out, or the member being ineligible.",
+              "state": "ACTIVE",
+              "annotationId": 7802,
+              "targetType": "UseCase",
+              "targetId": 432
+            }
+          ],
+          "latencyMs": 304024,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-usecase@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "5951cb1c-a9f9-45fb-92c0-9f12ae20f34c",
+            "error": null,
+            "summary": "The target entity correctly uses the canonical glossary term 'Member' and contains no terminology violations.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "usecase-no-precondition-or-error"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "UseCase",
+        "name": "Approve a purchase",
+        "expect": [
+          {
+            "id": "usecase-person-not-role",
+            "patterns": [
+              "person",
+              "individual",
+              "named",
+              "role",
+              "\\bdana\\b"
+            ],
+            "acceptTypes": [
+              "PERSON_NAMED_NOT_ROLE"
+            ],
+            "types": []
+          }
+        ],
+        "alsoValid": [
+          {
+            "id": "scenario-step-order",
+            "patterns": [
+              "order"
+            ],
+            "acceptTypes": [],
+            "types": [
+              "INCONSISTENT",
+              "OTHER"
+            ]
+          },
+          {
+            "id": "no-rejection",
+            "patterns": [
+              "reject"
+            ],
+            "acceptTypes": [],
+            "types": [
+              "MISSING_ERROR_CASE"
+            ]
+          },
+          {
+            "id": "no-precondition",
+            "patterns": [],
+            "acceptTypes": [
+              "MISSING_PRECONDITION"
+            ],
+            "types": []
+          },
+          {
+            "id": "no-outcome",
+            "patterns": [],
+            "acceptTypes": [
+              "MISSING_OUTCOME"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "e8d7ccaa-a8e3-419e-82b0-ed77f2be8d22",
+          "error": null,
+          "summary": "The use case names a specific person instead of a role and contains a primary scenario with steps listed in reverse chronological order that incorrectly mixes triggers, approvals, and fulfillment actions.",
+          "findings": [
+            {
+              "findingType": "PERSON_NAMED_NOT_ROLE",
+              "kind": "ISSUE",
+              "severity": "HIGH",
+              "confidence": 0.95,
+              "text": "The use case text names a specific individual ('Dana') instead of a role. Use cases should define interactions for roles to remain valid across personnel changes and align with the project's actor list.",
+              "state": "ACTIVE",
+              "annotationId": 7803,
+              "targetType": "UseCase",
+              "targetId": 431
+            },
+            {
+              "findingType": "INCONSISTENT",
+              "kind": "ISSUE",
+              "severity": "HIGH",
+              "confidence": 0.9,
+              "text": "The primary scenario steps are listed in reverse chronological order and incorrectly mix actions from different actors and use cases. Shipping cannot logically occur before approval, and request submission is a trigger or precondition, not a step within the approval flow.",
+              "state": "ACTIVE",
+              "annotationId": 7804,
+              "targetType": "UseCase",
+              "targetId": 431
+            }
+          ],
+          "latencyMs": 291441,
+          "evidenceUnverified": 1,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-usecase@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "675258ce-b032-490e-8f4a-d2ee17bc5e7d",
+            "error": null,
+            "summary": "The target entity does not contain any terms from the project glossary, so no terminology policy violations were found.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "usecase-person-not-role"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [
+              {
+                "findingType": "INCONSISTENT",
+                "kind": "ISSUE",
+                "severity": "HIGH",
+                "confidence": 0.9,
+                "text": "The primary scenario steps are listed in reverse chronological order and incorrectly mix actions from different actors and use cases. Shipping cannot logically occur before approval, and request submission is a trigger or precondition, not a step within the approval flow.",
+                "state": "ACTIVE",
+                "annotationId": 7804,
+                "targetType": "UseCase",
+                "targetId": 431,
+                "alsoValid": "scenario-step-order"
+              }
+            ],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "UseCase",
+        "name": "Renew a loan",
+        "silent": true,
+        "expect": [],
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "4fec7e7e-9013-49af-a73d-3d4344da6acc",
+          "error": null,
+          "summary": "The use case clearly defines the primary actor, preconditions, success outcome, and a consistent primary scenario. No critical gaps, inconsistencies, or ambiguities were identified.",
+          "findings": [],
+          "latencyMs": 313826,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-usecase@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "0df4a05a-c5eb-4078-903d-8acdd329d73e",
+            "error": null,
+            "summary": "The target entity adheres to the AI terminology policy. All glossary terms are used correctly, and no alternate names or conflicting usages were found.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Scenario",
+        "name": "Check out at the desk",
+        "expect": [
+          {
+            "id": "scenario-no-failure-branch",
+            "patterns": [
+              "fail",
+              "error",
+              "altern",
+              "exception",
+              "what if",
+              "expired",
+              "reserved",
+              "branch",
+              "unhappy"
+            ],
+            "acceptTypes": [
+              "MISSING_ERROR_CASE"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "83715de6-572b-4f72-ad10-6d72380318be",
+          "error": null,
+          "summary": "The scenario outlines a straightforward and logically ordered primary flow. Each step has a clear actor, and the sequence naturally leads to the intended outcome. No structural or logical issues were identified.",
+          "findings": [],
+          "latencyMs": 230031,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-scenario@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "4a047076-3d7f-4b8a-bcfd-4c8018c66e04",
+            "error": null,
+            "summary": "No terminology policy violations found. The target correctly uses the canonical glossary terms 'Member' and 'Loan' in accordance with their definitions.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [],
+            "misses": [
+              "scenario-no-failure-branch"
+            ],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Scenario",
+        "name": "Approve a purchase request",
+        "expect": [
+          {
+            "id": "scenario-step-order",
+            "patterns": [
+              "order",
+              "sequence",
+              "before",
+              "after",
+              "contradict",
+              "inconsisten",
+              "revers"
+            ],
+            "acceptTypes": [
+              "STEP_ORDER"
+            ],
+            "types": []
+          }
+        ],
+        "alsoValid": [
+          {
+            "id": "no-rejection-branch",
+            "patterns": [
+              "reject"
+            ],
+            "acceptTypes": [],
+            "types": [
+              "MISSING_ERROR_CASE"
+            ]
+          },
+          {
+            "id": "shipping-beyond-outcome",
+            "patterns": [
+              "ship",
+              "supplier"
+            ],
+            "acceptTypes": [],
+            "types": [
+              "INCONSISTENT"
+            ]
+          },
+          {
+            "id": "no-review-step",
+            "patterns": [
+              "review"
+            ],
+            "acceptTypes": [],
+            "types": [
+              "MISSING_STEP"
+            ]
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "a20ca31b-7b85-4831-8cf9-b1df39bfb5f0",
+          "error": null,
+          "summary": "The scenario steps are out of logical order, listing shipping before approval and submission.",
+          "findings": [
+            {
+              "findingType": "STEP_ORDER",
+              "kind": "ISSUE",
+              "severity": "HIGH",
+              "confidence": 0.95,
+              "text": "The steps are listed in reverse chronological order. A purchase request must be submitted before it can be approved, and the supplier ships the tool after approval.",
+              "state": "ACTIVE",
+              "annotationId": 7805,
+              "targetType": "Scenario",
+              "targetId": 1260
+            }
+          ],
+          "latencyMs": 234512,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-scenario@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "9ae41fdc-c867-444a-942b-e0e79bc75534",
+            "error": null,
+            "summary": "No terminology issues found. The target correctly uses the canonical glossary term 'member' and does not contain any alternate names or conflicting usages of glossary terms.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "scenario-step-order"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Scenario",
+        "name": "Renew from the account page",
+        "silent": true,
+        "expect": [],
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "2c7ca91f-7c8a-4f32-912e-37a983c67956",
+          "error": null,
+          "summary": "The scenario clearly outlines the primary flow for renewing a loan. Steps are in logical order, actors are explicit, and the outcome matches the use case description. No additional checks are needed for preconditions as they are assumed to hold in the main flow.",
+          "findings": [],
+          "latencyMs": 272492,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-scenario@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "3fc9cb5b-90e8-48d6-876f-5a8d82b82de9",
+            "error": null,
+            "summary": "The target entity adheres to the project glossary. All used terms match canonical terms and their definitions.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Step",
+        "name": "The system or staff mark the tool as broken",
+        "expect": [
+          {
+            "id": "step-ambiguous-actor",
+            "patterns": [
+              "ambig",
+              "actor",
+              "either",
+              "unclear who",
+              "responsib",
+              "two (possible|alternative) (actors|performers)"
+            ],
+            "acceptTypes": [
+              "AMBIGUOUS_ACTOR"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "a5cb0a1f-40cb-4233-a9a1-136131e32c66",
+          "error": null,
+          "summary": "The step identifies two potential actors, which violates the single-actor rule for steps.",
+          "findings": [
+            {
+              "findingType": "AMBIGUOUS_ACTOR",
+              "kind": "ISSUE",
+              "severity": "MEDIUM",
+              "confidence": 0.9,
+              "text": "The step names two actors ('The system' and 'staff'), making it unclear who is responsible for marking the tool as broken.",
+              "state": "ACTIVE",
+              "annotationId": 7806,
+              "targetType": "Step",
+              "targetId": 1270
+            }
+          ],
+          "latencyMs": 215605,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-step@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "fa574de8-c4f9-4498-bff7-208e3af6077e",
+            "error": null,
+            "summary": "No terminology issues found. The target does not contain any terms from the project glossary that require correction or flagging.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "step-ambiguous-actor"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Step",
+        "name": "Staff photograph the damage and email the member",
+        "expect": [
+          {
+            "id": "step-two-actions",
+            "patterns": [
+              "two",
+              "split",
+              "separate",
+              "multiple",
+              "compound",
+              "single action",
+              "combin"
+            ],
+            "acceptTypes": [
+              "COMPOUND_STEP"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "516c7983-2934-4b45-b49a-08c4d4e28f0c",
+          "error": null,
+          "summary": "The step contains two distinct actions that should be separated to comply with the single-action-per-step rule.",
+          "findings": [
+            {
+              "findingType": "COMPOUND_STEP",
+              "kind": "ISSUE",
+              "severity": "LOW",
+              "confidence": 0.9,
+              "text": "The step combines two distinct actions (photographing the damage and emailing the member) that can succeed or fail independently and should be separate steps.",
+              "state": "ACTIVE",
+              "annotationId": 7807,
+              "targetType": "Step",
+              "targetId": 1271
+            }
+          ],
+          "latencyMs": 210330,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-step@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "3f1e9246-0fc9-44cd-a8b7-177eee9a9abb",
+            "error": null,
+            "summary": "No terminology policy violations found. The target correctly uses the canonical glossary term 'Member'.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "step-two-actions"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Step",
+        "name": "Staff put the tool on the repair shelf",
+        "silent": true,
+        "expect": [],
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "49927c8b-808d-466e-b88e-ffebfef9ef8a",
+          "error": null,
+          "summary": "The step clearly identifies the actor 'Staff' and describes a single, actionable task that logically concludes the scenario.",
+          "findings": [],
+          "latencyMs": 158637,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-step@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "de556f88-65b2-44f8-b231-a0b3ac1a565c",
+            "error": null,
+            "summary": "No terminology issues found.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Actor",
+        "name": "Dana Whitfield",
+        "expect": [
+          {
+            "id": "actor-person-not-role",
+            "patterns": [
+              "person",
+              "individual",
+              "named after"
+            ],
+            "acceptTypes": [
+              "PERSON_NAMED_NOT_ROLE"
+            ],
+            "types": []
+          }
+        ],
+        "alsoValid": [
+          {
+            "id": "only-a-title",
+            "patterns": [],
+            "acceptTypes": [
+              "INCOMPLETE"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "5ed1282e-594e-4c2e-91e4-5605f142b4a2",
+          "error": null,
+          "summary": "The actor is defined by a specific person's name rather than a role, which violates standard requirements practices.",
+          "findings": [
+            {
+              "findingType": "PERSON_NAMED_NOT_ROLE",
+              "kind": "ISSUE",
+              "severity": "MEDIUM",
+              "confidence": 0.95,
+              "text": "The actor is a named individual rather than a role. Requirements should define the role (e.g., 'Treasurer') instead of a specific person.",
+              "state": "ACTIVE",
+              "annotationId": 7808,
+              "targetType": "Actor",
+              "targetId": 714
+            }
+          ],
+          "latencyMs": 186681,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-actor@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "b01b9f14-c775-4315-8bbf-072322e9196c",
+            "error": null,
+            "summary": "No terminology inconsistencies found based on the project glossary.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "actor-person-not-role"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Actor",
+        "name": "Non-staff",
+        "expect": [
+          {
+            "id": "actor-defined-by-exclusion",
+            "patterns": [
+              "negation",
+              "exclu",
+              "(defined|described) (only|purely|solely|entirely) by",
+              "by what (it|they) (is|are) not",
+              "not staff"
+            ],
+            "acceptTypes": [
+              "DEFINED_BY_EXCLUSION"
+            ],
+            "types": []
+          }
+        ],
+        "alsoValid": [
+          {
+            "id": "overlaps-member",
+            "patterns": [],
+            "acceptTypes": [
+              "OVERLAPPING_ROLE"
+            ],
+            "types": []
+          },
+          {
+            "id": "unused",
+            "patterns": [],
+            "acceptTypes": [
+              "UNUSED_ACTOR"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "205ec0a7-6312-4d3d-ad19-879b310c3e8d",
+          "error": null,
+          "summary": "The actor is defined by exclusion rather than by positive characteristics or responsibilities.",
+          "findings": [
+            {
+              "findingType": "DEFINED_BY_EXCLUSION",
+              "kind": "ISSUE",
+              "severity": "HIGH",
+              "confidence": 0.95,
+              "text": "The actor 'Non-staff' is defined solely by what it is not, making it unclear which specific user groups belong to this role.",
+              "state": "ACTIVE",
+              "annotationId": 7809,
+              "targetType": "Actor",
+              "targetId": 716
+            }
+          ],
+          "latencyMs": 164457,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-actor@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "266c1814-7c4f-43b1-bf17-36bb673ef9a6",
+            "error": null,
+            "summary": "No terminology issues found based on the provided glossary.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "actor-defined-by-exclusion"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Actor",
+        "name": "Member",
+        "silent": true,
+        "expect": [],
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "db648909-929e-4d56-b41b-ca3678aaf6e2",
+          "error": null,
+          "summary": "The actor 'Member' is clearly defined as a role, states its capabilities, and is actively referenced by project use cases. No issues detected.",
+          "findings": [],
+          "latencyMs": 164477,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-actor@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "2ef38285-76ea-4d4d-9531-cd9447c7a590",
+            "error": null,
+            "summary": "The target entity uses the canonical glossary term 'Member' correctly, and its definition aligns exactly with the project glossary. No terminology issues were identified.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "GlossaryTerm",
+        "name": "Loan",
+        "expect": [
+          {
+            "id": "term-circular",
+            "patterns": [
+              "circular",
+              "itself",
+              "tautolog",
+              "defin"
+            ],
+            "acceptTypes": [
+              "CIRCULAR_DEFINITION"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "c9958282-64c7-43ff-bfae-5c8f23e9d240",
+          "error": null,
+          "summary": "The glossary term 'Loan' has a circular definition that fails to explain the concept.",
+          "findings": [
+            {
+              "findingType": "CIRCULAR_DEFINITION",
+              "kind": "ISSUE",
+              "severity": "HIGH",
+              "confidence": 1.0,
+              "text": "The definition of 'Loan' uses the word 'loaned', making it circular and failing to explain what a loan actually is.",
+              "state": "ACTIVE",
+              "annotationId": 7810,
+              "targetType": "GlossaryTerm",
+              "targetId": 237
+            }
+          ],
+          "latencyMs": 191084,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-glossary-term@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "59eae19d-6893-408c-9fe9-8ea1e71d47ee",
+            "error": null,
+            "summary": "The target complies with the AI terminology policy.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "term-circular"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "GlossaryTerm",
+        "name": "Overdue tool",
+        "expect": [
+          {
+            "id": "term-circular",
+            "patterns": [
+              "circular",
+              "itself",
+              "tautolog",
+              "defin"
+            ],
+            "acceptTypes": [
+              "CIRCULAR_DEFINITION"
+            ],
+            "types": []
+          }
+        ],
+        "silent": false,
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "3cd6398e-b9f4-4e08-94f1-b4e533e80559",
+          "error": null,
+          "summary": "The glossary term 'Overdue tool' contains a circular definition that fails to explain the concept.",
+          "findings": [
+            {
+              "findingType": "CIRCULAR_DEFINITION",
+              "kind": "ISSUE",
+              "severity": "HIGH",
+              "confidence": 0.95,
+              "text": "The definition of 'Overdue tool' uses the word 'overdue', making it circular and failing to specify the conditions under which a tool is considered overdue.",
+              "state": "ACTIVE",
+              "annotationId": 7811,
+              "targetType": "GlossaryTerm",
+              "targetId": 240
+            }
+          ],
+          "latencyMs": 143273,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-glossary-term@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "5cdaa419-ad1f-4b7c-8f62-9cea52af8647",
+            "error": null,
+            "summary": "The target glossary term 'Overdue tool' complies with the AI terminology policy. No alternate names or conflicting usages were detected.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [
+              "term-circular"
+            ],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "GlossaryTerm",
+        "name": "Pickup date",
+        "silent": true,
+        "expect": [],
+        "trap": false,
+        "confirmPatterns": [],
+        "alsoValid": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "549b2a06-ccc8-49a3-ba38-c22e7e36e678",
+          "error": null,
+          "summary": "The glossary term 'Pickup date' is clearly defined, independent, and consistent with related terms.",
+          "findings": [],
+          "latencyMs": 173281,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-glossary-term@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "d2fe4051-9bc7-4fa7-856c-5db11ebc9f54",
+            "error": null,
+            "summary": "The target entity complies with the AI terminology policy. It correctly uses the canonical glossary term 'member' and contains no alternate names or conflicting usages.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Goal",
+        "name": "Two-week loans",
+        "silent": true,
+        "expect": [],
+        "alsoValid": [
+          {
+            "id": "conflicts-with-renewal-or-three-weeks",
+            "patterns": [
+              "renew",
+              "21",
+              "three weeks",
+              "conflict",
+              "contradict"
+            ],
+            "acceptTypes": [],
+            "types": [
+              "INCONSISTENT",
+              "OTHER"
+            ]
+          }
+        ],
+        "trap": false,
+        "confirmPatterns": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "f7611e98-ebad-45c4-8807-7ca1c0519cc0",
+          "error": null,
+          "summary": "The goal defines a fixed loan period as a standing rule rather than stating a stakeholder outcome. It should be moved to project constraints or policies.",
+          "findings": [
+            {
+              "findingType": "CONSTRAINT_NOT_GOAL",
+              "kind": "ISSUE",
+              "severity": "MEDIUM",
+              "confidence": 0.9,
+              "text": "The text states a standing business rule (fixed loan duration) rather than a desired outcome for a stakeholder. It lacks a success state and reads as a policy constraint.",
+              "state": "ACTIVE",
+              "annotationId": 7812,
+              "targetType": "Goal",
+              "targetId": 1206
+            }
+          ],
+          "latencyMs": 256416,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-goal@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "1f52a5f0-26fa-493f-9ad8-3831d9b40022",
+            "error": null,
+            "summary": "The target entity complies with the AI terminology policy. No glossary terms were used incorrectly or replaced with alternate names.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [],
+            "misses": [],
+            "spurious": [
+              {
+                "findingType": "CONSTRAINT_NOT_GOAL",
+                "kind": "ISSUE",
+                "severity": "MEDIUM",
+                "confidence": 0.9,
+                "text": "The text states a standing business rule (fixed loan duration) rather than a desired outcome for a stakeholder. It lacks a success state and reads as a policy constraint.",
+                "state": "ACTIVE",
+                "annotationId": 7812,
+                "targetType": "Goal",
+                "targetId": 1206
+              }
+            ],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Goal",
+        "name": "Unpaid fines put accounts on hold",
+        "silent": true,
+        "expect": [],
+        "alsoValid": [
+          {
+            "id": "overlaps-suspended",
+            "patterns": [
+              "suspend",
+              "overlap",
+              "duplicat",
+              "hold"
+            ],
+            "acceptTypes": [],
+            "types": [
+              "DUPLICATE",
+              "INCONSISTENT",
+              "AMBIGUOUS",
+              "OTHER"
+            ]
+          },
+          {
+            "id": "unmeasured-or-negative",
+            "patterns": [
+              "measur",
+              "negative",
+              "prohibit"
+            ],
+            "acceptTypes": [],
+            "types": [
+              "UNMEASURABLE",
+              "NEGATIVE_ONLY"
+            ]
+          }
+        ],
+        "trap": false,
+        "confirmPatterns": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "0248f420-a05e-4d8d-8879-f7859342205a",
+          "error": null,
+          "summary": "The goal clearly states a conditional outcome for members, is measurable, and uses correct role terminology. No issues found.",
+          "findings": [],
+          "latencyMs": 324414,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-goal@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "173b49ed-6f50-4f4b-a08a-58d0b4fdf715",
+            "error": null,
+            "summary": "The target entity complies with the AI terminology policy. It correctly uses the canonical glossary term 'Member' (in possessive form) and does not contain any alternate names or conflicting usages of glossary terms.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Story",
+        "name": "Keep a tool for three weeks",
+        "silent": true,
+        "expect": [],
+        "alsoValid": [
+          {
+            "id": "conflicts-with-loan-length",
+            "patterns": [
+              "14",
+              "two weeks",
+              "loan (length|period)",
+              "conflict",
+              "renew"
+            ],
+            "acceptTypes": [],
+            "types": [
+              "INCONSISTENT",
+              "OTHER"
+            ]
+          }
+        ],
+        "trap": false,
+        "confirmPatterns": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "44be3c0b-e5ba-47bb-886f-934935e850e3",
+          "error": null,
+          "summary": "The story is well-structured, clearly states the actor, action, and benefit, and contains no apparent issues.",
+          "findings": [],
+          "latencyMs": 200570,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-story@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "f50832bf-c964-430d-a9d7-5f9871ec8f7f",
+            "error": null,
+            "summary": "No terminology issues found.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    },
+    {
+      "entity": {
+        "type": "Story",
+        "name": "Place a hold on a tool",
+        "silent": true,
+        "expect": [],
+        "alsoValid": [
+          {
+            "id": "hold-two-meanings",
+            "patterns": [
+              "hold"
+            ],
+            "acceptTypes": [],
+            "types": [
+              "AMBIGUOUS",
+              "INCONSISTENT",
+              "OTHER"
+            ]
+          }
+        ],
+        "trap": false,
+        "confirmPatterns": [],
+        "policyExpect": [],
+        "policyAlsoValid": []
+      },
+      "runs": [
+        {
+          "outcome": "ok",
+          "runId": "8481b945-aad4-4510-838a-bf127ccc2b59",
+          "error": null,
+          "summary": "The story is well-formed, clearly identifies the actor, describes a single desired action, and includes a valid benefit clause.",
+          "findings": [],
+          "latencyMs": 200105,
+          "evidenceUnverified": 0,
+          "vocabularyMisses": 0,
+          "definition": "ai-review-story@2",
+          "policy": {
+            "outcome": "ok",
+            "runId": "0ac21d3a-ee07-45df-8490-c0d3de41564f",
+            "error": null,
+            "summary": "The target entity correctly uses canonical glossary terms and does not exhibit any terminology inconsistencies or conflicts.",
+            "findings": [],
+            "vocabularyMisses": 0,
+            "definition": "ai-policy-terminology@1",
+            "score": {
+              "hits": [],
+              "misses": [],
+              "spurious": [],
+              "suggestions": [],
+              "alsoValid": [],
+              "confirmed": false
+            }
+          },
+          "score": {
+            "hits": [],
+            "misses": [],
+            "spurious": [],
+            "suggestions": [],
+            "alsoValid": [],
+            "confirmed": false
+          }
+        }
+      ]
+    }
+  ]
+}

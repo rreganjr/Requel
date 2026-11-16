@@ -30,6 +30,10 @@ import java.util.List;
 import javax.sql.DataSource;
 
 import org.flywaydb.core.Flyway;
+
+import com.rreganjr.requel.legacy.LegacySchemaUpgrader;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy;
 import org.springframework.stereotype.Component;
 
@@ -41,15 +45,37 @@ import org.springframework.stereotype.Component;
  * {@code ddl-auto}) or by something else entirely. Flyway used to baseline it at version 0 and
  * run V1, a mysqldump whose {@code DROP TABLE IF EXISTS} statements emptied every table without
  * a word in the log. Now startup stops with {@link UnversionedDatabaseException} and the
- * database is left as it was. Moving a 1.0.x database in place is issue #380.
+ * database is left as it was, unless {@value #UPGRADE_PROPERTY} is set: then a Requel 1.0.1, 1.0.2
+ * or 1.1.0 database is upgraded in place first ({@link LegacySchemaUpgrader}, #380).
  */
 @Component
 public class RequelFlywayMigrationStrategy implements FlywayMigrationStrategy {
 
+	/** Issue #380: opt in to upgrading a Requel 1.0.x/1.1 database in place. */
+	public static final String UPGRADE_PROPERTY = "requel.upgrade.from-1x";
+
+	private final boolean upgradeFrom1x;
+
+	/** Refuses an unversioned database (the default). */
+	public RequelFlywayMigrationStrategy() {
+		this(false);
+	}
+
+	@Autowired
+	public RequelFlywayMigrationStrategy(@Value("${" + UPGRADE_PROPERTY + ":false}") boolean upgradeFrom1x) {
+		this.upgradeFrom1x = upgradeFrom1x;
+	}
+
 	@Override
 	public void migrate(Flyway flyway) {
-		refuseUnversionedDatabase(flyway.getConfiguration().getDataSource(),
-				flyway.getConfiguration().getTable());
+		DataSource dataSource = flyway.getConfiguration().getDataSource();
+		String historyTable = flyway.getConfiguration().getTable();
+		if (isUnversioned(dataSource, historyTable)) {
+			if (!upgradeFrom1x) {
+				refuseUnversionedDatabase(dataSource, historyTable);
+			}
+			new LegacySchemaUpgrader(dataSource).upgrade(flyway);
+		}
 		flyway.migrate();
 	}
 
@@ -61,13 +87,24 @@ public class RequelFlywayMigrationStrategy implements FlywayMigrationStrategy {
 		try (Connection connection = dataSource.getConnection()) {
 			String database = connection.getCatalog();
 			List<String> tables = tables(connection, database);
-			boolean hasHistory = tables.stream().anyMatch(historyTable::equalsIgnoreCase);
-			if (!tables.isEmpty() && !hasHistory) {
+			if (isUnversioned(tables, historyTable)) {
 				throw new UnversionedDatabaseException(database, tables.size());
 			}
 		} catch (SQLException e) {
 			throw new IllegalStateException("Could not inspect the database before migrating it", e);
 		}
+	}
+
+	private static boolean isUnversioned(DataSource dataSource, String historyTable) {
+		try (Connection connection = dataSource.getConnection()) {
+			return isUnversioned(tables(connection, connection.getCatalog()), historyTable);
+		} catch (SQLException e) {
+			throw new IllegalStateException("Could not inspect the database before migrating it", e);
+		}
+	}
+
+	private static boolean isUnversioned(List<String> tables, String historyTable) {
+		return !tables.isEmpty() && tables.stream().noneMatch(historyTable::equalsIgnoreCase);
 	}
 
 	private static List<String> tables(Connection connection, String database) throws SQLException {

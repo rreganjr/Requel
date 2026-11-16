@@ -37,6 +37,8 @@ import java.util.List;
  * @param canonicalTermName name of the canonical term, or null
  * @param alternateTerms   terms that reference this term as their canonical (detail view only)
  * @param referers         project entities that use this term, identified by NLP analysis (detail view only)
+ * @param synonymUses      #348: for each alternate term, the referers whose name or text still
+ *                         uses it, e.g. a renamed term's old name (detail view only)
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record GlossaryTermDto(
@@ -48,6 +50,7 @@ public record GlossaryTermDto(
         Long canonicalTermId,
         String canonicalTermName,
         List<EntityReferenceDto> alternateTerms,
-        List<EntityReferenceDto> referers
+        List<EntityReferenceDto> referers,
+        List<SynonymUseDto> synonymUses
 ) {
 }

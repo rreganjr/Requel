@@ -70,6 +70,49 @@ public enum IssueSeverity {
 	}
 
 	/**
+	 * Parse a minimum-severity filter from a request (issue #338): every edge that takes one as
+	 * text (the REST endpoints, the MCP tools) goes through here, so they all refuse alike.
+	 *
+	 * @param paramName
+	 *            the request parameter's name, for the error message
+	 * @param value
+	 *            a severity name, any case, or null / blank for no filter
+	 * @return the severity, or null for a null or blank value (no filter)
+	 * @throws IllegalArgumentException
+	 *             for a value that is not a severity name; the message names {@code paramName}
+	 *             and lists the accepted values
+	 */
+	public static IssueSeverity parseMinimum(String paramName, String value) {
+		if (value == null || value.isBlank()) {
+			return null;
+		}
+		return parse(value).orElseThrow(() -> new IllegalArgumentException("Unsupported "
+				+ paramName + " value: " + value.trim() + "; expected " + namesForMessage()));
+	}
+
+	/**
+	 * @return whether an issue of {@code severity} passes a filter of {@code minimum}; a null
+	 *         minimum lets everything through. A null severity ranks lowest (see
+	 *         {@link #rankOf(IssueSeverity)}).
+	 */
+	public static boolean atLeast(IssueSeverity severity, IssueSeverity minimum) {
+		return minimum == null || rankOf(severity) >= minimum.rank();
+	}
+
+	/** {@code "LOW, MEDIUM or HIGH"}. */
+	private static String namesForMessage() {
+		IssueSeverity[] all = values();
+		StringBuilder sb = new StringBuilder();
+		for (int i = 0; i < all.length; i++) {
+			if (i > 0) {
+				sb.append(i == all.length - 1 ? " or " : ", ");
+			}
+			sb.append(all[i].name());
+		}
+		return sb.toString();
+	}
+
+	/**
 	 * @return the rank of the given severity, 0 for null, so a list sorted by descending rank puts
 	 *         anything without a severity last.
 	 */

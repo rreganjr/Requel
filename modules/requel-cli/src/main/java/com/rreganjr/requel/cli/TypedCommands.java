@@ -121,13 +121,25 @@ final class TypedCommands {
                 dispatch(parent, gatewayFactory, d.commandType(), values, rawJsonFields);
         CommandSpec spec = CommandSpec.wrapWithoutInspection(action);
         spec.name(kebab(d.commandType()));
-        spec.mixinStandardHelpOptions(true);
-        spec.usageMessage().description(describe(d));
+        // #489: help only. picocli's standard help options also add -V/--version, which clashed
+        // with the lock-version field most Edit and Delete inputs have, and one clash broke every
+        // typed subcommand. The CLI's own version stays on the root: requel --version.
+        spec.addOption(OptionSpec.builder("-h", "--help")
+                .usageHelp(true)
+                .description("Show this help message and exit.")
+                .build());
 
         Map<String, Object> properties = asMap(schema(d).get("properties"));
         Set<String> required = Set.copyOf(asStringList(schema(d).get("required")));
+        List<String> skipped = new ArrayList<>();
         for (Map.Entry<String, Object> property : properties.entrySet()) {
             String field = property.getKey();
+            if (spec.optionsMap().containsKey("--" + kebab(field))) {
+                // #489: an option name already taken (today only --help) leaves the field off
+                // rather than failing the whole CLI; requel run can still send it.
+                skipped.add(field);
+                continue;
+            }
             String jsonType = typeOf(property.getValue());
             boolean rawJson = jsonType.equals("array") || jsonType.equals("object");
             if (rawJson) {
@@ -143,6 +155,7 @@ final class TypedCommands {
                     .setter(binding)
                     .build());
         }
+        spec.usageMessage().description(describe(d, skipped));
 
         return new CommandLine(spec);
     }
@@ -260,6 +273,14 @@ final class TypedCommands {
      * permission it needs (issue #296).
      */
     static String[] describe(CommandInfo d) {
+        return describe(d, List.of());
+    }
+
+    /**
+     * {@link #describe(CommandInfo)}, plus a note naming the input fields that have no option
+     * here because their name is taken (#489), and how to send them.
+     */
+    static String[] describe(CommandInfo d, List<String> skipped) {
         List<String> lines = new ArrayList<>();
         lines.add(d.title() != null ? d.title() : d.commandType());
         if (d.description() != null && !d.description().isBlank()) {
@@ -267,6 +288,10 @@ final class TypedCommands {
         }
         if (d.authorizationHint() != null && !d.authorizationHint().isBlank()) {
             lines.add("Requires: " + d.authorizationHint());
+        }
+        if (!skipped.isEmpty()) {
+            lines.add("No option for " + String.join(", ", skipped) + " (the name is taken); send it"
+                    + " with: requel run " + d.commandType() + " --input '{...}'");
         }
         return lines.toArray(new String[0]);
     }

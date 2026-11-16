@@ -179,7 +179,7 @@ class CommandInputValidatorTest {
     @DisplayName("a malformed email address is rejected on the field the client binds")
     void malformedEmailIsRejected() {
         var input = new EditUserInput(1L, 1, "ron", null, null, "Ron", "not-an-email",
-                null, "Requel", true, Set.of("Administrator"), Map.of());
+                null, "Requel", true, null, Set.of("Administrator"), Map.of());
 
         BeanValidationException e =
                 assertThrows(BeanValidationException.class, () -> validator.validate(input));
@@ -193,7 +193,7 @@ class CommandInputValidatorTest {
     @DisplayName("#398: a user without an organization is rejected on organizationName")
     void missingOrganizationIsRejected() {
         var input = new EditUserInput(1L, 1, "ron", null, null, "Ron", "ron@example.com",
-                null, " ", true, Set.of("Administrator"), Map.of());
+                null, " ", true, null, Set.of("Administrator"), Map.of());
 
         BeanValidationException e =
                 assertThrows(BeanValidationException.class, () -> validator.validate(input));
@@ -205,7 +205,7 @@ class CommandInputValidatorTest {
     @DisplayName("a well-formed email address passes")
     void wellFormedEmailPasses() {
         var input = new EditUserInput(1L, 1, "ron", null, null, "Ron", "ron@example.com",
-                null, "Requel", true, Set.of("Administrator"), Map.of());
+                null, "Requel", true, null, Set.of("Administrator"), Map.of());
         assertDoesNotThrow(() -> validator.validate(input));
     }
 }

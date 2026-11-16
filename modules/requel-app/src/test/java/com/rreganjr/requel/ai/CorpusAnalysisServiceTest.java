@@ -24,10 +24,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -36,7 +38,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import com.rreganjr.platform.command.AuthorizationException;
+import com.rreganjr.requel.assistant.ai.AiProperties;
 import com.rreganjr.requel.assistant.api.EntityRef;
+import com.rreganjr.requel.assistant.core.SimpleAssistantRegistry;
 import com.rreganjr.requel.assistant.core.corpus.CorpusFinderAssistant;
 import com.rreganjr.requel.assistant.core.persistence.AssistantRunReadService;
 import com.rreganjr.requel.command.AnalysisRequestDispatcher;
@@ -46,6 +50,7 @@ import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.UserStakeholder;
+import com.rreganjr.requel.service.api.dto.AiReviewAvailabilityDto;
 import com.rreganjr.requel.service.auth.CurrentUserResolver;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.impl.SystemAdminUserRole;
@@ -58,6 +63,7 @@ class CorpusAnalysisServiceTest {
 	private final AnalysisRequestDispatcher dispatcher = mock(AnalysisRequestDispatcher.class);
 	private final AssistantRunReadService runs = mock(AssistantRunReadService.class);
 	private final User member = mock(User.class);
+	private final SimpleAssistantRegistry registry = mock(SimpleAssistantRegistry.class);
 	private Project project;
 	private CorpusAnalysisService service;
 
@@ -70,6 +76,60 @@ class CorpusAnalysisServiceTest {
 		when(users.resolve()).thenReturn(member);
 		service = new CorpusAnalysisService(projects, users, dispatcher, runs,
 				mock(PlatformTransactionManager.class));
+		service.setAiProperties(aiOn());
+		when(registry.anyCorpusReview(7L)).thenReturn(true);
+		service.setRegistry(registry);
+	}
+
+	private static AiProperties aiOn() {
+		AiProperties properties = new AiProperties();
+		properties.setEnabled(true);
+		return properties;
+	}
+
+	/** #486: with AI off an AI analysis is refused naming why, and nothing is queued. */
+	@Test
+	void anAiAnalysisIsRefusedWhenAiIsOffAndFindOverlapsStillRuns() {
+		service.setAiProperties(null);
+
+		assertThat(service.availability(7L))
+				.isEqualTo(new AiReviewAvailabilityDto(false, AiReviewService.AI_OFF));
+		assertThatThrownBy(() -> service.request(7L, null, null, "ANALYSIS"))
+				.isInstanceOf(AiReviewUnavailableException.class)
+				.hasMessage(AiReviewService.AI_OFF);
+		verify(dispatcher, never()).dispatchCorpus(any(), any(), any(),
+				org.mockito.ArgumentMatchers.eq(CorpusAnalysisService.CORPUS_REVIEW));
+
+		service.request(7L, null, null, "CANDIDATES");
+		verify(dispatcher).dispatchCorpus(EntityRef.of("Project", 7L), 7L, member,
+				CorpusFinderAssistant.TASK_TYPE);
+	}
+
+	/** #486: a project off the allowlist can't have an AI analysis either. */
+	@Test
+	void anAiAnalysisIsRefusedForAProjectOffTheAllowlist() {
+		AiProperties properties = aiOn();
+		properties.setProjectAllowlist(List.of("12"));
+		service.setAiProperties(properties);
+
+		assertThat(service.availability(7L))
+				.isEqualTo(new AiReviewAvailabilityDto(false, AiReviewService.NOT_ALLOWLISTED));
+		properties.setProjectAllowlist(List.of("7"));
+		assertThat(service.availability(7L)).isEqualTo(new AiReviewAvailabilityDto(true, null));
+	}
+
+	/** #486: with every corpus definition switched off, there is no AI analysis to run. */
+	@Test
+	void anAiAnalysisIsRefusedWithNoCorpusDefinitionInEffect() {
+		when(registry.anyCorpusReview(7L)).thenReturn(false);
+
+		assertThat(service.availability(7L)).isEqualTo(
+				new AiReviewAvailabilityDto(false, CorpusAnalysisService.CORPUS_OFF));
+		assertThatThrownBy(() -> service.request(7L, null, null, "ANALYSIS"))
+				.isInstanceOf(AiReviewUnavailableException.class)
+				.hasMessage(CorpusAnalysisService.CORPUS_OFF);
+		service.setRegistry(null);
+		assertThat(service.availability(7L).available()).isFalse();
 	}
 
 	private Project project(Long id) {

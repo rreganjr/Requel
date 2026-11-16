@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.RequiredOnCreate;
 import com.rreganjr.requel.service.api.CommandDescription;
 import com.rreganjr.requel.service.api.CommandDescriptions;
 import com.rreganjr.requel.service.api.FromEntityProperty;
@@ -37,21 +38,21 @@ import jakarta.validation.constraints.Size;
  * scenario's steps; renaming the use case renames the scenario too only if it carried the old
  * name.
  */
-@CommandDescription("Creates or edits a use case. Leave useCaseId null to create one; it is"
-        + " created with a primary scenario of the same name. name is required on every call, so"
-        + " send the current name to keep it; renaming also renames the primary scenario, but only"
-        + " while that still has the old use-case name. Use-case names are unique within the"
-        + " project, ignoring case, and because the new primary scenario takes the name, creating"
-        + " is also refused when a scenario or step already has it. primaryActorName names the"
-        + " primary actor, which every use case needs: an actor is created when none has that name,"
-        + " and an empty string is refused. Steps are not edited here; use EditScenario on the"
-        + " primary scenario."
+@CommandDescription("Creates or edits a use case. Leave useCaseId null to create one; it is created"
+        + " with a primary scenario of the same name. name is required when creating; leave it"
+        + " out when editing to keep the current name; renaming also renames the primary"
+        + " scenario, but only while that still has the old use-case name. Use-case names are"
+        + " unique within the project, ignoring case, and because the new primary scenario takes"
+        + " the name, creating is also refused when a scenario or step already has it."
+        + " primaryActorName names the primary actor, which every use case needs: an actor is"
+        + " created when none has that name, and an empty string is refused. Steps are not edited"
+        + " here; use EditScenario on the primary scenario."
         + CommandDescriptions.PARTIAL_UPDATE
         + CommandDescriptions.VERSION_CHECKED)
+@RequiredOnCreate(id = "useCaseId")
 public record EditUseCaseInput(
         @NotBlank String projectName,
         Long useCaseId,
-        @NotBlank
         @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
         String name,
         String text,

@@ -43,7 +43,11 @@ public class GrammaticalRelationImpl implements GrammaticalRelation {
 		this.type = type;
 		this.governor = governor;
 		this.dependent = dependent;
-		((NLPTextImpl) governor).addGovernorOf(this);
+		// #349: the fake ROOT node is one shared instance; linking every parse's root relation to it
+		// would keep old parse trees reachable from a static field.
+		if (governor != NLPText.ROOT) {
+			((NLPTextImpl) governor).addGovernorOf(this);
+		}
 		((NLPTextImpl) dependent).addDependentOf(this);
 	}
 

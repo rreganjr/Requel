@@ -164,6 +164,22 @@ public class EditScenarioCommandImpl extends EditScenarioStepCommandImpl impleme
 		}
 		setScenario(getProjectRepository().merge(scenarioImpl));
 		deleteUnusedSteps(droppedSteps, (Scenario) getScenario(), editedBy);
+		// #455: this scenario is analyzed as the target. Its name decides how it counts in the
+		// scenarios that use it as a step, and its steps' names in the other scenarios that share
+		// them, so those are re-checked too.
+		if (isAnalysisEnabled()) {
+			Scenario scenario = (Scenario) getScenario();
+			List<Step> involved = new ArrayList<Step>();
+			involved.add(scenario);
+			for (Step step : scenario.getSteps()) {
+				if (!(step instanceof Scenario)) {
+					involved.add(step);
+				}
+			}
+			setStepSequenceTargets(scenariosUsing(involved, scenario));
+		} else {
+			setStepSequenceTargets(List.of());
+		}
 	}
 
 	/**

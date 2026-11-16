@@ -76,7 +76,8 @@ public class UserDtoMapper {
                 roles,
                 permissions,
                 permissionsByRole,
-                version
+                version,
+                user instanceof com.rreganjr.requel.user.User u && u.isMustChangePassword()
         );
     }
 

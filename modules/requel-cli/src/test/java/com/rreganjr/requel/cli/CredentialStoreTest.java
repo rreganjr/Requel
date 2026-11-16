@@ -24,11 +24,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.rreganjr.requel.gateway.rest.OAuthTokens;
+import java.io.Writer;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Instant;
+import java.util.Properties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -78,14 +80,49 @@ class CredentialStoreTest {
         assertThat(store.findOAuth("http://unknown")).isNull();
     }
 
+    /** #489: the last login wins, so a PAT saved after an OAuth login is the one used. */
     @Test
-    void oauthAndPatCoexistAndDeleteClearsBoth(@TempDir Path dir) {
+    void savingAPatClearsThatUrlsOAuthTokens(@TempDir Path dir) {
+        CredentialStore store = new CredentialStore(dir);
+        store.saveOAuth("http://a:8080", new OAuthTokens("AT", "RT", "mcp",
+                Instant.now().plusSeconds(3600)));
+        store.saveOAuth("http://b:8080", new OAuthTokens("BT", "RT", "mcp",
+                Instant.now().plusSeconds(3600)));
+
+        store.save("http://a:8080", "reqpat_A");
+
+        assertThat(store.find("http://a:8080")).isEqualTo("reqpat_A");
+        assertThat(store.findOAuth("http://a:8080")).isNull();
+        assertThat(store.findOAuth("http://b:8080")).isNotNull();
+    }
+
+    /** #489: and an OAuth login after a PAT replaces the PAT. */
+    @Test
+    void savingOAuthTokensClearsThatUrlsPat(@TempDir Path dir) {
         CredentialStore store = new CredentialStore(dir);
         store.save("http://a:8080", "reqpat_A");
+        store.save("http://b:8080", "reqpat_B");
+
         store.saveOAuth("http://a:8080", new OAuthTokens("AT", "RT", "mcp",
                 Instant.now().plusSeconds(3600)));
 
-        // Both are stored independently.
+        assertThat(store.find("http://a:8080")).isNull();
+        assertThat(store.findOAuth("http://a:8080").accessToken()).isEqualTo("AT");
+        assertThat(store.find("http://b:8080")).isEqualTo("reqpat_B");
+    }
+
+    /** A file an older CLI wrote can hold both for one URL; delete clears both. */
+    @Test
+    void deleteClearsAPatAndOAuthTokensAnOlderCliStoredTogether(@TempDir Path dir)
+            throws Exception {
+        Properties both = new Properties();
+        both.setProperty("http://a:8080", "reqpat_A");
+        both.setProperty("oauth.http://a:8080.access", "AT");
+        both.setProperty("oauth.http://a:8080.refresh", "RT");
+        try (Writer out = Files.newBufferedWriter(dir.resolve("credentials"))) {
+            both.store(out, null);
+        }
+        CredentialStore store = new CredentialStore(dir);
         assertThat(store.find("http://a:8080")).isEqualTo("reqpat_A");
         assertThat(store.findOAuth("http://a:8080")).isNotNull();
 

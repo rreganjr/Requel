@@ -4,14 +4,15 @@ Web-based requirements management: goals, stories, actors, scenarios and use cas
 issue/position/argument discussion layer and automated NLP and AI review.
 
 - Source and full docs: https://github.com/rreganjr/Requel
-- Install guide (Compose, Docker, jar, upgrading, settings): https://github.com/rreganjr/Requel/blob/v2.0.3/doc/guides/INSTALL.md
+- Install guide (Compose, Docker, jar, upgrading, settings): https://github.com/rreganjr/Requel/blob/v2.1.0/doc/guides/INSTALL.md
 
 ## Tags
 
 | Tag | What it is |
 |---|---|
-| `latest`, `2.0.3` | Current release. Multi-platform: `linux/amd64` and `linux/arm64` |
-| `2.0.2`, `2.0.1`, `2.0.0` | Previous 2.0 releases; see [Security](#security) |
+| `latest`, `2.1.0` | Current release. Multi-platform: `linux/amd64` and `linux/arm64` |
+| `2.0.3` | Last 2.0 release |
+| `2.0.2`, `2.0.1`, `2.0.0` | Earlier 2.0 releases; see [Security](#security) |
 | `1.2.0`, `1.1.0` | 1.x line (arm64 only); see Upgrading before moving off them |
 | `1.0.2`, `1.0.1` | Original release; MySQL 5.x only |
 
@@ -19,7 +20,7 @@ Pin a version tag rather than `latest` so an upgrade happens when you choose.
 
 ## Security
 
-2.0.3 fixes three security issues in 2.0.0 to 2.0.2. Upgrade every 2.0.x install:
+2.0.3 and 2.1.0 fix three security issues in 2.0.0 to 2.0.2. Upgrade any install of those:
 
 - [GHSA-g7v7-79mw-3v64](https://github.com/rreganjr/Requel/security/advisories/GHSA-g7v7-79mw-3v64):
   XML external entity resolution in project import.
@@ -29,7 +30,7 @@ Pin a version tag rather than `latest` so an upgrade happens when you choose.
 - [GHSA-5c3x-62mf-528p](https://github.com/rreganjr/Requel/security/advisories/GHSA-5c3x-62mf-528p):
   login tokens weren't re-checked against the live account.
 
-Upgrading to 2.0.3 signs everyone out once.
+Upgrading from 2.0.2 or earlier signs everyone out once.
 
 ## Requirements
 
@@ -42,14 +43,14 @@ Upgrading to 2.0.3 signs everyone out once.
 
 ```bash
 mkdir requel && cd requel
-curl -fsSLO https://raw.githubusercontent.com/rreganjr/Requel/v2.0.3/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/rreganjr/Requel/v2.1.0/docker-compose.yml
 echo "REQUEL_JWT_SECRET=$(openssl rand -base64 48)" > .env
 docker compose up -d
 docker compose logs -f web     # Ctrl-C once "Started Application" appears
 ```
 
-Open http://localhost:8080/ and log in as **admin** / **admin**, then change the password
-straight away (account menu, **Edit Account**).
+Open http://localhost:8080/ and log in as **admin** / **admin**. Requel sends you straight to
+**Change your password**; nothing else works for that account until you have.
 
 `REQUEL_JWT_SECRET` signs login tokens and is required. Keep the `.env` file: a new secret logs
 everyone out. MySQL is published on host port 3307. `docker compose down` stops both containers
@@ -70,7 +71,7 @@ docker run -d --name requel --network requel-net -p 8080:8080 --restart unless-s
   -e SPRING_DATASOURCE_PASSWORD=change-me \
   -e "REQUEL_JWT_SECRET=$(openssl rand -base64 48)" \
   -e "_JAVA_OPTIONS=-Xmx2g" \
-  rreganjr/requel:2.0.3
+  rreganjr/requel:2.1.0
 
 docker logs -f requel          # Ctrl-C once "Started Application" appears
 ```
@@ -81,7 +82,7 @@ and reuse it when you recreate the container.
 
 ## Try the sample project
 
-Download [Requel.xml](https://raw.githubusercontent.com/rreganjr/Requel/v2.0.3/doc/samples/Requel.xml)
+Download [Requel.xml](https://raw.githubusercontent.com/rreganjr/Requel/v2.1.0/doc/samples/Requel.xml)
 and import it from **Projects → Import**.
 
 ## Settings
@@ -93,10 +94,10 @@ and import it from **Projects → Import**.
 | `REQUEL_JWT_SECRET` | none: required | Signs login tokens; at least 32 characters; keep it stable |
 | `SERVER_PORT` | `8080` | HTTP port inside the container |
 | `_JAVA_OPTIONS` | JVM default | Memory, e.g. `-Xmx2g` |
-| `REQUEL_AI_*`, `SPRING_PROFILES_ACTIVE=ai-…` | assistant off | AI review provider; see [AI assistant setup](https://github.com/rreganjr/Requel/blob/v2.0.3/doc/guides/AI_ASSISTANT_SETUP.md) |
+| `REQUEL_AI_*`, `SPRING_PROFILES_ACTIVE=ai-…` | assistant off | AI review provider; see [AI assistant setup](https://github.com/rreganjr/Requel/blob/v2.1.0/doc/guides/AI_ASSISTANT_SETUP.md) |
 
 The full list, including the OAuth settings for MCP clients and `requel-cli`, is in the
-[install guide](https://github.com/rreganjr/Requel/blob/v2.0.3/doc/guides/INSTALL.md#configuration-reference).
+[install guide](https://github.com/rreganjr/Requel/blob/v2.1.0/doc/guides/INSTALL.md#configuration-reference).
 Don't set `SPRING_PROFILES_ACTIVE=dev`: it is for developing Requel and opens unauthenticated
 reset endpoints.
 
@@ -104,17 +105,19 @@ reset endpoints.
 
 Back up the database first (`mysqldump --single-transaction requel > requel-backup.sql`).
 
-- **From 2.0.x:** change the image tag and recreate the container. Flyway applies any new migrations. Upgrading
-  to 2.0.3 signs everyone out once; sign in again.
-- **From 1.2:** start 2.0 on the same MySQL 8.4 database; it migrates in place on first start.
-- **From 1.0 or 1.1:** 2.0 refuses to start on these databases (and leaves them untouched).
-  Export each project's XML from the old version, start 2.0 on a new empty database, and import
-  them. Details in the [install guide](https://github.com/rreganjr/Requel/blob/v2.0.3/doc/guides/INSTALL.md#upgrading).
+- **From 2.0.x:** change the image tag and recreate the container. Flyway applies the new migrations. Upgrading
+  from 2.0.2 or earlier signs everyone out once; sign in again.
+- **From 1.2:** start 2.1 on the same MySQL 8.4 database; it migrates in place on first start.
+- **From 1.0.1, 1.0.2 or 1.1.0:** start once with `REQUEL_UPGRADE_FROM_1X=true` to upgrade the
+  database in place (a 1.0.x database moves from MySQL 5.x to 8.4 by dump/load first). Without
+  it, Requel refuses to start on these databases and leaves them untouched. Details in the
+  [install guide](https://github.com/rreganjr/Requel/blob/v2.1.0/doc/guides/INSTALL.md#upgrading).
 
 ## Before you expose it
 
 - `REQUEL_JWT_SECRET` is a random value kept somewhere safe.
-- The **admin** password is no longer `admin`, and the database password is not `change-me`.
+- The **admin** password is no longer `admin` (Requel makes you change it at the first sign-in),
+  and the database password is not `change-me`.
 - The `dev` profile is not active.
 - Requel sits behind HTTPS (a reverse proxy such as nginx or Caddy terminating TLS).
 - The database is backed up on a schedule.

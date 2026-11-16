@@ -88,6 +88,26 @@ class JwtServiceTest {
     }
 
     @Test
+    void aUserWhoMustChangeTheirPasswordGetsThePasswordChangeClaim() {
+        com.rreganjr.requel.user.User flagged = mock(com.rreganjr.requel.user.User.class);
+        when(flagged.getUsername()).thenReturn("alice");
+        when(flagged.isMustChangePassword()).thenReturn(true);
+
+        Claims claims = jwtService.parseToken(jwtService.generateToken(flagged, List.of(), List.of()));
+        assertThat(JwtService.isPasswordChangeRequired(claims)).isTrue();
+    }
+
+    @Test
+    void otherUsersDontGetThePasswordChangeClaim() {
+        com.rreganjr.requel.user.User unflagged = mock(com.rreganjr.requel.user.User.class);
+        when(unflagged.getUsername()).thenReturn("alice");
+
+        Claims claims = jwtService.parseToken(jwtService.generateToken(unflagged, List.of(), List.of()));
+        assertThat(JwtService.isPasswordChangeRequired(claims)).isFalse();
+        assertThat(claims.containsKey(JwtService.PASSWORD_CHANGE_CLAIM)).isFalse();
+    }
+
+    @Test
     void generateTokenPermissionsClaimIsPresent() {
         String token = jwtService.generateToken(user,
                 List.of(), List.of("createProject", "addStakeholder"));

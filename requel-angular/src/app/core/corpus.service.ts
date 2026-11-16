@@ -22,6 +22,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { CorpusMode, CorpusRunDto, CorpusSetKind } from '../models/corpus';
+import { AiReviewAvailability } from '../models/ai-review';
 
 /**
  * Issue #266: explicit corpus runs over a project, or a goal or use case with what hangs off it.
@@ -30,6 +31,15 @@ import { CorpusMode, CorpusRunDto, CorpusSetKind } from '../models/corpus';
 @Injectable({ providedIn: 'root' })
 export class CorpusService {
   constructor(private http: HttpClient) {}
+
+  /**
+   * Issue #486: whether an AI corpus analysis of the project can run (AI on, the project
+   * allowlisted), and why not. "Find overlaps" needs no AI and is always offered.
+   */
+  aiAvailability(projectId: number): Promise<AiReviewAvailability> {
+    return firstValueFrom(this.http.get<AiReviewAvailability>('/api/ai/corpus/availability',
+      { params: new HttpParams().set('projectId', projectId) }));
+  }
 
   /** Queue a run; it finishes in the background. */
   request(projectId: number, set: CorpusSetKind, rootId: number | null, mode: CorpusMode): Promise<unknown> {

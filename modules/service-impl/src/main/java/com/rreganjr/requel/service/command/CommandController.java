@@ -20,10 +20,12 @@
  */
 package com.rreganjr.requel.service.command;
 
+import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.requel.imports.ImportException;
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.platform.exception.EntityException;
+import com.rreganjr.platform.exception.StaleVersionException;
 import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.service.api.CommandResult;
@@ -50,6 +52,12 @@ import java.util.Map;
 public class CommandController {
 
     private static final Logger log = LoggerFactory.getLogger(CommandController.class);
+
+    /**
+     * The {@code error} code of a 409 for a stale version (#482). Every other 409 (a name already
+     * taken, a business rule) is {@code CONFLICT}; the Angular editors reload only for this one.
+     */
+    static final String STALE_VERSION = "STALE_VERSION";
 
     private final ApiCommandFactory apiCommandFactory;
     private final CommandHandler commandHandler;
@@ -123,12 +131,20 @@ public class CommandController {
         } catch (AuthorizationException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(ErrorResponse.of("FORBIDDEN", e.getMessage()));
+        } catch (NotFoundInputException | NoSuchEntityException e) {
+            // #345: the input names something that does not exist (an unknown id, an unknown
+            // projectName). 404 rather than 400 (malformed input) or 409 (business rule).
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ErrorResponse.of("NOT_FOUND", e.getMessage()));
         } catch (OptimisticLockException e) {
+            // #482: a stale version gets its own code, so the editors reload only for this 409 and
+            // show the server's message for every other one.
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(Map.of(
-                            "success", false,
-                            "error", "Conflict",
-                            "message", "Entity was modified by another user. Please reload and try again."));
+                    .body(ErrorResponse.of(STALE_VERSION,
+                            "Entity was modified by another user. Please reload and try again."));
+        } catch (StaleVersionException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ErrorResponse.of(STALE_VERSION, e.getMessage()));
         } catch (EntityValidationException e) {
             // Entity-flush violations carry JPA entity property names; translate them to the input
             // DTO's field names so the Angular form can route them to the right control (#176).

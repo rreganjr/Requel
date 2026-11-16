@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.RequiredOnCreate;
 import com.rreganjr.requel.service.api.CommandDescription;
 import com.rreganjr.requel.service.api.CommandDescriptions;
 import jakarta.validation.constraints.NotBlank;
@@ -35,15 +36,15 @@ import jakarta.validation.constraints.Size;
  */
 @CommandDescription("Creates or edits a report generator: a named XSLT stylesheet that turns the"
         + " project's XML export into a report. Leave reportId null to create one, or pass it to"
-        + " edit an existing one. name is required on every call, so send the current name to keep"
-        + " it, and it is unique within the project, ignoring case. text is the stylesheet, stored"
-        + " as given and not checked. This stores the definition only; reports are not generated"
-        + " through the gateway."
+        + " edit an existing one. name is required when creating; leave it out when editing to"
+        + " keep the current name, and it is unique within the project, ignoring case. text is"
+        + " the stylesheet, stored as given and not checked. This stores the definition only;"
+        + " reports are not generated through the gateway."
         + CommandDescriptions.PARTIAL_UPDATE)
+@RequiredOnCreate(id = "reportId")
 public record EditReportGeneratorInput(
         @NotBlank String projectName,
         Long reportId,
-        @NotBlank
         @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
         String name,
         String text

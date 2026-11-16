@@ -144,10 +144,15 @@ public class IssueContextPackBuilder {
 				budget.add(positionText);
 			}
 			sink.add(new IssueSnapshot(issue.getId(), issue.getVersion(), text,
-					issue.isMustBeResolved(), issue.isResolved(), sourceRef, positions));
+					issue.isMustBeResolved(), issue.isResolved(), severityOf(issue), sourceRef,
+					positions));
 			budget.add(text);
 		}
 		return false;
+	}
+
+	private static String severityOf(Issue issue) {
+		return issue.getSeverity() == null ? null : issue.getSeverity().name();
 	}
 
 	private static EntityRef entityRefFor(Object target) {

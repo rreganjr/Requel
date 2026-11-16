@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { signal } from '@angular/core';
+import { provideRouter } from '@angular/router';
 import { EditAccountComponent } from './edit-account';
 import { AuthService } from '../../core/auth.service';
 import { CommandService } from '../../core/command.service';
@@ -24,6 +25,7 @@ describe('EditAccountComponent accessibility (issue #132)', () => {
       imports: [EditAccountComponent],
       providers: [
         provideNoopAnimations(),
+        provideRouter([]),
         { provide: AuthService, useValue: { user: signal(MOCK_USER) } },
         { provide: CommandService, useValue: { execute: vi.fn().mockResolvedValue({ success: true }) } },
         {
@@ -46,7 +48,7 @@ describe('EditAccountComponent accessibility (issue #132)', () => {
 
   it('has no axe-core violations with fields in their error state', async () => {
     const el = await render();
-    comp.form.patchValue({ name: '', emailAddress: 'nope', password: 'a', repassword: 'b' });
+    comp.form.patchValue({ name: '', emailAddress: 'nope' });
     comp.form.markAsDirty();
     await comp.onSave();
     fixture.detectChanges();
@@ -75,39 +77,11 @@ describe('EditAccountComponent accessibility (issue #132)', () => {
     expect(el.querySelector('label[for="username"]')?.textContent?.trim()).toContain('Username');
   });
 
-  /**
-   * The password row's "leave blank to keep current" hint used to be part of the label
-   * text. It is helper text now, linked by aria-describedby, so the accessible NAME stays
-   * short while the explanation is still announced.
-   */
-  it('links the password helper text without putting it in the label', async () => {
+  /** #446: the way to change your password is a plain, named link. */
+  it('offers the password change as a named link', async () => {
     const el = await render();
-    const password = el.querySelector<HTMLInputElement>('#password')!;
-    const label = el.querySelector('label[for="password"]')!;
-
-    expect(label.textContent?.trim()).toBe('New Password');
-    const describedBy = password.getAttribute('aria-describedby');
-    expect(el.querySelector(`#${describedBy}`)?.textContent?.trim()).toBe(
-      'Leave blank to keep your current password.'
-    );
-  });
-
-  it('puts the mismatch message under the confirm row, where the fix is', async () => {
-    const el = await render();
-    comp.form.patchValue({ password: 'hunter2', repassword: 'hunter3' });
-    comp.form.markAllAsTouched();
-    fixture.detectChanges();
-
-    const repassword = el.querySelector<HTMLInputElement>('#repassword')!;
-    expect(repassword.getAttribute('aria-invalid')).toBe('true');
-
-    const describedBy = repassword.getAttribute('aria-describedby');
-    expect(el.querySelector(`#${describedBy}`)?.textContent?.trim()).toBe(
-      'Passwords do not match.'
-    );
-    // And not on the password row, which the user does not need to change.
-    expect(el.querySelector<HTMLInputElement>('#password')!.getAttribute('aria-invalid')).toBe(
-      'false'
-    );
+    const link = el.querySelector<HTMLAnchorElement>('[data-testid="account-change-password"]')!;
+    expect(link.textContent?.trim()).toBe('Change password');
+    await expectNoAxeViolations(el);
   });
 });

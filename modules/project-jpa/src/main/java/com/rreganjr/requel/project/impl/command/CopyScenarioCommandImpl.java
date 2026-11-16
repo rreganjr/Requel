@@ -119,6 +119,14 @@ public class CopyScenarioCommandImpl extends AbstractEditProjectCommand implemen
 		// Copy steps in order; each gets a unique name via CopyScenarioStepCommand
 		// since step names are unique per project and the originals still exist.
 		for (Step step : originalScenario.getSteps()) {
+			if (step instanceof Scenario nested) {
+				// #341: a nested scenario is a reusable sub-flow, so the copy links the same one,
+				// as EditScenario does for a step sent with isScenario true. It used to go through
+				// CopyScenarioStepCommand, which builds a plain step, so the copy lost the nested
+				// scenario's own steps.
+				newScenario.getSteps().add(nested);
+				continue;
+			}
 			CopyScenarioStepCommand copyStepCommand = getProjectCommandFactory()
 					.newCopyScenarioStepCommand();
 			copyStepCommand.setEditedBy(getEditedBy());
@@ -141,16 +149,22 @@ public class CopyScenarioCommandImpl extends AbstractEditProjectCommand implemen
 		setNewScenario(newScenario);
 	}
 
+	/**
+	 * The first free name: the given one, else "name 1", "name 2", ... #341: searched with
+	 * findStepByProjectOrDomainAndName, which matches steps and scenarios alike (one table, one
+	 * unique key). The scenario-only search let a plain step named "name 1" through, and the copy
+	 * then failed on the unique key.
+	 */
 	private String generateNewScenarioName(String originalName) {
 		String newName = originalName;
 		try {
-			getProjectRepository().findScenarioByProjectOrDomainAndName(
+			getProjectRepository().findStepByProjectOrDomainAndName(
 					getOriginalScenario().getProjectOrDomain(), newName);
 			int counter = 1;
 			newName = originalName + " " + counter;
 			while (true) {
 				try {
-					getProjectRepository().findScenarioByProjectOrDomainAndName(
+					getProjectRepository().findStepByProjectOrDomainAndName(
 							getOriginalScenario().getProjectOrDomain(), newName);
 					counter++;
 					newName = originalName + " " + counter;

@@ -25,6 +25,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { AssistantDefinitionsService } from '../../core/assistant-definitions.service';
+import { isStaleVersion } from '../../core/command.service';
+import { CommandResult } from '../../models/command';
 import { PermissionService } from '../../core/permission.service';
 import { ListPageComponent } from '../../shared/list-page';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
@@ -80,7 +82,9 @@ import {
                     </span>
                   }
                   <div class="covers">
-                    {{ d.inEffectFor.length > 0 ? 'In effect for ' + d.inEffectFor.join(', ')
+                    <!-- #486: a definition that is off reviews nothing. -->
+                    {{ d.enabled === false ? 'Off: not in effect'
+                       : d.inEffectFor.length > 0 ? 'In effect for ' + d.inEffectFor.join(', ')
                        : 'Not in effect: other definitions cover its types' }}
                   </div>
                 </div>
@@ -213,7 +217,7 @@ export class ProjectDefinitionsComponent implements OnInit {
   }
 
   private async run(d: ProjectDefinitionDto,
-                    write: () => Promise<{ success: boolean; error: string | null; status?: number }>,
+                    write: () => Promise<CommandResult>,
                     done: string): Promise<void> {
     this.busy.set(d.key);
     this.errorMessage.set(null);
@@ -222,7 +226,7 @@ export class ProjectDefinitionsComponent implements OnInit {
       if (result.success) {
         this.messageService.add({ severity: 'success', summary: done, life: 3000 });
       } else {
-        this.errorMessage.set(result.status === 409
+        this.errorMessage.set(isStaleVersion(result)
           ? 'Someone else changed this definition. The list has been reloaded.'
           : result.error ?? 'The change failed.');
       }

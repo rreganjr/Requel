@@ -41,6 +41,7 @@ import com.rreganjr.requel.service.api.dto.IssueDto;
 import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.gateway.InProcessQueryGateway;
 import com.rreganjr.requel.service.query.AnnotationQueryController;
+import com.rreganjr.requel.service.query.ProjectQueryController;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.command.EditUserCommand;
 import java.util.Arrays;
@@ -70,7 +71,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Issue severity through the real command gateway and the read paths (issue #271): what
  * {@code EditIssue} accepts and rejects, and that every issue list comes back in severity order
- * with no null severity.
+ * with no null severity. Issue #338: the open-issues minimum-severity filter.
  * <p>
  * One project is shared by every test, and the NLP assistants add their own (LOW) lexical issues
  * to each goal, so each test uses its own goal and checks order as "non-increasing rank" plus the
@@ -91,6 +92,9 @@ public class IssueSeverityIT extends AbstractIntegrationTestCase {
 
 	@Autowired
 	private AnnotationQueryController annotationQueryController;
+
+	@Autowired
+	private ProjectQueryController projectQueryController;
 
 	@Autowired
 	private PlatformTransactionManager transactionManager;
@@ -201,6 +205,88 @@ public class IssueSeverityIT extends AbstractIntegrationTestCase {
 		List<OpenIssueDto> fromContext = (List<OpenIssueDto>) queryGateway
 				.getProjectContext(projectName).get("openIssues");
 		assertInSeverityOrder(fromContext, low, medium, high);
+	}
+
+	// ---- #338: the minimum-severity filter -----------------------------------------------------
+
+	@Test
+	void openIssuesWithAMinimumSeverityListOnlyThatSeverityAndAboveInOrder() throws Exception {
+		authenticate(editorUsername);
+		Long goalId = createGoal("sev-min");
+		String low = "MinLow-" + System.nanoTime();
+		String medium = "MinMedium-" + System.nanoTime();
+		String high = "MinHigh-" + System.nanoTime();
+		editIssue(goalId, null, low, null, "LOW");
+		editIssue(goalId, null, medium, null, "MEDIUM");
+		editIssue(goalId, null, high, null, "HIGH");
+
+		List<OpenIssueDto> mediumUp = queryGateway.getOpenIssues(projectName, IssueSeverity.MEDIUM);
+		assertTrue(mediumUp.stream().allMatch(i -> rank(i.severity()) >= IssueSeverity.MEDIUM.rank()),
+				"an issue below MEDIUM was listed: " + mediumUp);
+		List<String> texts = texts(mediumUp);
+		assertTrue(texts.indexOf(high) >= 0 && texts.indexOf(high) < texts.indexOf(medium),
+				"expected HIGH then MEDIUM: " + texts);
+		assertFalse(texts.contains(low), "the LOW issue must be filtered out: " + texts);
+
+		List<String> highOnly = texts(queryGateway.getOpenIssues(projectName, IssueSeverity.HIGH));
+		assertTrue(highOnly.contains(high) && !highOnly.contains(medium) && !highOnly.contains(low),
+				"expected only HIGH: " + highOnly);
+
+		// No minimum, and LOW, list everything.
+		assertTrue(texts(queryGateway.getOpenIssues(projectName, null)).containsAll(
+				List.of(low, medium, high)));
+		assertTrue(texts(queryGateway.getOpenIssues(projectName, IssueSeverity.LOW)).containsAll(
+				List.of(low, medium, high)));
+	}
+
+	@Test
+	void theRestReadParsesTheMinimumInAnyCaseAndRefusesAnUnknownOneNamingIt() throws Exception {
+		authenticate(editorUsername);
+		Long goalId = createGoal("sev-rest");
+		String low = "RestLow-" + System.nanoTime();
+		String high = "RestHigh-" + System.nanoTime();
+		editIssue(goalId, null, low, null, "LOW");
+		editIssue(goalId, null, high, null, "HIGH");
+
+		@SuppressWarnings("unchecked")
+		List<OpenIssueDto> issues = (List<OpenIssueDto>) projectQueryController
+				.getOpenIssues(projectName, "high").getBody();
+		assertNotNull(issues);
+		assertTrue(texts(issues).contains(high) && !texts(issues).contains(low),
+				"expected the HIGH issue only: " + texts(issues));
+
+		IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+				() -> projectQueryController.getOpenIssues(projectName, "urgent"));
+		assertTrue(e.getMessage().contains("minSeverity"), e.getMessage());
+	}
+
+	@Test
+	void projectContextWithAMinimumSeverityFiltersItsOpenIssuesOnly() throws Exception {
+		authenticate(editorUsername);
+		Long goalId = createGoal("sev-context");
+		String low = "CtxLow-" + System.nanoTime();
+		String high = "CtxHigh-" + System.nanoTime();
+		editIssue(goalId, null, low, null, "LOW");
+		editIssue(goalId, null, high, null, "HIGH");
+
+		Map<String, Object> all = queryGateway.getProjectContext(projectName);
+		Map<String, Object> highOnly = queryGateway.getProjectContext(projectName,
+				IssueSeverity.HIGH);
+
+		@SuppressWarnings("unchecked")
+		List<OpenIssueDto> filtered = (List<OpenIssueDto>) highOnly.get("openIssues");
+		assertTrue(filtered.stream().allMatch(i -> "HIGH".equals(i.severity())),
+				"expected only HIGH issues: " + filtered);
+		assertTrue(texts(filtered).contains(high) && !texts(filtered).contains(low));
+		assertEquals(all.keySet(), highOnly.keySet());
+		assertEquals(all.get("tree"), highOnly.get("tree"));
+		assertEquals(all.get("glossary"), highOnly.get("glossary"));
+		assertEquals(projectName, ((com.rreganjr.requel.service.api.dto.ProjectDto) highOnly
+				.get("project")).name());
+	}
+
+	private static List<String> texts(List<OpenIssueDto> issues) {
+		return issues.stream().map(OpenIssueDto::issueText).toList();
 	}
 
 	@Test

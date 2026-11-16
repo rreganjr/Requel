@@ -2,7 +2,7 @@
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
  *
- * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,18 +18,17 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.ai;
+package com.rreganjr.requel.service.api.dto;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 
-import com.rreganjr.requel.assistant.core.persistence.AssistantRunReadService;
-
 /**
- * Issue #355: the body of {@code GET /api/ai/reviews} - one review run and the findings it
- * reported. #260 adds the findings citing evidence not in the entity's text and the definitions
- * (keys and versions, comma-joined) the run used; #264 their sources (BUNDLED or PROJECT).
+ * Issue #355: one AI review run and the findings it reported - the body of
+ * {@code GET /api/ai/reviews} and of the gateway's review read (#387, which moved it here from
+ * requel-app so the gateway API can carry it). #260 adds the findings citing evidence not in the
+ * entity's text and the definitions (keys and versions, comma-joined) the run used; #264 their
+ * sources (BUNDLED or PROJECT).
  */
 public record AiReviewDto(String runId, String status, Instant createdAt, Instant completedAt,
 		Long latencyMs, String errorKind, String errorSummary,
@@ -46,16 +45,8 @@ public record AiReviewDto(String runId, String status, Instant createdAt, Instan
 			String text, String state, Long annotationId, String targetType, Long targetId) {
 	}
 
-	static AiReviewDto of(AssistantRunReadService.RunView run) {
-		List<Finding> findings = new ArrayList<Finding>();
-		for (AssistantRunReadService.FindingView finding : run.findings()) {
-			findings.add(new Finding(finding.findingType(), finding.kind(), finding.severity(),
-					finding.confidence(), finding.text(), finding.state(), finding.annotationId(),
-					finding.targetType(), finding.targetId()));
-		}
-		return new AiReviewDto(run.runId(), run.status(), run.createdAt(), run.completedAt(), run.latencyMs(), run.errorKind(),
-				run.errorSummary(), run.resultSummary(), run.redactionCount(), List.copyOf(findings),
-				run.evidenceUnverified(), run.definitionKeys(), run.definitionVersions(),
-				run.vocabularyMisses(), run.definitionSources());
+	/** #387: whether the run has finished, successfully or not. */
+	public boolean finished() {
+		return "SUCCEEDED".equals(status) || "FAILED".equals(status);
 	}
 }

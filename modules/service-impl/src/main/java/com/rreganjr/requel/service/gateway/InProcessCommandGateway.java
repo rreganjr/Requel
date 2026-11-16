@@ -20,6 +20,10 @@
  */
 package com.rreganjr.requel.service.gateway;
 
+import com.rreganjr.requel.service.command.NotFoundInputException;
+import com.rreganjr.platform.exception.UniquenessConflictException;
+import com.rreganjr.platform.exception.StaleVersionException;
+import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
@@ -123,10 +127,26 @@ public class InProcessCommandGateway implements CommandGateway {
             // caller can then tell "fix your arguments" from "the command broke".
             throw new GatewayException(GatewayException.Kind.INVALID_INPUT,
                     "Input for command '" + commandType + "' is invalid: " + e.getMessage(), e);
+        } catch (NotFoundInputException | NoSuchEntityException e) {
+            // #345: the input names something that does not exist (an unknown id refused while the
+            // command is built, or an unknown projectName). NOT_FOUND, so a caller can tell it from
+            // malformed input; MCP still maps it to INVALID_PARAMS.
+            log.debug("Gateway command '{}' named something that does not exist: {}", commandType,
+                    e.getMessage());
+            throw new GatewayException(GatewayException.Kind.NOT_FOUND,
+                    "Command '" + commandType + "': " + e.getMessage(), e);
+        } catch (UniquenessConflictException | StaleVersionException e) {
+            // #345: a value that must be unique is taken, or the caller's version is stale. The
+            // caller can fix either, so CONFLICT (HTTP 409) rather than EXECUTION_ERROR.
+            log.debug("Gateway command '{}' conflicted: {}", commandType, e.getMessage());
+            throw new GatewayException(GatewayException.Kind.CONFLICT,
+                    "Command '" + commandType + "' conflicts with the current state: "
+                            + e.getMessage(), e);
         } catch (IllegalArgumentException e) {
-            // An id-lookup miss (e.g. "Goal not found") thrown from a registration input applicator
-            // while the command is built. That is the caller naming something that does not exist,
-            // so INVALID_INPUT rather than EXECUTION_ERROR -- MCP then maps it to INVALID_PARAMS,
+            // A malformed value thrown from a registration input applicator while the command is
+            // built (an unknown entity type, a user stakeholder id given to EditNonUserStakeholder).
+            // Unknown ids are NotFoundInputException, handled above. INVALID_INPUT rather than
+            // EXECUTION_ERROR -- MCP then maps it to INVALID_PARAMS,
             // not INTERNAL_ERROR, and the gateway HTTP wrapper returns 400 not 422, matching
             // CommandController. Logged at debug because a caller error is not a server problem.
             log.debug("Gateway command '{}' rejected invalid input: {}", commandType, e.getMessage());

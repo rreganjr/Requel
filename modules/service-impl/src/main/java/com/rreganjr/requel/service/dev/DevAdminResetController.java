@@ -67,9 +67,10 @@ public class DevAdminResetController {
 
     /**
      * Resets the admin user's password to {@code requel.admin.password} (default: "admin").
-     * All other fields (name, email, phone, org, roles) are preserved.
+     * All other fields (name, email, phone, org, roles) are preserved, and "must change password"
+     * is cleared (#381).
      *
-     * <p>Sets editedBy to admin itself (admin editing own account) so the authorization
+     * <p>Runs as a system call (no editedBy, #446), so the authorization
      * chain allows the update without requiring a live security context.</p>
      *
      * @return 204 No Content on success, 404 if admin does not exist, 500 on error.
@@ -84,8 +85,8 @@ public class DevAdminResetController {
 
             EditUserCommand cmd = userCommandFactory.newEditUserCommand();
             cmd.setUser(admin);
-            // admin editing own account: auth requirement returns null → no role check
-            cmd.setEditedBy(admin);
+            // No editedBy: a system call. #446: an account can't change its own password through
+            // EditUser, so this can't run as the admin editing itself.
             cmd.setUsername(admin.getUsername());
             cmd.setName(admin.getName());
             cmd.setEmailAddress(admin.getEmailAddress());
@@ -93,6 +94,8 @@ public class DevAdminResetController {
             cmd.setOrganizationName(orgName);
             cmd.setPassword(adminPassword);
             cmd.setRepassword(adminPassword);
+            // #381: back to a usable admin even if the startup check flagged the default password.
+            cmd.setMustChangePassword(false);
             // userRoleNames not set → userRolesProvided=false → existing roles preserved
             commandHandler.execute(cmd);
             return ResponseEntity.noContent().build();

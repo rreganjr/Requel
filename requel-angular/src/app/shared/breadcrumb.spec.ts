@@ -1,7 +1,9 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
+import { Title } from '@angular/platform-browser';
 import { BreadcrumbComponent } from './breadcrumb';
+import { ArtifactNameService } from '../core/artifact-name.service';
 
 @Component({ selector: 'app-dummy', standalone: true, template: '' })
 class DummyComponent {}
@@ -73,6 +75,19 @@ describe('BreadcrumbComponent', () => {
     // resolving the entity name is the #128 PR3 resolver step.
     expect(labels()).toEqual(['Projects', 'Acme', 'Goals', 'Goal']);
     expect(comp.crumbs().at(-1)!.label).not.toBe('12');
+  });
+
+  it('follows the name an editor sets after a rename, on that page only (#486)', async () => {
+    await go('/projects/Acme/goals/12');
+    const names = TestBed.inject(ArtifactNameService);
+    names.set('Lend books');
+    fixture.detectChanges();
+    expect(comp.crumbs().at(-1)!.label).toBe('Lend books');
+    expect(TestBed.inject(Title).getTitle()).toBe('Lend books · Requel');
+
+    await go('/projects/Acme/goals');
+    expect(labels()).toEqual(['Projects', 'Acme', 'Goals']);
+    expect(names.nameFor('/projects/Acme/goals/12')).toBeNull();
   });
 
   it('decodes an encoded project name segment', async () => {

@@ -83,6 +83,8 @@ class DefinitionExecutorAssistantTest {
 			  an "annotations" list of EXISTING issues/notes already on the entity; these are for
 			  awareness only. Do NOT restate, echo, paraphrase, or duplicate them. Report only
 			  genuinely new problems you find in the requirement text itself.
+			  Each existing issue has a "severity" (LOW, MEDIUM or HIGH). Don't raise a finding that
+			  repeats an open issue on the same point, especially a HIGH one.
 			- For EVERY finding you raise you MUST set "suggestedIssueText" to a clear, specific
 			  problem statement about THIS entity. Optionally add "suggestedPositions" with concrete
 			  ways to resolve it. Use "suggestedNoteText" only for a non-blocking observation.
@@ -413,7 +415,10 @@ class DefinitionExecutorAssistantTest {
 		assertThat(note.text()).isEqualTo("Consider error cases");
 	}
 
-	/** #260 golden test: the seeded default carries the former hard-coded prompt exactly. */
+	/**
+	 * #260 golden test: the seeded default carries the former hard-coded prompt exactly, plus
+	 * #337's sentence on the severity of existing issues.
+	 */
 	@Test
 	void theSeededDefaultCarriesTheFormerPromptExactly() throws Exception {
 		AssistantDefinition definition = defaultDefinition();

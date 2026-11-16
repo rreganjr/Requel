@@ -76,4 +76,10 @@ public interface EditGlossaryTermCommand extends EditTextEntityCommand {
 	 * @param projectOrDomain
 	 */
 	public void setProjectOrDomain(ProjectOrDomain projectOrDomain);
+
+	/**
+	 * Issue #348: the synonym a rename created to keep the old name, or null when the edit wasn't
+	 * a rename or no synonym was needed. Read after execution.
+	 */
+	public GlossaryTerm getCreatedSynonym();
 }

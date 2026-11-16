@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRouteSnapshot, RouterStateSnapshot, convertToParamMap } from '@angular/router';
 import { artifactNameResolver } from './artifact-name.resolver';
 import { GoalService } from '../goal.service';
+import { ScenarioService } from '../scenario.service';
 import { StakeholderService } from '../stakeholder.service';
 
 function routeSnapshot(
@@ -38,6 +39,16 @@ describe('artifactNameResolver (#154)', () => {
     );
     expect(result).toBe('Program Office');
     expect(getStakeholder).toHaveBeenCalledWith('Acme', 3);
+  });
+
+  it('resolves a step (#476) through ScenarioService.getStep', async () => {
+    const getStep = vi.fn().mockResolvedValue({ id: 9, name: 'Member signs in' });
+    const result = await run(
+      routeSnapshot({ artifactType: 'step' }, { name: 'Acme', stepId: '9' }),
+      [{ provide: ScenarioService, useValue: { getStep } }],
+    );
+    expect(result).toBe('Member signs in');
+    expect(getStep).toHaveBeenCalledWith('Acme', 9);
   });
 
   it('fails soft to null when the fetch rejects (never blocks navigation)', async () => {

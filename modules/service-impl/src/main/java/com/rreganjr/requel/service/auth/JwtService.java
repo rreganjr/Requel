@@ -51,6 +51,13 @@ public class JwtService {
     public static final String BUILT_IN_SECRET = "requel-dev-secret-change-in-production-min-32-chars";
 
     /**
+     * Issue #381: set on a login token when the user must change their password. Since #445 the
+     * filter takes the flag from the live account on every request, so it applies as soon as an
+     * admin sets it; the claim only tells a client what the token was issued for.
+     */
+    public static final String PASSWORD_CHANGE_CLAIM = "pwdChange";
+
+    /**
      * #445: the user's id. The filter loads the account by it on every request, so a rename, a
      * role change or a deleted account takes effect at once, and a username handed to a different
      * account never reaches it. A token without it (issued before 2.0.3) is refused.
@@ -96,17 +103,22 @@ public class JwtService {
     }
 
     /**
-     * Generate a JWT for the given user with roles and permissions as claims.
+     * Generate a JWT for the given user with roles and permissions as claims, plus
+     * {@link #PASSWORD_CHANGE_CLAIM} when the user must change their password (#381).
      */
     public String generateToken(User user, List<String> roles, List<String> permissions) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expiryMs);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(user.getUsername())
                 .claim(USER_ID_CLAIM, user.getId())
                 .claim("roles", roles)
-                .claim("permissions", permissions)
+                .claim("permissions", permissions);
+        if (user instanceof com.rreganjr.requel.user.User u && u.isMustChangePassword()) {
+            builder = builder.claim(PASSWORD_CHANGE_CLAIM, true);
+        }
+        return builder
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(signingKey)
@@ -124,6 +136,13 @@ public class JwtService {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    /**
+     * @return true if the token was issued to a user who must change their password (#381).
+     */
+    public static boolean isPasswordChangeRequired(Claims claims) {
+        return Boolean.TRUE.equals(claims.get(PASSWORD_CHANGE_CLAIM, Boolean.class));
     }
 
     /**

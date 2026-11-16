@@ -53,6 +53,7 @@ public class NLPTextImpl implements NLPText, Comparable<NLPText> {
 	private final List<NLPText> children = new ArrayList<NLPText>();
 	private final Set<GrammaticalRelation> grammaticalRelations = new HashSet<GrammaticalRelation>();
 	private NLPText primaryVerb;
+	private boolean imperative;
 	private final Map<NLPText, SemanticRole> semanticRoleVerbMap = new HashMap<NLPText, SemanticRole>();
 
 	// word and lexical info
@@ -326,6 +327,16 @@ public class NLPTextImpl implements NLPText, Comparable<NLPText> {
 	@Override
 	public NLPText getPrimaryVerb() {
 		return primaryVerb;
+	}
+
+	@Override
+	public boolean isImperative() {
+		return imperative;
+	}
+
+	@Override
+	public void setImperative(boolean imperative) {
+		this.imperative = imperative;
 	}
 
 	@Override

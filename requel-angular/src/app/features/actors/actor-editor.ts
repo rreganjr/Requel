@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
@@ -38,13 +38,14 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { ActorDto } from '../../models/actor';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { ActorService } from '../../core/actor.service';
-import { CommandService, isNetworkError } from '../../core/command.service';
+import { CommandService, isNetworkError, isStaleVersion, refusalMessage } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { AiReviewButtonComponent } from '../../shared/ai-review-button';
 import { SourcesSectionComponent } from '../../shared/sources-section';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
 import { LoadingStateComponent } from '../../shared/loading-state';
@@ -57,6 +58,7 @@ import {
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { CommandResult } from '../../models/command';
+import { ArtifactNameService } from '../../core/artifact-name.service';
 
 
 /** Joins page-level violations that resolved to no control. */
@@ -70,7 +72,7 @@ const STALE_VERSION_MESSAGE =
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-actor-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
+  imports: [AiReviewButtonComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
             ButtonModule, InputText, TextareaModule, TableModule, RelationshipSectionComponent,
             SubmitErrorComponent, UpdateBannerComponent, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent, SourcesSectionComponent, AppFieldComponent, AppFieldControlDirective,
@@ -145,12 +147,15 @@ const STALE_VERSION_MESSAGE =
         <app-card>
           <ng-container [ngTemplateOutlet]="detailsFields" />
 
-          @if (canEdit()) {
-            <div class="form-actions">
+          <!-- #387: the row shows for anyone, as Review with AI needs only project access. -->
+          <div class="form-actions">
+            @if (canEdit()) {
               <p-button label="Save" icon="pi pi-check" data-testid="actor-save"
                         [disabled]="!canSave()" (onClick)="onSave()" />
-            </div>
-          }
+            }
+            <app-ai-review-button entityType="Actor" [entityId]="actorId"
+                                  [dirty]="hasUnsavedChanges()" />
+          </div>
         </app-card>
 
         <ng-container [ngTemplateOutlet]="goalsSection"
@@ -204,6 +209,7 @@ const STALE_VERSION_MESSAGE =
     -->
     @if (actorId != null) {
       <app-annotations-section
+          (resolved)="onIssueResolved()"
         [projectName]="projectName"
         entityType="Actor"
         [entityId]="actorId"
@@ -260,7 +266,7 @@ const STALE_VERSION_MESSAGE =
   styles: [`
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .page-actions { display: flex; gap: 0.5rem; }
-    .form-actions { margin-top: 1rem; max-width: 700px; }
+    .form-actions { margin-top: 1rem; max-width: 700px; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .goals-section { margin-top: 2rem; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
     .section-header h3 { margin: 0; }
@@ -272,6 +278,14 @@ const STALE_VERSION_MESSAGE =
 export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   actor = signal<ActorDto | null>(null);
   actorName = signal('');
+  /** #486: the breadcrumb and tab title follow this entity's current name (a rename, a rewrite). */
+  private readonly artifactName = inject(ArtifactNameService);
+  private readonly leafNameSync = effect(() => {
+    const name = this.actorName();
+    if (name && !this.isNew()) {
+      this.artifactName.set(name);
+    }
+  });
   isNew = signal(false);
   // #276: derived from the service signal rather than snapshotted after the load.
   canEdit = computed(() => this.permissionService.canEdit('Actor'));
@@ -416,6 +430,20 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     this.announcer.announce('Actor reloaded.');
   }
 
+
+  /**
+   * #486: an issue was resolved in the annotations section; its position may have changed this
+   * actor (a rewrite, a merge, a spelling fix). Reload it as for a change from another session,
+   * keeping unsaved edits.
+   */
+  onIssueResolved(): void {
+    const dirty = this.hasUnsavedChanges();
+    void this.loadActor(false);
+    if (dirty) {
+      this.updateAvailable.set(true);
+      this.announcer.announce('Resolving the issue changed this actor. Your unsaved changes are preserved.');
+    }
+  }
   hasUnsavedChanges(): boolean {
     return this.detailsForm.dirty;
   }
@@ -640,7 +668,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
    * current and the user can retry. Returns whether it handled the result.
    */
   private async recoverFromStaleVersion(result: CommandResult<unknown>): Promise<boolean> {
-    if (result.status !== 409 || this.actorId == null) {
+    if (!isStaleVersion(result) || this.actorId == null) {
       return false;
     }
     await this.loadActor(false);
@@ -701,7 +729,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
           this.detailsForm.markAsPristine();
           this.router.navigate(['/projects', this.projectName, 'actors']);
         } else {
-          this.showError(result.error ?? 'Delete failed.');
+          this.showError(refusalMessage(result, 'Delete failed.'));
         }
       }
     });

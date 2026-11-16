@@ -5,6 +5,9 @@ import { Location } from '@angular/common';
 import { BehaviorSubject, EMPTY, Subject } from 'rxjs';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ScenarioEditorComponent } from './scenario-editor';
+import { By } from '@angular/platform-browser';
+import { ChangeDetectorRef } from '@angular/core';
+import { AiReviewButtonComponent } from '../../shared/ai-review-button';
 import { ScenarioService } from '../../core/scenario.service';
 import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
@@ -25,7 +28,8 @@ const flush = () => new Promise(r => setTimeout(r, 0));
 
 describe('ScenarioEditorComponent', () => {
   let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
-  let scenarioServiceMock: { getScenario: ReturnType<typeof vi.fn> };
+  let scenarioServiceMock: { getScenario: ReturnType<typeof vi.fn>; listSteps: ReturnType<typeof vi.fn>;
+    listScenarios: ReturnType<typeof vi.fn> };
   let commandServiceMock: { execute: ReturnType<typeof vi.fn> };
   let permissionServiceMock: { loadForProject: ReturnType<typeof vi.fn>; canEdit: ReturnType<typeof vi.fn>; canDelete: ReturnType<typeof vi.fn> };
   let eventStreamServiceMock: { events$: typeof EMPTY; addSubscription: ReturnType<typeof vi.fn>; removeSubscription: ReturnType<typeof vi.fn> };
@@ -43,7 +47,8 @@ describe('ScenarioEditorComponent', () => {
   beforeEach(() => {
     paramMap$ = new BehaviorSubject(convertToParamMap({ name: 'proj1', scenarioId: 'new' }));
 
-    scenarioServiceMock = { getScenario: vi.fn().mockResolvedValue(MOCK_SCENARIO) };
+    scenarioServiceMock = { getScenario: vi.fn().mockResolvedValue(MOCK_SCENARIO),
+      listSteps: vi.fn().mockResolvedValue([]), listScenarios: vi.fn().mockResolvedValue([]) };
     commandServiceMock = {
       execute: vi.fn().mockResolvedValue({ success: true, entity: MOCK_SCENARIO })
     };
@@ -262,6 +267,35 @@ describe('ScenarioEditorComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'scenarios']);
   });
 
+  it('a refused delete shows the server\'s reason, not "Validation failed" (#486)', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+    fixture.detectChanges();
+    await flush();
+    commandServiceMock.execute.mockResolvedValue({ success: false, status: 422, error: 'Validation failed',
+      violations: [{ field: 'scenarioId', message: 'validation failed: "Main" is the primary scenario of'
+        + ' use case "Borrow". Make another scenario its primary scenario, or delete the use case, first.' }] });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cs = fixture.debugElement.injector.get(ConfirmationService);
+    vi.spyOn(cs, 'confirm').mockImplementation((conf: any) => conf.accept?.());
+    comp.onDelete();
+    await flush();
+    expect(comp.errorMessage()).toBe('"Main" is the primary scenario of use case "Borrow". Make another'
+      + ' scenario its primary scenario, or delete the use case, first.');
+    expect(router.navigate).not.toHaveBeenCalledWith(['/projects', 'proj1', 'scenarios']);
+  });
+
+  it('reloads the scenario after an issue on it is resolved, e.g. a merge dropped a step (#486)', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+    fixture.detectChanges();
+    await flush();
+    scenarioServiceMock.getScenario.mockClear();
+    scenarioServiceMock.getScenario.mockResolvedValue({ ...MOCK_SCENARIO, steps: [MOCK_STEPS[0]] });
+    comp.onIssueResolved();
+    await flush();
+    expect(scenarioServiceMock.getScenario).toHaveBeenCalledTimes(1);
+    expect(comp.stepsForm.length).toBe(1);
+  });
+
   it('loadError set (driving the retryable error state) when the initial load fails', async () => {
     scenarioServiceMock.getScenario.mockRejectedValue(new Error('Network error'));
     paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
@@ -348,7 +382,7 @@ describe('ScenarioEditorComponent', () => {
     it('a 409 keeps the step and reports the stale-version message', async () => {
       fixture.detectChanges();
       await flush();
-      commandServiceMock.execute.mockResolvedValue({ success: false, status: 409, error: 'Conflict' });
+      commandServiceMock.execute.mockResolvedValue({ success: false, status: 409, code: 'STALE_VERSION', error: 'Conflict' });
       comp.scenarioId = 15;
       comp.detailsForm.controls.name.setValue('Whatever');
 
@@ -359,6 +393,26 @@ describe('ScenarioEditorComponent', () => {
       expect(request.complete).not.toHaveBeenCalled();
       expect(request.fail).toHaveBeenCalledWith(expect.stringContaining('changed elsewhere'));
     });
+
+    it('a 409 that is not a stale version shows the server message, with no refetch (#482)',
+      async () => {
+        paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+        fixture.detectChanges();
+        await flush();
+        scenarioServiceMock.getScenario.mockClear();
+        const conflict = 'The name conflicts with an existing Step: step 5 in this project already'
+          + " uses the name 'Download the receipt'.";
+        commandServiceMock.execute.mockResolvedValue({ success: false, status: 409,
+          code: 'CONFLICT', error: conflict });
+        comp.detailsForm.controls.name.setValue('My rename');
+        comp.detailsForm.controls.name.markAsDirty();
+
+        await comp.onSave();
+
+        expect(comp.errorMessage()).toBe(conflict);
+        expect(scenarioServiceMock.getScenario).not.toHaveBeenCalled();
+        expect(comp.detailsForm.controls.name.value).toBe('My rename');
+      });
   });
 
   // #185. Unlike the other editors in this issue, scenario-editor is render-gated - the form sits
@@ -375,7 +429,7 @@ describe('ScenarioEditorComponent', () => {
       comp.detailsForm.controls.name.markAsDirty();
 
       // The save conflicts; the recovery refetch returns a scenario that moved on.
-      commandServiceMock.execute.mockResolvedValue({ success: false, status: 409, error: 'Conflict' });
+      commandServiceMock.execute.mockResolvedValue({ success: false, status: 409, code: 'STALE_VERSION', error: 'Conflict' });
       scenarioServiceMock.getScenario.mockResolvedValue({
         ...MOCK_SCENARIO, version: 9, name: 'Renamed elsewhere'
       });
@@ -644,6 +698,220 @@ describe('ScenarioEditorComponent', () => {
       expect(comp.editingStep()).toBeNull();
       expect(group.controls.name.value).toBe('User opens login page');
       expect(comp.stepsForm.dirty).toBe(false);
+    });
+  });
+  // #387: Review with AI sits beside Save, bound to the entity and told about unsaved changes.
+  it('puts Review with AI beside Save, bound to the entity and the dirty state', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+    fixture.detectChanges();
+    await flush();
+    fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
+    fixture.detectChanges();
+    const de = fixture.debugElement.query(By.directive(AiReviewButtonComponent));
+    expect(de).not.toBeNull();
+    expect(de.nativeElement.closest('.form-actions')).not.toBeNull();
+    const button = de.componentInstance as AiReviewButtonComponent;
+    expect(button.entityType()).toBe('Scenario');
+    expect(button.entityId()).toBe(15);
+    expect(button.dirty()).toBe(false);
+    comp.detailsForm.markAsDirty();
+    fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
+    fixture.detectChanges();
+    expect(button.dirty()).toBe(true);
+  });
+
+  describe('#483: reusing an existing step', () => {
+    const STEPS = [
+      { id: 1, name: MOCK_STEPS[0].name, text: null, scenarioType: 'Primary', usedIn: 1 },
+      { id: 40, name: 'Download the receipt', text: 'As a PDF', scenarioType: 'Alternative', usedIn: 2 },
+      { id: 41, name: 'Downscale the image', text: null, scenarioType: 'Primary', usedIn: 1 },
+    ];
+
+    async function loadExisting(): Promise<void> {
+      scenarioServiceMock.listSteps.mockResolvedValue(STEPS);
+      paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+    }
+
+    it('suggests matching steps, case aside, without the steps already in the scenario', async () => {
+      await loadExisting();
+      await comp.filterStepSuggestions('DOWN');
+      expect(comp.stepSuggestions().map(step => step.id)).toEqual([40, 41]);
+      expect(scenarioServiceMock.listSteps).toHaveBeenCalledTimes(1);
+
+      await comp.filterStepSuggestions(MOCK_STEPS[0].name.slice(0, 5));
+      expect(comp.stepSuggestions().map(step => step.id)).not.toContain(1);
+
+      await comp.filterStepSuggestions('down');
+      expect(scenarioServiceMock.listSteps).toHaveBeenCalledTimes(1);
+    });
+
+    it('a new step\'s name field is an autocomplete whose input keeps the step-name test id',
+      async () => {
+        await loadExisting();
+        comp.addStep();
+        fixture.detectChanges();
+        const rows = (fixture.nativeElement as HTMLElement)
+          .querySelectorAll('[data-testid="scenario-step-row"]');
+        const last = rows[rows.length - 1];
+        expect(last.querySelector('[data-testid="scenario-step-name-suggest"]')).not.toBeNull();
+        expect(last.querySelector('input[data-testid="scenario-step-name"]')).not.toBeNull();
+        expect(rows[0].querySelector('[data-testid="scenario-step-name-suggest"]')).toBeNull();
+      });
+
+    it('picking a suggestion links that step, and Save sends it by id with its notes', async () => {
+      await loadExisting();
+      comp.addStep();
+      const group = stepAt(comp.stepsForm.length - 1);
+
+      comp.onStepSuggestionSelected(group, STEPS[1]);
+
+      expect(group.getRawValue()).toMatchObject({ stepId: 40, name: 'Download the receipt',
+        text: 'As a PDF', scenarioType: 'Alternative', isNew: false });
+      commandServiceMock.execute.mockResolvedValue({ success: true, entity: MOCK_SCENARIO });
+      await comp.onSave();
+      const [, input] = commandServiceMock.execute.mock.calls.at(-1)!;
+      expect(input.steps.at(-1)).toMatchObject({ stepId: 40, name: 'Download the receipt',
+        text: 'As a PDF', scenarioTypeName: 'Alternative' });
+    });
+
+    it('a refused save whose new step is named like an existing one gets the editor\'s message',
+      async () => {
+        await loadExisting();
+        comp.addStep();
+        stepAt(comp.stepsForm.length - 1).controls.name.setValue('download the receipt');
+        commandServiceMock.execute.mockResolvedValue({ success: false, status: 409,
+          code: 'CONFLICT', error: 'The name conflicts with an existing Step: ... send its id as stepId' });
+
+        await comp.onSave();
+
+        expect(comp.errorMessage()).toBe("Another step in this project is already named"
+          + " 'download the receipt'. Pick it from the suggestions to reuse it, or choose a"
+          + ' different name.');
+      });
+
+    it('a new step named like a scenario points to Add Sub-scenario', async () => {
+      await loadExisting();
+      scenarioServiceMock.listScenarios.mockResolvedValue([{ id: 30, name: 'Pay the fine' }]);
+      comp.addStep();
+      stepAt(comp.stepsForm.length - 1).controls.name.setValue('Pay the fine');
+      commandServiceMock.execute.mockResolvedValue({ success: false, status: 409,
+        code: 'CONFLICT', error: 'The name conflicts with an existing Scenario: ...' });
+
+      await comp.onSave();
+
+      expect(comp.errorMessage()).toBe("A scenario in this project is already named 'Pay the"
+        + " fine'. Use Add Sub-scenario to include it as a step, or choose a different name.");
+    });
+
+    it('any other conflict shows the server\'s message', async () => {
+      await loadExisting();
+      comp.addStep();
+      stepAt(comp.stepsForm.length - 1).controls.name.setValue('A brand new step');
+      commandServiceMock.execute.mockResolvedValue({ success: false, status: 409,
+        code: 'CONFLICT', error: 'Something else conflicted.' });
+
+      await comp.onSave();
+
+      expect(comp.errorMessage()).toBe('Something else conflicted.');
+    });
+  });
+
+  describe('#476: step pages and the open-issues icon', () => {
+    const WITH_ISSUES = {
+      ...MOCK_SCENARIO,
+      steps: [
+        { ...MOCK_STEPS[0], openIssues: 2, highestOpenSeverity: 'MEDIUM' },
+        { ...MOCK_STEPS[1], openIssues: 0 },
+        { id: 30, name: 'Pay the fine', text: null, scenarioType: 'Primary', isScenario: true, scenarioId: 30,
+          openIssues: 1, highestOpenSeverity: 'HIGH' },
+      ],
+    };
+
+    async function loadWithIssues(): Promise<HTMLElement> {
+      scenarioServiceMock.getScenario.mockResolvedValue(WITH_ISSUES);
+      paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('shows the triangle in place of the pencil on a row with open issues (#478)', async () => {
+      const el = await loadWithIssues();
+      const rows = el.querySelectorAll('[data-testid="scenario-step-row"]');
+      const first = rows[0].querySelector('[data-testid="scenario-step-issues"]');
+      expect(first?.getAttribute('data-severity')).toBe('MEDIUM');
+      expect(first?.querySelector('button')?.getAttribute('aria-label')).toBe('2 open issues, highest MEDIUM');
+      expect(rows[0].querySelector('[data-testid="scenario-step-edit"]')).toBeNull();
+      expect(comp.issueButtonSeverity('MEDIUM')).toBe('warn');
+      expect(comp.issueButtonSeverity('HIGH')).toBe('danger');
+      expect(comp.issueButtonSeverity('LOW')).toBe('info');
+    });
+
+    it('shows the pencil and no triangle on a clean row', async () => {
+      const el = await loadWithIssues();
+      const row = el.querySelectorAll('[data-testid="scenario-step-row"]')[1];
+      expect(row.querySelector('[data-testid="scenario-step-issues"]')).toBeNull();
+      expect(row.querySelector('[data-testid="scenario-step-edit"]')).not.toBeNull();
+    });
+
+    it('keeps the linked triangle beside the name on a sub-scenario row', async () => {
+      const el = await loadWithIssues();
+      const sub = el.querySelectorAll('[data-testid="scenario-step-row"]')[2]
+        .querySelector('[data-testid="scenario-step-issues"]');
+      expect(sub?.tagName).toBe('A');
+      expect(sub?.getAttribute('aria-label')).toBe('1 open issue, highest HIGH');
+      expect(sub?.classList.contains('tone-danger')).toBe(true);
+    });
+
+    it('the triangle opens the step page, and is disabled while the scenario is dirty', async () => {
+      const el = await loadWithIssues();
+      const button = () => el.querySelectorAll('[data-testid="scenario-step-row"]')[0]
+        .querySelector('[data-testid="scenario-step-issues"] button') as HTMLButtonElement;
+      button().click();
+      expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'steps', 1]);
+
+      comp.detailsForm.controls.name.setValue('Renamed');
+      comp.detailsForm.controls.name.markAsDirty();
+      fixture.detectChanges();
+      expect(button().disabled).toBe(true);
+    });
+
+    it('shows the triangle without edit permission, with no pencil', async () => {
+      permissionServiceMock.canEdit.mockReturnValue(false);
+      const el = await loadWithIssues();
+      const rows = el.querySelectorAll('[data-testid="scenario-step-row"]');
+      expect(rows[0].querySelector('[data-testid="scenario-step-issues"]')).not.toBeNull();
+      expect(rows[1].querySelector('[data-testid="scenario-step-edit"]')).toBeNull();
+    });
+
+    it('links the icon to the step page, or to the sub-scenario page', async () => {
+      await loadWithIssues();
+      expect(comp.stepPageLink(stepAt(0))).toEqual(['/projects', 'proj1', 'steps', 1]);
+      expect(comp.stepPageLink(stepAt(2))).toEqual(['/projects', 'proj1', 'scenarios', 30]);
+    });
+
+    it('the pencil on a saved step opens its page; a new step opens the popup', async () => {
+      await loadWithIssues();
+      comp.onStepPencil(stepAt(0));
+      expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'steps', 1]);
+      expect(comp.editingStep()).toBeNull();
+
+      comp.addStep();
+      const added = stepAt(comp.stepsForm.length - 1);
+      comp.onStepPencil(added);
+      expect(comp.editingStep()).toBe(added);
+    });
+
+    it('the pencil on a saved step is disabled while the scenario has unsaved changes', async () => {
+      await loadWithIssues();
+      expect(comp.stepPencilDisabled(stepAt(0))).toBe(false);
+      comp.detailsForm.controls.name.setValue('Renamed');
+      comp.detailsForm.controls.name.markAsDirty();
+      expect(comp.stepPencilDisabled(stepAt(0))).toBe(true);
     });
   });
 });

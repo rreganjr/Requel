@@ -33,6 +33,7 @@ class ExitCodeTest {
         assertThat(ExitCode.forKind(GatewayException.Kind.NOT_ALLOWED)).isEqualTo(ExitCode.NOT_ALLOWED);
         assertThat(ExitCode.forKind(GatewayException.Kind.NOT_FOUND)).isEqualTo(ExitCode.REQUEST_ERROR);
         assertThat(ExitCode.forKind(GatewayException.Kind.INVALID_INPUT)).isEqualTo(ExitCode.REQUEST_ERROR);
+        assertThat(ExitCode.forKind(GatewayException.Kind.CONFLICT)).isEqualTo(ExitCode.REQUEST_ERROR);
         assertThat(ExitCode.forKind(GatewayException.Kind.EXECUTION_ERROR)).isEqualTo(ExitCode.REQUEST_ERROR);
     }
 }

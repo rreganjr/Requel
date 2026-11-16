@@ -33,4 +33,13 @@ describe('ScenarioService', () => {
     const result = await promise;
     expect(result.id).toBe(9);
   });
+
+  it('listSteps() sends GET to the project steps endpoint (#483)', async () => {
+    const steps = [{ id: 40, name: 'Download the receipt', text: null, scenarioType: 'Primary', usedIn: 2 }];
+    const promise = service.listSteps('My Project');
+    const req = httpMock.expectOne('/api/projects/My%20Project/steps');
+    expect(req.request.method).toBe('GET');
+    req.flush(steps);
+    expect(await promise).toEqual(steps);
+  });
 });

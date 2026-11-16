@@ -101,6 +101,35 @@ public class UserImplTest extends TestCase {
         assertTrue(user.isPassword(newPassword), "the new password is saved properly.");
     }
 
+    /** #446: a real password change records when, to the second. */
+    @Test
+    public void resetPasswordRecordsWhenThePasswordChanged() {
+        UserImpl user = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
+        user.setPasswordChangedAt(null);
+        java.time.Instant before = java.time.Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+        user.resetPassword("another-pass");
+        assertNotNull(user.getPasswordChangedAt());
+        assertFalse(user.getPasswordChangedAt().isBefore(before));
+        assertEquals(0, user.getPasswordChangedAt().getNano(), "truncated to the second");
+    }
+
+    /** #446: the rehash a sign-in does for an out-of-date hash isn't a password change. */
+    @Test
+    public void theSignInRehashDoesntCountAsAPasswordChange() {
+        UserImpl user = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
+        String salt = com.rreganjr.platform.identity.password.PasswordHasher.generateSalt();
+        user.setPasswordSalt(salt);
+        user.setPasswordEncryptingIterations(1000);
+        user.setEncryptedPassword(com.rreganjr.platform.identity.password.PasswordHasher.hash(
+                defaultPassword, user.getPasswordEncryptingAlgorithmName(), salt, 1000));
+        user.setPasswordChangedAt(null);
+
+        assertTrue(user.isPassword(defaultPassword));
+        assertFalse(Integer.valueOf(1000).equals(user.getPasswordEncryptingIterations()),
+                "the sign-in rehashed with the preferred settings");
+        assertNull(user.getPasswordChangedAt());
+    }
+
     @Test
     public void testResetPasswordWithSpaces() {
         final String newPassword = " new Password ";

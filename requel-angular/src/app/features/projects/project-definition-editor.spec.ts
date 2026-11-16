@@ -100,9 +100,14 @@ describe('ProjectDefinitionEditorComponent (#264)', () => {
   it('says when someone else changed it', async () => {
     const { comp } = await render('ai-review-goal');
     service['edit'].mockResolvedValue({ success: false, error: 'Conflict', violations: null,
-      status: 409 });
+      status: 409, code: 'STALE_VERSION' });
     await comp.save();
     expect(comp.errorMessage()).toContain('Someone else changed');
+    // #482: another 409 (a key already taken) shows the server's message.
+    service['edit'].mockResolvedValue({ success: false, error: 'The key is taken.',
+      violations: null, status: 409, code: 'CONFLICT' });
+    await comp.save();
+    expect(comp.errorMessage()).toBe('The key is taken.');
     service['edit'].mockResolvedValue({ success: false, error: 'Boom', violations: [] });
     await comp.save();
     expect(comp.errorMessage()).toBe('Boom');

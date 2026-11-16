@@ -29,6 +29,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import java.util.List;
 import java.util.Map;
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.gateway.ProjectContentTooLargeException;
 import com.rreganjr.requel.service.api.dto.ProjectContentDto;
 import org.junit.jupiter.api.Test;
@@ -88,6 +89,42 @@ class RestQueryGatewayTest {
         Map<String, Object> context = f.gateway().getProjectContext("Demo");
 
         assertThat(context).containsKeys("project", "openIssues");
+        f.server().verify();
+    }
+
+    // ---- #338: the minimum-severity filter ------------------------------------------------------
+
+    @Test
+    void getOpenIssuesPassesTheMinimumSeverityWhenGiven() {
+        Fixture f = newFixture();
+        f.server().expect(requestTo("/api/gateway/query/projects/Demo/open-issues?minSeverity=MEDIUM"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+
+        assertThat(f.gateway().getOpenIssues("Demo", IssueSeverity.MEDIUM)).isEmpty();
+        f.server().verify();
+    }
+
+    @Test
+    void getOpenIssuesLeavesTheMinimumSeverityOffWhenAbsent() {
+        Fixture f = newFixture();
+        f.server().expect(requestTo("/api/gateway/query/projects/Demo/open-issues"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+
+        assertThat(f.gateway().getOpenIssues("Demo")).isEmpty();
+        f.server().verify();
+    }
+
+    @Test
+    void getProjectContextPassesTheMinimumSeverityWhenGiven() {
+        Fixture f = newFixture();
+        f.server().expect(requestTo("/api/gateway/query/projects/Demo/context?minSeverity=HIGH"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"openIssues\":[]}", MediaType.APPLICATION_JSON));
+
+        assertThat(f.gateway().getProjectContext("Demo", IssueSeverity.HIGH))
+                .containsKey("openIssues");
         f.server().verify();
     }
 

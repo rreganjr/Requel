@@ -108,6 +108,33 @@ public abstract class AbstractProjectCommand extends AbstractUserCommand
 	}
 
 	private com.rreganjr.requel.project.ProvenanceStore provenanceStore;
+	private com.rreganjr.requel.project.ProjectAssistantDefinitions assistantDefinitions;
+	private com.rreganjr.requel.project.ProjectAssistantSettingsStore assistantSettingsStore;
+
+	/**
+	 * Issue #371: setter-injected for the same reason as the ignored-finding store. Null in unit
+	 * tests that construct a command directly.
+	 */
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setAssistantDefinitions(
+			com.rreganjr.requel.project.ProjectAssistantDefinitions assistantDefinitions) {
+		this.assistantDefinitions = assistantDefinitions;
+	}
+
+	protected com.rreganjr.requel.project.ProjectAssistantDefinitions getAssistantDefinitions() {
+		return assistantDefinitions;
+	}
+
+	/** Issue #371: likewise. */
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setAssistantSettingsStore(
+			com.rreganjr.requel.project.ProjectAssistantSettingsStore assistantSettingsStore) {
+		this.assistantSettingsStore = assistantSettingsStore;
+	}
+
+	protected com.rreganjr.requel.project.ProjectAssistantSettingsStore getAssistantSettingsStore() {
+		return assistantSettingsStore;
+	}
 
 	/**
 	 * Issue #272: setter-injected for the same reason as the ignored-finding store. Null in unit

@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal, ViewChild, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
@@ -30,6 +30,7 @@ import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
+import { AutoComplete } from 'primeng/autocomplete';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { MessageModule } from 'primeng/message';
@@ -42,9 +43,9 @@ import { TooltipModule } from 'primeng/tooltip';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { CommandResult } from '../../models/command';
-import { ScenarioDto, StepDto, EditStepInput } from '../../models/scenario';
+import { ScenarioDto, StepDto, EditStepInput, StepSummaryDto } from '../../models/scenario';
 import { ScenarioService } from '../../core/scenario.service';
-import { CommandService, isNetworkError } from '../../core/command.service';
+import { CommandService, isNetworkError, isStaleVersion, refusalMessage } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
@@ -53,6 +54,7 @@ import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dial
 import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { AiReviewButtonComponent } from '../../shared/ai-review-button';
 import { SourcesSectionComponent } from '../../shared/sources-section';
 import { LoadingStateComponent } from '../../shared/loading-state';
 import { ErrorStateComponent } from '../../shared/error-state';
@@ -65,6 +67,8 @@ import {
 } from '../../shared/app-form-wizard';
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
+import { issueSeverityTone } from '../../shared/severity';
+import { ArtifactNameService } from '../../core/artifact-name.service';
 
 const SCENARIO_TYPE_OPTIONS = [
   { label: 'Primary', value: 'Primary' },
@@ -97,12 +101,15 @@ type StepGroup = FormGroup<{
   isNew: FormControl<boolean>;
 }>;
 
+/** #483: how many existing steps a new step's name suggests at most. */
+const STEP_SUGGESTION_LIMIT = 10;
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-scenario-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet,
-            ReactiveFormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
+  imports: [AiReviewButtonComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet,
+            ReactiveFormsModule, ButtonModule, InputText, AutoComplete, TextareaModule, SelectModule,
             MessageModule, SubmitErrorComponent, UpdateBannerComponent, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
             ScenarioSelectorDialogComponent, AnnotationsSectionComponent, SourcesSectionComponent, LoadingStateComponent,
             ErrorStateComponent, AppFieldComponent, AppFieldControlDirective,
@@ -186,6 +193,9 @@ type StepGroup = FormGroup<{
           <div class="form-actions">
             <p-button label="Save" icon="pi pi-check" data-testid="scenario-save"
                       [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
+            <!-- #387: beside Save; disabled while there are unsaved changes. -->
+            <app-ai-review-button entityType="Scenario" [entityId]="scenarioId"
+                                  [dirty]="hasUnsavedChanges()" />
           </div>
         </app-card>
 
@@ -244,6 +254,22 @@ type StepGroup = FormGroup<{
         (selected)="onReferrerSelected($event)"
         (closed)="showReferrerSelector = false" />
 
+      <!-- #476: a warning icon on a sub-scenario row with open issues, colored by the highest
+           severity; it opens the page where they can be seen and resolved. (#478: a plain step's
+           row shows it as a button in the pencil's place instead.) -->
+      <ng-template #stepIssuesIcon let-group>
+        @if (issuesOf(group); as issues) {
+          <a class="step-issues" data-testid="scenario-step-issues"
+             [class]="'step-issues tone-' + issueTone(issues.highestOpenSeverity)"
+             [attr.data-severity]="issues.highestOpenSeverity"
+             [routerLink]="stepPageLink(group)"
+             [attr.aria-label]="issuesLabel(issues)"
+             [pTooltip]="issuesLabel(issues)" tooltipPosition="top">
+            <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+          </a>
+        }
+      </ng-template>
+
       <ng-template #referencedBySection let-heading="heading">
         <app-relationship-section #scenarioReferencedBySection
           title="Referenced By" [showHeading]="heading"
@@ -273,6 +299,7 @@ type StepGroup = FormGroup<{
       -->
       @if (scenarioId != null) {
         <app-annotations-section
+          (resolved)="onIssueResolved()"
           [projectName]="projectName"
           entityType="Scenario"
           [entityId]="scenarioId"
@@ -356,6 +383,7 @@ type StepGroup = FormGroup<{
                      data-testid="scenario-step-link"
                      [routerLink]="['/projects', projectName, 'scenarios', group.controls.stepId.value!]">{{ group.controls.name.value }}</a>
                   <span class="step-type-badge">{{ group.controls.scenarioType.value }}</span>
+                  <ng-container [ngTemplateOutlet]="stepIssuesIcon" [ngTemplateOutletContext]="{ $implicit: group }" />
                   @if (canEdit()) {
                     <p-button icon="pi pi-times" severity="danger" [text]="true"
                               data-testid="scenario-step-remove" [ariaLabel]="'Remove ' + group.controls.name.value + ' from scenario'"
@@ -363,22 +391,70 @@ type StepGroup = FormGroup<{
                               (onClick)="removeStep(group)" />
                   }
                 } @else {
-                  <input pInputText [formControl]="group.controls.name"
-                         class="step-name-input"
-                         data-testid="scenario-step-name"
-                         placeholder="Step description..."
-                         [attr.aria-label]="'Step ' + (stepIndex + 1) + ' description'"
-                         [attr.maxlength]="nameMaxLength"
-                         [readonly]="!canEdit()"
-                         [attr.aria-invalid]="stepNameErr.message() ? 'true' : null"
-                         [attr.aria-describedby]="stepNameErr.message() ? 'scenario-step-name-error-' + stepIndex : null"
-                         (keydown)="$event.stopPropagation()"
-                         (blur)="onStepNameChange()" />
-                  @if (canEdit()) {
+                  @if (group.controls.isNew.value && canEdit()) {
+                    <!-- #483: a new step's name suggests the project's existing steps; picking one
+                         links that step instead of adding a new one. -->
+                    <p-autoComplete [formControl]="group.controls.name"
+                                    class="step-name-input step-name-suggest"
+                                    data-testid="scenario-step-name-suggest"
+                                    [suggestions]="stepSuggestions()"
+                                    optionLabel="name"
+                                    [minQueryLength]="2"
+                                    [showEmptyMessage]="false"
+                                    [delay]="150"
+                                    appendTo="body"
+                                    placeholder="Step description..."
+                                    [pt]="stepNameInputPt(stepIndex, stepNameErr.message())"
+                                    (completeMethod)="filterStepSuggestions($event.query)"
+                                    (onFocus)="loadStepList()"
+                                    (onSelect)="onStepSuggestionSelected(group, $event.value)"
+                                    (keydown)="$event.stopPropagation()"
+                                    (onBlur)="onStepNameChange()">
+                      <ng-template #item let-step>
+                        <div class="step-suggestion" data-testid="scenario-step-suggestion">
+                          <span class="step-suggestion-name">{{ step.name }}</span>
+                          <span class="step-suggestion-meta">{{ step.scenarioType }} &middot;
+                            used in {{ step.usedIn }} {{ step.usedIn === 1 ? 'scenario' : 'scenarios' }}</span>
+                        </div>
+                      </ng-template>
+                    </p-autoComplete>
+                  } @else {
+                    <input pInputText [formControl]="group.controls.name"
+                           class="step-name-input"
+                           data-testid="scenario-step-name"
+                           placeholder="Step description..."
+                           [attr.aria-label]="'Step ' + (stepIndex + 1) + ' description'"
+                           [attr.maxlength]="nameMaxLength"
+                           [readonly]="!canEdit()"
+                           [attr.aria-invalid]="stepNameErr.message() ? 'true' : null"
+                           [attr.aria-describedby]="stepNameErr.message() ? 'scenario-step-name-error-' + stepIndex : null"
+                           (keydown)="$event.stopPropagation()"
+                           (blur)="onStepNameChange()" />
+                  }
+                  <!-- #476: a saved step opens its own page (annotations, used in); a new one,
+                       not saved yet, keeps the popup. Disabled while the scenario has unsaved
+                       changes, because the step page saves on its own. #478: one button - the
+                       pencil, or, when the step has open issues, the triangle in its place,
+                       colored by the highest severity (shown read-only too). -->
+                  @if (issuesOf(group); as issues) {
+                    <p-button icon="pi pi-exclamation-triangle" [text]="true" size="small"
+                              data-testid="scenario-step-issues"
+                              [attr.data-severity]="issues.highestOpenSeverity"
+                              [severity]="issueButtonSeverity(issues.highestOpenSeverity)"
+                              [ariaLabel]="issuesLabel(issues)"
+                              [disabled]="stepPencilDisabled(group)"
+                              [pTooltip]="stepPencilDisabled(group) ? 'Save the scenario first' : issuesLabel(issues)"
+                              tooltipPosition="top"
+                              (onClick)="onStepPencil(group)" />
+                  } @else if (canEdit()) {
                     <p-button icon="pi pi-pencil" [text]="true" size="small"
                               data-testid="scenario-step-edit" ariaLabel="Edit step details"
-                              pTooltip="Edit details" tooltipPosition="top"
-                              (onClick)="openStepEdit(group)" />
+                              [disabled]="stepPencilDisabled(group)"
+                              [pTooltip]="stepPencilDisabled(group) ? 'Save the scenario first' : 'Edit details'"
+                              tooltipPosition="top"
+                              (onClick)="onStepPencil(group)" />
+                  }
+                  @if (canEdit()) {
                     <p-button icon="pi pi-plus" severity="secondary" [text]="true"
                               data-testid="scenario-step-add-below" ariaLabel="Add step below"
                               size="small" pTooltip="Add step below" tooltipPosition="top"
@@ -423,7 +499,7 @@ type StepGroup = FormGroup<{
   styles: [`
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .page-actions { display: flex; gap: 0.5rem; }
-    .form-actions { margin-top: 1rem; }
+    .form-actions { margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .section { margin-top: 1.5rem; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
     .section-actions { display: flex; gap: 0.5rem; }
@@ -471,8 +547,19 @@ type StepGroup = FormGroup<{
     .drag-handle:active { cursor: grabbing; }
 
     .step-name-input { flex: 1; min-width: 0; font-size: 0.9rem; }
+    /* #483: the autocomplete fills the row like the plain input, and its suggestions show each
+       step's type and use under its name. */
+    .step-name-suggest { display: flex; }
+    .step-name-suggest ::ng-deep .p-autocomplete-input { width: 100%; font-size: 0.9rem; }
+    .step-suggestion { display: flex; flex-direction: column; }
+    .step-suggestion-meta { font-size: 0.8rem; color: var(--rq-text-muted-color); }
     .step-name { flex: 1; font-size: 0.9rem; }
     .step-icon { color: var(--p-text-secondary-color); font-size: 0.85rem; flex-shrink: 0; }
+    /* #476: the open-issues icon, colored by the highest open severity. */
+    .step-issues { display: inline-flex; align-items: center; padding: 0 var(--rq-space-1); text-decoration: none; }
+    .step-issues.tone-danger { color: var(--rq-tag-danger-fg); }
+    .step-issues.tone-warning { color: var(--rq-tag-warning-fg); }
+    .step-issues.tone-info, .step-issues.tone-neutral { color: var(--rq-tag-info-fg); }
     .step-type-badge {
       font-size: 0.75rem; padding: 0.1rem 0.4rem;
       background: var(--p-surface-200); border-radius: 4px;
@@ -486,6 +573,14 @@ type StepGroup = FormGroup<{
 export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   isNew = signal(true);
   scenarioName = signal('');
+  /** #486: the breadcrumb and tab title follow this entity's current name (a rename, a rewrite). */
+  private readonly artifactName = inject(ArtifactNameService);
+  private readonly leafNameSync = effect(() => {
+    const name = this.scenarioName();
+    if (name && !this.isNew()) {
+      this.artifactName.set(name);
+    }
+  });
   scenario = signal<ScenarioDto | null>(null);
   errorMessage = signal<string | null>(null);
   retryable = signal(false);
@@ -649,6 +744,20 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     this.announcer.announce('Scenario reloaded.');
   }
 
+
+  /**
+   * #486: an issue was resolved in the annotations section; its position may have changed this
+   * scenario (a rewrite, a merge, a spelling fix). Reload it as for a change from another session,
+   * keeping unsaved edits.
+   */
+  onIssueResolved(): void {
+    const dirty = this.hasUnsavedChanges();
+    void this.loadScenario(false);
+    if (dirty) {
+      this.updateAvailable.set(true);
+      this.announcer.announce('Resolving the issue changed this scenario. Your unsaved changes are preserved.');
+    }
+  }
   hasUnsavedChanges(): boolean {
     return this.detailsForm.dirty || this.stepsForm.dirty;
   }
@@ -802,6 +911,113 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   onStepNameChange(): void {
     this.markStepsDirty();
   }
+  /** #483: the project's plain steps, loaded on the first focus of a new step's name. */
+  private readonly stepList = signal<StepSummaryDto[] | null>(null);
+  private stepListLoad: Promise<StepSummaryDto[]> | null = null;
+  readonly stepSuggestions = signal<StepSummaryDto[]>([]);
+
+  /** #483: loads the project's steps once per editor visit; a failure just means no suggestions. */
+  loadStepList(): Promise<StepSummaryDto[]> {
+    if (!this.stepListLoad) {
+      this.stepListLoad = this.scenarioService.listSteps(this.projectName)
+        .then(steps => {
+          this.stepList.set(steps);
+          return steps;
+        })
+        .catch(() => {
+          this.stepListLoad = null;
+          return [] as StepSummaryDto[];
+        });
+    }
+    return this.stepListLoad;
+  }
+
+  /**
+   * #483: the existing steps whose names contain `query`, case aside, without the steps already
+   * in this scenario. Up to 10.
+   */
+  async filterStepSuggestions(query: string): Promise<void> {
+    const steps = await this.loadStepList();
+    const needle = (query ?? '').trim().toLowerCase();
+    const inScenario = new Set(this.stepsForm.getRawValue()
+      .filter(step => !step.isScenario && step.stepId != null)
+      .map(step => step.stepId));
+    this.stepSuggestions.set(needle.length === 0 ? [] : steps
+      .filter(step => !inScenario.has(step.id) && step.name.toLowerCase().includes(needle))
+      .slice(0, STEP_SUGGESTION_LIMIT));
+  }
+
+  /**
+   * #483: links an existing step in place of the new one: the row takes its id, name, notes and
+   * type, and is no longer new, so Save sends it by `stepId` and keeps its notes.
+   */
+  onStepSuggestionSelected(group: StepGroup, step: StepSummaryDto): void {
+    group.patchValue({
+      stepId: step.id,
+      name: step.name,
+      text: step.text ?? null,
+      scenarioType: step.scenarioType ?? group.controls.scenarioType.value,
+      isNew: false,
+    });
+    this.stepSuggestions.set([]);
+    this.markStepsDirty();
+    this.announcer.announce(`Linked the existing step ${step.name}.`);
+  }
+
+  /** #483: puts the step name's test id, label and error wiring on the autocomplete's input. */
+  stepNameInputPt(stepIndex: number, error: string | null | undefined): object {
+    return {
+      pcInputText: {
+        root: {
+          'data-testid': 'scenario-step-name',
+          'aria-label': 'Step ' + (stepIndex + 1) + ' description',
+          maxlength: this.nameMaxLength,
+          'aria-invalid': error ? 'true' : null,
+          'aria-describedby': error ? 'scenario-step-name-error-' + stepIndex : null,
+        },
+      },
+    };
+  }
+
+  /** #483: the name of a new step that is also a scenario's name, if any. */
+  private async newStepNamedLikeAScenario(): Promise<string | undefined> {
+    let scenarios: ScenarioDto[];
+    try {
+      scenarios = await this.scenarioService.listScenarios(this.projectName);
+    } catch {
+      return undefined;
+    }
+    return this.stepsForm.getRawValue()
+      .filter(step => !step.isScenario && step.stepId == null)
+      .map(step => step.name.trim())
+      .find(name => scenarios.some(scenario => scenario.name.toLowerCase() === name.toLowerCase()));
+  }
+
+  /**
+   * #483: the message for a refused save. A 409 `CONFLICT` (#482) where a new step is named like
+   * an existing step, or like a scenario, gets the editor's own words, since the server's are for
+   * API callers; any other refusal shows the server's message.
+   */
+  private async refusalMessage(result: CommandResult<unknown>, fallback: string): Promise<string> {
+    if (result.status === 409 && result.code === 'CONFLICT') {
+      const steps = await this.loadStepList();
+      const taken = this.stepsForm.getRawValue()
+        .filter(step => !step.isScenario && step.stepId == null)
+        .map(step => step.name.trim())
+        .find(name => steps.some(existing => existing.name.toLowerCase() === name.toLowerCase()));
+      if (taken) {
+        return `Another step in this project is already named '${taken}'. Pick it from the `
+          + 'suggestions to reuse it, or choose a different name.';
+      }
+      const scenarioName = await this.newStepNamedLikeAScenario();
+      if (scenarioName) {
+        return `A scenario in this project is already named '${scenarioName}'. Use Add `
+          + 'Sub-scenario to include it as a step, or choose a different name.';
+      }
+    }
+    return result.error ?? fallback;
+  }
+
 
   excludeScenarioIds(): number[] {
     const ids: number[] = [];
@@ -879,6 +1095,55 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     this.stepsForm.removeAt(event.previousIndex);
     this.stepsForm.insert(event.currentIndex, group);
     this.markStepsDirty();
+  }
+
+  /**
+   * #476: the open-issue summary of a row's step or sub-scenario, from the last scenario read, or
+   * null when it has none (or is new and not saved yet).
+   */
+  issuesOf(group: StepGroup): StepDto | null {
+    const id = group.controls.stepId.value;
+    if (id == null) return null;
+    const step = (this.scenario()?.steps ?? []).find(s => s.id === id);
+    return step && (step.openIssues ?? 0) > 0 ? step : null;
+  }
+
+  issuesLabel(step: StepDto): string {
+    const n = step.openIssues ?? 0;
+    const severity = step.highestOpenSeverity ? `, highest ${step.highestOpenSeverity}` : '';
+    return `${n} open issue${n === 1 ? '' : 's'}${severity}`;
+  }
+
+  issueTone(severity: string | null | undefined): string {
+    return issueSeverityTone(severity);
+  }
+
+  /**
+   * #478: the step row's triangle is a p-button, whose inner button a component style can't
+   * reach, so its color is the button's own severity, mapped from the issue tone.
+   */
+  issueButtonSeverity(severity: string | null | undefined): 'danger' | 'warn' | 'info' {
+    const tone = issueSeverityTone(severity);
+    return tone === 'danger' ? 'danger' : tone === 'warning' ? 'warn' : 'info';
+  }
+
+  /** #476: the page of a row's step, or of the scenario used as that step. */
+  stepPageLink(group: StepGroup): (string | number)[] {
+    return ['/projects', this.projectName,
+      group.controls.isScenario.value ? 'scenarios' : 'steps', group.controls.stepId.value!];
+  }
+
+  /** #476: the step page saves on its own, so it can't open over unsaved scenario changes. */
+  stepPencilDisabled(group: StepGroup): boolean {
+    return group.controls.stepId.value != null && this.hasUnsavedChanges();
+  }
+
+  onStepPencil(group: StepGroup): void {
+    if (group.controls.stepId.value != null) {
+      void this.router.navigate(this.stepPageLink(group));
+    } else {
+      this.openStepEdit(group);
+    }
   }
 
   openStepEdit(group: StepGroup): void {
@@ -969,7 +1234,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       request.fail(STALE_VERSION_MESSAGE);
       return;
     }
-    request.fail(result.error ?? 'Save failed.');
+    request.fail(await this.refusalMessage(result, 'Save failed.'));
   }
 
   /** Done on the last step: the scenario is already saved, so just go to it. */
@@ -1061,7 +1326,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
    * can retry. Returns whether it handled the result.
    */
   private async recoverFromStaleVersion(result: CommandResult<unknown>): Promise<boolean> {
-    if (result.status !== 409 || this.scenarioId == null) {
+    if (!isStaleVersion(result) || this.scenarioId == null) {
       return false;
     }
     await this.loadScenario(false);
@@ -1085,7 +1350,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       this.showError(STALE_VERSION_MESSAGE);
       return;
     }
-    this.showError(result.error ?? 'Save failed.');
+    this.showError(await this.refusalMessage(result, 'Save failed.'));
     this.retryable.set(isNetworkError(result));
   }
 
@@ -1124,7 +1389,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
           this.stepsForm.markAsPristine();
           this.router.navigate(['/projects', this.projectName, 'scenarios']);
         } else {
-          this.showError(result.error ?? 'Delete failed.');
+          this.showError(refusalMessage(result, 'Delete failed.'));
         }
       }
     });

@@ -588,7 +588,8 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
     /**
      * #340: a projectName that names no project used to fall through to create, so a misspelled
      * name made a second project and reported success. Admin holds createProjects, so before the
-     * fix this request created {@code newName}; now it is refused like any unknown projectName.
+     * fix this request created {@code newName}; now it is refused like any unknown projectName,
+     * as not found (404, #345).
      */
     @Test
     void editProjectWithAnUnknownProjectNameIsRefusedAndCreatesNothing() throws Exception {
@@ -599,7 +600,7 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "projectName", testProjectName + "-misspelled",
                                 "name", newName))))
-                .andExpect(status().isConflict());
+                .andExpect(status().isNotFound());
 
         org.junit.jupiter.api.Assertions.assertThrows(
                 com.rreganjr.requel.project.exception.NoSuchProjectException.class,
@@ -827,6 +828,19 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                 .andExpect(jsonPath("$.success").value(true));
     }
 
+    /** #330: a position from another issue is a field error, not a resolve of the wrong issue. */
+    @Test
+    void resolvingWithAnotherIssuesPositionIsAFieldError() throws Exception {
+        long[] first = createIssueWithPosition("resolve-mismatch-a");
+        long[] second = createIssueWithPosition("resolve-mismatch-b");
+        mockMvc.perform(post("/api/commands/ResolveIssue")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(resolveIssueJson(first[0], second[1])))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.violations[0].field").value("positionId"));
+    }
+
     @Test
     void deleterWithoutAnnotationEditCannotResolveIssue() throws Exception {
         long[] ids = createIssueWithPosition("resolve-deleter");
@@ -1019,7 +1033,7 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
         mockMvc.perform(get("/api/projects/" + testProjectName + "/assistants")
                         .header("Authorization", "Bearer " + deleterToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(4))
+                .andExpect(jsonPath("$.length()").value(5))
                 .andExpect(jsonPath("$[?(@.assistantId == 'legacy-lexical-complexity')].enabled")
                         .value(org.hamcrest.Matchers.contains(false)))
                 .andExpect(jsonPath("$[?(@.assistantId == 'legacy-lexical')].enabled")
@@ -1113,6 +1127,36 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                         .param("entityId", goalId.toString())
                         .header("Authorization", "Bearer " + editorToken))
                 .andExpect(status().isBadRequest());
+    }
+
+    // Issue #387: the availability read has the same checks, and with AI off (this context) a
+    // stakeholder's POST is a 409 naming why rather than a run that does nothing.
+    @Test
+    void reviewAvailabilityNeedsProjectAccessAndAnUnavailablePostIsA409() throws Exception {
+        mockMvc.perform(get("/api/ai/reviews/availability").param("entityType", "Goal")
+                        .param("entityId", goalId.toString())
+                        .header("Authorization", "Bearer " + deleterToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.available").value(false))
+                .andExpect(jsonPath("$.reason").value("AI review is off on this server."));
+        mockMvc.perform(get("/api/ai/reviews/availability").param("entityType", "Goal")
+                        .param("entityId", goalId.toString())
+                        .header("Authorization", "Bearer " + noAccessToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/ai/reviews/availability").param("entityType", "Project")
+                        .param("entityId", goalId.toString())
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/ai/reviews/availability").param("entityType", "Goal")
+                        .param("entityId", "987654321")
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/ai/reviews").param("entityType", "Goal")
+                        .param("entityId", goalId.toString())
+                        .header("Authorization", "Bearer " + deleterToken))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("AI_REVIEW_UNAVAILABLE"))
+                .andExpect(jsonPath("$.message").value("AI review is off on this server."));
     }
 
     @Test

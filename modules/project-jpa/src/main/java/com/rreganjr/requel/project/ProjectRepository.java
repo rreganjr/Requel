@@ -167,6 +167,17 @@ public interface ProjectRepository extends Repository {
 	public boolean isStepUsedByAnotherScenario(Step step, Scenario except);
 
 	/**
+	 * The use cases whose primary scenario is the given one (issue #341). A query rather than
+	 * {@code Scenario.getUsingUseCases()}, so a use case deleted earlier in the same transaction
+	 * (DeleteUseCase, DeleteProject) is not counted: the query flushes first, and a lazy collection
+	 * loaded before the delete would still list it.
+	 *
+	 * @param scenario
+	 * @return the use cases using it as their primary scenario, empty when none
+	 */
+	public java.util.List<UseCase> findUseCasesWithPrimaryScenario(Scenario scenario);
+
+	/**
 	 * Find a non-user stakeholder by name.
 	 * 
 	 * @param projectOrDomain -

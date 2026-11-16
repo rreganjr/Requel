@@ -27,6 +27,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -34,7 +35,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.EntityRef;
+import com.rreganjr.requel.gateway.AiReviewGateway;
 import com.rreganjr.requel.gateway.GatewayCommandCatalog;
+import com.rreganjr.requel.gateway.GatewayException;
 import com.rreganjr.requel.gateway.QueryDescriptions;
 import com.rreganjr.requel.gateway.QueryGateway;
 
@@ -45,6 +48,10 @@ public class McpReadService {
 	private final McpWriteService writeService;
 	private final McpRateLimiter rateLimiter;
 	private final ObjectMapper objectMapper;
+	/** #387: the AI review tools' backend; absent, the tools are not offered. */
+	private AiReviewGateway aiReviewGateway;
+	/** #387: requel.ai.enabled - the AI review tools are offered only when AI is on. */
+	private boolean aiEnabled;
 
 	@Autowired
 	public McpReadService(QueryGateway projectQueryGateway, McpWriteService writeService,
@@ -66,6 +73,31 @@ public class McpReadService {
 				McpRateLimiter.NOOP, objectMapper);
 	}
 
+	/** #387: the AI review backend (requel-app); without it the AI review tools are not offered. */
+	@Autowired(required = false)
+	public void setAiReviewGateway(AiReviewGateway aiReviewGateway) {
+		this.aiReviewGateway = aiReviewGateway;
+	}
+
+	/** #387: whether AI is on for the server; the AI review tools are offered only then. */
+	@Value("${requel.ai.enabled:false}")
+	public void setAiEnabled(boolean aiEnabled) {
+		this.aiEnabled = aiEnabled;
+	}
+
+	/** #387: getAiReview is offered when AI is on and the backend is present. */
+	private boolean aiReviewReadOffered() {
+		return aiEnabled && aiReviewGateway != null;
+	}
+
+	/**
+	 * #387: requestAiReview writes its findings to the project and spends provider money, so it
+	 * is offered only when the write tools are as well.
+	 */
+	private boolean aiReviewRequestOffered() {
+		return aiReviewReadOffered() && writeService.isWriteEnabled();
+	}
+
 	public Map<String, Object> listTools() {
 		List<McpToolDescriptor> tools = new ArrayList<>(List.of(
 				new McpToolDescriptor("listProjects", QueryDescriptions.LIST_PROJECTS,
@@ -78,7 +110,7 @@ public class McpReadService {
 				new McpToolDescriptor("getGlossary", QueryDescriptions.GET_GLOSSARY,
 						projectNameSchema()),
 				new McpToolDescriptor("getOpenIssues", QueryDescriptions.GET_OPEN_ISSUES,
-						projectNameSchema()),
+						minSeveritySchema()),
 				new McpToolDescriptor("getAnnotations", QueryDescriptions.GET_ANNOTATIONS,
 						entityRefSchema(QueryDescriptions.ANNOTATABLE_ENTITY_TYPES,
 								QueryDescriptions.ANNOTATABLE_ENTITY_TYPE)),
@@ -91,7 +123,7 @@ public class McpReadService {
 				new McpToolDescriptor("searchProjectEntities",
 						QueryDescriptions.SEARCH_PROJECT_ENTITIES, searchSchema()),
 				new McpToolDescriptor("getProjectContext", QueryDescriptions.GET_PROJECT_CONTEXT,
-						projectNameSchema()),
+						minSeveritySchema()),
 				new McpToolDescriptor("getProjectContent", QueryDescriptions.GET_PROJECT_CONTENT,
 						projectContentSchema()),
 				new McpToolDescriptor("draftAnnotation", QueryDescriptions.DRAFT_ANNOTATION,
@@ -107,6 +139,14 @@ public class McpReadService {
 						projectNameSchema()),
 				new McpToolDescriptor("compareSources", QueryDescriptions.COMPARE_SOURCES,
 						compareSourcesSchema())));
+		if (aiReviewReadOffered()) {
+			tools.add(new McpToolDescriptor("getAiReview", QueryDescriptions.GET_AI_REVIEW,
+					aiReviewSchema(true)));
+		}
+		if (aiReviewRequestOffered()) {
+			tools.add(new McpToolDescriptor("requestAiReview", QueryDescriptions.REQUEST_AI_REVIEW,
+					aiReviewSchema(false)));
+		}
 		// Append opt-in write tools (empty unless requel.gateway.write.enabled=true).
 		tools.addAll(writeService.toolDescriptors());
 		return Map.of("tools", tools);
@@ -131,7 +171,7 @@ public class McpReadService {
 			case "getGlossary" -> projectQueryGateway.getGlossaryTerms(requiredText(
 					arguments, "projectName"));
 			case "getOpenIssues" -> projectQueryGateway.getOpenIssues(requiredText(
-					arguments, "projectName"));
+					arguments, "projectName"), minSeverity(arguments));
 			case "getAnnotations" -> projectQueryGateway.getAnnotations(
 					requiredText(arguments, "projectName"), requiredText(arguments, "entityType"),
 					requiredLong(arguments, "entityId"));
@@ -144,7 +184,7 @@ public class McpReadService {
 			case "searchProjectEntities" -> projectQueryGateway.searchProjectEntities(
 					requiredText(arguments, "projectName"), requiredText(arguments, "query"));
 			case "getProjectContext" -> projectQueryGateway.getProjectContext(
-					requiredText(arguments, "projectName"));
+					requiredText(arguments, "projectName"), minSeverity(arguments));
 			case "getProjectContent" -> projectQueryGateway.getProjectContent(
 					requiredText(arguments, "projectName"), optionalText(arguments, "annotations"));
 			case "draftAnnotation" -> draftAnnotation(arguments);
@@ -163,10 +203,71 @@ public class McpReadService {
 					requiredText(arguments, "projectName"), requiredText(arguments, "system"),
 					requiredText(arguments, "externalId"), requiredText(arguments, "otherSystem"),
 					requiredText(arguments, "otherExternalId"));
+			case "getAiReview" -> getAiReview(arguments);
+			case "requestAiReview" -> requestAiReview(arguments);
 			default -> throw new McpInvalidParamsException("Unknown MCP tool: " + name);
 		};
 		return Map.of("content", List.of(new McpTextContent("text", toJson(result))),
 				"isError", false);
+	}
+
+	// ---- AI review (#387) -------------------------------------------------------------------------
+
+	private Object requestAiReview(JsonNode arguments) {
+		if (!aiReviewRequestOffered()) {
+			throw new McpInvalidParamsException(aiReviewReadOffered()
+					? "requestAiReview writes its findings to the project; set"
+							+ " requel.gateway.write.enabled=true to enable it"
+					: "AI review is off on this server");
+		}
+		try {
+			return aiReviewGateway.requestReview(requiredText(arguments, "projectName"),
+					requiredText(arguments, "entityType"), requiredLong(arguments, "entityId"));
+		} catch (GatewayException e) {
+			throw mapGatewayException(e);
+		}
+	}
+
+	/** The latest run, or null (JSON null) when the entity has never been reviewed. */
+	private Object getAiReview(JsonNode arguments) {
+		if (!aiReviewReadOffered()) {
+			throw new McpInvalidParamsException("AI review is off on this server");
+		}
+		try {
+			return aiReviewGateway.latestReview(requiredText(arguments, "projectName"),
+					requiredText(arguments, "entityType"), requiredLong(arguments, "entityId"),
+					optionalText(arguments, "taskType")).orElse(null);
+		} catch (GatewayException e) {
+			throw mapGatewayException(e);
+		}
+	}
+
+	/**
+	 * As the write tools map them: anything the caller can correct (unavailable included) is
+	 * invalid params carrying the message; a server-side failure is an internal error.
+	 */
+	private static RuntimeException mapGatewayException(GatewayException e) {
+		return switch (e.getKind()) {
+			case NOT_ALLOWED, NOT_FOUND, INVALID_INPUT, UNAUTHORIZED, CONFLICT ->
+					new McpInvalidParamsException(e.getMessage());
+			case EXECUTION_ERROR -> new IllegalStateException(e.getMessage(), e);
+		};
+	}
+
+	/** The entity to review; the read also takes the optional task type. */
+	private Map<String, Object> aiReviewSchema(boolean withTaskType) {
+		Map<String, Object> properties = new java.util.LinkedHashMap<>();
+		properties.put("projectName", property("string", QueryDescriptions.PROJECT_NAME));
+		properties.put("entityType", enumProperty(QueryDescriptions.REVIEWABLE_ENTITY_TYPES,
+				QueryDescriptions.REVIEWABLE_ENTITY_TYPE));
+		properties.put("entityId", property("integer", QueryDescriptions.ENTITY_ID));
+		if (withTaskType) {
+			properties.put("taskType", enumProperty(QueryDescriptions.AI_REVIEW_TASK_TYPES,
+					QueryDescriptions.AI_REVIEW_TASK_TYPE));
+		}
+		return Map.of("type", "object", "properties", properties,
+				"required", List.of("projectName", "entityType", "entityId"),
+				"additionalProperties", false);
 	}
 
 	// ---- schemas: every property carries a description (issue #296, McpReadServiceTest) ----
@@ -184,6 +285,28 @@ public class McpReadService {
 				"properties", Map.of("projectName",
 						property("string", QueryDescriptions.PROJECT_NAME)),
 				"required", List.of("projectName"), "additionalProperties", false);
+	}
+
+	/** #338: the project name plus the optional minimum severity of the open issues listed. */
+	private Map<String, Object> minSeveritySchema() {
+		return Map.of("type", "object",
+				"properties", Map.of(
+						"projectName", property("string", QueryDescriptions.PROJECT_NAME),
+						"minSeverity", enumProperty(SEVERITIES, QueryDescriptions.MIN_SEVERITY)),
+				"required", List.of("projectName"), "additionalProperties", false);
+	}
+
+	/**
+	 * #338: the optional {@code minSeverity} argument, null when absent. An unknown value is an
+	 * invalid-params error naming it; the read path has nothing else that would turn the
+	 * gateway's refusal into one.
+	 */
+	private static IssueSeverity minSeverity(JsonNode arguments) {
+		try {
+			return IssueSeverity.parseMinimum("minSeverity", optionalText(arguments, "minSeverity"));
+		} catch (IllegalArgumentException e) {
+			throw new McpInvalidParamsException(e.getMessage());
+		}
 	}
 
 	/** #274: the project name plus the optional annotation mode. */

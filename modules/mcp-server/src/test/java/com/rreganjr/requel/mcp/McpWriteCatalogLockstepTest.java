@@ -82,10 +82,12 @@ class McpWriteCatalogLockstepTest {
 		assertThat(editGoal.inputSchema()).containsEntry("additionalProperties", false);
 
 		// Required is derived from the @NotBlank annotations the command applicator implies:
-		// projectName + name are unconditional; goalId/text/version are create-or-update/optional.
+		// projectName is unconditional. name is required only when creating (#331's
+		// @RequiredOnCreate), so it is not in the schema's always-required list; goalId/text/version
+		// are create-or-update/optional.
 		var required = (java.util.List<String>) editGoal.inputSchema().get("required");
-		assertThat(required).containsExactlyInAnyOrder("projectName", "name");
-		assertThat(required).doesNotContain("goalId", "text", "version");
+		assertThat(required).containsExactlyInAnyOrder("projectName");
+		assertThat(required).doesNotContain("name", "goalId", "text", "version");
 	}
 
 	/**

@@ -540,6 +540,102 @@ class ProjectQueryControllerTest {
         assertEquals("Checkout", dto.referencedBy().get(0).name());
     }
 
+    /** #476: each step carries its open-issue count and the highest open severity. */
+    @Test
+    void toScenarioDetailDtoCountsEachStepsOpenIssues() {
+        Scenario scenario = stubScenario(80L, "Borrow");
+        when(scenario.getProjectOrDomain()).thenReturn(mock(Project.class));
+        Step flagged = stubStep(81L, "Download the receipt");
+        IssueImpl low = new IssueImpl(project, "low", false, user);
+        low.setSeverity(com.rreganjr.requel.annotation.IssueSeverity.LOW);
+        IssueImpl medium = new IssueImpl(project, "medium", false, user);
+        medium.setSeverity(com.rreganjr.requel.annotation.IssueSeverity.MEDIUM);
+        IssueImpl resolvedHigh = mock(IssueImpl.class);
+        when(resolvedHigh.getResolvedByPosition()).thenReturn(mock(com.rreganjr.requel.annotation.Position.class));
+        when(resolvedHigh.getSeverity()).thenReturn(com.rreganjr.requel.annotation.IssueSeverity.HIGH);
+        when(flagged.getAnnotations()).thenReturn(new java.util.LinkedHashSet<>(List.of(low, medium, resolvedHigh)));
+        Step clean = stubStep(82L, "Member signs");
+        when(clean.getAnnotations()).thenReturn(Collections.emptySet());
+        when(scenario.getSteps()).thenReturn(List.of(flagged, clean));
+
+        com.rreganjr.requel.service.api.dto.ScenarioDto dto = ProjectQueryController.toScenarioDetailDto(scenario);
+
+        assertEquals(2, dto.steps().get(0).openIssues());
+        assertEquals("MEDIUM", dto.steps().get(0).highestOpenSeverity());
+        assertEquals(0, dto.steps().get(1).openIssues());
+        assertNull(dto.steps().get(1).highestOpenSeverity());
+    }
+
+    /** #476: a plain step and the scenarios that use it. */
+    @Test
+    void getStepReturnsTheStepAndTheScenariosUsingIt() throws Exception {
+        Scenario a = stubScenario(90L, "B scenario");
+        Scenario b = stubScenario(91L, "A scenario");
+        Step step = stubStep(92L, "Member signs");
+        when(step.getUsingScenarios()).thenReturn(Set.of(a, b));
+        when(a.getSteps()).thenReturn(List.of(step));
+        when(b.getSteps()).thenReturn(List.of(step));
+        when(project.getScenarios()).thenReturn(new java.util.LinkedHashSet<>(List.of(a, b)));
+
+        mockMvc.perform(get("/api/projects/TestProject/steps/92"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Member signs"))
+                .andExpect(jsonPath("$.scenarioType").value("Primary"))
+                .andExpect(jsonPath("$.usedIn[0].name").value("A scenario"))
+                .andExpect(jsonPath("$.usedIn[1].name").value("B scenario"));
+    }
+
+    /** #476: a scenario id, an unknown id, and no access. */
+    @Test
+    void getStepIs404ForAScenarioOrAnUnknownIdAnd403WithoutAccess() throws Exception {
+        Scenario parent = stubScenario(93L, "Parent");
+        Scenario sub = stubScenario(94L, "Sub");
+        when(parent.getSteps()).thenReturn(List.of(sub));
+        when(sub.getSteps()).thenReturn(List.of());
+        when(project.getScenarios()).thenReturn(new java.util.LinkedHashSet<>(List.of(parent, sub)));
+
+        mockMvc.perform(get("/api/projects/TestProject/steps/94")).andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/projects/TestProject/steps/999")).andExpect(status().isNotFound());
+
+        when(stakeholder.matchesUser(user)).thenReturn(false);
+        mockMvc.perform(get("/api/projects/TestProject/steps/94")).andExpect(status().isForbidden());
+    }
+
+    /**
+     * #483: the project's plain steps, once each though shared, by name, with how many scenarios
+     * use them; a scenario used as a step isn't listed.
+     */
+    @Test
+    void listStepsReturnsThePlainStepsOnceEachByNameWithTheirUse() throws Exception {
+        Scenario a = stubScenario(95L, "First");
+        Scenario b = stubScenario(96L, "Second");
+        Step shared = stubStep(97L, "member signs in");
+        Step own = stubStep(98L, "Download the receipt");
+        when(shared.getUsingScenarios()).thenReturn(Set.of(a, b));
+        when(own.getUsingScenarios()).thenReturn(Set.of(a));
+        when(a.getSteps()).thenReturn(List.of(own, shared, b));
+        when(b.getSteps()).thenReturn(List.of(shared));
+        when(project.getScenarios()).thenReturn(new java.util.LinkedHashSet<>(List.of(a, b)));
+
+        mockMvc.perform(get("/api/projects/TestProject/steps"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value(98))
+                .andExpect(jsonPath("$[0].name").value("Download the receipt"))
+                .andExpect(jsonPath("$[0].scenarioType").value("Primary"))
+                .andExpect(jsonPath("$[0].usedIn").value(1))
+                .andExpect(jsonPath("$[1].name").value("member signs in"))
+                .andExpect(jsonPath("$[1].usedIn").value(2));
+    }
+
+    /** #483: no access is 403. */
+    @Test
+    void listStepsIs403WithoutAccess() throws Exception {
+        when(project.getScenarios()).thenReturn(new java.util.LinkedHashSet<>());
+        when(stakeholder.matchesUser(user)).thenReturn(false);
+        mockMvc.perform(get("/api/projects/TestProject/steps")).andExpect(status().isForbidden());
+    }
+
     // -------------------------------------------------------------------------
     // Stories
     // -------------------------------------------------------------------------
@@ -925,6 +1021,66 @@ class ProjectQueryControllerTest {
                 .andExpect(jsonPath("$[1].stale").value(true))
                 .andExpect(jsonPath("$[1].source").value("ASSISTANT:requirements-review"))
                 .andExpect(jsonPath("$[2].issueText").value("Fresh low"));
+    }
+
+    /** #338: a minimum severity lists that severity and above, still highest first. */
+    @Test
+    void getOpenIssuesWithAMinimumSeverityListsOnlyThatSeverityAndAbove() throws Exception {
+        stubIssuesOfEverySeverity();
+
+        mockMvc.perform(get("/api/projects/TestProject/open-issues").param("minSeverity", "medium"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].issueText").value("High issue"))
+                .andExpect(jsonPath("$[1].issueText").value("Medium issue"));
+        mockMvc.perform(get("/api/projects/TestProject/open-issues").param("minSeverity", "HIGH"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].issueText").value("High issue"));
+    }
+
+    /** #338: absent, blank and LOW all list every open issue. */
+    @Test
+    void getOpenIssuesWithoutAMinimumSeverityListsEveryIssue() throws Exception {
+        stubIssuesOfEverySeverity();
+
+        mockMvc.perform(get("/api/projects/TestProject/open-issues"))
+                .andExpect(jsonPath("$.length()").value(3));
+        mockMvc.perform(get("/api/projects/TestProject/open-issues").param("minSeverity", " "))
+                .andExpect(jsonPath("$.length()").value(3));
+        mockMvc.perform(get("/api/projects/TestProject/open-issues").param("minSeverity", "low"))
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[2].issueText").value("Low issue"));
+    }
+
+    /** #338: an unknown minimum severity is a 400 naming the parameter, not an empty list. */
+    @Test
+    void getOpenIssuesWithAnUnknownMinimumSeverityIsA400NamingIt() throws Exception {
+        stubIssuesOfEverySeverity();
+        MockMvc adviced = MockMvcBuilders.standaloneSetup(new ProjectQueryController(
+                projectRepository, projectCommandFactory, commandHandler, currentUserResolver,
+                entityManager, dictionaryRepository))
+                .setControllerAdvice(new com.rreganjr.requel.service.config.ApiExceptionHandler())
+                .build();
+
+        adviced.perform(get("/api/projects/TestProject/open-issues").param("minSeverity", "urgent"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("BAD_REQUEST"))
+                .andExpect(jsonPath("$.message").value(
+                        "Unsupported minSeverity value: urgent; expected LOW, MEDIUM or HIGH"));
+    }
+
+    private void stubIssuesOfEverySeverity() {
+        Goal goal = stubGoal(21L, "Goal Entity");
+        doReturn(Goal.class).when(goal).getProjectOrDomainEntityInterface();
+        IssueImpl low = new IssueImpl(project, "Low issue", false, user);
+        low.setSeverity(com.rreganjr.requel.annotation.IssueSeverity.LOW);
+        IssueImpl medium = new IssueImpl(project, "Medium issue", false, user);
+        medium.setSeverity(com.rreganjr.requel.annotation.IssueSeverity.MEDIUM);
+        IssueImpl high = new IssueImpl(project, "High issue", false, user);
+        high.setSeverity(com.rreganjr.requel.annotation.IssueSeverity.HIGH);
+        when(goal.getAnnotations()).thenReturn(Set.of(low, medium, high));
+        when(project.getProjectEntities()).thenReturn(Set.of(goal));
     }
 
     // -------------------------------------------------------------------------

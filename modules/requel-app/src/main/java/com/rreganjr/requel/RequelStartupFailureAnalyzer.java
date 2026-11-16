@@ -32,9 +32,10 @@ public class RequelStartupFailureAnalyzer extends AbstractFailureAnalyzer<Unvers
 	@Override
 	protected FailureAnalysis analyze(Throwable rootFailure, UnversionedDatabaseException cause) {
 		return new FailureAnalysis(cause.getMessage(),
-				"To move a Requel 1.0 or 1.1 database, export each project to XML in the old version,"
-						+ " then start Requel 2.0 on a new, empty database and import the files."
-						+ " Point spring.datasource.url at an empty database to start fresh."
+				"To upgrade a Requel 1.0.x or 1.1 database in place, back it up and start once with"
+						+ " REQUEL_UPGRADE_FROM_1X=true (requel.upgrade.from-1x=true). Or export each project"
+						+ " to XML in the old version, then start Requel 2 on a new, empty database and import"
+						+ " the files. Point spring.datasource.url at an empty database to start fresh."
 						+ " See doc/guides/INSTALL.md, \"Upgrading\".",
 				cause);
 	}

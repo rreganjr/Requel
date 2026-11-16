@@ -32,6 +32,7 @@ import org.springframework.stereotype.Component;
 
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.Issue;
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.annotation.Note;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.core.freshness.MachineAnnotations;
@@ -120,13 +121,7 @@ public class EntityContextPackBuilder {
 		if (target instanceof com.rreganjr.requel.annotation.Annotatable annotatable) {
 			int maxAnnotations = limits.getMaxAnnotationsPerEntity();
 			int count = 0;
-			for (Annotation annotation : annotatable.getAnnotations()) {
-				// Keep machine-generated annotations out of the context: assistants (especially
-				// smaller models) tend to echo existing automated findings back as their own
-				// instead of analyzing the requirement. Human annotations remain as useful context.
-				if (isMachineGenerated(annotation)) {
-					continue;
-				}
+			for (Annotation annotation : inPackOrder(annotatable.getAnnotations())) {
 				if (count >= maxAnnotations) {
 					truncated.add("annotations list capped at " + maxAnnotations);
 					break;
@@ -140,7 +135,7 @@ public class EntityContextPackBuilder {
 						policy, redacted, truncated);
 				annotations.add(new AnnotationSnapshot(annotation.getId(), annotation.getVersion(),
 						annotationKind(annotation), annText, annotation.isMustBeResolved(),
-						annotation.isResolved(),
+						annotation.isResolved(), severityOf(annotation),
 						authors.of(annotation.getCreatedBy()),
 						toInstant(annotation.getDateCreated())));
 				budget.add(annText);
@@ -352,6 +347,48 @@ public class EntityContextPackBuilder {
 	 * {@code "ASSISTANT:<id>"} source, or (issue #270) no source and created by the assistant user,
 	 * which is what the old lexical path left. Human annotations are kept.
 	 */
+	/**
+	 * The annotations that go in the pack, most important first, so the cap and the character
+	 * budget cut the least important (#337): open issues by severity (HIGH, MEDIUM, LOW), then
+	 * notes, then resolved issues, each group in the entity's own order.
+	 * <p>
+	 * Machine-generated annotations stay out: assistants (especially smaller models) tend to echo
+	 * existing automated findings back as their own instead of analyzing the requirement. Human
+	 * annotations remain as useful context.
+	 */
+	static List<Annotation> inPackOrder(java.util.Collection<? extends Annotation> annotations) {
+		List<Annotation> human = new ArrayList<>();
+		for (Annotation annotation : annotations) {
+			if (!isMachineGenerated(annotation)) {
+				human.add(annotation);
+			}
+		}
+		human.sort(java.util.Comparator.comparingInt(EntityContextPackBuilder::packRank));
+		return human;
+	}
+
+	/** Lower goes first: an open HIGH issue 0, MEDIUM 1, LOW 2, a note 3, a resolved issue 4. */
+	private static int packRank(Annotation annotation) {
+		if (!(annotation instanceof Issue issue)) {
+			return 3;
+		}
+		if (issue.isResolved()) {
+			return 4;
+		}
+		IssueSeverity severity = issue.getSeverity() == null ? IssueSeverity.MEDIUM
+				: issue.getSeverity();
+		return switch (severity) {
+			case HIGH -> 0;
+			case MEDIUM -> 1;
+			case LOW -> 2;
+		};
+	}
+
+	private static String severityOf(Annotation annotation) {
+		return annotation instanceof Issue issue && issue.getSeverity() != null
+				? issue.getSeverity().name() : null;
+	}
+
 	private static boolean isMachineGenerated(Annotation annotation) {
 		return MachineAnnotations.isMachineGenerated(annotation);
 	}

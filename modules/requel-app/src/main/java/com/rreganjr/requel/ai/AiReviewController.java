@@ -32,6 +32,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
+import com.rreganjr.requel.service.api.dto.AiReviewAvailabilityDto;
+import com.rreganjr.requel.service.api.dto.AiReviewDto;
+import com.rreganjr.requel.service.api.dto.AiReviewRequestDto;
 import com.rreganjr.requel.service.api.dto.ErrorResponse;
 
 /**
@@ -43,6 +46,11 @@ import com.rreganjr.requel.service.api.dto.ErrorResponse;
  * bad-request / forbidden mapping are handled here: the global {@code ApiExceptionHandler} is
  * scoped to {@code com.rreganjr.requel.service}, so it never saw this controller's exceptions and
  * both turned into 500s (#355). A missing entity is mapped to 404 here.
+ * <p>
+ * Issue #387: the POST answers with the runs to follow ({@code {runId, policyRunId}}), a run
+ * already in flight included, and refuses with 409 {@code AI_REVIEW_UNAVAILABLE} when no review
+ * can run; {@code GET /availability} says beforehand whether one would, so the editor shows its
+ * button only then.
  */
 @RestController
 @RequestMapping("/api/ai/reviews")
@@ -56,11 +64,24 @@ public class AiReviewController {
 	}
 
 	@PostMapping
-	public ResponseEntity<Void> requestReview(@RequestParam String entityType,
+	public ResponseEntity<AiReviewRequestDto> requestReview(@RequestParam String entityType,
 			@RequestParam Long entityId) {
 		try {
-			aiReviewService.requestReview(entityType, entityId);
-			return ResponseEntity.accepted().build();
+			return ResponseEntity.accepted().body(aiReviewService.requestReview(entityType, entityId));
+		} catch (NoSuchEntityException e) {
+			return ResponseEntity.notFound().build();
+		}
+	}
+
+	/**
+	 * Issue #387: {@code GET /api/ai/reviews/availability?entityType=&entityId=} - whether a review
+	 * of the entity would run, and if not why. 400 / 403 / 404 as the POST.
+	 */
+	@GetMapping("/availability")
+	public ResponseEntity<AiReviewAvailabilityDto> availability(@RequestParam String entityType,
+			@RequestParam Long entityId) {
+		try {
+			return ResponseEntity.ok(aiReviewService.availability(entityType, entityId));
 		} catch (NoSuchEntityException e) {
 			return ResponseEntity.notFound().build();
 		}
@@ -79,7 +100,7 @@ public class AiReviewController {
 			@RequestParam(defaultValue = AiReviewService.TASK_TYPE) String taskType) {
 		try {
 			return aiReviewService.latestReview(entityType, entityId, taskType)
-					.map(AiReviewDto::of)
+					.map(AiReviewDtos::of)
 					.map(ResponseEntity::ok)
 					.orElseGet(() -> ResponseEntity.noContent().build());
 		} catch (NoSuchEntityException e) {
@@ -92,6 +113,13 @@ public class AiReviewController {
 	public ResponseEntity<ErrorResponse> forbidden(AuthorizationException e) {
 		return ResponseEntity.status(HttpStatus.FORBIDDEN)
 				.body(ErrorResponse.of("FORBIDDEN", e.getMessage()));
+	}
+
+	/** #387: no review can run for the entity; the message says why. */
+	@ExceptionHandler(AiReviewUnavailableException.class)
+	public ResponseEntity<ErrorResponse> unavailable(AiReviewUnavailableException e) {
+		return ResponseEntity.status(HttpStatus.CONFLICT)
+				.body(ErrorResponse.of(AiReviewUnavailableException.CODE, e.getMessage()));
 	}
 
 	/** #355: an entity type that is not reviewable. */

@@ -23,6 +23,7 @@ package com.rreganjr.requel.gateway;
 import java.util.List;
 import java.util.Map;
 
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
@@ -52,7 +53,17 @@ public interface QueryGateway {
     List<GlossaryTermDto> getGlossaryTerms(String projectName);
 
     /** Unresolved issues across all of the project's entities. */
-    List<OpenIssueDto> getOpenIssues(String projectName);
+    default List<OpenIssueDto> getOpenIssues(String projectName) {
+        return getOpenIssues(projectName, null);
+    }
+
+    /**
+     * Issue #338: unresolved issues across the project's entities at or above
+     * {@code minSeverity}, highest severity first.
+     *
+     * @param minSeverity the lowest severity to list; null lists every issue
+     */
+    List<OpenIssueDto> getOpenIssues(String projectName, IssueSeverity minSeverity);
 
     /** Notes and issues attached to one annotatable entity in the project. */
     AnnotationsDto getAnnotations(String projectName, String entityType, long entityId);
@@ -80,7 +91,17 @@ public interface QueryGateway {
      * A composite context bundle for a project: its summary, content tree, glossary, and open
      * issues — keyed {@code project} / {@code tree} / {@code glossary} / {@code openIssues}.
      */
-    Map<String, Object> getProjectContext(String projectName);
+    default Map<String, Object> getProjectContext(String projectName) {
+        return getProjectContext(projectName, null);
+    }
+
+    /**
+     * Issue #338: {@link #getProjectContext(String)} with its {@code openIssues} narrowed to
+     * {@code minSeverity} and above; the project, tree and glossary are unaffected.
+     *
+     * @param minSeverity the lowest severity to list; null lists every issue
+     */
+    Map<String, Object> getProjectContext(String projectName, IssueSeverity minSeverity);
 
     /**
      * Issue #274: a project's whole normative content in one call — every stakeholder, goal,

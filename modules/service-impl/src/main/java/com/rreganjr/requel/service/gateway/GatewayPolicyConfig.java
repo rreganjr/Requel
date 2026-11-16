@@ -73,12 +73,15 @@ public class GatewayPolicyConfig {
             // on save: send a step with no stepId to create it, with its stepId to edit it, and
             // omit it to delete it. EditScenarioStep, CopyScenarioStep and DeleteScenarioStep were
             // therefore removed from this list in issue #252 — they were registered without an
-            // input DTO, so each advertised an empty MCP schema and was uncallable. They remain
-            // registered and reachable through /api/commands; only the machine surface drops them.
+            // input DTO, so each advertised an empty MCP schema and was uncallable.
             // ConvertStepToScenario stays because the steps array genuinely cannot express it.
-            "EditScenario", "CopyScenario", "DeleteScenario", "ConvertStepToScenario",
-            // Glossary
-            "EditGlossaryTerm", "DeleteGlossaryTerm",
+            // #476: EditScenarioStep is back, with an input: editing one step through EditScenario
+            // means resending every step, and a step left out is deleted. CopyScenarioStep and
+            // DeleteScenarioStep stay off; removing a step is done through EditScenario.
+            "EditScenario", "EditScenarioStep", "CopyScenario", "DeleteScenario",
+            "ConvertStepToScenario",
+            // Glossary (#348: ReplaceTermText edits each referer through its own Edit* command)
+            "EditGlossaryTerm", "DeleteGlossaryTerm", "ReplaceTermText",
             // Project dictionary (#319; Project[Edit] at the command layer)
             "AddProjectDictionaryWord", "DeleteProjectDictionaryWord",
             // Ignored assistant findings (#320; Project[Edit] at the command layer)
@@ -99,6 +102,9 @@ public class GatewayPolicyConfig {
             // Annotations / IBIS
             "EditNote", "DeleteNote", "EditIssue", "DeleteIssue",
             "EditPosition", "DeletePosition", "EditArgument", "DeleteArgument",
+            // Accepting a position resolves its issue (#330): Annotation[Edit], plus Edit on
+            // whatever the position changes (Fix Spelling's entities, Add as Actor's actor).
+            "ResolveIssue",
             // Tagging / categorization (tags reuse the Annotation stakeholder permission:
             // Edit to create/assign, Delete to delete; global/system tags require admin)
             "EditTag", "DeleteTag", "AssignTag", "UnassignTag",
@@ -114,7 +120,8 @@ public class GatewayPolicyConfig {
             // Identity / user management — out of scope by design. RepairProjectStakeholders
             // creates stakeholder rows and grants permissions, so it belongs here with
             // EditUserStakeholder rather than on the allowlist (issue #256); admins run it
-            // through /api/commands from the admin UI.
+            // through /api/commands from the admin UI. "Login" is no longer a command at all
+            // (#448); it stays here so it can never be allowlisted back in.
             "Login", "EditUser", "EditUserStakeholder", "RepairProjectStakeholders",
             // Installation-wide dictionary (#319): administrators manage it from the admin UI;
             // it changes spell checking in every project, not one a client is working in.
@@ -129,7 +136,8 @@ public class GatewayPolicyConfig {
             // cascade steps, #75) but never driven by an external client
             "ReplaceGlossaryTerm", "EditAddWordToGlossaryPosition", "EditAddActorToProjectPosition",
             "RemoveUnneedLexicalIssues", "EditLexicalIssue", "EditChangeSpellingPosition",
-            "EditAddWordToDictionaryPosition", "ResolveIssue", "RemoveAnnotationFromAnnotatable");
+            "EditRewriteNamePosition", "EditMergeStepsPosition",
+            "EditAddWordToDictionaryPosition", "RemoveAnnotationFromAnnotatable");
 
     @Bean
     public CommandPolicy gatewayCommandPolicy(ProjectRepository projectRepository) {

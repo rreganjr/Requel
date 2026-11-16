@@ -71,6 +71,11 @@ public class CredentialStore {
     public synchronized void save(String baseUrl, String token) {
         Properties props = load();
         props.setProperty(key(baseUrl), token);
+        // #489: the last login wins. OAuth tokens take precedence over a PAT (CliTokenSource), so
+        // ones left from an earlier `login --oauth` would hide the token just saved.
+        for (String suffix : OAUTH_SUFFIXES) {
+            props.remove(oauthKey(baseUrl, suffix));
+        }
         write(props);
     }
 
@@ -94,6 +99,8 @@ public class CredentialStore {
         setOrRemove(props, oauthKey(baseUrl, "scope"), tokens.scope());
         setOrRemove(props, oauthKey(baseUrl, "expiresAt"),
                 tokens.expiresAt() == null ? null : Long.toString(tokens.expiresAt().getEpochSecond()));
+        // #489: the last login wins; a PAT from an earlier `login --token` goes.
+        props.remove(key(baseUrl));
         write(props);
     }
 

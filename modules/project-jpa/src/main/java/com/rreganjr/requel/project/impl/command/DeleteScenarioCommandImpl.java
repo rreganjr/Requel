@@ -21,7 +21,9 @@
 package com.rreganjr.requel.project.impl.command;
 
 import com.rreganjr.platform.command.CascadeAuthorizable;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,13 +35,18 @@ import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.platform.command.AuthorizableCommand;
 import com.rreganjr.platform.command.AuthorizationRequirement;
 import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.Scenario;
+import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.UseCase;
+import com.rreganjr.requel.project.command.AnalysisRequestSource;
+import com.rreganjr.requel.project.command.DeleteScenarioStepCommand;
+import com.rreganjr.validator.EntityValidationException;
 import com.rreganjr.requel.project.command.DeleteScenarioCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
@@ -55,7 +62,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("deleteScenarioCommand")
 @Scope("prototype")
 public class DeleteScenarioCommandImpl extends AbstractDeleteProjectEntityCommand implements
-		DeleteScenarioCommand, ProjectScopedCommand, AuthorizableCommand {
+		DeleteScenarioCommand, AnalysisRequestSource, ProjectScopedCommand, AuthorizableCommand {
 
 	@Override
 	public AuthorizationRequirement getAuthorizationRequirement() {
@@ -63,6 +70,7 @@ public class DeleteScenarioCommandImpl extends AbstractDeleteProjectEntityComman
 	}
 
 	private Scenario scenario;
+	private List<Scenario> stepSequenceTargets = List.of();
 
 	/**
 	 * @param assistantManager
@@ -95,6 +103,18 @@ public class DeleteScenarioCommandImpl extends AbstractDeleteProjectEntityComman
 		Scenario scenario = getRepository().get(getScenario());
 		// #296: refuse before touching anything if the caller read an older version.
 		refuseStaleDelete(Scenario.class, scenario, scenario.getVersion());
+		// #341: a use case's primary scenario cannot go while the use case still points at it
+		// (usecases.scenario_id): it used to fail on that foreign key. Refuse it up front, naming
+		// the use case. A use case deleted earlier in this transaction (DeleteUseCase,
+		// DeleteProject) is not found: the query flushes first.
+		List<UseCase> primaryOf = getProjectRepository().findUseCasesWithPrimaryScenario(scenario);
+		if (!primaryOf.isEmpty()) {
+			throw EntityValidationException.validationFailed(Scenario.class, "scenarioId",
+					// #486: worded for a person as well as an API caller.
+					"\"" + scenario.getName() + "\" is the primary scenario of use case \""
+							+ primaryOf.get(0).getName() + "\". Make another scenario its primary"
+							+ " scenario, or delete the use case, first.");
+		}
 		User editedBy = getRepository().get(getEditedBy());
 		Set<Annotation> annotations = new HashSet<Annotation>(scenario.getAnnotations());
 		for (Annotation annotation : annotations) {
@@ -112,10 +132,26 @@ public class DeleteScenarioCommandImpl extends AbstractDeleteProjectEntityComman
 		for (Scenario scenarioReferer : scenarioReferers) {
 			scenarioReferer.getSteps().remove(scenario);
 		}
-		Set<UseCase> scenarioUseCaseReferers = new HashSet<UseCase>(scenario.getUsingUseCases());
-		for (UseCase usecase : scenarioUseCaseReferers) {
-			// TODO: delete the usecase or set a new empty scenario on the
-			// usecase.
+		// #455: the scenarios that used this one as a step are re-checked for step order, unless
+		// this delete is a step of a bigger one (a use case, a project).
+		if (getAuthorizingCommand() == null) {
+			stepSequenceTargets = new ArrayList<Scenario>(scenarioReferers);
+		}
+		// #341: the scenario's own plain steps went nowhere: nothing deleted them and there is no
+		// cascade, so each stayed in `scenarios` holding its name. Detach the step list, then
+		// delete each plain step no other scenario uses, as EditScenario does for a dropped step
+		// (#325). A nested scenario is only unlinked; it is a scenario in its own right.
+		List<Step> ownSteps = new ArrayList<Step>(scenario.getSteps());
+		scenario.getSteps().clear();
+		for (Step step : ownSteps) {
+			if (!(step instanceof Scenario)
+					&& !getProjectRepository().isStepUsedByAnotherScenario(step, scenario)) {
+				DeleteScenarioStepCommand deleteStep = CascadeAuthorizable.cascade(this,
+						getProjectCommandFactory().newDeleteScenarioStepCommand());
+				deleteStep.setScenarioStep(step);
+				deleteStep.setEditedBy(editedBy);
+				getCommandHandler().execute(deleteStep);
+			}
 		}
 		// #247: a scenario may also be an ADDITIONAL (alternative/exception) scenario of any
 		// use case in the project (usecase_scenarios, owned by the use case, no inverse
@@ -136,4 +172,19 @@ public class DeleteScenarioCommandImpl extends AbstractDeleteProjectEntityComman
 		return null;
 	}
 
+	/** #455: deleting a scenario analyzes nothing itself. */
+	@Override
+	public ProjectOrDomainEntity getAnalysisTarget() {
+		return null;
+	}
+
+	@Override
+	public User getAnalysisTriggeredBy() {
+		return getEditedBy();
+	}
+
+	@Override
+	public List<Scenario> getStepSequenceTargets() {
+		return stepSequenceTargets;
+	}
 }

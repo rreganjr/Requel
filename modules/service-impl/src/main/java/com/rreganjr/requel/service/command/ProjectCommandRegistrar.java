@@ -73,6 +73,7 @@ import com.rreganjr.requel.project.command.DeleteActorCommand;
 import com.rreganjr.requel.project.command.DeleteReportGeneratorCommand;
 import com.rreganjr.requel.project.command.EditReportGeneratorCommand;
 import com.rreganjr.requel.project.command.DeleteGlossaryTermCommand;
+import com.rreganjr.requel.project.command.ReplaceTermTextCommand;
 import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.DeleteProjectCommand;
 import com.rreganjr.requel.project.command.DeleteGoalCommand;
@@ -124,6 +125,7 @@ import com.rreganjr.requel.service.api.dto.DeleteStoryInput;
 import com.rreganjr.requel.service.api.dto.DeleteUseCaseInput;
 import com.rreganjr.requel.service.api.dto.EditActorInput;
 import com.rreganjr.requel.service.api.dto.EditScenarioInput;
+import com.rreganjr.requel.service.api.dto.EditScenarioStepInput;
 import com.rreganjr.requel.service.api.dto.EditStepInput;
 import com.rreganjr.requel.service.api.dto.EditGoalInput;
 import com.rreganjr.requel.service.api.dto.EditGoalRelationInput;
@@ -140,6 +142,9 @@ import com.rreganjr.requel.service.api.dto.RemoveScenarioFromUseCaseInput;
 import com.rreganjr.requel.service.api.dto.SetPrimaryScenarioInput;
 import com.rreganjr.requel.service.api.dto.RemoveStoryFromStoryContainerInput;
 import com.rreganjr.requel.service.api.dto.DeleteGlossaryTermInput;
+import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
+import com.rreganjr.requel.service.api.dto.ReplaceTermTextInput;
+import com.rreganjr.requel.service.api.dto.ReplaceTermTextResultDto;
 import com.rreganjr.requel.service.api.dto.DeleteReportGeneratorInput;
 import com.rreganjr.requel.service.api.dto.EditGlossaryTermInput;
 import com.rreganjr.requel.service.api.dto.EditReportGeneratorInput;
@@ -283,7 +288,12 @@ public class ProjectCommandRegistrar {
                     if (i.text() != null) c.setText(i.text());
                     // For edit: find existing non-user stakeholder by ID
                     if (i.stakeholderId() != null) {
-                        NonUserStakeholder existing = (NonUserStakeholder) findStakeholderById(project, i.stakeholderId());
+                        Stakeholder found = findStakeholderById(project, i.stakeholderId());
+                        // #345: a user stakeholder's id used to fail here with a ClassCastException.
+                        if (!(found instanceof NonUserStakeholder existing)) {
+                            throw new IllegalArgumentException("Stakeholder " + i.stakeholderId()
+                                    + " is a user stakeholder; edit it with EditUserStakeholder.");
+                        }
                         c.setStakeholder(existing);
                         c.setExpectedVersion(i.version());
                     }
@@ -703,7 +713,29 @@ public class ProjectCommandRegistrar {
                     c.setExpectedVersion(i.version()); // #296: was accepted and dropped
                 });
 
-        registry.register("EditScenarioStep", factory::newEditScenarioStepCommand);
+        // #476: one step on its own, for the step page and the gateway. A scenario is edited with
+        // EditScenario, so a scenario's id is refused here.
+        registry.register("EditScenarioStep", EditScenarioStepInput.class,
+                factory::newEditScenarioStepCommand,
+                (cmd, input) -> {
+                    EditScenarioStepCommand c = (EditScenarioStepCommand) cmd;
+                    EditScenarioStepInput i = (EditScenarioStepInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    Step step = ProjectQueryController.findPlainStep(project, i.stepId());
+                    if (step == null) {
+                        throw new NotFoundInputException("Step not found: " + i.stepId()
+                                + ". A scenario is edited with EditScenario.");
+                    }
+                    c.setProjectOrDomain(project);
+                    c.setStep(step);
+                    c.setExpectedVersion(i.version());
+                    c.setName(i.name() != null ? i.name() : step.getName());
+                    if (i.text() != null) c.setText(i.text());
+                    c.setScenarioTypeName(i.scenarioTypeName() != null
+                            ? i.scenarioTypeName() : step.getType().name());
+                },
+                null,
+                cmd -> ProjectQueryController.toStepDetailDto(((EditScenarioStepCommand) cmd).getStep()));
         registry.register("CopyUseCase", CopyUseCaseInput.class,
                 factory::newCopyUseCaseCommand,
                 (cmd, input) -> {
@@ -776,6 +808,27 @@ public class ProjectCommandRegistrar {
                     DeleteGlossaryTermInput i = (DeleteGlossaryTermInput) input;
                     Project project = projectRepository.findProjectByName(i.projectName());
                     c.setGlossaryTerm(findTermById(project, i.termId()));
+                });
+
+        // #348: rewrite a term's synonym (a renamed term's old name, say) in its referers.
+        registry.register("ReplaceTermText", ReplaceTermTextInput.class,
+                factory::newReplaceTermTextCommand,
+                (cmd, input) -> {
+                    ReplaceTermTextCommand c = (ReplaceTermTextCommand) cmd;
+                    ReplaceTermTextInput i = (ReplaceTermTextInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setProject(project);
+                    c.setGlossaryTerm(findTermById(project, i.termId()));
+                    c.setSynonym(findTermById(project, i.synonymId()));
+                    c.setTargets(i.referers() == null ? List.of() : i.referers().stream()
+                            .map(r -> new ReplaceTermTextCommand.Target(r.entityType(), r.id()))
+                            .toList());
+                },
+                null,
+                cmd -> {
+                    ReplaceTermTextCommand c = (ReplaceTermTextCommand) cmd;
+                    return new ReplaceTermTextResultDto(refs(c.getApplied()), refs(c.getRefused()),
+                            refs(c.getUnchanged()));
                 });
 
         // Dictionary (#319). The project pair is gated on Project[Edit] and allowed on the
@@ -919,6 +972,7 @@ public class ProjectCommandRegistrar {
 
         registry.register("EditAddWordToGlossaryPosition", factory::newEditAddWordToGlossaryPositionCommand);
         registry.register("EditAddActorToProjectPosition", factory::newEditAddActorToProjectPositionCommand);
+        registry.register("EditMergeStepsPosition", factory::newEditMergeStepsPositionCommand); // #472
         registry.register("ReplaceGlossaryTerm", factory::newReplaceGlossaryTermCommand);
 
         // Reports
@@ -985,14 +1039,14 @@ public class ProjectCommandRegistrar {
                 return s;
             }
         }
-        throw new IllegalArgumentException("Stakeholder not found: " + stakeholderId);
+        throw new NotFoundInputException("Stakeholder not found: " + stakeholderId);
     }
 
     private static Goal findGoalById(Project project, Long goalId) {
         for (Goal g : project.getGoals()) {
             if (g.getId().equals(goalId)) return g;
         }
-        throw new IllegalArgumentException("Goal not found: " + goalId);
+        throw new NotFoundInputException("Goal not found: " + goalId);
     }
 
     private static GoalContainer findGoalContainerById(Project project, Long containerId, String containerType) {
@@ -1084,35 +1138,41 @@ public class ProjectCommandRegistrar {
         for (UseCase uc : project.getUseCases()) {
             if (uc.getId().equals(useCaseId)) return uc;
         }
-        throw new IllegalArgumentException("UseCase not found: " + useCaseId);
+        throw new NotFoundInputException("UseCase not found: " + useCaseId);
     }
 
     private static Actor findActorById(Project project, Long actorId) {
         for (Actor a : project.getActors()) {
             if (a.getId().equals(actorId)) return a;
         }
-        throw new IllegalArgumentException("Actor not found: " + actorId);
+        throw new NotFoundInputException("Actor not found: " + actorId);
+    }
+
+    private static List<EntityReferenceDto> refs(List<ReplaceTermTextCommand.Outcome> outcomes) {
+        return outcomes.stream()
+                .map(o -> new EntityReferenceDto(o.entityType(), o.entityId(), o.name()))
+                .toList();
     }
 
     private static GlossaryTerm findTermById(Project project, Long termId) {
         for (GlossaryTerm t : project.getGlossaryTerms()) {
             if (t.getId().equals(termId)) return t;
         }
-        throw new IllegalArgumentException("GlossaryTerm not found: " + termId);
+        throw new NotFoundInputException("GlossaryTerm not found: " + termId);
     }
 
     private static ReportGenerator findReportGeneratorById(Project project, Long reportId) {
         for (ReportGenerator r : project.getReportGenerators()) {
             if (r.getId().equals(reportId)) return r;
         }
-        throw new IllegalArgumentException("ReportGenerator not found: " + reportId);
+        throw new NotFoundInputException("ReportGenerator not found: " + reportId);
     }
 
     private static Goal findGoalByName(Project project, String name) {
         for (Goal g : project.getGoals()) {
             if (g.getName().equals(name)) return g;
         }
-        throw new IllegalArgumentException("Goal not found: " + name);
+        throw new NotFoundInputException("Goal not found: " + name);
     }
 
     private static GoalRelation findGoalRelationById(Project project, String fromGoalName, String toGoalName) {
@@ -1129,28 +1189,28 @@ public class ProjectCommandRegistrar {
                 if (r.getId().equals(relationId)) return r;
             }
         }
-        throw new IllegalArgumentException("GoalRelation not found: " + relationId);
+        throw new NotFoundInputException("GoalRelation not found: " + relationId);
     }
 
     private static Story findStoryById(Project project, Long storyId) {
         for (Story s : project.getStories()) {
             if (s.getId().equals(storyId)) return s;
         }
-        throw new IllegalArgumentException("Story not found: " + storyId);
+        throw new NotFoundInputException("Story not found: " + storyId);
     }
 
     private static Story findStoryByName(Project project, String name) {
         for (Story s : project.getStories()) {
             if (s.getName().equals(name)) return s;
         }
-        throw new IllegalArgumentException("Story not found: " + name);
+        throw new NotFoundInputException("Story not found: " + name);
     }
 
     private static Scenario findScenarioById(Project project, Long scenarioId) {
         for (Scenario s : project.getScenarios()) {
             if (s.getId().equals(scenarioId)) return s;
         }
-        throw new IllegalArgumentException("Scenario not found: " + scenarioId);
+        throw new NotFoundInputException("Scenario not found: " + scenarioId);
     }
 
     private static Step findStepByIdAcrossScenarios(Project project, Long stepId) {
@@ -1159,7 +1219,7 @@ public class ProjectCommandRegistrar {
                 if (step.getId().equals(stepId)) return step;
             }
         }
-        throw new IllegalArgumentException("Step not found: " + stepId);
+        throw new NotFoundInputException("Step not found: " + stepId);
     }
 
     private ProjectDto toDto(Project project) {

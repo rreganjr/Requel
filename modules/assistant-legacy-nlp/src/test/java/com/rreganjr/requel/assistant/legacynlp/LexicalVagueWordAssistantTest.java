@@ -53,6 +53,7 @@ import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.UserRef;
+import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.TextEntity;
 
 class LexicalVagueWordAssistantTest {
@@ -190,6 +191,36 @@ class LexicalVagueWordAssistantTest {
 			when(dictionaryRepository.infoContent(synset, linkType)).thenReturn(infoContent);
 		}
 		return word;
+	}
+
+	/**
+	 * #348: a synonym (a glossary term with a canonical term, e.g. a renamed term's old name) is
+	 * the non-preferred word by definition; it gets no vague-word issues and no NLP work. A
+	 * canonical term is still checked.
+	 */
+	@Test
+	void aSynonymIsNotCheckedButItsCanonicalTermIs() {
+		GlossaryTerm canonical = glossaryTerm("Dry-run webinar", null);
+		GlossaryTerm synonym = glossaryTerm("Dry-run event", canonical);
+
+		AssistantResult result = assistant.analyze(context(), synonym);
+
+		assertThat(result.annotationActions()).noneMatch(
+				a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE);
+		verify(nlpProcessorFactory, never()).processText(anyString());
+		assertThat(LexicalVagueWordAssistant.isSynonym(synonym)).isTrue();
+		assertThat(LexicalVagueWordAssistant.isSynonym(canonical)).isFalse();
+		assertThat(LexicalVagueWordAssistant.isSynonym(textEntity("x", "y"))).isFalse();
+	}
+
+	private static GlossaryTerm glossaryTerm(String name, GlossaryTerm canonical) {
+		GlossaryTerm term = mock(GlossaryTerm.class);
+		Class<?> entityInterface = GlossaryTerm.class;
+		doReturn(entityInterface).when(term).getProjectOrDomainEntityInterface();
+		when(term.getId()).thenReturn(2L);
+		when(term.getName()).thenReturn(name);
+		when(term.getCanonicalTerm()).thenReturn(canonical);
+		return term;
 	}
 
 	private static AssistantContext context() {

@@ -22,6 +22,7 @@ package com.rreganjr.requel.ai;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -105,7 +106,7 @@ public class AssistantDefinitionsIT extends AbstractLexicalAssistantTest {
 	public void theBundledReviewDefinitionIsSeeded() {
 		AssistantDefinition review = bundledReview();
 		assertEquals(DefinitionSource.BUNDLED, review.source());
-		assertEquals(1, review.version());
+		assertEquals(2, review.version(), "#337 bumped the bundled review to 2");
 		assertTrue(review.enabled());
 		assertEquals(1, jdbcTemplate.queryForObject(
 				"SELECT COUNT(*) FROM assistant_definitions WHERE definition_key = ?"
@@ -161,9 +162,11 @@ public class AssistantDefinitionsIT extends AbstractLexicalAssistantTest {
 		AssistantDefinition review = bundledReview();
 		try {
 			definitionStore.save(review.withEnabled(false), "admin");
-			AssistantRunEntity off = review(newGoal(project, projectUser(), "Fast " + stamp(),
-					"Search results should be fast."));
-			assertEquals("SKIPPED", off.getStatus(), "disabled install-wide: nothing runs");
+			// #387: refused up front rather than queuing a run that would be SKIPPED.
+			Goal goal = newGoal(project, projectUser(), "Fast " + stamp(),
+					"Search results should be fast.");
+			assertThrows(AiReviewUnavailableException.class, () -> review(goal),
+					"disabled install-wide: nothing runs");
 		} finally {
 			definitionStore.save(review.withEnabled(true), "admin");
 		}
@@ -179,8 +182,10 @@ public class AssistantDefinitionsIT extends AbstractLexicalAssistantTest {
 		reply(List.of());
 		setEnabled(off, false);
 
-		assertEquals("SKIPPED", review(newGoal(off, projectUser(), "Fast " + stamp(),
-				"Search results should be fast.")).getStatus());
+		// #387: refused up front rather than queuing a run that would be SKIPPED.
+		Goal offGoal = newGoal(off, projectUser(), "Fast " + stamp(),
+				"Search results should be fast.");
+		assertThrows(AiReviewUnavailableException.class, () -> review(offGoal));
 		assertEquals("SUCCEEDED", review(newGoal(on, projectUser(), "Fast " + stamp(),
 				"Search results should be fast.")).getStatus());
 
@@ -227,7 +232,7 @@ public class AssistantDefinitionsIT extends AbstractLexicalAssistantTest {
 
 		assertEquals("SUCCEEDED", run.getStatus(), run.getErrorSummary());
 		assertEquals(REVIEW, run.getTemplateId());
-		assertEquals("1", run.getTemplateVersion());
+		assertEquals("2", run.getTemplateVersion());
 		assertEquals("BUNDLED", run.getTemplateSource());
 		assertEquals(1, run.getEvidenceUnverified(),
 				"'warp drive' is not in the goal; 'fast' is");

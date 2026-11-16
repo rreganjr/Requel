@@ -23,6 +23,7 @@ package com.rreganjr.requel.mcp;
 import java.util.List;
 import java.util.Map;
 
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
@@ -55,8 +56,16 @@ class StubProjectQueryGateway implements QueryGateway {
 		return List.of();
 	}
 
+	/** #338: the last minimum severity asked for, so a test can see it passed through. */
+	IssueSeverity minSeveritySeen;
+
+	/** One MEDIUM issue; #338: filtered by the minimum like the real read. */
 	@Override
-	public List<OpenIssueDto> getOpenIssues(String projectName) {
+	public List<OpenIssueDto> getOpenIssues(String projectName, IssueSeverity minSeverity) {
+		minSeveritySeen = minSeverity;
+		if (!IssueSeverity.atLeast(IssueSeverity.MEDIUM, minSeverity)) {
+			return List.of();
+		}
 		return List.of(new OpenIssueDto(5L, "What is the SLA?", true, "MEDIUM", "Goal", 10L,
 				"Improve login", null, false));
 	}
@@ -92,10 +101,10 @@ class StubProjectQueryGateway implements QueryGateway {
 	}
 
 	@Override
-	public Map<String, Object> getProjectContext(String projectName) {
+	public Map<String, Object> getProjectContext(String projectName, IssueSeverity minSeverity) {
 		return Map.of("project", project(), "tree", getProjectTree(projectName),
 				"glossary", getGlossaryTerms(projectName), "openIssues",
-				getOpenIssues(projectName));
+				getOpenIssues(projectName, minSeverity));
 	}
 
 	/** #274: echoes the mode it was asked for ("ALL" when absent) so a test can see it passed. */

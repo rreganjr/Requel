@@ -67,6 +67,12 @@ public interface AnnotationCommandFactory extends CommandFactory {
 	public EditChangeSpellingPositionCommand newEditChangeSpellingPositionCommand();
 
 	/**
+	 * @return a new EditRewriteNamePositionCommand for a position that rewrites the name of the
+	 *         entity its issue is on (issue #459).
+	 */
+	public EditRewriteNamePositionCommand newEditRewriteNamePositionCommand();
+
+	/**
 	 * @return a new EditAddWordToDictionaryPositionCommand for adding
 	 */
 	public EditAddWordToDictionaryPositionCommand newEditAddWordToDictionaryPositionCommand();

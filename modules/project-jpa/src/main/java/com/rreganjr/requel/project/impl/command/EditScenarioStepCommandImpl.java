@@ -20,6 +20,11 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
+import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
@@ -63,6 +68,7 @@ public class EditScenarioStepCommandImpl extends AbstractEditProjectOrDomainEnti
 	private Step step;
 	private String text;
 	private String scenarioTypeName;
+	private List<Scenario> stepSequenceTargets = List.of();
 
 	/**
 	 * @param assistantManager
@@ -138,6 +144,36 @@ public class EditScenarioStepCommandImpl extends AbstractEditProjectOrDomainEnti
 			}
 		}
 		setStep(getProjectRepository().merge(stepImpl));
+		// #455: a step's name decides how it counts in every scenario that uses it. A step edited
+		// as part of EditScenario has analysis off; that command collects them instead.
+		if (isAnalysisEnabled()) {
+			setStepSequenceTargets(scenariosUsing(List.of(getStep()), null));
+		}
+	}
+
+	/**
+	 * #455: the scenarios that use any of {@code steps}, other than {@code except}, for a
+	 * step-sequence re-check.
+	 */
+	protected static List<Scenario> scenariosUsing(Collection<? extends Step> steps,
+			Scenario except) {
+		Set<Scenario> using = new LinkedHashSet<Scenario>();
+		for (Step used : steps) {
+			if (used != null && used.getUsingScenarios() != null) {
+				using.addAll(used.getUsingScenarios());
+			}
+		}
+		using.remove(except);
+		return List.copyOf(using);
+	}
+
+	protected void setStepSequenceTargets(List<Scenario> stepSequenceTargets) {
+		this.stepSequenceTargets = stepSequenceTargets;
+	}
+
+	@Override
+	public List<Scenario> getStepSequenceTargets() {
+		return stepSequenceTargets;
 	}
 
 	/**

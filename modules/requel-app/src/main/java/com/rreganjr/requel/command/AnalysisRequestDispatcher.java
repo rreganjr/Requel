@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletionStage;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -37,6 +38,7 @@ import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.assistant.api.AnalysisRequest;
 import com.rreganjr.requel.assistant.api.AssistantDispatcher;
 import com.rreganjr.requel.assistant.api.EntityRef;
+import com.rreganjr.requel.assistant.api.AssistantRunHandle;
 import com.rreganjr.requel.assistant.api.UserRef;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomain;
@@ -93,10 +95,13 @@ public class AnalysisRequestDispatcher {
 	 * Dispatch analysis of {@code target} for a specific {@code taskType} (e.g.
 	 * {@code "REQUIREMENTS_REVIEW"} for a manual AI review). A {@code null} task type is the
 	 * ordinary post-edit analysis. No-op when target or user is {@code null}.
+	 *
+	 * @return issue #387: the id of the run queued, or null when nothing was queued (no target
+	 *         or user) or the dispatcher refused the run (it is then recorded as failed)
 	 */
-	public void dispatch(ProjectOrDomainEntity target, User triggeringUser, String taskType) {
+	public String dispatch(ProjectOrDomainEntity target, User triggeringUser, String taskType) {
 		if (target == null || triggeringUser == null) {
-			return;
+			return null;
 		}
 		EntityRef targetRef = EntityRef.of(target.getProjectOrDomainEntityInterface().getSimpleName(),
 				target.getId());
@@ -107,7 +112,24 @@ public class AnalysisRequestDispatcher {
 		UserRef triggeringUserRef = new UserRef(triggeringUser.getId(), triggeringUser.getUsername());
 		AnalysisRequest request = new AnalysisRequest(targetRef, projectRef, triggeringUserRef,
 				assistantUserRef(), taskType, Locale.getDefault(), Map.of());
-		assistantDispatcher.dispatch(request);
+		return runId(assistantDispatcher.dispatch(request));
+	}
+
+	/**
+	 * The run id of an already-settled dispatch: the dispatcher queues the run before it returns,
+	 * so its stage is complete. Null for a refused (failed) or absent stage.
+	 */
+	private static String runId(CompletionStage<AssistantRunHandle> stage) {
+		if (stage == null) {
+			return null;
+		}
+		try {
+			AssistantRunHandle handle = stage.toCompletableFuture().getNow(null);
+			return handle == null ? null : handle.runId().toString();
+		} catch (java.util.concurrent.CompletionException
+				| java.util.concurrent.CancellationException e) {
+			return null;
+		}
 	}
 
 	/**

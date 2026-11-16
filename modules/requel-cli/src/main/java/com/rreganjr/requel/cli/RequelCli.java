@@ -35,12 +35,12 @@ import picocli.CommandLine.Option;
  * app that dispatches through the REST-backed gateway client; authentication is a PAT (#73) or an
  * OAuth access token (#83) supplied via {@code --token}/{@code REQUEL_TOKEN}.
  */
-@Command(name = "requel", mixinStandardHelpOptions = true, version = "requel-cli 2.0.3",
+@Command(name = "requel", mixinStandardHelpOptions = true, version = "requel-cli 2.1.0",
         description = "Command-line access to a Requel server via the gateway.",
         subcommands = {RunCommand.class, UpsertGoalCommand.class, CommandsCommand.class,
                 ProjectsCommand.class, ProjectCommand.class, GlossaryCommand.class,
                 OpenIssuesCommand.class, SearchCommand.class, EntityCommand.class, ContextCommand.class,
-                ContentCommand.class, LoginCommand.class, LogoutCommand.class})
+                ContentCommand.class, ReviewCommand.class, LoginCommand.class, LogoutCommand.class})
 public class RequelCli implements Runnable {
 
     @Option(names = "--url", paramLabel = "URL",

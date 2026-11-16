@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.rreganjr.requel</groupId>
         <artifactId>Requel-parent</artifactId>
-        <version>2.0.3</version>
+        <version>2.1.0</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -52,17 +52,18 @@
                 <targetPath>doc/samples</targetPath>
             </testResource>
             <!--
-              The published schema at website/integration/2.0 must stay byte-identical to
+              The published schema at website/integration/2.1 must stay byte-identical to
               doc/samples/project.xsd; the 1.0 copy silently drifted for years and ended up
               advertised by every export while being unloadable. Copy it onto the test classpath so
               ProjectSchemaNameLengthTest can fail the build the moment the two diverge again.
+              (#371: 2.1 has its own schema; the 2.0 copy is frozen, as 1.0 is.)
             -->
             <testResource>
-                <directory>${project.basedir}/../../website/integration/2.0</directory>
+                <directory>${project.basedir}/../../website/integration/2.1</directory>
                 <includes>
                     <include>project.xsd</include>
                 </includes>
-                <targetPath>website/integration/2.0</targetPath>
+                <targetPath>website/integration/2.1</targetPath>
             </testResource>
         </testResources>
         <plugins>
@@ -182,71 +183,9 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
 
-            <!-- Aggregate JaCoCo report covering all module dependencies -->
-            <plugin>
-                <groupId>org.jacoco</groupId>
-                <artifactId>jacoco-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>jacoco-report</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>report</goal>
-                        </goals>
-                        <configuration>
-                            <includes>
-                                <include>com/rreganjr/**</include>
-                            </includes>
-                            <formats>
-                                <format>HTML</format>
-                                <format>XML</format>
-                            </formats>
-                            <!--
-                              Issue #313: narrowed from com/rreganjr/nlp/** to the legacy NLP
-                              pipeline alone. The broad pattern also hid com.rreganjr.nlp.dictionary
-                              — the WordNet entities and the dictionary repository — which is where
-                              the project-scoped dictionary lives and where work happens now. With
-                              the old pattern those classes appeared only in dictionary-jpa's own
-                              report, built from that module's own exec file, so everything covered
-                              by an integration test two modules away read as 0%.
-                            -->
-                            <excludes>
-                                <exclude>com/rreganjr/nlp/impl/**</exclude>
-                            </excludes>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>jacoco-report-aggregate</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>report-aggregate</goal>
-                        </goals>
-                        <configuration>
-                            <includeCurrentProject>true</includeCurrentProject>
-                            <includes>
-                                <include>com/rreganjr/**</include>
-                            </includes>
-                            <formats>
-                                <format>HTML</format>
-                                <format>XML</format>
-                            </formats>
-                            <outputDirectory>${project.reporting.outputDirectory}/jacoco-aggregate</outputDirectory>
-                            <!--
-                              Issue #313: narrowed from com/rreganjr/nlp/** to the legacy NLP
-                              pipeline alone. The broad pattern also hid com.rreganjr.nlp.dictionary
-                              — the WordNet entities and the dictionary repository — which is where
-                              the project-scoped dictionary lives and where work happens now. With
-                              the old pattern those classes appeared only in dictionary-jpa's own
-                              report, built from that module's own exec file, so everything covered
-                              by an integration test two modules away read as 0%.
-                            -->
-                            <excludes>
-                                <exclude>com/rreganjr/nlp/impl/**</exclude>
-                            </excludes>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+            <!-- #321: the coverage aggregate moved to modules/coverage-report, which covers every
+                 module rather than only requel-app's direct dependencies. requel-app keeps the
+                 root pom's per-module report. -->
 
         </plugins>
     </build>
@@ -559,6 +498,16 @@
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <!-- #489: TypedCommandsCatalogIT builds the CLI's typed subcommands from this
+                 server's real command catalog. requel-cli is published shaded, so this brings
+                 copies of its dependencies (spring-web, jackson); they are the versions this
+                 build already uses. Test scope only. -->
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>requel-cli</artifactId>
+            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <!-- JUnit 5 (Jupiter) is provided transitively by spring-boot-starter-test -->

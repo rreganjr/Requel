@@ -25,6 +25,7 @@ import com.rreganjr.requel.service.auth.JwtService;
 import com.rreganjr.requel.service.auth.McpAuthenticationEntryPoint;
 import com.rreganjr.requel.service.auth.McpBearerTokenResolver;
 import com.rreganjr.requel.service.auth.McpJwtAuthenticationConverter;
+import com.rreganjr.requel.service.auth.PasswordChangeRequiredFilter;
 import com.rreganjr.requel.service.auth.UserDtoMapper;
 import com.rreganjr.requel.service.auth.ApiTokenRepository;
 import com.rreganjr.requel.user.UserRepository;
@@ -38,6 +39,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 
 /**
  * OAuth 2.1 resource server for the MCP endpoints (issue #83, Slice 2). Makes {@code /api/mcp/**}
@@ -103,6 +105,8 @@ public class McpResourceServerConfig {
                     .decoder(jwtDecoder)
                     .jwtAuthenticationConverter(
                         new McpJwtAuthenticationConverter(userRepository, userDtoMapper))))
+            // #381: PATs, login JWTs and OAuth tokens all authenticate before this point.
+            .addFilterBefore(new PasswordChangeRequiredFilter(), AuthorizationFilter.class)
             .anonymous(AbstractHttpConfigurer::disable);
 
         return http.build();

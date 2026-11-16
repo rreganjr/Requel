@@ -91,10 +91,12 @@ jobs:
       # but a release tag could in principle be created outside the
       # normal PR flow (e.g. directly against master). Re-running here
       # ensures the artifact attached to the Release is one that built
-      # cleanly and passed its tests.
+      # cleanly and passed its tests. Same module set as ci.yml (#321):
+      # coverage-report depends on every module, requel-app and requel-cli
+      # included, so both jars attached below are built.
       - name: Maven build, unit + integration tests, Angular bundle
         run: >
-          mvn -pl modules/requel-app,modules/requel-cli -am verify
+          mvn -pl modules/coverage-report -am verify
           --batch-mode --no-transfer-progress
           -Dstyle.color=always
           -Dmaven.test.redirectTestOutputToFile=true

@@ -6,7 +6,7 @@ import { Component } from '@angular/core';
 
 @Component({ template: '' })
 class StubLoginComponent {}
-import { AuthService } from './auth.service';
+import { AuthService, TOO_MANY_ATTEMPTS_MESSAGE } from './auth.service';
 import { LoginResponse, UserDto } from '../models/user';
 
 const MOCK_USER: UserDto = {
@@ -100,5 +100,85 @@ describe('AuthService', () => {
     const fresh = TestBed.inject(AuthService);
     httpMock = TestBed.inject(HttpTestingController);
     expect(fresh.user()?.username).toBe('admin');
+  });
+
+  describe('sign-in limits (#448)', () => {
+    it('login() rethrows a 429 as an Error carrying the server message', async () => {
+      const promise = service.login({ username: 'admin', password: 'guess' });
+      httpMock.expectOne('/api/auth/login').flush(
+        { error: 'TOO_MANY_ATTEMPTS', message: 'Too many sign-in attempts. Try again in 3 minutes.' },
+        { status: 429, statusText: 'Too Many Requests' });
+      await expect(promise).rejects.toThrow('Too many sign-in attempts. Try again in 3 minutes.');
+      expect(service.isAuthenticated()).toBe(false);
+    });
+
+    it('login() falls back to a generic sentence when the 429 has no message', async () => {
+      const promise = service.login({ username: 'admin', password: 'guess' });
+      httpMock.expectOne('/api/auth/login').flush(null, { status: 429, statusText: 'Too Many Requests' });
+      await expect(promise).rejects.toThrow(TOO_MANY_ATTEMPTS_MESSAGE);
+    });
+
+    it('login() leaves a 401 as it was', async () => {
+      const promise = service.login({ username: 'admin', password: 'guess' });
+      httpMock.expectOne('/api/auth/login').flush(
+        { error: 'UNAUTHORIZED', message: 'Invalid username or password' },
+        { status: 401, statusText: 'Unauthorized' });
+      await expect(promise).rejects.not.toBeInstanceOf(Error);
+    });
+
+    it('changePassword() rethrows a 429 as an Error carrying the server message', async () => {
+      const promise = service.changePassword(
+        { currentPassword: 'guess', newPassword: 'new', confirmPassword: 'new' });
+      httpMock.expectOne('/api/auth/password').flush(
+        { error: 'TOO_MANY_ATTEMPTS', message: 'Too many sign-in attempts. Try again in 1 minute.' },
+        { status: 429, statusText: 'Too Many Requests' });
+      await expect(promise).rejects.toThrow('Too many sign-in attempts. Try again in 1 minute.');
+    });
+  });
+
+  describe('changePassword (#381)', () => {
+    const request = { currentPassword: 'old', newPassword: 'new', confirmPassword: 'new' };
+
+    it('posts the change and replaces the session with the returned token and user', async () => {
+      localStorage.setItem('requel_token', 'flagged-jwt');
+      const promise = service.changePassword(request);
+      const req = httpMock.expectOne('/api/auth/password');
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual(request);
+      req.flush({ token: 'fresh-jwt', user: { ...MOCK_USER, mustChangePassword: false } });
+
+      expect(await promise).toBeNull();
+      expect(service.token()).toBe('fresh-jwt');
+      expect(localStorage.getItem('requel_token')).toBe('fresh-jwt');
+      expect(service.mustChangePassword()).toBe(false);
+    });
+
+    it('returns the refusal so the form can show its violations', async () => {
+      const promise = service.changePassword(request);
+      const refusal = {
+        success: false, entity: null, entityType: null, error: 'Password not changed.',
+        violations: [{ field: 'currentPassword', message: 'Current password is incorrect.' }],
+      };
+      httpMock.expectOne('/api/auth/password')
+        .flush(refusal, { status: 422, statusText: 'Unprocessable Entity' });
+
+      expect(await promise).toEqual(refusal);
+      expect(service.token()).toBeNull();
+    });
+
+    it('throws on any other failure', async () => {
+      const promise = service.changePassword(request);
+      httpMock.expectOne('/api/auth/password').flush('boom', { status: 500, statusText: 'Server Error' });
+      await expect(promise).rejects.toBeTruthy();
+    });
+  });
+
+  it('mustChangePassword follows the stored user, and markPasswordChangeRequired sets it', () => {
+    expect(service.mustChangePassword()).toBe(false);
+    service.user.set(MOCK_USER);
+    expect(service.mustChangePassword()).toBe(false);
+    service.markPasswordChangeRequired();
+    expect(service.mustChangePassword()).toBe(true);
+    expect(JSON.parse(localStorage.getItem('requel_user')!).mustChangePassword).toBe(true);
   });
 });

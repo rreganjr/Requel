@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.RequiredOnCreate;
 import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
@@ -54,10 +55,10 @@ import jakarta.validation.constraints.Size;
         + " one instead: send its stepId for a step, or its id as stepId with isScenario true to"
         + " nest an existing scenario. The refusal names the id to use."
         + CommandDescriptions.PARTIAL_UPDATE)
+@RequiredOnCreate(id = "scenarioId")
 public record EditScenarioInput(
     @NotBlank String projectName,
     Long scenarioId,
-    @NotBlank
     @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
     String name,
     String text,

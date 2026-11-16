@@ -32,6 +32,8 @@ import static org.mockito.Mockito.when;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -40,6 +42,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.assistant.api.AnalysisRequest;
 import com.rreganjr.requel.assistant.api.AssistantDispatcher;
+import com.rreganjr.requel.assistant.api.AssistantRunHandle;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
@@ -50,7 +53,7 @@ import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.user.UserRepository;
 
-/** Issue #268: which entities a whole-project analysis dispatches. */
+/** Issue #268: which entities a whole-project analysis dispatches; #387: the run id returned. */
 class AnalysisRequestDispatcherTest {
 
 	private final AssistantDispatcher assistantDispatcher = mock(AssistantDispatcher.class);
@@ -127,6 +130,22 @@ class AnalysisRequestDispatcherTest {
 		assertThat(request.getValue().taskType()).isEqualTo("CORPUS_CANDIDATES");
 		assertThat(request.getValue().triggeringUser().userId()).isEqualTo(3L);
 		assertThat(request.getValue().assistantUser().userId()).isEqualTo(11L);
+	}
+
+	/** #387: a single dispatch hands back the id of the run it queued, or null when none was. */
+	@Test
+	void aSingleDispatchReturnsTheQueuedRunId() {
+		UUID runId = UUID.randomUUID();
+		Goal goal = entity(Goal.class, 2L);
+		when(assistantDispatcher.dispatch(any())).thenReturn(
+				CompletableFuture.completedFuture(new AssistantRunHandle(runId)));
+		assertThat(dispatcher.dispatch(goal, ron, "REQUIREMENTS_REVIEW")).isEqualTo(runId.toString());
+
+		when(assistantDispatcher.dispatch(any())).thenReturn(
+				CompletableFuture.failedFuture(new IllegalStateException("rejected")));
+		assertThat(dispatcher.dispatch(goal, ron, "REQUIREMENTS_REVIEW")).isNull();
+
+		assertThat(dispatcher.dispatch(goal, null, "REQUIREMENTS_REVIEW")).isNull();
 	}
 
 	private Project project(Long id, Set<ProjectOrDomainEntity> entities) {

@@ -22,7 +22,7 @@ reach the server.
 
    ```bash
    mkdir requel && cd requel
-   curl -fsSLO https://raw.githubusercontent.com/rreganjr/Requel/v2.0.3/docker-compose.yml
+   curl -fsSLO https://raw.githubusercontent.com/rreganjr/Requel/v2.1.0/docker-compose.yml
    ```
 
 2. Create the secret Requel signs login tokens with. Keep this file: a new secret logs
@@ -39,8 +39,12 @@ reach the server.
    docker compose logs -f web     # Ctrl-C once "Started Application" appears
    ```
 
-4. Open http://localhost:8080/ and log in as **admin** with password **admin**. Change the
-   password straight away (the account menu, **Edit Account**).
+4. Open http://localhost:8080/ and log in as **admin** with password **admin**. Requel sends you
+   straight to **Change your password**, and nothing else works until you have. API tokens, MCP
+   clients and `requel login --oauth` are refused for that account in the meantime. Requel
+   checks this at every startup: while the admin password is still `admin`, the next sign-in has
+   to change it (`requel.admin.force-password-change=false` turns the check off; the `dev`
+   profile does).
 
 MySQL is published on host port 3307 if you need to reach it directly. `docker compose down`
 stops both containers and keeps the data; `docker compose down --volumes` deletes it.
@@ -63,7 +67,7 @@ docker run -d --name requel --network requel-net -p 8080:8080 --restart unless-s
   -e SPRING_DATASOURCE_PASSWORD=change-me \
   -e "REQUEL_JWT_SECRET=$(openssl rand -base64 48)" \
   -e "_JAVA_OPTIONS=-Xmx2g" \
-  rreganjr/requel:2.0.3
+  rreganjr/requel:2.1.0
 ```
 
 MySQL takes a few seconds to accept connections on first start. If Requel starts before it does,
@@ -75,8 +79,8 @@ Generate the secret once and reuse it when you recreate the container. Then foll
 
 ## The jar
 
-1. Download `requel-app-2.0.3.jar` from the
-   [2.0.3 release](https://github.com/rreganjr/Requel/releases/tag/v2.0.3).
+1. Download `requel-app-2.1.0.jar` from the
+   [2.1.0 release](https://github.com/rreganjr/Requel/releases/tag/v2.1.0).
 2. Create an empty database and a user for it in your MySQL 8.4:
 
    ```sql
@@ -92,7 +96,7 @@ Generate the secret once and reuse it when you recreate the container. Then foll
    export SPRING_DATASOURCE_USERNAME=requel
    export SPRING_DATASOURCE_PASSWORD=change-me
    export REQUEL_JWT_SECRET='<the output of: openssl rand -base64 48>'
-   java -Xmx2g -jar requel-app-2.0.3.jar
+   java -Xmx2g -jar requel-app-2.1.0.jar
    ```
 
 4. Wait for `Started Application`, then log in as in step 4 of the Compose section.
@@ -105,21 +109,32 @@ reset endpoints.
 
 **Back up the database first** (`mysqldump --single-transaction requel > requel-backup.sql`).
 
-- **From 2.0.x:** replace the image or jar and start it. Flyway applies any new migrations.
-  Upgrading to 2.0.3 signs everyone out once; sign in again.
-- **From 1.2:** start 2.0 on the same database (MySQL 8.4). 1.2 already has Flyway history,
-  so 2.0 migrates it in place on first start; logins and projects carry over.
-- **From 1.0 or 1.1:** these databases have no Flyway history, and 2.0 refuses to start on
-  one (it leaves it untouched). Move the projects instead:
+- **From 2.0.x:** replace the image or jar and start it. Flyway applies the new migrations.
+  Upgrading from 2.0.2 or earlier signs everyone out once; sign in again.
+- **From 1.2:** start 2.1 on the same database (MySQL 8.4). 1.2 already has Flyway history,
+  so 2.1 migrates it in place on first start; logins and projects carry over.
+- **From 1.0.1, 1.0.2 or 1.1.0:** these databases have no Flyway history, so Requel won't
+  touch one unless you ask it to upgrade it in place:
+  1. Back it up (above).
+  2. **1.0.x only:** 1.0.x runs on MySQL 5.x, Requel 2 on 8.4. Load the backup into a new
+     MySQL 8.4 database (`mysql requel < requel-backup.sql`) and point Requel at that one.
+  3. Start Requel once with `REQUEL_UPGRADE_FROM_1X=true` (or
+     `--requel.upgrade.from-1x=true`). It checks the schema is exactly what that release
+     created, converts it (tables to utf8mb4, column types, index names, id columns) and fills
+     in what the old release didn't store, then applies the 2.x migrations. On a full install the
+     conversion rewrites the dictionary tables and can take several minutes; watch the log.
+  4. Remove the setting; it does nothing on a database that has Flyway history.
+
+  Users keep their passwords, and `admin` still on `admin` must change it at its next sign-in.
+  A database that doesn't match one of those releases exactly (edited by hand, or made by a
+  modified build) is refused with the first difference, and nothing is changed. Move its
+  projects by XML instead:
   1. In the old version, open each project and use **Export** to save its XML.
-  2. Start 2.0 on a new, empty database as above.
+  2. Start Requel on a new, empty database as above.
   3. Sign in as `admin` and import each file (**Projects → Import**). The project keeps its
      name. Users named in the project (stakeholders, authors) are created from the file with
      their old logins, which only an administrator's import restores. Create any other accounts
      again.
-
-  Requel 1.0.x runs on MySQL 5.x only, so the new database is also your move to MySQL 8.4.
-  An in-place upgrade is [#380](https://github.com/rreganjr/Requel/issues/380).
 
 ## Connect the CLI or an AI client
 
@@ -132,8 +147,8 @@ install; other users need the *manage API tokens* permission, which an admin gra
 page.
 
 ```bash
-java -jar requel-cli-2.0.3.jar login --token reqpat_...
-java -jar requel-cli-2.0.3.jar projects
+java -jar requel-cli-2.1.0.jar login --token reqpat_...
+java -jar requel-cli-2.1.0.jar projects
 ```
 
 For an MCP client, send it as a bearer token: `Authorization: Bearer reqpat_...` against
@@ -174,14 +189,44 @@ Set these as environment variables (shown) or as `--property=value` arguments.
 | `REQUEL_OAUTH_SEED_CLI_CLIENT` | `true` | Registers the `requel-cli` OAuth client, for `requel-cli login --oauth` |
 | `REQUEL_OAUTH_DCR_ALLOW_ANONYMOUS_LOOPBACK` | `false` | Lets an MCP client on the same machine register itself over OAuth (not under Docker) |
 | `REQUEL_OAUTH_DCR_ENABLED` / `_REGISTRAR_CLIENT_SECRET` | `false` / none | Gated OAuth client registration for MCP clients; see [Connect the CLI or an AI client](#connect-the-cli-or-an-ai-client) |
+| `SERVER_FORWARD_HEADERS_STRATEGY` | none | Set to `native` behind a reverse proxy, so Requel sees each client's address; see [Sign-in limits](#sign-in-limits) |
+| `REQUEL_LOGIN_THROTTLE_*` | see below | The sign-in limits |
+
+### Sign-in limits
+
+Requel limits failed sign-in attempts, through the app, the CLI and the OAuth sign-in page an MCP
+client opens, and wrong current passwords on a password change. Failures are counted over a
+sliding 15 minutes:
+
+| Counted by | Setting | Default | Then |
+|---|---|---|---|
+| username and client address | `REQUEL_LOGIN_THROTTLE_PER_PAIR` | 5 | the wait doubles with each further failure (1 s, 2 s, 4 s ...), at most 15 minutes |
+| client address, any username | `REQUEL_LOGIN_THROTTLE_PER_SOURCE` | 50 | 15 minutes |
+| username, any address | `REQUEL_LOGIN_THROTTLE_PER_USERNAME` | 50 | the wait doubles, at most 15 minutes |
+
+The window and the longest wait are `REQUEL_LOGIN_THROTTLE_WINDOW` and
+`REQUEL_LOGIN_THROTTLE_MAX_WAIT` (both `PT15M`). Nothing locks an account for good: once the wait
+is over the right password works, and a successful sign-in clears that username and address. The
+counts live in memory and a restart clears them. Each refused attempt is logged at WARN and
+counted in the `requel.login.throttled` metric.
+
+**Behind a reverse proxy**, every request reaches Requel from the proxy's address, so all users
+would share one per-address count. Set `SERVER_FORWARD_HEADERS_STRATEGY=native`: Tomcat then takes
+the client's address from the proxy's `X-Forwarded-For` header. It accepts that header only from
+private and loopback addresses; for a proxy on a public address, also set
+`SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` to a regular expression matching it. Don't set it without
+a proxy: anyone could then send their own `X-Forwarded-For` and pick the address they are counted
+under. The Compose file leaves it off for that reason.
 
 ## Before you expose it
 
 - `REQUEL_JWT_SECRET` is set to a random value and kept somewhere safe. Requel refuses to start
   without one (except with the `dev` profile).
-- The **admin** password is no longer `admin`.
+- The **admin** password is no longer `admin` (Requel makes you change it at the first sign-in).
 - The `dev` profile is **not** active.
 - Requel sits behind HTTPS (a reverse proxy such as nginx or Caddy terminating TLS).
+- Behind that proxy, `SERVER_FORWARD_HEADERS_STRATEGY=native` is set, so the
+  [sign-in limits](#sign-in-limits) count each client's address, not the proxy's.
 - The database is backed up on a schedule.
 
 ## Troubleshooting
@@ -192,6 +237,11 @@ Set these as environment variables (shown) or as `--property=value` arguments.
   above. With Compose, check `.env` is next to `docker-compose.yml`.
 - **`Database ... has N tables but no Flyway history`.** It is a Requel 1.0/1.1 database (or
   not a Requel database). See [Upgrading](#upgrading).
+- **`... is not a Requel 1.0.1, 1.0.2 or 1.1.0 schema, so it can't be upgraded in place`.** The
+  message names the first difference. Nothing was changed; move the projects by XML (see
+  [Upgrading](#upgrading)).
+- **`... did not produce the expected schema`.** The in-place upgrade changed the database but
+  didn't finish. Restore the backup and report the message as a GitHub issue.
 - **`Communications link failure`.** Requel can't reach MySQL: check the URL's host and port,
   and that the database container is healthy (`docker compose ps`).
 - **Port already in use.** Change the published port (`"8081:8080"` in the compose file) or

@@ -95,8 +95,8 @@ public class NlpDisabledDispatchTest extends AbstractIntegrationTestCase {
 		assertEquals("SKIPPED", completed.getStatus(),
 				"with NLP disabled no lexical assistants are registered, so the run is skipped");
 		assertTrue(completed.getErrorSummary() != null
-				&& completed.getErrorSummary().contains("No assistants registered"),
-				"skip reason should explain that no assistants were registered, was: "
+				&& completed.getErrorSummary().equals("No assistant analyses a Goal here."),
+				"skip reason should name the entity type, not its Java class, was: "
 						+ completed.getErrorSummary());
 	}
 }

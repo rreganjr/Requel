@@ -21,7 +21,9 @@
 package com.rreganjr.requel.project.impl.command;
 
 import com.rreganjr.platform.command.CascadeAuthorizable;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,8 +35,10 @@ import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Step;
+import com.rreganjr.requel.project.command.AnalysisRequestSource;
 import com.rreganjr.requel.project.command.DeleteScenarioStepCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
@@ -50,7 +54,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("deleteScenarioStepCommand")
 @Scope("prototype")
 public class DeleteScenarioStepCommandImpl extends AbstractEditProjectCommand implements
-		DeleteScenarioStepCommand, com.rreganjr.requel.project.ProjectScopedCommand, com.rreganjr.platform.command.AuthorizableCommand {
+		DeleteScenarioStepCommand, AnalysisRequestSource, com.rreganjr.requel.project.ProjectScopedCommand, com.rreganjr.platform.command.AuthorizableCommand {
 
 	@Override
 	public com.rreganjr.requel.project.Project getProject() {
@@ -63,6 +67,7 @@ public class DeleteScenarioStepCommandImpl extends AbstractEditProjectCommand im
 	}
 
 	private Step scenarioStep;
+	private List<Scenario> stepSequenceTargets = List.of();
 
 	/**
 	 * @param assistantManager
@@ -110,9 +115,30 @@ public class DeleteScenarioStepCommandImpl extends AbstractEditProjectCommand im
 		for (Scenario scenarioReferer : scenarioReferers) {
 			scenarioReferer.getSteps().remove(scenarioStep);
 		}
+		// #455: the scenarios that lose the step are re-checked for step order. Not when the delete
+		// is a step of a bigger one (a scenario, a use case, a project): those scenarios are being
+		// deleted, or are analyzed by the command that removed the step.
+		if (getAuthorizingCommand() == null) {
+			stepSequenceTargets = new ArrayList<Scenario>(scenarioReferers);
+		}
 		// #247: clear any annotation link committed since this entity was loaded.
 		removeAllAnnotationsBeforeDelete(scenarioStep, editedBy);
 		getRepository().delete(scenarioStep);
 	}
 
+	/** #455: deleting a step analyzes nothing itself. */
+	@Override
+	public ProjectOrDomainEntity getAnalysisTarget() {
+		return null;
+	}
+
+	@Override
+	public User getAnalysisTriggeredBy() {
+		return getEditedBy();
+	}
+
+	@Override
+	public List<Scenario> getStepSequenceTargets() {
+		return stepSequenceTargets;
+	}
 }

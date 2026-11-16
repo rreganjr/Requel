@@ -22,6 +22,7 @@ package com.rreganjr.requel.ai;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -192,8 +193,11 @@ public class ReviewDefinitionsIT extends AbstractLexicalAssistantTest {
 		setEnabled(project, GOAL, false);
 		reply(List.of());
 
-		assertEquals("SKIPPED", review("Goal", goal).getStatus(),
+		// #387: refused up front (it used to queue a run that was SKIPPED).
+		AiReviewUnavailableException e = assertThrows(AiReviewUnavailableException.class,
+				() -> review("Goal", goal),
 				"the fallback does not take over a type with its own definition");
+		assertEquals("AI review of goals is switched off for this project.", e.getMessage());
 	}
 
 	@Test

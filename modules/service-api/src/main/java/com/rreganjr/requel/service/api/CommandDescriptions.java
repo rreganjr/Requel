@@ -36,7 +36,8 @@ public final class CommandDescriptions {
 
     /**
      * The #316 partial-update contract, for an Edit command whose optional fields follow it. Say
-     * separately which fields are required on every call (a {@code @NotBlank} name is).
+     * separately which fields are required, and when: a {@code @NotBlank} field on every call, a
+     * {@code @RequiredOnCreate} one (an Edit input's name, #331) only when creating.
      */
     public static final String PARTIAL_UPDATE = " When editing, an optional field you leave null or"
             + " omit keeps its current value, and an empty string clears it.";

@@ -4,6 +4,9 @@ import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angul
 import { BehaviorSubject, Subject } from 'rxjs';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { GoalEditorComponent } from './goal-editor';
+import { By } from '@angular/platform-browser';
+import { ChangeDetectorRef } from '@angular/core';
+import { AiReviewButtonComponent } from '../../shared/ai-review-button';
 import { GoalService } from '../../core/goal.service';
 import { TagService } from '../../core/tag.service';
 import { CommandService } from '../../core/command.service';
@@ -336,6 +339,7 @@ describe('GoalEditorComponent', () => {
       commandServiceMock.execute.mockResolvedValue({
         success: false,
         status: 409,
+        code: 'STALE_VERSION',
         error: 'Goal has been changed by another user.'
       });
 
@@ -353,6 +357,7 @@ describe('GoalEditorComponent', () => {
       commandServiceMock.execute.mockResolvedValue({
         success: false,
         status: 409,
+        code: 'STALE_VERSION',
         error: 'Goal has been changed by another user.'
       });
 
@@ -361,6 +366,24 @@ describe('GoalEditorComponent', () => {
 
       expect(comp.errorMessage()).toContain('changed elsewhere');
     });
+
+    it('shows the server message for a 409 that is not a stale version, with no refetch (#482)',
+      async () => {
+        await renderExisting();
+        goalServiceMock.getGoal.mockClear();
+        commandServiceMock.execute.mockResolvedValue({
+          success: false,
+          status: 409,
+          code: 'CONFLICT',
+          error: 'The name conflicts with an existing Goal.'
+        });
+
+        comp.detailsForm.setValue({ name: 'Taken', text: '' });
+        await comp.onSave();
+
+        expect(comp.errorMessage()).toBe('The name conflicts with an existing Goal.');
+        expect(goalServiceMock.getGoal).not.toHaveBeenCalled();
+      });
 
     it('treats a non-409 failure as an ordinary error, with no refetch', async () => {
       await renderExisting();
@@ -725,5 +748,24 @@ describe('GoalEditorComponent', () => {
       expect(comp.relationTypeOptions()).toEqual([]);
       expect(comp.errorMessage()).toBe('Could not load the goal relation types.');
     });
+  });
+  // #387: Review with AI sits beside Save, bound to the entity and told about unsaved changes.
+  it('puts Review with AI beside Save, bound to the entity and the dirty state', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', goalId: '10' }));
+    fixture.detectChanges();
+    await flush();
+    fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
+    fixture.detectChanges();
+    const de = fixture.debugElement.query(By.directive(AiReviewButtonComponent));
+    expect(de).not.toBeNull();
+    expect(de.nativeElement.closest('.form-actions')).not.toBeNull();
+    const button = de.componentInstance as AiReviewButtonComponent;
+    expect(button.entityType()).toBe('Goal');
+    expect(button.entityId()).toBe(10);
+    expect(button.dirty()).toBe(false);
+    comp.detailsForm.markAsDirty();
+    fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
+    fixture.detectChanges();
+    expect(button.dirty()).toBe(true);
   });
 });

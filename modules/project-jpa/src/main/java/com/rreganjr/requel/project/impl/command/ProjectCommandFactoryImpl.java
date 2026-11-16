@@ -46,6 +46,7 @@ import com.rreganjr.requel.project.command.CopyStoryCommand;
 import com.rreganjr.requel.project.command.CopyUseCaseCommand;
 import com.rreganjr.requel.project.command.DeleteActorCommand;
 import com.rreganjr.requel.project.command.DeleteGlossaryTermCommand;
+import com.rreganjr.requel.project.command.ReplaceTermTextCommand;
 import com.rreganjr.requel.project.command.DeleteGoalCommand;
 import com.rreganjr.requel.project.command.DeleteGoalRelationCommand;
 import com.rreganjr.requel.project.command.DeleteProjectCommand;
@@ -57,6 +58,7 @@ import com.rreganjr.requel.project.command.DeleteStoryCommand;
 import com.rreganjr.requel.project.command.DeleteUseCaseCommand;
 import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.EditAddActorToProjectPositionCommand;
+import com.rreganjr.requel.project.command.EditMergeStepsPositionCommand;
 import com.rreganjr.requel.project.command.EditAddWordToGlossaryPositionCommand;
 import com.rreganjr.requel.project.command.AddGlossaryTermRefererCommand;
 import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
@@ -345,6 +347,12 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	}
 
 	@Override
+	public EditMergeStepsPositionCommand newEditMergeStepsPositionCommand() {
+		return (EditMergeStepsPositionCommand) getCreationStrategy().newInstance(
+				EditMergeStepsPositionCommandImpl.class);
+	}
+
+	@Override
 	public ReplaceGlossaryTermCommand newReplaceGlossaryTermCommand() {
 		return (ReplaceGlossaryTermCommand) getCreationStrategy().newInstance(
 				ReplaceGlossaryTermCommandImpl.class);
@@ -441,6 +449,12 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	public DeleteGlossaryTermCommand newDeleteGlossaryTermCommand() {
 		return (DeleteGlossaryTermCommand) getCreationStrategy().newInstance(
 				DeleteGlossaryTermCommandImpl.class);
+	}
+
+	@Override
+	public ReplaceTermTextCommand newReplaceTermTextCommand() {
+		return (ReplaceTermTextCommand) getCreationStrategy().newInstance(
+				ReplaceTermTextCommandImpl.class);
 	}
 
 	@Override

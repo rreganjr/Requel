@@ -85,8 +85,8 @@ public final class QueryDescriptions {
             + " position is chosen to resolve it, whether or not it must be resolved, and issues"
             + " the assistant raised, such as spelling, are included. Each entry names the entity"
             + " the issue is attached to. Issues on the project itself and on goal relations are"
-            + " not listed. Within a severity, stale issues come after the others."
-            + STALE_ANNOTATIONS;
+            + " not listed. Within a severity, stale issues come after the others. Give a minimum"
+            + " severity to list only the issues at or above it." + STALE_ANNOTATIONS;
 
     public static final String GET_ANNOTATIONS = "Reads the notes and issues attached to one"
             + " entity. Notes come in the order they were created, stale ones last. Issues, resolved ones included,"
@@ -116,7 +116,8 @@ public final class QueryDescriptions {
     public static final String GET_PROJECT_CONTEXT = "Reads a project's summary, content tree"
             + " (names only), glossary and open issues in one call, the same data as reading each"
             + " of them separately. For the text of every entity, scenarios with their steps, and"
-            + " all annotations, read the project's content instead." + STALE_ANNOTATIONS;
+            + " all annotations, read the project's content instead. A minimum severity narrows"
+            + " the open issues only." + STALE_ANNOTATIONS;
 
     /** #274: the project content read. */
     public static final String GET_PROJECT_CONTENT = "Reads a project's whole content in one call:"
@@ -147,6 +148,39 @@ public final class QueryDescriptions {
             + " To save it, call EditNote or EditIssue (write tools, offered when the server allows"
             + " writes) with projectName and the draft's targetRef.entityType, targetRef.entityId,"
             + " text and severity, and for an issue its metadata.mustResolve as mustBeResolved.";
+
+    // ---- AI review (#387) -----------------------------------------------------------------------
+
+    /** The entity types an AI review can be requested for. */
+    public static final List<String> REVIEWABLE_ENTITY_TYPES = List.of(
+            "Goal", "Story", "Actor", "UseCase", "Scenario", "Step", "GlossaryTerm");
+
+    public static final String REVIEWABLE_ENTITY_TYPE = "The kind of entity to review: Goal,"
+            + " Story, Actor, UseCase, Scenario, Step or GlossaryTerm.";
+
+    public static final String REQUEST_AI_REVIEW = "Asks the server's AI assistant to review one"
+            + " entity's text. The review runs in the background and its findings are added to the"
+            + " entity as issues and notes, as when a person presses Review with AI in the editor."
+            + " Returns runId (and policyRunId when a project policy also applies); read the result"
+            + " with getAiReview, polling until its status is SUCCEEDED or FAILED. Asking again"
+            + " while a review is queued or running returns that run rather than starting another."
+            + " Refused, with the reason, when AI review is off on the server, the project is not"
+            + " allowed to use it, or the review of that type is switched off in the project. Needs"
+            + " access to the project (a stakeholder, or a system administrator).";
+
+    public static final String GET_AI_REVIEW = "Reads the latest AI review of one entity: its"
+            + " status (QUEUED, RUNNING, SUCCEEDED or FAILED), errorSummary when it failed, the"
+            + " model's summary and the findings it reported (type, kind ISSUE or NOTE, severity,"
+            + " text and the annotationId of the issue or note it became). Returns null when the"
+            + " entity has never been reviewed. taskType POLICY_REVIEW reads the project policies'"
+            + " pass instead.";
+
+    public static final String AI_REVIEW_TASK_TYPE = "REQUIREMENTS_REVIEW (the default) for the"
+            + " entity's review, POLICY_REVIEW for the project policies' pass.";
+
+    /** The values {@link #AI_REVIEW_TASK_TYPE} accepts. */
+    public static final List<String> AI_REVIEW_TASK_TYPES = List.of("REQUIREMENTS_REVIEW",
+            "POLICY_REVIEW");
 
     // ---- provenance (#272): the only reads that return a source or its locator ----------------
 
@@ -225,6 +259,11 @@ public final class QueryDescriptions {
 
     public static final String ANNOTATION_SEVERITY = "Issues only: LOW, MEDIUM or HIGH, ignoring"
             + " case. Left out, a saved issue gets MEDIUM.";
+
+    /** #338: the open-issues filter. */
+    public static final String MIN_SEVERITY = "Only list open issues at or above this severity:"
+            + " LOW, MEDIUM or HIGH, ignoring case. Left out, every open issue is listed, the same"
+            + " as LOW.";
 
     public static final String ANNOTATION_MUST_RESOLVE = "Issues only: whether the issue must be"
             + " resolved. Defaults to false, as it does when EditIssue creates an issue.";

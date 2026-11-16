@@ -21,6 +21,7 @@
 package com.rreganjr.requel.project.impl;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Deque;
 import java.util.HashSet;
@@ -222,6 +223,18 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 
 	protected void setGlossaryTerms(SortedSet<GlossaryTerm> terms) {
 		this.terms = terms;
+	}
+
+	/**
+	 * Re-sorts the glossary after a term in it was renamed. The set is sorted by name, and a
+	 * renamed term sits where its old name was, so lookups through the set go wrong, and so does
+	 * Hibernate's diff of it against its snapshot at flush: it deleted the join row of a term it
+	 * no longer found (#348's rename adds the old name as a synonym, which dirties the set). A new
+	 * set, built element by element, is in order, and Hibernate rewrites its rows from it. (Not
+	 * {@code new TreeSet<>(terms)}: from a sorted set, that copies the order as it stands.)
+	 */
+	public void resortGlossaryTerms() {
+		this.terms = new TreeSet<GlossaryTerm>(new ArrayList<GlossaryTerm>(this.terms));
 	}
 
 	/**

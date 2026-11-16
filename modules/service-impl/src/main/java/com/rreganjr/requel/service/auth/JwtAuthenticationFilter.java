@@ -95,19 +95,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * Validate a login JWT (signature, expiry), then load its account by the token's user id
      * (#445) and set the context with that account's current username and roles, as the PAT path
      * does. A token with no user id (issued before 2.0.3), or whose account is gone, leaves the
-     * context unauthenticated so protected endpoints return 401.
+     * context unauthenticated so protected endpoints return 401, as does one issued before the
+     * user's last password change (#446).
      */
     private void authenticateJwt(String token) {
         try {
             Claims claims = jwtService.parseToken(token);
             User user = userRepository.findUserById(JwtService.userId(claims));
-            if (user == null) {
+            // #446: a token from before the user's last password change is no longer good.
+            Date issuedAt = claims.getIssuedAt();
+            if (user == null || SignInRevocation.predatesPasswordChange(user,
+                    issuedAt == null ? null : issuedAt.toInstant())) {
                 SecurityContextHolder.clearContext();
                 return;
             }
-            List<SimpleGrantedAuthority> authorities = userDtoMapper.getRoleStrings(user).stream()
-                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-                    .toList();
+            // #381 + #445: both from the live account, so an admin setting "must change password"
+            // or changing roles applies on the next request. PasswordChangeRequiredFilter allows
+            // a flagged user only the change itself.
+            List<SimpleGrantedAuthority> authorities = user.isMustChangePassword()
+                    ? List.of(PasswordChangeRequiredFilter.GRANTED_AUTHORITY)
+                    : userDtoMapper.getRoleStrings(user).stream()
+                            .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                            .toList();
 
             var auth = new UsernamePasswordAuthenticationToken(user.getUsername(), null, authorities);
             // Store JWT expiry epoch-ms as details so controllers can schedule server-side expiry
@@ -140,9 +149,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.clearContext();
                 return;
             }
-            List<SimpleGrantedAuthority> authorities = userDtoMapper.getRoleStrings(user).stream()
-                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-                    .toList();
+            // #381: a token can't be used to skip a required password change; the owner is loaded
+            // live, so a flag set after the token was minted applies at once.
+            List<SimpleGrantedAuthority> authorities = user.isMustChangePassword()
+                    ? List.of(PasswordChangeRequiredFilter.GRANTED_AUTHORITY)
+                    : userDtoMapper.getRoleStrings(user).stream()
+                            .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                            .toList();
             var auth = new UsernamePasswordAuthenticationToken(user.getUsername(), null, authorities);
             auth.setDetails(pat.getExpiresAt() != null ? pat.getExpiresAt().toEpochMilli() : 0L);
             SecurityContextHolder.getContext().setAuthentication(auth);

@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal, ViewChild, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgTemplateOutlet } from '@angular/common';
 import { PageHeaderComponent } from '../../shared/page-header';
@@ -40,13 +40,14 @@ import { StoryDto } from '../../models/story';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { StoryService } from '../../core/story.service';
 import { ActorService } from '../../core/actor.service';
-import { CommandService, isNetworkError } from '../../core/command.service';
+import { CommandService, isNetworkError, isStaleVersion, refusalMessage } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { AiReviewButtonComponent } from '../../shared/ai-review-button';
 import { SourcesSectionComponent } from '../../shared/sources-section';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
 import { LoadingStateComponent } from '../../shared/loading-state';
@@ -57,6 +58,7 @@ import {
   WizardCommitRequest,
 } from '../../shared/app-form-wizard';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
+import { ArtifactNameService } from '../../core/artifact-name.service';
 
 /** Wording for the stale-version recovery path, so the 409 case reads as recoverable. */
 const STALE_VERSION_MESSAGE =
@@ -66,7 +68,7 @@ const STALE_VERSION_MESSAGE =
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-story-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, RouterLink, ReactiveFormsModule, NgTemplateOutlet,
+  imports: [AiReviewButtonComponent, PageHeaderComponent, AppCardComponent, RouterLink, ReactiveFormsModule, NgTemplateOutlet,
             ButtonModule, InputText, TextareaModule, SelectModule,
             SubmitErrorComponent, UpdateBannerComponent, ConfirmDialogModule, EntitySelectorDialogComponent,
             RelationshipSectionComponent,
@@ -155,6 +157,9 @@ const STALE_VERSION_MESSAGE =
           <div class="form-actions">
             <p-button label="Save" icon="pi pi-check" data-testid="story-save"
                       [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
+            <!-- #387: beside Save; disabled while there are unsaved changes. -->
+            <app-ai-review-button entityType="Story" [entityId]="storyId"
+                                  [dirty]="hasUnsavedChanges()" />
           </div>
         </app-card>
 
@@ -197,6 +202,7 @@ const STALE_VERSION_MESSAGE =
       -->
       @if (storyId != null) {
         <app-annotations-section
+          (resolved)="onIssueResolved()"
           [projectName]="projectName"
           entityType="Story"
           [entityId]="storyId"
@@ -323,7 +329,7 @@ const STALE_VERSION_MESSAGE =
   styles: [`
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .page-actions { display: flex; gap: 0.5rem; }
-    .form-actions { margin-top: 1rem; }
+    .form-actions { margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .section { margin-top: 1.5rem; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; gap: 0.5rem; }
     .section-header h2 { margin: 0; }
@@ -334,6 +340,14 @@ const STALE_VERSION_MESSAGE =
 export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   isNew = signal(true);
   storyName = signal('');
+  /** #486: the breadcrumb and tab title follow this entity's current name (a rename, a rewrite). */
+  private readonly artifactName = inject(ArtifactNameService);
+  private readonly leafNameSync = effect(() => {
+    const name = this.storyName();
+    if (name && !this.isNew()) {
+      this.artifactName.set(name);
+    }
+  });
   story = signal<StoryDto | null>(null);
   errorMessage = signal<string | null>(null);
   retryable = signal(false);
@@ -464,6 +478,20 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     this.announcer.announce('Story reloaded.');
   }
 
+
+  /**
+   * #486: an issue was resolved in the annotations section; its position may have changed this
+   * story (a rewrite, a merge, a spelling fix). Reload it as for a change from another session,
+   * keeping unsaved edits.
+   */
+  onIssueResolved(): void {
+    const dirty = this.hasUnsavedChanges();
+    void this.loadStory(false);
+    if (dirty) {
+      this.updateAvailable.set(true);
+      this.announcer.announce('Resolving the issue changed this story. Your unsaved changes are preserved.');
+    }
+  }
   hasUnsavedChanges(): boolean {
     return this.detailsForm.dirty;
   }
@@ -707,7 +735,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
    * the user can retry. Returns whether it handled the result.
    */
   private async recoverFromStaleVersion(result: CommandResult<unknown>): Promise<boolean> {
-    if (result.status !== 409 || this.storyId == null) {
+    if (!isStaleVersion(result) || this.storyId == null) {
       return false;
     }
     await this.loadStory(false);
@@ -768,7 +796,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
           this.detailsForm.markAsPristine();
           this.router.navigate(['/projects', this.projectName, 'stories']);
         } else {
-          this.showError(result.error ?? 'Delete failed.');
+          this.showError(refusalMessage(result, 'Delete failed.'));
         }
       }
     });

@@ -18,10 +18,10 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -32,14 +32,17 @@ import { TableModule } from 'primeng/table';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { UpdateBannerComponent } from '../../shared/app-update-banner';
 import { AnnouncerService } from '../../core/announcer.service';
-import { isNetworkError } from '../../core/command.service';
+import { isNetworkError, refusalMessage } from '../../core/command.service';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
-import { GlossaryTermDto } from '../../models/term';
+import { GlossaryTermDto, ReplaceTermTextResultDto, SynonymUseDto } from '../../models/term';
+import { EntityReferenceDto } from '../../models/entity-reference';
+import { entityRoute } from '../../shared/entity-routes';
 import { TermService } from '../../core/term.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { AiReviewButtonComponent } from '../../shared/ai-review-button';
 import { SourcesSectionComponent } from '../../shared/sources-section';
 import { AppCardComponent } from '../../shared/app-card';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
@@ -47,6 +50,7 @@ import { LoadingStateComponent } from '../../shared/loading-state';
 import { ErrorStateComponent } from '../../shared/error-state';
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
+import { ArtifactNameService } from '../../core/artifact-name.service';
 
 
 /**
@@ -61,7 +65,7 @@ const SEPARATOR = '; ';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-term-editor',
   standalone: true,
-  imports: [
+  imports: [AiReviewButtonComponent, 
     PageHeaderComponent,
     AppCardComponent,
     ReactiveFormsModule,
@@ -77,6 +81,7 @@ const SEPARATOR = '; ';
     AppFieldControlDirective,
     LoadingStateComponent,
     ErrorStateComponent,
+    RouterLink,
   ],
   providers: [ConfirmationService],
   template: `
@@ -182,6 +187,9 @@ const SEPARATOR = '; ';
                 [loading]="saving()"
                 [disabled]="form.invalid || form.pristine || saving()"
               />
+              <!-- #387: beside Save; disabled while there are unsaved changes. -->
+              <app-ai-review-button entityType="GlossaryTerm" [entityId]="termId()"
+                                    [dirty]="hasUnsavedChanges()" />
             </div>
           </form>
         </app-card>
@@ -203,6 +211,65 @@ const SEPARATOR = '; ';
                 </tr>
               </ng-template>
             </p-table>
+          </div>
+        }
+
+        <!--
+          #348: referers that still say one of the term's synonyms (usually an old name kept by a
+          rename). Replace rewrites it to the term's name through each referer's own edit.
+        -->
+        @if (!isNew() && synonymUses().length) {
+          <div class="section" data-testid="term-synonym-uses-section">
+            <h2 class="rq-section-title">Still uses an old name</h2>
+            <p class="section-hint">
+              These items still say a synonym of "{{ termName() }}". Replace changes it to the
+              term's name.
+            </p>
+            @for (use of synonymUses(); track use.synonymId) {
+              <div class="synonym-use" data-testid="term-synonym-use">
+                <div class="synonym-use-header">
+                  <h3 class="synonym-name" data-testid="term-synonym-use-name">"{{ use.synonymName }}"</h3>
+                  @if (editableReferers(use).length > 1) {
+                    <p-button label="Replace all" icon="pi pi-sync" size="small" [outlined]="true"
+                              data-testid="term-synonym-replace-all"
+                              [ariaLabel]="'Replace all uses of ' + use.synonymName + ' with ' + termName()"
+                              [loading]="replacing() === use.synonymId"
+                              [disabled]="replacing() !== null"
+                              (onClick)="onReplace(use, editableReferers(use))" />
+                  }
+                </div>
+                <p-table [value]="use.referers" [rows]="10">
+                  <ng-template #header>
+                    <tr>
+                      <th>Type</th>
+                      <th>Name</th>
+                      <th><span class="rq-visually-hidden">Actions</span></th>
+                    </tr>
+                  </ng-template>
+                  <ng-template #body let-r>
+                    <tr data-testid="term-synonym-use-row">
+                      <td>{{ r.entityType }}</td>
+                      <td>
+                        @if (refererLink(r); as link) {
+                          <a [routerLink]="link" data-testid="term-synonym-use-link">{{ r.name }}</a>
+                        } @else {
+                          {{ r.name }}
+                        }
+                      </td>
+                      <td class="row-action">
+                        @if (canEditReferer(r)) {
+                          <p-button label="Replace" size="small" [text]="true"
+                                    data-testid="term-synonym-replace"
+                                    [ariaLabel]="'Replace ' + use.synonymName + ' with ' + termName() + ' in ' + r.name"
+                                    [disabled]="replacing() !== null"
+                                    (onClick)="onReplace(use, [r])" />
+                        }
+                      </td>
+                    </tr>
+                  </ng-template>
+                </p-table>
+              </div>
+            }
           </div>
         }
 
@@ -229,6 +296,7 @@ const SEPARATOR = '; ';
 
         <!-- Annotations -->
         <app-annotations-section
+          (resolved)="onIssueResolved()"
           [projectName]="projectName"
           entityType="GlossaryTerm"
           [entityId]="termId()"
@@ -250,16 +318,29 @@ const SEPARATOR = '; ';
     /* The rows are app-field's now (issue #132); the local .form-grid that redefined a
        160px label column is gone. Only control width stays with the caller. */
     app-field input, app-field textarea, app-field p-select { width: 100%; }
-    .form-actions { margin-block: var(--rq-space-4) var(--rq-space-6); }
+    .form-actions { margin-block: var(--rq-space-4) var(--rq-space-6); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .section { margin-top: var(--rq-space-6); }
     .section h2 { margin-bottom: var(--rq-space-3); }
     .clickable-row { cursor: pointer; }
     .clickable-row:hover td { background: var(--p-surface-100); }
+    .section-hint { margin-block: 0 var(--rq-space-3); color: var(--p-text-muted-color); }
+    .synonym-use + .synonym-use { margin-top: var(--rq-space-4); }
+    .synonym-use-header { display: flex; align-items: center; justify-content: space-between; gap: var(--rq-space-2); margin-bottom: var(--rq-space-2); }
+    .synonym-name { margin: 0; font-size: 1rem; }
+    .row-action { text-align: end; }
   `]
 })
 export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   term = signal<GlossaryTermDto | null>(null);
   termName = signal('');
+  /** #486: the breadcrumb and tab title follow this entity's current name (a rename, a rewrite). */
+  private readonly artifactName = inject(ArtifactNameService);
+  private readonly leafNameSync = effect(() => {
+    const name = this.termName();
+    if (name && !this.isNew()) {
+      this.artifactName.set(name);
+    }
+  });
   termId = signal<number | null>(null);
   saving = signal(false);
   submitted = signal(false);
@@ -302,6 +383,12 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   // #276: derived from the service signal rather than snapshotted after the load.
   canEdit = computed(() => this.permissionService.canEdit('GlossaryTerm'));
   canDelete = computed(() => this.permissionService.canDelete('GlossaryTerm'));
+
+  /** #348: the referers still using each synonym, from the detail. */
+  synonymUses = computed<SynonymUseDto[]>(() =>
+    (this.term()?.synonymUses ?? []).filter(u => u.referers?.length));
+  /** #348: the synonym whose replace is in flight, so the buttons can't fire twice. */
+  replacing = signal<number | null>(null);
 
   private readonly destroyRef = inject(DestroyRef);
   private sseBound = false;
@@ -367,6 +454,22 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     this.announcer.announce('Term reloaded.');
   }
 
+
+  /**
+   * #486: an issue was resolved in the annotations section; its position may have changed this
+   * term (a rewrite, a merge, a spelling fix). Reload it as for a change from another session,
+   * keeping unsaved edits.
+   */
+  onIssueResolved(): void {
+    const id = this.termId();
+    if (id == null) return;
+    const dirty = this.hasUnsavedChanges();
+    void this.loadTerm(id, false);
+    if (dirty) {
+      this.updateAvailable.set(true);
+      this.announcer.announce('Resolving the issue changed this term. Your unsaved changes are preserved.');
+    }
+  }
   hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
@@ -545,10 +648,70 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
           this.messageService.add({ severity: 'success', summary: 'Term deleted', life: 3000 });
           this.router.navigate(['/projects', this.projectName, 'terms']);
         } else {
-          this.errorMessage.set(result.error ?? 'Delete failed.');
+          this.errorMessage.set(refusalMessage(result, 'Delete failed.'));
         }
       }
     });
+  }
+
+  canEditReferer(r: EntityReferenceDto): boolean {
+    return this.permissionService.canEdit(r.entityType);
+  }
+
+  editableReferers(use: SynonymUseDto): EntityReferenceDto[] {
+    return use.referers.filter(r => this.canEditReferer(r));
+  }
+
+  refererLink(r: EntityReferenceDto): string[] | null {
+    return entityRoute(this.projectName, r.entityType, r.id);
+  }
+
+  /**
+   * #348: replace the synonym with the term's name in the given referers, then say what
+   * happened and reload, so the rows that were changed drop out of the panel.
+   */
+  async onReplace(use: SynonymUseDto, referers: EntityReferenceDto[]): Promise<void> {
+    const termId = this.termId();
+    if (termId == null || !referers.length || this.replacing() !== null) {
+      return;
+    }
+    this.replacing.set(use.synonymId);
+    this.errorMessage.set(null);
+    try {
+      const result = await this.termService.replaceTermText(
+        this.projectName, termId, use.synonymId, referers);
+      if (!result.success) {
+        this.errorMessage.set(result.error ?? 'Replace failed.');
+        return;
+      }
+      const outcome = result.entity ?? { applied: [], refused: [], unchanged: [] };
+      const message = this.replaceSummary(use.synonymName, outcome);
+      this.messageService.add({
+        severity: outcome.refused.length ? 'warn' : 'success',
+        summary: outcome.applied.length ? 'Replaced' : 'Nothing replaced',
+        detail: message,
+        life: 5000,
+      });
+      this.announcer.announce(message);
+      await this.loadTerm(termId, false);
+    } finally {
+      this.replacing.set(null);
+    }
+  }
+
+  /** One sentence per outcome, e.g. `Replaced "a" with "b" in 2 items. Refused, ...`. */
+  replaceSummary(synonymName: string, outcome: ReplaceTermTextResultDto): string {
+    const count = (n: number) => n === 1 ? '1 item' : `${n} items`;
+    const names = (refs: EntityReferenceDto[]) =>
+      refs.map(r => `${r.entityType} "${r.name ?? r.id}"`).join(', ');
+    const parts = [`Replaced "${synonymName}" with "${this.termName()}" in ${count(outcome.applied.length)}.`];
+    if (outcome.refused.length) {
+      parts.push(`Not changed, you can't edit: ${names(outcome.refused)}.`);
+    }
+    if (outcome.unchanged.length) {
+      parts.push(`${count(outcome.unchanged.length)} no longer used it.`);
+    }
+    return parts.join(' ');
   }
 
   navigateToTerm(termId: number): void {

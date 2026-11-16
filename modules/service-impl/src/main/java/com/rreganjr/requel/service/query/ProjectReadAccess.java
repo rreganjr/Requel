@@ -26,6 +26,7 @@ import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.UserStakeholder;
+import com.rreganjr.requel.tagging.Taggable;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 
@@ -72,6 +73,18 @@ final class ProjectReadAccess {
             return projectOf(relation.getFromGoal());
         }
         return null;
+    }
+
+    /**
+     * The project a tagged entity belongs to, or {@code null} when it has none this can find
+     * (issue #447): the project itself, or a project entity's project (goals, stories, actors,
+     * scenarios, use cases and stakeholders are all annotatable project entities).
+     */
+    static Project projectOfTagged(Taggable taggable) {
+        if (taggable instanceof Project project) {
+            return project;
+        }
+        return (taggable instanceof Annotatable annotatable) ? projectOf(annotatable) : null;
     }
 
     /** Whether the annotatable is in {@code project}, compared by id. */

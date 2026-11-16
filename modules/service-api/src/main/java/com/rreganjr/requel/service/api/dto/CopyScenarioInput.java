@@ -26,8 +26,8 @@ import jakarta.validation.constraints.NotNull;
 
 @CommandDescription("Copies a scenario, selected by scenarioId, within its project. The copy is"
         + " named after the original with the first free number appended (\"Checkout 1\"), the name"
-        + " cannot be chosen here, and the copy is not attached to any use case. Each step is"
-        + " copied as a new step under a numbered name rather than shared, and a nested scenario is"
-        + " copied as a single plain step, so its own steps are not carried over. Glossary terms"
-        + " and annotations are shared with the original.")
+        + " cannot be chosen here, and the copy is not attached to any use case. Each plain step is"
+        + " copied as a new step under a numbered name rather than shared; a nested scenario is"
+        + " linked, so the copy and the original share it. Glossary terms and annotations are"
+        + " shared with the original.")
 public record CopyScenarioInput(@NotBlank String projectName, @NotNull Long scenarioId) {}

@@ -70,7 +70,7 @@ class UpsertGoalCommandTest {
 
         @Override
         public List<com.rreganjr.requel.service.api.dto.OpenIssueDto> getOpenIssues(
-                String projectName) {
+                String projectName, com.rreganjr.requel.annotation.IssueSeverity minSeverity) {
             throw new UnsupportedOperationException();
         }
 
@@ -86,7 +86,8 @@ class UpsertGoalCommandTest {
         }
 
         @Override
-        public Map<String, Object> getProjectContext(String projectName) {
+        public Map<String, Object> getProjectContext(String projectName,
+                com.rreganjr.requel.annotation.IssueSeverity minSeverity) {
             throw new UnsupportedOperationException();
         }
 

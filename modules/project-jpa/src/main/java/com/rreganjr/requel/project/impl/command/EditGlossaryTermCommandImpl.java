@@ -44,6 +44,7 @@ import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.command.AnalysisRequestSource;
 import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
+import com.rreganjr.requel.project.impl.AbstractProjectOrDomain;
 import com.rreganjr.requel.project.impl.GlossaryTermImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
 import com.rreganjr.platform.identity.User;
@@ -62,6 +63,7 @@ public class EditGlossaryTermCommandImpl extends AbstractEditProjectOrDomainEnti
 	private GlossaryTerm glossaryTerm;
 	private GlossaryTerm canonicalTerm;
 	private String definition;
+	private GlossaryTerm createdSynonym;
 
 	/**
 	 * @param assistantManager
@@ -161,6 +163,8 @@ public class EditGlossaryTermCommandImpl extends AbstractEditProjectOrDomainEnti
 		} catch (NoSuchEntityException e) {
 		}
 
+		// #348: the name before this edit, to keep it as a synonym of a renamed term.
+		String previousName = (glossaryTermImpl == null) ? null : glossaryTermImpl.getName();
 		if (glossaryTermImpl == null) {
 			glossaryTermImpl = getProjectRepository().persist(
 					new GlossaryTermImpl(projectOrDomain, getName(), editedBy));
@@ -176,6 +180,14 @@ public class EditGlossaryTermCommandImpl extends AbstractEditProjectOrDomainEnti
 		}
 
 		glossaryTermImpl = getProjectRepository().merge(glossaryTermImpl);
+		boolean renamed = previousName != null && !previousName.equals(glossaryTermImpl.getName());
+		if (renamed && projectOrDomain instanceof AbstractProjectOrDomain sorted) {
+			// #480: the merge renamed a term in the project's glossary, a set sorted by name, so
+			// the term now sits where its old name sorted. Put the set in order before anything
+			// changes it (the synonym below does), or Hibernate's diff of it at flush deletes the
+			// join row of a term it can't find.
+			sorted.resortGlossaryTerms();
+		}
 
 		if (getReferers() != null) {
 			// remove the term for all its referers
@@ -202,8 +214,48 @@ public class EditGlossaryTermCommandImpl extends AbstractEditProjectOrDomainEnti
 		if (canonicalTerm != null) {
 			canonicalTerm.getAlternateTerms().add(glossaryTermImpl);
 		}
+		createdSynonym = keepPreviousNameAsSynonym(projectOrDomain, glossaryTermImpl, previousName,
+				editedBy);
 		setCanonicalTerm(canonicalTerm);
 		setGlossaryTerm(glossaryTermImpl);
+	}
+
+	/**
+	 * Issue #348: a renamed term keeps its old name as a synonym, so text written against the old
+	 * name still matches the glossary (as the non-preferred word) instead of being raised as a new
+	 * candidate. Nothing is added for a case-only rename, or when a term (or synonym) already has
+	 * the old name, ignoring case. The synonym points at the renamed term's canonical term when it
+	 * is itself a synonym, so no chain forms; it has no definition and no referers.
+	 *
+	 * @return the synonym created, or null
+	 */
+	private GlossaryTermImpl keepPreviousNameAsSynonym(ProjectOrDomain projectOrDomain,
+			GlossaryTermImpl renamed, String previousName, User editedBy) {
+		if (previousName == null || previousName.isBlank()
+				|| previousName.equalsIgnoreCase(renamed.getName())) {
+			return null;
+		}
+		for (GlossaryTerm term : projectOrDomain.getGlossaryTerms()) {
+			if (term != null && previousName.equalsIgnoreCase(term.getName())) {
+				return null;
+			}
+		}
+		GlossaryTerm preferred = (renamed.getCanonicalTerm() != null) ? renamed.getCanonicalTerm()
+				: renamed;
+		// The rename must reach the database before a term takes the old name: Hibernate flushes
+		// inserts before updates, and (project, name) is unique.
+		getProjectRepository().flush();
+		GlossaryTermImpl synonym = getProjectRepository().persist(
+				new GlossaryTermImpl(projectOrDomain, previousName, editedBy));
+		synonym.setCanonicalTerm(preferred);
+		projectOrDomain.getGlossaryTerms().add(synonym);
+		preferred.getAlternateTerms().add(synonym);
+		return synonym;
+	}
+
+	@Override
+	public GlossaryTerm getCreatedSynonym() {
+		return createdSynonym;
 	}
 
 	/**

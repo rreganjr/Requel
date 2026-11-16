@@ -32,6 +32,7 @@ import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.CommandRegistry;
 import com.rreganjr.requel.service.api.dto.ConvertStepToScenarioInput;
 import com.rreganjr.requel.service.api.dto.DeleteProjectInput;
+import com.rreganjr.requel.service.api.dto.EditScenarioStepInput;
 import com.rreganjr.requel.service.gateway.GatewayPolicyConfig;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -238,36 +239,40 @@ public class McpToolCatalogLockstepIT extends AbstractIntegrationTestCase {
 	}
 
 	/**
-	 * Issue #252's own AC: the distinction between the step command that is offered and the three
-	 * that are not.
+	 * Issue #252's own AC, revised by #476: which step commands are offered.
 	 *
-	 * <p>{@code EditScenario} replaces the whole steps array on save, so creating, editing and
-	 * deleting steps all go through it — a step with no {@code stepId} is created, one with its
-	 * {@code stepId} is edited, and one left out is deleted. {@code ConvertStepToScenario} is the
-	 * exception: sending {@code isScenario: true} with a plain step's id routes to a scenario
-	 * lookup that throws for a step, so it is the only one that would lose capability.
+	 * <p>{@code EditScenario} replaces the whole steps array on save, so creating and deleting steps
+	 * go through it — a step with no {@code stepId} is created, and one left out is deleted.
+	 * {@code ConvertStepToScenario} is offered because the steps array can't express it. #476 adds
+	 * {@code EditScenarioStep} back, with an input: through {@code EditScenario}, editing one step
+	 * means resending every step. Copy and delete stay off.
 	 */
 	@Test
-	public void onlyConvertStepToScenarioIsOfferedOfTheStepCommands() {
+	public void editAndConvertAreTheStepCommandsOffered() {
 		assertThat(GatewayPolicyConfig.ALLOWED)
-				.as("steps are managed through EditScenario's steps array")
-				.doesNotContain("EditScenarioStep", "CopyScenarioStep", "DeleteScenarioStep");
-		assertThat(catalog.find("EditScenarioStep")).isEmpty();
+				.as("copying and deleting steps go through EditScenario's steps array")
+				.doesNotContain("CopyScenarioStep", "DeleteScenarioStep");
 		assertThat(catalog.find("CopyScenarioStep")).isEmpty();
 		assertThat(catalog.find("DeleteScenarioStep")).isEmpty();
 		assertThat(writeService.toolDescriptors()).extracting(McpToolDescriptor::name)
-				.doesNotContain("EditScenarioStep", "CopyScenarioStep", "DeleteScenarioStep");
+				.doesNotContain("CopyScenarioStep", "DeleteScenarioStep");
 
-		assertThat(GatewayPolicyConfig.ALLOWED).contains("ConvertStepToScenario");
-		CommandDescriptor descriptor = catalog.find("ConvertStepToScenario").orElseThrow();
-		assertThat(descriptor.inputType())
+		assertThat(GatewayPolicyConfig.ALLOWED).contains("ConvertStepToScenario", "EditScenarioStep");
+		CommandDescriptor convert = catalog.find("ConvertStepToScenario").orElseThrow();
+		assertThat(convert.inputType())
 				.as("the typed tool's JSON schema is derived from this DTO")
 				.isEqualTo(ConvertStepToScenarioInput.class);
-		assertThat(descriptor.description())
+		assertThat(convert.description())
 				.as("a caller has to be told steps are otherwise managed through EditScenario")
 				.contains("EditScenario");
+		CommandDescriptor edit = catalog.find("EditScenarioStep").orElseThrow();
+		assertThat(edit.inputType()).isEqualTo(EditScenarioStepInput.class);
+		assertThat(edit.description())
+				.as("a caller has to be told a scenario and the step list go through EditScenario")
+				.contains("EditScenario");
+		assertThat(edit.authorizationHint()).contains("Scenario");
 		assertThat(writeService.toolDescriptors()).extracting(McpToolDescriptor::name)
-				.contains("ConvertStepToScenario");
+				.contains("ConvertStepToScenario", "EditScenarioStep");
 	}
 
 	/**

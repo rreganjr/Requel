@@ -33,7 +33,9 @@ public class UnversionedDatabaseException extends IllegalStateException {
 
 	public UnversionedDatabaseException(String database, int tableCount) {
 		super("Database `" + database + "` has " + tableCount + " tables but no Flyway history,"
-				+ " so it was not created by Requel 1.2 or later. Requel will not modify it.");
+				+ " so it was not created by Requel 1.2 or later. Requel will not modify it unless"
+				+ " requel.upgrade.from-1x=true (REQUEL_UPGRADE_FROM_1X=true) asks it to upgrade a Requel"
+				+ " 1.0.x or 1.1 database in place; back the database up first.");
 		this.database = database;
 		this.tableCount = tableCount;
 	}

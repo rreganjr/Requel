@@ -24,9 +24,14 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
+import com.rreganjr.nlp.dictionary.DictionaryRepository;
+import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
 import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
+import com.rreganjr.nlp.dictionary.impl.repository.NoSuchWordException;
+import com.rreganjr.nlp.dictionary.PartOfSpeech;
 import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 import org.apache.log4j.Logger;
 import org.springframework.beans.BeansException;
@@ -97,6 +102,7 @@ public class NLPProcessorFactoryImpl implements NLPProcessorFactory, Application
 				getSentencizer().process(nlpText);
 				getParser().process(nlpText);
 				getPrimaryVerbFinder().process(nlpText);
+				nlpText = retryAsCommand(text, nlpText);
 				getLemmatizer().process(nlpText);
 				getDictionizer().process(nlpText);
 				getNamedEntityResolver().process(nlpText);
@@ -112,6 +118,67 @@ public class NLPProcessorFactoryImpl implements NLPProcessorFactory, Application
 		log.info("NLP Processing Time: " + (System.currentTimeMillis() - startTime) + " ms");
 		log.info("processed text: \n" + getConstituentTreePrinter().process(nlpText));
 		return nlpText;
+	}
+
+	/**
+	 * Issue #349: a one-sentence text with no verb whose first word can be a verb ("Archive a
+	 * room": the tagger read "Archive" as a noun) is parsed again with that word tagged as a
+	 * verb. The second parse is kept only when it reads as a command; otherwise the first stands.
+	 */
+	private NLPText retryAsCommand(String text, NLPText parsed) {
+		if (parsed == null || !parsed.is(GrammaticalStructureLevel.SENTENCE)
+				|| parsed.getPrimaryVerb() != null) {
+			return parsed;
+		}
+		List<NLPText> leaves = parsed.getLeaves();
+		if (leaves.isEmpty() || !hasVerbSense(leaves.get(0).getText())) {
+			return parsed;
+		}
+		NLPText retry = createNLPText(text);
+		getSentencizer().process(retry);
+		if (!retry.is(GrammaticalStructureLevel.SENTENCE)) {
+			return parsed;
+		}
+		newInstance(StanfordLexicalizedParser.class).parseWithLeadingVerb(retry);
+		getPrimaryVerbFinder().process(retry);
+		return retry.isImperative() ? retry : parsed;
+	}
+
+	/**
+	 * Whether the word, in lower case, has a verb sense in the dictionary; for a hyphenated word
+	 * ("Force-stop") the part before the hyphen counts too. False when there is no dictionary.
+	 */
+	private boolean hasVerbSense(String word) {
+		DictionaryRepository dictionary = dictionaryRepository();
+		if (dictionary == null || word == null || word.isBlank()) {
+			return false;
+		}
+		String lemma = word.toLowerCase(Locale.ROOT);
+		List<String> candidates = lemma.indexOf('-') > 0
+				? List.of(lemma, lemma.substring(0, lemma.indexOf('-'))) : List.of(lemma);
+		for (String candidate : candidates) {
+			try {
+				dictionary.findWord(candidate, PartOfSpeech.VERB);
+				return true;
+			} catch (NoSuchWordException e) {
+				// try the next candidate
+			} catch (RuntimeException e) {
+				log.debug("verb lookup of \"" + candidate + "\" failed: " + e);
+				return false;
+			}
+		}
+		return false;
+	}
+
+	private DictionaryRepository dictionaryRepository() {
+		if (getApplicationContext() == null) {
+			return null;
+		}
+		try {
+			return getApplicationContext().getBean(DictionaryRepository.class);
+		} catch (BeansException e) {
+			return null;
+		}
 	}
 
 	@Override

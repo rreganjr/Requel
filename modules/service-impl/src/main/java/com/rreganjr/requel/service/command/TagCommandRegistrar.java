@@ -97,7 +97,7 @@ public class TagCommandRegistrar {
                         // Edit: the scope is the tag's own project, never the caller's (#343).
                         Tag tag = tagRepository.findTagById(i.tagId());
                         if (tag == null) {
-                            throw new IllegalArgumentException("Tag not found: " + i.tagId());
+                            throw new NotFoundInputException("Tag not found: " + i.tagId());
                         }
                         c.setTag(tag);
                         c.setProjectScope(resolveExistingScope(
@@ -129,7 +129,7 @@ public class TagCommandRegistrar {
                     AssignTagInput i = (AssignTagInput) input;
                     Tag tag = tagRepository.findTagById(i.tagId());
                     if (tag == null) {
-                        throw new IllegalArgumentException("Tag not found: " + i.tagId());
+                        throw new NotFoundInputException("Tag not found: " + i.tagId());
                     }
                     Taggable taggable = loadTaggable(i.entityType(), i.entityId());
                     c.setTag(tag);
@@ -146,7 +146,7 @@ public class TagCommandRegistrar {
                     UnassignTagInput i = (UnassignTagInput) input;
                     Tag tag = tagRepository.findTagById(i.tagId());
                     if (tag == null) {
-                        throw new IllegalArgumentException("Tag not found: " + i.tagId());
+                        throw new NotFoundInputException("Tag not found: " + i.tagId());
                     }
                     Taggable taggable = loadTaggable(i.entityType(), i.entityId());
                     c.setTag(tag);
@@ -163,7 +163,7 @@ public class TagCommandRegistrar {
                         // Edit: the scope is the category's own project, never the caller's (#343).
                         TagCategory category = tagRepository.findCategoryById(i.categoryId());
                         if (category == null) {
-                            throw new IllegalArgumentException(
+                            throw new NotFoundInputException(
                                     "Tag category not found: " + i.categoryId());
                         }
                         c.setProjectScope(resolveExistingScope(
@@ -244,7 +244,7 @@ public class TagCommandRegistrar {
                 .orElseThrow(() -> new IllegalArgumentException("Unknown entity type: " + entityType));
         Taggable entity = entityManager.find(entityClass, entityId);
         if (entity == null) {
-            throw new IllegalArgumentException("Entity not found: " + entityType + "#" + entityId);
+            throw new NotFoundInputException("Entity not found: " + entityType + "#" + entityId);
         }
         return entity;
     }

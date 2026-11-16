@@ -4,8 +4,14 @@ import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angul
 import { BehaviorSubject } from 'rxjs';
 import { UserEditorComponent } from './user-editor';
 import { UserService } from '../../core/user.service';
+import { AuthService } from '../../core/auth.service';
+import { signal } from '@angular/core';
 import { CommandService } from '../../core/command.service';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
+
+/** #446: the signed-in admin; editing "bob" is someone else's account. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const SIGNED_IN: any = { username: 'admin' };
 
 const MOCK_ROLES = [
   { roleName: 'ProjectUserRole', displayName: 'Project User',
@@ -54,6 +60,7 @@ describe('UserEditorComponent', () => {
       providers: [
         provideNoopAnimations(),
         provideRouter([]),
+        { provide: AuthService, useValue: { user: signal(SIGNED_IN) } },
         { provide: ActivatedRoute, useValue: { paramMap: paramMap$.asObservable() } },
         { provide: UserService, useValue: userServiceMock },
         { provide: CommandService, useValue: commandServiceMock }
@@ -95,6 +102,54 @@ describe('UserEditorComponent', () => {
     expect(comp.orgOptions().length).toBe(1);
   });
 
+  it('shows an existing user\'s must-change-password flag (#381)', async () => {
+    userServiceMock.getUser.mockResolvedValue({ ...MOCK_USER, mustChangePassword: true });
+    paramMap$.next(convertToParamMap({ username: 'bob' }));
+    fixture.detectChanges();
+    await flush();
+    expect(comp.form.controls.mustChangePassword.value).toBe(true);
+  });
+
+  describe('own account (#446)', () => {
+    const passwordRow = () =>
+      (fixture.nativeElement as HTMLElement).querySelector('#password');
+    const ownLink = () => (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLAnchorElement>('[data-testid="user-change-own-password"]');
+
+    it('shows the password rows when editing someone else', async () => {
+      paramMap$.next(convertToParamMap({ username: 'bob' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+      expect(comp.isSelf()).toBe(false);
+      expect(passwordRow()).not.toBeNull();
+      expect(ownLink()).toBeNull();
+    });
+
+    it('swaps the password rows for a link when the admin edits their own account', async () => {
+      userServiceMock.getUser.mockResolvedValue({ ...MOCK_USER, username: 'admin' });
+      paramMap$.next(convertToParamMap({ username: 'admin' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+      expect(comp.isSelf()).toBe(true);
+      expect(passwordRow()).toBeNull();
+      expect(ownLink()?.getAttribute('href')).toBe('/change-password');
+    });
+
+    it('never sends a password for your own account', async () => {
+      userServiceMock.getUser.mockResolvedValue({ ...MOCK_USER, username: 'admin' });
+      paramMap$.next(convertToParamMap({ username: 'admin' }));
+      fixture.detectChanges();
+      await flush();
+      comp.form.patchValue({ name: 'Renamed', password: 'hunter2', repassword: 'hunter2' });
+      comp.form.markAsDirty();
+      await comp.onSave();
+      const input = commandServiceMock.execute.mock.calls[0][1] as Record<string, unknown>;
+      expect('password' in input).toBe(false);
+    });
+  });
+
   it('loads existing user data when username is not "new"', async () => {
     paramMap$.next(convertToParamMap({ username: 'bob' }));
     fixture.detectChanges();
@@ -118,6 +173,21 @@ describe('UserEditorComponent', () => {
       name: 'New User',
       userRoleNames: ['ProjectUserRole'],
       userRolePermissionNames: { ProjectUserRole: ['editGoals'] }
+    }));
+  });
+
+  it('sends mustChangePassword, unchecked by default on a new user (#381)', async () => {
+    fixture.detectChanges();
+    await flush();
+    fillNewUser();
+    expect(comp.form.controls.mustChangePassword.value).toBe(false);
+    comp.form.controls.mustChangePassword.setValue(true);
+
+    await comp.onSave();
+
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('EditUser', expect.objectContaining({
+      username: 'newuser',
+      mustChangePassword: true,
     }));
   });
 

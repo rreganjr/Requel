@@ -333,11 +333,13 @@ class AuditingCommandHandlerTest {
         @Override public void setUsername(String s) {}
         @Override public void setPassword(String s) {}
         @Override public void setRepassword(String s) {}
+        @Override public boolean isPasswordReset() { return false; }
         @Override public void setName(String s) {}
         @Override public void setEmailAddress(String s) {}
         @Override public void setPhoneNumber(String s) {}
         @Override public void setOrganizationName(String s) {}
         @Override public void setEditable(Boolean b) {}
+        @Override public void setMustChangePassword(Boolean b) {}
         @Override public void setUserRoleNames(java.util.Set<String> s) {}
         @Override public void addUserRoleName(String s) {}
         @Override public void setUserRolePermissionNames(java.util.Map<String, java.util.Set<String>> m) {}

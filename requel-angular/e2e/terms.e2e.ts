@@ -307,3 +307,76 @@ test.describe('Clearing the definition (#316)', () => {
     await page.close();
   });
 });
+
+// #348: renaming a term keeps the old name as a synonym, and the editor offers to rewrite the
+// referers that still say it.
+test.describe('Renaming a term (#348)', () => {
+  test('rename → the old name is kept as an alternate term, and survives a reload', async ({ adminContext, request }) => {
+    const term = await createTerm(request, PROJECT_NAME, 'Dry-run event', 'A rehearsal before going live.');
+    const page = await adminContext.newPage();
+    const editorPage = new TermEditorPage(page);
+    await gotoAndWaitForGet(page, `/projects/${encodeURIComponent(PROJECT_NAME)}/terms/${term.id}`,
+      r => r.url().includes(`/terms/${term.id}`));
+    await editorPage.expectNameValue('Dry-run event');
+
+    await editorPage.fillName('Dry-run webinar');
+    await editorPage.save();
+    await editorPage.expectAlternateTermInTable('Dry-run event');
+
+    await reloadAndWaitForGet(page, r => /\/terms\/\d+$/.test(r.url()));
+    await editorPage.expectNameValue('Dry-run webinar');
+    await editorPage.expectAlternateTermInTable('Dry-run event');
+
+    const synonym = (await getTermDetail(request, PROJECT_NAME, term.id)).alternateTerms!
+      .find(t => t.name === 'Dry-run event')!;
+    expect((await getTermDetail(request, PROJECT_NAME, synonym.id)).canonicalTermId).toBe(term.id);
+    // The synonym points at the term, so it goes first.
+    try { await deleteTerm(request, { ...term, id: synonym.id }); } catch { /* afterAll drops the project */ }
+    termToCleanup = term;
+    await page.close();
+  });
+
+  // Which referers still say the old name comes from analysis linking them to the term, and the
+  // e2e backend runs without a dictionary, so nothing gets linked. The detail is stubbed here;
+  // ReplaceTermTextIT covers the server side.
+  test('the referers still using it are listed, and Replace all sends them', async ({ adminContext, request }) => {
+    const term = await createTerm(request, PROJECT_NAME, `Dry-run webinar ${Date.now()}`, 'A rehearsal.');
+    termToCleanup = term;
+    const referers = [
+      { entityType: 'Story', id: 7001, name: 'Rehearsal plan' },
+      { entityType: 'Goal', id: 7002, name: 'Speaker prep' },
+    ];
+    let replaced = false;
+    let sent: unknown = null;
+    const page = await adminContext.newPage();
+    await page.route(`**/api/projects/${encodeURIComponent(PROJECT_NAME)}/terms/${term.id}`, async route => {
+      const response = await route.fetch();
+      const detail = await response.json();
+      await route.fulfill({ response, json: { ...detail,
+        alternateTerms: [{ entityType: 'GlossaryTerm', id: 7000, name: 'Dry-run event' }],
+        synonymUses: replaced ? [] : [{ synonymId: 7000, synonymName: 'Dry-run event', referers }],
+      } });
+    });
+    await page.route('**/api/commands/ReplaceTermText', async route => {
+      sent = route.request().postDataJSON();
+      replaced = true;
+      await route.fulfill({ json: { success: true, entityType: null, error: null, violations: null,
+        entity: { applied: referers, refused: [], unchanged: [] } } });
+    });
+
+    const editorPage = new TermEditorPage(page);
+    await gotoAndWaitForGet(page, `/projects/${encodeURIComponent(PROJECT_NAME)}/terms/${term.id}`,
+      r => r.url().includes(`/terms/${term.id}`));
+    await editorPage.expectSynonymUse('Dry-run event', 'Rehearsal plan');
+    await editorPage.expectSynonymUse('Dry-run event', 'Speaker prep');
+    await expect(page.getByTestId('term-synonym-use-link').first())
+      .toHaveAttribute('href', `/projects/${encodeURIComponent(PROJECT_NAME)}/stories/7001`);
+
+    await editorPage.replaceAll();
+    expect(sent).toEqual({ projectName: PROJECT_NAME, termId: term.id, synonymId: 7000,
+      referers: [{ entityType: 'Story', id: 7001 }, { entityType: 'Goal', id: 7002 }] });
+    await expect(page.getByTestId('term-synonym-uses-section')).toBeHidden({ timeout: 15_000 });
+
+    await page.close();
+  });
+});

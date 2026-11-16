@@ -475,19 +475,69 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
     }
 
     @Test
-    void unknownChildIdIsInvalidInput() {
+    void unknownChildIdIsNotFound() {
         authenticate(editorUsername);
-        // Valid container, but the child goal id does not exist: findGoalById throws
-        // IllegalArgumentException("Goal not found") from the input applicator while the command is
-        // built. Before #188 that fell through to EXECUTION_ERROR; it must be INVALID_INPUT so MCP
-        // maps it to INVALID_PARAMS (not INTERNAL_ERROR) and the gateway HTTP wrapper returns 400,
-        // matching the HTTP controller. This is the child-lookup gap left after #189 scoped the
-        // container lookups to EntityValidationException.
+        // Valid container, but the child goal id does not exist: findGoalById refuses it while the
+        // command is built. #188 made that INVALID_INPUT instead of EXECUTION_ERROR; #345 makes it
+        // NOT_FOUND, so a caller can tell "that does not exist" from malformed input. MCP still
+        // maps it to INVALID_PARAMS and the gateway HTTP wrapper returns 404.
         GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
                 new GatewayRequest("AddGoalToGoalContainer",
                         Map.of("projectName", projectName, "goalContainerId", useCaseId,
                                 "goalId", 999_999_999L, "containerType", "UseCase"))));
+        assertEquals(GatewayException.Kind.NOT_FOUND, ex.getKind());
+    }
+
+    // ---- issue #345: error kinds a caller can act on ------------------------------------------
+
+    @Test
+    void anUnknownProjectNameIsNotFound() {
+        authenticate(editorUsername);
+        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
+                new GatewayRequest("EditGoal", Map.of("projectName", "gw-no-such-project-"
+                        + System.nanoTime(), "name", "g", "text", "t"))));
+        assertEquals(GatewayException.Kind.NOT_FOUND, ex.getKind());
+    }
+
+    @Test
+    void aNameAlreadyTakenIsAConflict() throws Exception {
+        authenticate(editorUsername);
+        long ts = System.nanoTime();
+        editGoal(Map.of("projectName", projectName, "name", "taken-" + ts, "text", "first"));
+        GoalDto second = editGoal(Map.of("projectName", projectName, "name", "free-" + ts,
+                "text", "second"));
+
+        GatewayException ex = assertThrows(GatewayException.class, () -> editGoal(Map.of(
+                "projectName", projectName, "goalId", second.id(), "name", "taken-" + ts)));
+        assertEquals(GatewayException.Kind.CONFLICT, ex.getKind(), ex.getMessage());
+    }
+
+    @Test
+    void aStaleVersionIsAConflict() throws Exception {
+        authenticate(editorUsername);
+        String name = "stale-" + System.nanoTime();
+        GoalDto goal = editGoal(Map.of("projectName", projectName, "name", name, "text", "v0"));
+
+        // name is sent because EditGoalInput still requires it on update (#331).
+        GatewayException ex = assertThrows(GatewayException.class, () -> editGoal(Map.of(
+                "projectName", projectName, "goalId", goal.id(), "name", name, "text", "edited",
+                "version", goal.version() + 5)));
+        assertEquals(GatewayException.Kind.CONFLICT, ex.getKind(), ex.getMessage());
+    }
+
+    @Test
+    void editNonUserStakeholderWithAUserStakeholderIdIsInvalidInput() {
+        authenticate(editorUsername);
+        // It used to fail with a ClassCastException (EXECUTION_ERROR).
+        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
+                new GatewayRequest("EditNonUserStakeholder", Map.of("projectName", projectName,
+                        "stakeholderId", userStakeholderId, "name", "renamed"))));
         assertEquals(GatewayException.Kind.INVALID_INPUT, ex.getKind());
+        assertTrue(ex.getMessage().contains("user stakeholder"), ex.getMessage());
+    }
+
+    private GoalDto editGoal(Map<String, Object> input) throws Exception {
+        return (GoalDto) gateway.execute(new GatewayRequest("EditGoal", input)).result();
     }
 
     // ---- issue #189: type-scoped container resolution ------------------------------------------
@@ -767,6 +817,74 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
     }
 
     /**
+     * Issue #476: EditScenarioStep is back on the gateway with an input, so one step can be edited
+     * without resending the scenario's whole step list. The step keeps its place, the scenario's
+     * other step is untouched, and the result is the step with the scenarios using it.
+     */
+    @Test
+    void editScenarioStepRenamesOneStepAlone() throws Exception {
+        authenticate(editorUsername);
+        String ts = Long.toString(System.currentTimeMillis());
+        GatewayResult created = gateway.execute(new GatewayRequest("EditScenario",
+                Map.of("projectName", projectName,
+                        "name", "gw-one-step-scenario-" + ts,
+                        "scenarioTypeName", ScenarioType.Primary.name(),
+                        "steps", List.of(
+                                Map.of("name", "gw-first-step-" + ts, "isScenario", false),
+                                Map.of("name", "gw-second-step-" + ts, "isScenario", false)))));
+        ScenarioDto scenario = (ScenarioDto) created.result();
+        Long stepId = scenario.steps().get(0).id();
+
+        GatewayResult edited = gateway.execute(new GatewayRequest("EditScenarioStep",
+                Map.of("projectName", projectName, "stepId", stepId,
+                        "name", "gw-renamed-step-" + ts)));
+
+        com.rreganjr.requel.service.api.dto.StepDetailDto step =
+                (com.rreganjr.requel.service.api.dto.StepDetailDto) edited.result();
+        assertEquals("gw-renamed-step-" + ts, step.name());
+        assertEquals(List.of(scenario.id()), step.usedIn().stream().map(r -> r.id()).toList());
+        ScenarioDto reread = new TransactionTemplate(transactionManager).execute(status ->
+                com.rreganjr.requel.service.query.ProjectQueryController.toScenarioDetailDto(
+                        getProjectRepository().findById(Scenario.class, scenario.id())));
+        assertEquals(List.of("gw-renamed-step-" + ts, "gw-second-step-" + ts),
+                reread.steps().stream().map(s -> s.name()).toList());
+    }
+
+    /** Issue #476: a scenario's id is refused; scenarios are edited with EditScenario. */
+    @Test
+    void editScenarioStepRefusesAScenario() throws Exception {
+        authenticate(editorUsername);
+        GatewayResult created = gateway.execute(new GatewayRequest("EditScenario",
+                Map.of("projectName", projectName,
+                        "name", "gw-not-a-step-" + System.currentTimeMillis(),
+                        "scenarioTypeName", ScenarioType.Primary.name())));
+        Long scenarioId = ((ScenarioDto) created.result()).id();
+
+        assertThrows(GatewayException.class, () -> gateway.execute(new GatewayRequest(
+                "EditScenarioStep", Map.of("projectName", projectName, "stepId", scenarioId,
+                        "name", "renamed"))));
+    }
+
+    /** Issue #476: without access to the project, EditScenarioStep is refused. */
+    @Test
+    void editScenarioStepNeedsAccess() throws Exception {
+        authenticate(editorUsername);
+        GatewayResult created = gateway.execute(new GatewayRequest("EditScenario",
+                Map.of("projectName", projectName,
+                        "name", "gw-guarded-" + System.currentTimeMillis(),
+                        "scenarioTypeName", ScenarioType.Primary.name(),
+                        "steps", List.of(Map.of("name", "gw-guarded-step-"
+                                + System.currentTimeMillis(), "isScenario", false)))));
+        Long stepId = ((ScenarioDto) created.result()).steps().get(0).id();
+
+        authenticate(noAccessUsername);
+        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
+                new GatewayRequest("EditScenarioStep",
+                        Map.of("projectName", projectName, "stepId", stepId, "name", "blocked"))));
+        assertEquals(GatewayException.Kind.UNAUTHORIZED, ex.getKind());
+    }
+
+    /**
      * Issue #254 on the surface it was actually reported from. Sending a steps entry whose name is
      * already taken used to fail with "The name conflicts with an existing ProjectOrDomainEntity",
      * naming neither the step nor the entity it hit, and appearing to blame the scenario — which
@@ -818,11 +936,20 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
         for (String type : GatewayPolicyConfig.ALLOWED) {
             assertTrue(commandRegistry.isRegistered(type), type + " must be registered");
             CommandRegistration<?> reg = commandRegistry.lookup(type);
-            assertNotNull(reg.factoryMethod(), type + " must have a factory method");
-            Command instance = reg.factoryMethod().get();
-            assertTrue(instance instanceof AuthorizableCommand,
-                    type + " must implement AuthorizableCommand so the gateway never exposes an "
-                            + "unchecked write");
+            if (reg.factoryMethod() == null) {
+                // #330: ResolveIssue is built from its input (the position's type picks the
+                // resolver), so there is no factory method to try; every resolver extends
+                // ResolveIssueCommandImpl, which is checked here instead.
+                assertNotNull(reg.commandBuilder(), type + " must have a factory method or a builder");
+                assertEquals("ResolveIssue", type, type + " is built from its input; check its commands");
+                assertTrue(AuthorizableCommand.class.isAssignableFrom(
+                        com.rreganjr.requel.annotation.impl.command.ResolveIssueCommandImpl.class));
+            } else {
+                Command instance = reg.factoryMethod().get();
+                assertTrue(instance instanceof AuthorizableCommand,
+                        type + " must implement AuthorizableCommand so the gateway never exposes an "
+                                + "unchecked write");
+            }
             // Issue #252: CommandRegistry's two-argument register(type, factory) overload is a
             // "placeholder for future DTO wiring" and records Void.class, which the catalog turns
             // into an empty MCP schema — a tool that advertises no way to call it. Four allowlisted

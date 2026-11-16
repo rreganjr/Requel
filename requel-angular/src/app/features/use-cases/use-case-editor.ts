@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
@@ -46,13 +46,14 @@ import { EntityReferenceDto } from '../../models/entity-reference';
 import { UseCaseService } from '../../core/use-case.service';
 import { ActorService } from '../../core/actor.service';
 import { ScenarioService } from '../../core/scenario.service';
-import { CommandService, isNetworkError } from '../../core/command.service';
+import { CommandService, isNetworkError, isStaleVersion, refusalMessage } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { AiReviewButtonComponent } from '../../shared/ai-review-button';
 import { SourcesSectionComponent } from '../../shared/sources-section';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
 import { LoadingStateComponent } from '../../shared/loading-state';
@@ -65,6 +66,7 @@ import {
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { CommandResult } from '../../models/command';
+import { ArtifactNameService } from '../../core/artifact-name.service';
 
 
 /** Joins page-level violations that resolved to no control. */
@@ -78,7 +80,7 @@ const STALE_VERSION_MESSAGE =
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-use-case-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
+  imports: [AiReviewButtonComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
             ButtonModule, InputText, TextareaModule, SubmitErrorComponent, UpdateBannerComponent,
             ConfirmDialogModule, TableModule, TooltipModule, SelectModule, RelationshipSectionComponent,
             EntitySelectorDialogComponent, AnnotationsSectionComponent, SourcesSectionComponent,
@@ -175,6 +177,9 @@ const STALE_VERSION_MESSAGE =
           <div class="form-actions">
             <p-button label="Save" icon="pi pi-check" data-testid="use-case-save"
                       [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
+            <!-- #387: beside Save; disabled while there are unsaved changes. -->
+            <app-ai-review-button entityType="UseCase" [entityId]="useCaseId"
+                                  [dirty]="hasUnsavedChanges()" />
           </div>
         </app-card>
 
@@ -234,6 +239,7 @@ const STALE_VERSION_MESSAGE =
         (closed)="showActorSelector = false" />
 
       <app-annotations-section
+          (resolved)="onIssueResolved()"
         [projectName]="projectName"
         entityType="UseCase"
         [entityId]="useCaseId"
@@ -422,7 +428,7 @@ const STALE_VERSION_MESSAGE =
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .page-actions { display: flex; gap: 0.5rem; }
     .form-grid { display: grid; grid-template-columns: 130px 1fr; gap: 0.75rem 1rem; align-items: start; max-width: 700px; }
-    .form-actions { margin-top: 1rem; }
+    .form-actions { margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .section { margin-top: 1.5rem; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
     .section-header h3 { margin: 0; }
@@ -437,6 +443,14 @@ const STALE_VERSION_MESSAGE =
 export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   isNew = signal(true);
   useCaseName = signal('');
+  /** #486: the breadcrumb and tab title follow this entity's current name (a rename, a rewrite). */
+  private readonly artifactName = inject(ArtifactNameService);
+  private readonly leafNameSync = effect(() => {
+    const name = this.useCaseName();
+    if (name && !this.isNew()) {
+      this.artifactName.set(name);
+    }
+  });
   useCase = signal<UseCaseDto | null>(null);
   errorMessage = signal<string | null>(null);
   retryable = signal(false);
@@ -576,6 +590,20 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     this.announcer.announce('Use case reloaded.');
   }
 
+
+  /**
+   * #486: an issue was resolved in the annotations section; its position may have changed this
+   * use case (a rewrite, a merge, a spelling fix). Reload it as for a change from another session,
+   * keeping unsaved edits.
+   */
+  onIssueResolved(): void {
+    const dirty = this.hasUnsavedChanges();
+    void this.loadUseCase(false);
+    if (dirty) {
+      this.updateAvailable.set(true);
+      this.announcer.announce('Resolving the issue changed this use case. Your unsaved changes are preserved.');
+    }
+  }
   hasUnsavedChanges(): boolean {
     return this.detailsForm.dirty;
   }
@@ -786,7 +814,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
    * current and the user can retry. Returns whether it handled the result.
    */
   private async recoverFromStaleVersion(result: CommandResult<unknown>): Promise<boolean> {
-    if (result.status !== 409 || this.useCaseId == null) {
+    if (!isStaleVersion(result) || this.useCaseId == null) {
       return false;
     }
     await this.loadUseCase(false);
@@ -1045,7 +1073,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
           this.projectService.notifyTreeChanged();
           this.router.navigate(['/projects', this.projectName, 'use-cases']);
         } else {
-          this.showError(result.error ?? 'Delete failed.');
+          this.showError(refusalMessage(result, 'Delete failed.'));
         }
       }
     });

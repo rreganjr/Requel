@@ -26,6 +26,8 @@ import com.rreganjr.requel.gateway.CommandGateway;
 import com.rreganjr.requel.gateway.GatewayRequest;
 import com.rreganjr.requel.gateway.GatewayResult;
 import com.rreganjr.requel.gateway.rest.CommandInfo;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -123,6 +125,68 @@ class TypedCommandsTest {
         assertThat((Map<String, Object>) request.input())
                 .containsEntry("projectName", "Demo")
                 .containsEntry("name", "G");
+    }
+
+    /** EditGoal with the lock version most Edit and Delete inputs carry. */
+    private static CommandInfo editGoalWithVersion() {
+        Map<String, Object> props = new LinkedHashMap<>();
+        props.put("projectName", Map.of("type", "string"));
+        props.put("version", Map.of("type", "integer"));
+        props.put("name", Map.of("type", "string"));
+        return new CommandInfo("EditGoal", "EditGoalInput", "Edit Goal", null, true, "Goal[Edit]",
+                schema(props, List.of("projectName")));
+    }
+
+    /**
+     * #489: a {@code version} field used to clash with picocli's standard {@code --version}
+     * option, and the exception stopped every typed subcommand from registering.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void aVersionFieldIsAnOrdinaryFlag() {
+        CommandInfo deleteGoal = new CommandInfo("DeleteGoal", "DeleteGoalInput", "Delete Goal", null,
+                true, "Goal[Delete]", schema(Map.of("projectName", Map.of("type", "string"),
+                        "version", Map.of("type", "integer")), List.of("projectName")));
+        Harness h = harnessFor(editGoalWithVersion(), deleteGoal);
+
+        assertThat(h.root().getSubcommands()).containsKeys("edit-goal", "delete-goal");
+        int code = h.root().execute("edit-goal", "--project-name", "Demo", "--version", "3");
+
+        assertThat(code).isEqualTo(ExitCode.SUCCESS);
+        assertThat((Map<String, Object>) h.lastRequest().get().input())
+                .containsEntry("version", 3L);
+    }
+
+    /** #489: a typed subcommand keeps -h/--help without picocli's standard mixin. */
+    @Test
+    void helpStillPrintsTheSubcommandsUsage() {
+        Harness h = harnessFor(editGoalWithVersion());
+        StringWriter out = new StringWriter();
+        h.root().setOut(new PrintWriter(out));
+
+        assertThat(h.root().execute("edit-goal", "--help")).isEqualTo(ExitCode.SUCCESS);
+        assertThat(h.root().execute("edit-goal", "-h")).isEqualTo(ExitCode.SUCCESS);
+
+        assertThat(out.toString()).contains("edit-goal", "--version=VERSION", "--help");
+        assertThat(h.lastRequest().get()).isNull();
+    }
+
+    /** #489: a field whose option name is taken is left off, and the rest still work. */
+    @Test
+    void aFieldWhoseOptionIsTakenIsLeftOffAndNamedInTheUsage() {
+        Map<String, Object> props = new LinkedHashMap<>();
+        props.put("projectName", Map.of("type", "string"));
+        props.put("help", Map.of("type", "string"));
+        CommandInfo withHelp = new CommandInfo("EditGoal", "EditGoalInput", "Edit Goal", null, true,
+                null, schema(props, List.of("projectName")));
+
+        Harness h = harnessFor(withHelp);
+
+        CommandSpec spec = h.root().getSubcommands().get("edit-goal").getCommandSpec();
+        assertThat(spec.findOption("--project-name")).isNotNull();
+        assertThat(spec.findOption("--help").usageHelp()).isTrue();
+        assertThat(String.join("\n", spec.usageMessage().description()))
+                .contains("No option for help", "requel run EditGoal");
     }
 
     @Test

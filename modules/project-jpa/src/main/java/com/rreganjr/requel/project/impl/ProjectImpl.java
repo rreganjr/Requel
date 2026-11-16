@@ -75,6 +75,8 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project, Tag
 	private Set<TagAssignmentXml> exportTagAssignments = new HashSet<TagAssignmentXml>();
 	private java.util.List<IgnoredFindingXml> exportIgnoredFindings = new java.util.ArrayList<IgnoredFindingXml>();
 	private java.util.List<ExternalSourceXml> exportExternalSources = new java.util.ArrayList<ExternalSourceXml>();
+	private java.util.List<com.rreganjr.requel.utils.jaxb.imports.AssistantDefinitionXml> exportAssistantDefinitions =
+			new java.util.ArrayList<>();
 
 	/**
 	 * @param name
@@ -204,6 +206,23 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project, Tag
 
 	public void setExportExternalSources(java.util.List<ExternalSourceXml> exportExternalSources) {
 		this.exportExternalSources = exportExternalSources;
+	}
+
+	/**
+	 * Export carrier for the project's own assistant definitions (issue #371). Not persistent;
+	 * filled by {@code ExportProjectCommandImpl} from {@code ProjectAssistantDefinitions}, the
+	 * same way the sources above are.
+	 */
+	@Transient
+	@XmlElementWrapper(name = "assistantDefinitions", namespace = "http://www.rreganjr.com/requel", required = false)
+	@XmlElement(name = "assistantDefinition", namespace = "http://www.rreganjr.com/requel")
+	public java.util.List<com.rreganjr.requel.utils.jaxb.imports.AssistantDefinitionXml> getExportAssistantDefinitions() {
+		return exportAssistantDefinitions;
+	}
+
+	public void setExportAssistantDefinitions(
+			java.util.List<com.rreganjr.requel.utils.jaxb.imports.AssistantDefinitionXml> exportAssistantDefinitions) {
+		this.exportAssistantDefinitions = exportAssistantDefinitions;
 	}
 
 	@XmlElementWrapper(name = "annotations", namespace = "http://www.rreganjr.com/requel", required = false)

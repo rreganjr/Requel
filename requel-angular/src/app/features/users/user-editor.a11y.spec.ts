@@ -4,8 +4,14 @@ import { provideRouter, ActivatedRoute, convertToParamMap, Router } from '@angul
 import { BehaviorSubject } from 'rxjs';
 import { UserEditorComponent } from './user-editor';
 import { UserService } from '../../core/user.service';
+import { AuthService } from '../../core/auth.service';
+import { signal } from '@angular/core';
 import { CommandService } from '../../core/command.service';
 import { expectNoAxeViolations } from '../../shared/testing/a11y';
+
+/** #446: the signed-in admin; editing "bob" is someone else's account. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const SIGNED_IN: any = { username: 'admin' };
 
 const MOCK_ROLES = [
   { roleName: 'ProjectUserRole', displayName: 'Project User',
@@ -34,6 +40,7 @@ describe('UserEditorComponent accessibility (issue #132)', () => {
       providers: [
         provideNoopAnimations(),
         provideRouter([]),
+        { provide: AuthService, useValue: { user: signal(SIGNED_IN) } },
         { provide: ActivatedRoute, useValue: { paramMap: paramMap$.asObservable() } },
         {
           provide: UserService,

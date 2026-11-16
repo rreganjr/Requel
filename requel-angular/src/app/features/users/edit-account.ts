@@ -23,7 +23,7 @@ import { PageHeaderComponent } from '../../shared/page-header';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { InputText } from 'primeng/inputtext';
-import { Password } from 'primeng/password';
+import { RouterLink } from '@angular/router';
 import { SelectModule } from 'primeng/select';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
@@ -32,8 +32,8 @@ import { AuthService } from '../../core/auth.service';
 import { CommandService, isNetworkError } from '../../core/command.service';
 import { UserService } from '../../core/user.service';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
-import { applyCommandErrors, clearServerErrors, notBlank, passwordsMatch } from '../../shared/form-errors';
-import { ARTIFACT_NAME_MAX_LENGTH, PASSWORD_MAX_LENGTH } from '../../shared/validation-limits';
+import { applyCommandErrors, clearServerErrors, notBlank } from '../../shared/form-errors';
+import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 
 
 /**
@@ -46,8 +46,11 @@ const SEPARATOR = '; ';
 
 /**
  * Edit Account page — allows the current user to update their own profile.
- * Non-admin users can only change name, email, phone, password.
+ * Non-admin users can only change name, email, phone and organization.
  * Role/permission editing is restricted to the admin user editor.
+ *
+ * #446: the password isn't edited here. Your own password changes only on the Change Password
+ * page, which asks for the current one; `EditUser` refuses it for your own account.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -57,7 +60,7 @@ const SEPARATOR = '; ';
     PageHeaderComponent,
     ReactiveFormsModule,
     InputText,
-    Password,
+    RouterLink,
     SelectModule,
     ButtonModule,
     MessageModule,
@@ -83,10 +86,7 @@ const SEPARATOR = '; ';
       <form [formGroup]="form" (ngSubmit)="onSave()">
         <!--
           controlId values match the ids the e2e page objects locate (#username, #name,
-          #email, #password, #repassword). For the two p-password rows that means the id
-          now lands on the INNER input rather than the p-password host, so the page
-          objects' .locator('#password').locator('input') became .locator('#password') —
-          updated in e2e/pages/UserEditorPage.ts and e2e/account.e2e.ts.
+          #email).
         -->
         <app-field label="Username" controlId="username" [control]="form.controls.username">
           <input pInputText appFieldControl id="username" formControlName="username" autocomplete="username" />
@@ -138,39 +138,11 @@ const SEPARATOR = '; ';
           />
         </app-field>
 
-        <app-field
-          label="New Password"
-          helper="Leave blank to keep your current password."
-          controlId="password"
-          [control]="form.controls.password"
-          [submitted]="submitted()"
-        >
-          <p-password
-            appFieldControl
-            inputId="password"
-            formControlName="password"
-            [feedback]="false"
-            [toggleMask]="true"
-            autocomplete="new-password"
-          />
-        </app-field>
-
-        <app-field
-          label="Confirm New Password"
-          controlId="repassword"
-          [control]="form.controls.repassword"
-          [submitted]="submitted()"
-          [divider]="false"
-        >
-          <p-password
-            appFieldControl
-            inputId="repassword"
-            formControlName="repassword"
-            [feedback]="false"
-            [toggleMask]="true"
-            autocomplete="new-password"
-          />
-        </app-field>
+        <!-- #446: your own password changes on its own page, which asks for the current one. -->
+        <div class="password-row">
+          <span class="password-label">Password</span>
+          <a routerLink="/change-password" data-testid="account-change-password">Change password</a>
+        </div>
 
         <div class="actions">
           <p-button type="submit" label="Save" icon="pi pi-check" data-testid="account-save"
@@ -183,7 +155,10 @@ const SEPARATOR = '; ';
   styles: [`
     .edit-account { max-width: 500px; }
     /* app-field owns the rows (issue #132); the caller keeps control width. */
-    app-field input, app-field p-password, app-field p-select { width: 100%; }
+    app-field input, app-field p-select { width: 100%; }
+    .password-row { display: flex; justify-content: space-between; align-items: center;
+                    padding: var(--rq-space-3) 0; }
+    .password-label { font-weight: 600; }
     .actions { margin-top: var(--rq-space-4); }
   `]
 })
@@ -210,12 +185,6 @@ export class EditAccountComponent implements OnInit, DirtyCheckable {
   readonly nameMaxLength = ARTIFACT_NAME_MAX_LENGTH;
 
   /**
-   * The password rows are optional here — blank means "keep the current one" — and the
-   * validators express that without a conditional branch: Angular's `minLength` returns
-   * null for an empty value, so `minLength(1)` only bites once something is typed, and
-   * `passwordsMatch` is satisfied when both rows are empty. `maxLength` mirrors
-   * `UserImpl.MAX_PASSWORD_LENGTH`, the only password bound the server enforces.
-   *
    * `username` is disabled rather than read-only, matching the previous markup and the
    * e2e assertion that it is disabled. Disabled controls are excluded from `form.value`,
    * so the save path reads `getRawValue()`.
@@ -231,13 +200,7 @@ export class EditAccountComponent implements OnInit, DirtyCheckable {
       phoneNumber: new FormControl('', { nonNullable: true }),
       // Required by the server (#398): a user without an organization can't be saved.
       organizationName: new FormControl('', { validators: notBlank(), nonNullable: true }),
-      password: new FormControl('', {
-        validators: [Validators.minLength(1), Validators.maxLength(PASSWORD_MAX_LENGTH)],
-        nonNullable: true,
-      }),
-      repassword: new FormControl('', { nonNullable: true }),
-    },
-    { validators: passwordsMatch('password', 'repassword') }
+    }
   );
 
   constructor(
@@ -299,15 +262,9 @@ export class EditAccountComponent implements OnInit, DirtyCheckable {
         organizationName: value.organizationName || null
       };
 
-      if (value.password) {
-        input['password'] = value.password;
-        input['repassword'] = value.repassword;
-      }
-
       const result = await this.commandService.execute('EditUser', input);
       if (result.success) {
         this.successMessage.set('Account updated.');
-        this.form.patchValue({ password: '', repassword: '' });
         this.form.markAsPristine();
         this.submitted.set(false);
         return;

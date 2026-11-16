@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -43,12 +44,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.TermTextMatcher;
+import com.rreganjr.requel.project.TextEntity;
 import com.rreganjr.requel.project.ReportGenerator;
 import com.rreganjr.requel.project.command.GenerateReportCommand;
 import com.rreganjr.requel.project.Scenario;
@@ -76,14 +80,18 @@ import com.rreganjr.requel.project.exception.ReportGenerationException;
 import com.rreganjr.requel.project.NonUserStakeholder;
 import com.rreganjr.requel.service.api.dto.ActorDto;
 import com.rreganjr.requel.service.api.dto.ScenarioDto;
+import com.rreganjr.requel.service.api.dto.StepDetailDto;
+import com.rreganjr.requel.service.api.dto.StepSummaryDto;
 import com.rreganjr.requel.service.api.dto.StepDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.Issue;
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.annotation.impl.IssueImpl;
 import com.rreganjr.requel.annotation.spi.AnnotationFreshness;
 import com.rreganjr.requel.service.command.AnnotationCommandRegistrar;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
+import com.rreganjr.requel.service.api.dto.SynonymUseDto;
 import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.api.dto.ReportGeneratorDto;
 import com.rreganjr.requel.service.api.dto.GoalDto;
@@ -619,6 +627,85 @@ public class ProjectQueryController {
     }
 
     /**
+     * GET /api/projects/{name}/steps — the project's plain steps, by name, with how many scenarios
+     * use each (#483). The scenario editor suggests them when a new step is named, so an existing
+     * step can be reused. Scenarios used as steps aren't listed: they have their own list.
+     */
+    @GetMapping("/{name}/steps")
+    public ResponseEntity<?> listSteps(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            Map<Long, StepSummaryDto> steps = new HashMap<>();
+            for (Scenario scenario : project.getScenarios()) {
+                for (Step step : scenario.getSteps()) {
+                    if (!Scenario.class.equals(step.getProjectOrDomainEntityInterface())) {
+                        steps.computeIfAbsent(step.getId(), id -> toStepSummaryDto(step));
+                    }
+                }
+            }
+            return ResponseEntity.ok(steps.values().stream()
+                    .sorted(Comparator.comparing(StepSummaryDto::name, String.CASE_INSENSITIVE_ORDER))
+                    .toList());
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /** #483: a plain step for the project's step list. */
+    public static StepSummaryDto toStepSummaryDto(Step step) {
+        return new StepSummaryDto(step.getId(), step.getName(), step.getText(),
+                step.getType() != null ? step.getType().name() : null,
+                step.getUsingScenarios().size());
+    }
+
+    /**
+     * GET /api/projects/{name}/steps/{stepId} — one plain step and the scenarios that use it
+     * (#476). 404 for a scenario, which has its own read, and for a step not in this project.
+     */
+    @GetMapping("/{name}/steps/{stepId}")
+    public ResponseEntity<?> getStep(@PathVariable String name, @PathVariable Long stepId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            Step step = findPlainStep(project, stepId);
+            return step == null ? ResponseEntity.notFound().build()
+                    : ResponseEntity.ok(toStepDetailDto(step));
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /** #476: a plain step (not a scenario) used by one of the project's scenarios, or null. */
+    public static Step findPlainStep(Project project, Long stepId) {
+        for (Scenario scenario : project.getScenarios()) {
+            for (Step step : scenario.getSteps()) {
+                if (step.getId().equals(stepId)) {
+                    return Scenario.class.equals(step.getProjectOrDomainEntityInterface())
+                            ? null : step;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** #476: a step and the scenarios that use it, by name. */
+    public static StepDetailDto toStepDetailDto(Step step) {
+        List<EntityReferenceDto> usedIn = step.getUsingScenarios().stream()
+                .map(s -> new EntityReferenceDto("Scenario", s.getId(), s.getName()))
+                .sorted(Comparator.comparing(EntityReferenceDto::name))
+                .toList();
+        return new StepDetailDto(step.getId(), step.getVersion(), step.getName(), step.getText(),
+                step.getType() != null ? step.getType().name() : null,
+                step.getCreatedBy() != null ? step.getCreatedBy().getDisplayName() : null,
+                usedIn);
+    }
+
+    /**
      * GET /api/projects/{name}/use-cases — list of use cases (summary, no sub-tables).
      */
     @GetMapping("/{name}/use-cases")
@@ -928,6 +1015,18 @@ public class ProjectQueryController {
         List<StepDto> steps = new ArrayList<>();
         for (Step step : scenario.getSteps()) {
             boolean isScenario = step instanceof Scenario;
+            int openIssues = 0;
+            String highestOpenSeverity = null;
+            for (Annotation annotation : step.getAnnotations()) {
+                if (annotation instanceof IssueImpl issue && issue.getResolvedByPosition() == null) {
+                    openIssues++;
+                    String severity = issue.getSeverity() != null ? issue.getSeverity().name() : null;
+                    if (AnnotationCommandRegistrar.severityRank(severity)
+                            > AnnotationCommandRegistrar.severityRank(highestOpenSeverity)) {
+                        highestOpenSeverity = severity;
+                    }
+                }
+            }
             steps.add(new StepDto(
                     step.getId(),
                     step.getVersion(),
@@ -935,7 +1034,9 @@ public class ProjectQueryController {
                     step.getText(),
                     step.getType() != null ? step.getType().name() : null,
                     isScenario,
-                    isScenario ? step.getId() : null));
+                    isScenario ? step.getId() : null,
+                    openIssues,
+                    highestOpenSeverity));
         }
         List<EntityReferenceDto> referencedBy = List.of();
         if (scenario.getProjectOrDomain() instanceof Project project) {
@@ -1212,7 +1313,7 @@ public class ProjectQueryController {
                 t.getCreatedBy() != null ? t.getCreatedBy().getDisplayName() : null,
                 t.getCanonicalTerm() != null ? t.getCanonicalTerm().getId() : null,
                 t.getCanonicalTerm() != null ? t.getCanonicalTerm().getName() : null,
-                null, null);
+                null, null, null);
     }
 
     public static GlossaryTermDto toGlossaryTermDetailDto(GlossaryTerm t) {
@@ -1230,7 +1331,44 @@ public class ProjectQueryController {
                 t.getCreatedBy() != null ? t.getCreatedBy().getDisplayName() : null,
                 t.getCanonicalTerm() != null ? t.getCanonicalTerm().getId() : null,
                 t.getCanonicalTerm() != null ? t.getCanonicalTerm().getName() : null,
-                alternates, referers);
+                alternates, referers, synonymUses(t));
+    }
+
+    /**
+     * #348: for each synonym (alternate term), the referers (the term's or the synonym's) whose
+     * name or text still use it, so a client can offer to replace it with the term's name.
+     * Synonyms no referer uses are left out.
+     */
+    static List<SynonymUseDto> synonymUses(GlossaryTerm t) {
+        List<SynonymUseDto> uses = new ArrayList<>();
+        List<GlossaryTerm> synonyms = t.getAlternateTerms().stream()
+                .sorted(Comparator.comparing(GlossaryTerm::getName, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+        for (GlossaryTerm synonym : synonyms) {
+            // Referers of the term and of the synonym: the glossary check links text that uses
+            // the old name to the synonym itself.
+            Map<String, ProjectOrDomainEntity> linked = new LinkedHashMap<>();
+            for (Set<ProjectOrDomainEntity> referers : List.of(t.getReferers(), synonym.getReferers())) {
+                for (ProjectOrDomainEntity e : referers) {
+                    if (e != null) {
+                        linked.putIfAbsent(e.getProjectOrDomainEntityInterface().getSimpleName()
+                                + "#" + e.getId(), e);
+                    }
+                }
+            }
+            List<EntityReferenceDto> using = linked.values().stream()
+                    .filter(e -> (TermTextMatcher.contains(e.getName(), synonym.getName())
+                            || (e instanceof TextEntity text
+                                    && TermTextMatcher.contains(text.getText(), synonym.getName()))))
+                    .map(e -> new EntityReferenceDto(
+                            e.getProjectOrDomainEntityInterface().getSimpleName(), e.getId(), e.getName()))
+                    .sorted(Comparator.comparing(EntityReferenceDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .toList();
+            if (!using.isEmpty()) {
+                uses.add(new SynonymUseDto(synonym.getId(), synonym.getName(), using));
+            }
+        }
+        return uses;
     }
 
     /**
@@ -1371,9 +1509,22 @@ public class ProjectQueryController {
     /**
      * GET /api/projects/{name}/open-issues — all unresolved issues across every project entity.
      * Used by the project-wide Open Issues view.
+     *
+     * @param minSeverity issue #338: optional, any case; only issues at or above it are listed.
+     *        Absent or blank lists every issue. Anything else is a 400 naming the parameter
+     *        ({@link IssueSeverity#parseMinimum}, through {@code ApiExceptionHandler}).
      */
     @GetMapping("/{name}/open-issues")
-    public ResponseEntity<?> getOpenIssues(@PathVariable String name) {
+    public ResponseEntity<?> getOpenIssues(@PathVariable String name,
+            @RequestParam(required = false) String minSeverity) {
+        return getOpenIssues(name, IssueSeverity.parseMinimum("minSeverity", minSeverity));
+    }
+
+    /**
+     * The open issues of a project, at or above {@code minSeverity} (null: all of them), highest
+     * severity first. The gateway calls this with the already-parsed filter.
+     */
+    public ResponseEntity<?> getOpenIssues(String name, IssueSeverity minSeverity) {
         try {
             Project project = projectRepository.findProjectByName(name);
             requireProjectAccess(project);
@@ -1385,7 +1536,8 @@ public class ProjectQueryController {
             for (ProjectOrDomainEntity entity : project.getProjectEntities()) {
                 String entityType = entity.getProjectOrDomainEntityInterface().getSimpleName();
                 for (Annotation annotation : entity.getAnnotations()) {
-                    if (annotation instanceof IssueImpl issue && issue.getResolvedByPosition() == null) {
+                    if (annotation instanceof IssueImpl issue && issue.getResolvedByPosition() == null
+                            && IssueSeverity.atLeast(issue.getSeverity(), minSeverity)) {
                         issues.add(new OpenIssueDto(
                                 issue.getId(),
                                 issue.getText(),

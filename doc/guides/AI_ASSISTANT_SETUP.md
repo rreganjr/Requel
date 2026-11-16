@@ -269,7 +269,8 @@ Use this when you start Requel from the jar (or `mvn spring-boot:run`) directly 
    > **Pick a model that fits your RAM.** A small model like `qwen2.5:3b` (~2 GB, and notably
    > better at structured JSON than similarly sized models) or `llama3.2:3b` runs comfortably and
    > is fine for proving the pipeline. Big models (e.g. `llama3.1` 8B) need 6–8 GB+ or Ollama gets
-   > killed mid-run — see the OOM note in Section 7.
+   > killed mid-run — see the OOM note in Section 7. For real reviews see
+   > [Section 4c](#4c-a-local-model-big-enough-for-real-reviews), including the context length.
 
 2. Point Requel at it (same terminal you start Requel from):
 
@@ -282,6 +283,54 @@ Use this when you start Requel from the jar (or `mvn spring-boot:run`) directly 
    ```
 
 3. Start Requel and use it as normal (Section 5).
+
+### 4c. A local model big enough for real reviews
+
+The small models above prove the pipeline; for reviews worth reading you need a larger model and
+three settings. Issue #365 scored the review definitions on two models that fit a 36 GB Apple
+Silicon Mac; the results are in `doc/work/2.1/365-local-model-eval.md`.
+
+| Model | Ollama tag | Download | Per review | Planted flaws found | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Gemma 4, 26B mixture-of-experts (4B active) | `gemma4:26b` | ~18 GB | ~14 s | 80% | **use this one**; every reply valid, policy pass clean |
+| Qwen 3.6, 27B dense | `qwen3.6:27b` | ~17 GB | ~70 s | 84% | more false findings; sometimes replies `{}` |
+
+The frontier model the definitions were tuned on finds 100%. Both local models find the plain
+flaws (a person named instead of a role, two actions in one step, a circular definition) every
+time and miss the subtle goal flaws (a duplicate of another goal, a rule stated only as who may
+*not*, an unstated assumption, an "every alert" goal that no alerts satisfy).
+
+1. **Set Ollama's context length.** A review prompt is the definition's instructions plus the
+   entity's context pack (up to `requel.ai.max-input-tokens`, 16,000 by default), and a prompt
+   longer than the context is cut without an error, so the model reviews half a prompt. Older
+   Ollama releases default to 4,096 tokens; newer ones pick a default from the GPU memory. Set it
+   explicitly:
+
+   ```bash
+   osascript -e 'quit app "Ollama"'     # macOS: the menu-bar app holds the port; quit it first
+   OLLAMA_CONTEXT_LENGTH=32768 ollama serve
+   ```
+
+   (With Docker, pass `-e OLLAMA_CONTEXT_LENGTH=32768` to `docker run`.) Check with `ollama ps`
+   while a model is loaded: `PROCESSOR` should read `100% GPU`. A CPU/GPU split means the model
+   and its context don't fit; use 24576.
+2. Pull the model, e.g. `ollama pull gemma4:26b`, and start Requel with the `ai-ollama` profile
+   and `REQUEL_AI_MODEL=gemma4:26b` (Section 3a).
+3. **Turn thinking off.** Both models reason before they answer unless told not to. Add this to
+   the `java -jar` command (or set `SPRING_AI_OPENAI_CHAT_OPTIONS_REASONINGEFFORT=none`):
+
+   ```bash
+   --spring.ai.openai.chat.options.reasoning-effort=none
+   ```
+
+   With thinking on, `qwen3.6:27b` took about 4 minutes per review instead of about 70 s, and
+   found no more flaws (it did raise fewer false ones). The thinking also counts against the
+   output cap (`REQUEL_AI_MAX_OUTPUT_TOKENS`, 4,000), and 3 reviews in 39 used it all up and
+   failed with no answer.
+
+To see exactly what Requel sends a local model and what comes back, run
+`scripts/ai-eval/capture-proxy.py` between them and point `REQUEL_AI_BASE_URL` at it; see
+`scripts/ai-eval/README.md`.
 
 ### 4b. Everything in Docker (Requel + database + Ollama together)
 
@@ -330,53 +379,78 @@ AI requirements-review assistant enabled (provider=openai, model=..., projectAll
 
 ## 5. Using the assistant
 
-The assistant runs only when a review is **explicitly requested** for one entity, via the API
-endpoint `POST /api/ai/reviews`. Reviewable entity types are: **Goal, Story, Actor, UseCase,
-Scenario, Step**.
+The assistant runs only when a review is **explicitly requested** for one entity. Reviewable
+entity types are **Goal, Story, Actor, UseCase, Scenario, Step and GlossaryTerm**. Its findings
+are added to the entity as issues and notes, which you discuss and resolve like any other.
 
-Because this endpoint lives under `/api/**`, it requires you to be logged in. Logging in returns a
-**token** that you include on the review request. Full sequence with `curl`:
+**Who can request one.** Anyone with access to the entity's project: a stakeholder on it, or a
+system administrator. No edit permission is needed. On top of that, the review has to be able to
+run there: AI on for the server (`REQUEL_AI_ENABLED`), the project on
+`REQUEL_AI_PROJECT_ALLOWLIST` when that is set, and the review for that type not switched off in
+the project's Assistants panel.
 
-1. **Log in** to get a token (default development login is `admin` / `admin`):
+### From the editor
 
-   ```bash
-   curl -X POST http://localhost:8080/api/auth/login \
-     -H "Content-Type: application/json" \
-     -d '{"username":"admin","password":"admin"}'
-   ```
+Open a goal, story, actor, use case, scenario or glossary term. **Review with AI** sits beside
+**Save**, below the details form, and is shown only when a review can run for that item.
 
-   Copy the `token` value from the response.
+- It is disabled while the form has unsaved changes: the review reads the *saved* text, so save
+  first.
+- After you press it, the status beside it follows the run ("AI review queued…", "AI review
+  running…") and ends with "AI review done: 2 issues and 1 note, in Annotations below" or "AI
+  review failed: …" with the reason. The Annotations section reloads when the review is done.
+- Leaving the page doesn't stop the review; come back and the status picks it up again.
+- Pressing it while a review of the item is still queued or running follows that review rather
+  than starting (and paying for) another.
 
-2. **Request a review** for a specific entity. Set `entityType` to one of the reviewable types and
-   `entityId` to the entity's numeric id:
+Steps have no editor of their own (they are edited in the scenario editor), so a step is reviewed
+from an agent or the command line below.
 
-   ```bash
-   curl -i -X POST "http://localhost:8080/api/ai/reviews?entityType=UseCase&entityId=2" \
-     -H "Authorization: Bearer PASTE_YOUR_TOKEN_HERE"
-   ```
+### From an agent (MCP)
 
-   A successful request returns **HTTP 202 Accepted**; the review then runs in the background.
-   `404 Not Found` means no such entity; `403 Forbidden` means you lack access to that entity's
-   project; `401 Unauthorized` means the token is missing or expired.
+When AI is on, the MCP server offers two tools. Both take `projectName`, `entityType` and
+`entityId`, and the entity must be in that project.
 
-3. **See the results** in Requel: open the entity in the UI and look at its discussion /
-   annotations. The AI‑generated issues and notes appear there once the review finishes.
+- **`requestAiReview`** queues a review and returns its `runId` (and `policyRunId` when a project
+  policy also applies, see [11a](#11a-policies-cross-cutting-checks)). It is offered only when
+  write tools are (`requel.gateway.write.enabled`), since its findings are written to the project.
+  When the review can't run, the tool says why (AI off, project not allowlisted, or the type's
+  review switched off).
+- **`getAiReview`** reads the latest review: `status` (`QUEUED`, `RUNNING`, `SUCCEEDED`,
+  `FAILED`), `errorSummary`, the model's `summary` and the `findings` (type, kind, severity, text,
+  and the id of the issue or note each became). `taskType: POLICY_REVIEW` reads the policy pass.
+  Poll it until the status is `SUCCEEDED` or `FAILED`.
 
-   Or read the latest review run back with the same parameters (issue #355):
+### From the command line
 
-   ```bash
-   curl "http://localhost:8080/api/ai/reviews?entityType=UseCase&entityId=2" \
-     -H "Authorization: Bearer PASTE_YOUR_TOKEN_HERE"
-   ```
+```bash
+requel review request <project> <type> <id> --wait   # queue a review and print it when it's done
+requel review show <project> <type> <id>             # the latest review; --policy for the policy pass
+```
 
-   It returns the run's `status` (`QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED`), `errorSummary` when
-   it failed, the model's `summary`, and the `findings` that run reported (type, kind, severity,
-   text). `204 No Content` means the entity has never been reviewed. The POST's 400/403/404 rules
-   apply.
+`--wait` checks every 3 seconds for up to 5 minutes, then prints the findings; without it the
+command prints the run id and returns. `--output json` prints the run as JSON. A review that
+can't run exits with the reason, as does a request to a server with gateway writes disabled.
 
-**Who is allowed to run a review.** You can review an entity only if you're a system administrator
-or a stakeholder on that entity's project. This is enforced on top of the optional
-`REQUEL_AI_PROJECT_ALLOWLIST`.
+### From scripts (the HTTP API)
+
+The editor uses three endpoints under `/api/ai/reviews`, with a login token (`POST
+/api/auth/login` returns one; `admin` / `admin` on a development install):
+
+```bash
+TOKEN=...   # the "token" from /api/auth/login
+curl "http://localhost:8080/api/ai/reviews/availability?entityType=UseCase&entityId=2" \
+  -H "Authorization: Bearer $TOKEN"     # {"available":true,"reason":null}
+curl -X POST "http://localhost:8080/api/ai/reviews?entityType=UseCase&entityId=2" \
+  -H "Authorization: Bearer $TOKEN"     # 202 {"runId":"...","policyRunId":null}
+curl "http://localhost:8080/api/ai/reviews?entityType=UseCase&entityId=2" \
+  -H "Authorization: Bearer $TOKEN"     # the latest run; 204 when never reviewed
+```
+
+The POST answers `409 AI_REVIEW_UNAVAILABLE` with the reason when a review can't run, `404` for an
+unknown entity, `403` without access to its project, `400` for a type that isn't reviewable and
+`401` when the token is missing or expired. The read takes `taskType=POLICY_REVIEW` for the policy
+pass.
 
 ---
 
@@ -384,7 +458,8 @@ or a stakeholder on that entity's project. This is enforced on top of the option
 
 1. **App starts and logs the assistant line** (Section 4). If you don't see it, `REQUEL_AI_ENABLED`
    isn't `true` in the environment that launched Requel.
-2. **Trigger a review** (Section 5) and confirm **202 Accepted**.
+2. **Request a review** (Section 5): the editor's status ends with "AI review done", or the
+   POST answers **202 Accepted**.
 3. **Check the entity's annotations** in the UI for new AI‑sourced issues/notes after a few
    seconds.
 4. **Confirm the provider call succeeded** by checking the `assistant_usages` table — each
@@ -418,6 +493,12 @@ so the built‑in stub is active. Confirm the variable, then restart.
 The review runs in the background — give it a few seconds. If nothing ever appears, check the
 application log for a `RequirementsReviewAssistant` warning.
 
+**No Review with AI button in the editor.**
+A review can't run for that item. The availability call says why
+(`GET /api/ai/reviews/availability?entityType=&entityId=`): AI is off on the server, the project
+isn't on `REQUEL_AI_PROJECT_ALLOWLIST`, or the review for that type is switched off in the
+project's Assistants panel. A request answers `409 AI_REVIEW_UNAVAILABLE` with the same reason.
+
 **Log mentions a missing API key.**
 `REQUEL_AI_API_KEY` isn't visible to the running app. Confirm with `echo $REQUEL_AI_API_KEY`
 (macOS/Linux) **in the same session that launched Requel** — a common mistake is setting it in one
@@ -445,8 +526,8 @@ The entity's context was larger than the input cap (`REQUEL_AI_MAX_INPUT_TOKENS`
 This is the cost guardrail working. Raise it only if you accept sending (and paying for) more text.
 
 **403 Forbidden when requesting a review.**
-Either your user isn't a stakeholder/admin on that entity's project, or the project isn't on a
-non‑empty `REQUEL_AI_PROJECT_ALLOWLIST`.
+Your user isn't a stakeholder or an administrator on that entity's project. (A project missing
+from `REQUEL_AI_PROJECT_ALLOWLIST` is a 409 naming that, not a 403.)
 
 **401 Unauthorized.**
 Your login token is missing or expired (tokens last `requel.jwt.expiry-hours`, 8h by default). Log
@@ -538,8 +619,8 @@ java -jar modules/requel-app/target/requel-app-2.0.0-dev.jar \
   --spring.datasource.username=root --spring.datasource.password=password
 ```
 
-Then request a review as in [Section 5](#5-using-the-assistant) (`POST /api/ai/reviews`); the UI has
-no review button yet.
+Then request a review as in [Section 5](#5-using-the-assistant): **Review with AI** in the editor,
+`requel review request`, or `POST /api/ai/reviews`.
 
 The profile invokes `claude -p --output-format json --tools "" --strict-mcp-config --max-turns 1`.
 The JSON envelope reports tokens and cost, so `assistant_usages` rows carry them.

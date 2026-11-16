@@ -72,6 +72,17 @@ public class McpJwtAuthenticationConverter implements Converter<Jwt, AbstractAut
         if (user == null) {
             throw new InvalidBearerTokenException("Token subject does not map to a Requel user");
         }
+        // #446: an access token from before the user's last password change is no longer good.
+        if (SignInRevocation.predatesPasswordChange(user, jwt.getIssuedAt())) {
+            throw new InvalidBearerTokenException("Token was issued before the password changed");
+        }
+
+        // #381: an OAuth token issued before the flag was set can't skip the password change. The
+        // sign-in form refuses a flagged user, so a new token can't be had until it is changed.
+        if (user.isMustChangePassword()) {
+            return new JwtAuthenticationToken(jwt,
+                    java.util.List.of(PasswordChangeRequiredFilter.GRANTED_AUTHORITY), user.getUsername());
+        }
 
         Collection<GrantedAuthority> authorities = new LinkedHashSet<>();
         for (String role : userDtoMapper.getRoleStrings(user)) {

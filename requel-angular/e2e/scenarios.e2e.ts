@@ -158,10 +158,10 @@ test.describe('Scenario steps', () => {
     await listPage.goto(PROJECT_NAME);
     await listPage.clickScenario(scenarioName);
 
-    // Add and save an initial step so the scenario is non-empty
+    // A new step, not saved yet, edits in the detail popup. Since #476 a saved step's pencil
+    // opens the step's own page instead (step-page-476.e2e.ts).
     await editorPage.addStep();
     await editorPage.fillStepName(0, 'Initial step name');
-    await editorPage.save();
 
     // Edit the step via the detail popup
     await editorPage.openStepEdit(0);

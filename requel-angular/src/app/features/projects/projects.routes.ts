@@ -119,6 +119,15 @@ export const projectRoutes: Routes = [
     loadComponent: () => import('../scenarios/scenario-editor').then(m => m.ScenarioEditorComponent),
     canDeactivate: [dirtyCheckGuard],
   },
+  {
+    // #476: a plain step on its own page, so its issues can be seen and resolved.
+    path: 'projects/:name/steps/:stepId',
+    title: 'Step',
+    data: routeData({ section: 'project', artifactType: 'step' }),
+    resolve: { entityName: artifactNameResolver },
+    loadComponent: () => import('../steps/step-editor').then(m => m.StepEditorComponent),
+    canDeactivate: [dirtyCheckGuard],
+  },
 
   {
     path: 'projects/:name/use-cases',

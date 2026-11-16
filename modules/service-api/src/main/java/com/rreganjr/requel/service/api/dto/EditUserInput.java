@@ -53,6 +53,9 @@ public record EditUserInput(
         @FromEntityProperty("organization")
         String organizationName,
         Boolean editable,
+        // #381: admin-only, like editable - require a password change at the user's next sign-in.
+        // Null leaves an existing user's flag as it is.
+        Boolean mustChangePassword,
         @FromEntityProperty("roles")
         Set<String> userRoleNames,
         Map<String, Set<String>> userRolePermissionNames

@@ -21,7 +21,7 @@ reading to find out *why* something is the way it is, read the second.
 | Folder | What belongs there |
 |---|---|
 | `architecture/` | How the system is built: authorization, module boundaries, the annotation registry, the import/unmarshalling strategy, the user/stakeholder model, dictionary loading. |
-| `guides/` | How to run and operate it: releases, Docker, Maven toolchains, connecting an MCP client, AI assistant setup, the agent runbook. |
+| `guides/` | How to run and operate it: releases, Docker, Maven toolchains, test coverage, connecting an MCP client, AI assistant setup, the agent runbook. |
 | `ui/` | The Angular layer as a system: design guide, shared components, bundle posture, zoneless readiness. |
 | `work/<release>/` | Everything tied to a ticket in that release — `<issue>-<slug>-plan.md`, reviews, rollups, issue drafts. `<release>` is the reactor version's major.minor from the root `pom.xml`. |
 | `work/backlog/` | Proposals and epics not yet scheduled to a release. When one gets an issue, it moves into that release's folder. |

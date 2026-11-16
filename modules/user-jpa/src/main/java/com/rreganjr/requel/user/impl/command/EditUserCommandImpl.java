@@ -65,11 +65,18 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 	private String phoneNumber;
 	private String organizationName;
 	private Boolean editable = Boolean.TRUE;
+	private Boolean mustChangePassword;
 	private Set<String> userRoleNames = new HashSet<String>();
 	private boolean userRolesProvided = false;
 	private Map<String, Set<String>> userRolePermissionNames = new HashMap<String, Set<String>>();
 	private User editedBy;
 	private Integer expectedVersion;
+	/** #446: set when this edit reset another user's password. */
+	private boolean passwordReset;
+
+	/** #446: the refusal a self-edit that sends a password gets. */
+	static final String OWN_PASSWORD_MESSAGE =
+			"Change your own password on the Change Password page.";
 
 	/**
 	 * @param userRepository
@@ -84,11 +91,13 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 	 */
 	@Override
 	public void execute() {
-		boolean isAdmin = getEditedBy() != null && getEditedBy().hasRole(SystemAdminUserRole.class);
+		// A null editedBy is a system call (initializers, the dev-only reset endpoints), which may
+		// do what an admin may.
+		boolean isAdmin = getEditedBy() == null || getEditedBy().hasRole(SystemAdminUserRole.class);
 		UserImpl userImpl = (UserImpl) getUser();
 		if (userImpl == null) {
 			// Only admins can create new users; null editedBy = system bootstrap (initializers)
-			if (!isAdmin && getEditedBy() != null) {
+			if (!isAdmin) {
 				throw new AuthorizationException("Only administrators can create user accounts.");
 			}
 			userImpl = createUser();
@@ -121,6 +130,10 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 			Organization organization = getOrCreateOrganization(getOrganizationName());
 			UserImpl userImpl = new UserImpl(getUsername(), getPassword(),
 					getName(), getEmailAddress(), getPhoneNumber(), organization, getEditable());
+			// #381: only an admin (or the system, editedBy null) creates users, so no role check here.
+			if (getMustChangePassword() != null) {
+				userImpl.setMustChangePassword(getMustChangePassword());
+			}
 			updateRoles(userImpl);
 			return getUserRepository().persist(userImpl);
 		} else {
@@ -132,8 +145,15 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 		Organization organization = getOrCreateOrganization(getOrganizationName());
 		userImpl.setName(getName());
 		if (!StringUtils.isEmpty(getPassword())) {
+			// #446: your own password changes only through the Change Password page, which checks
+			// the current one; admins included, so a stolen token can't take over an account.
+			if (isOwnAccount(userImpl)) {
+				throw EntityValidationException.validationFailed(User.class, "password",
+						OWN_PASSWORD_MESSAGE);
+			}
 			if (getPassword().equals(getRepassword())) {
 				userImpl.resetPassword(getPassword());
+				passwordReset = true;
 			} else {
 				throw EntityValidationException.passwordAndRePasswordDontMatch(User.class);
 			}
@@ -144,11 +164,26 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 		if (isAdmin) {
 			userImpl.setUsername(getUsername());
 			userImpl.setEditable(getEditable());
+			// #381: admin-only, like editable; a self-edit can't clear it (and a flagged user can't
+			// reach EditUser at all - see PasswordChangeRequiredFilter).
+			if (getMustChangePassword() != null) {
+				userImpl.setMustChangePassword(getMustChangePassword());
+			}
 			if (userRolesProvided) {
 				updateRoles(userImpl);
 			}
 		}
 		return getUserRepository().merge(userImpl);
+	}
+
+	/** Whether the caller is editing their own account (never for a system call). */
+	private boolean isOwnAccount(UserImpl userImpl) {
+		return getEditedBy() != null && userImpl.getUsername().equals(getEditedBy().getUsername());
+	}
+
+	@Override
+	public boolean isPasswordReset() {
+		return passwordReset;
 	}
 
 	private Organization getOrCreateOrganization(String organizationName) {
@@ -253,6 +288,15 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 
 	public void setEditable(Boolean editable) {
 		this.editable = editable;
+	}
+
+	protected Boolean getMustChangePassword() {
+		return mustChangePassword;
+	}
+
+	@Override
+	public void setMustChangePassword(Boolean mustChangePassword) {
+		this.mustChangePassword = mustChangePassword;
 	}
 
 	protected Set<String> getUserRoleNames() {

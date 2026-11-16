@@ -39,7 +39,7 @@ public final class ExitCode {
     public static final int AUTH = 3;
     /** Command not permitted through the gateway ({@code NOT_ALLOWED}). */
     public static final int NOT_ALLOWED = 4;
-    /** Request could not be completed: bad input, unknown command, or execution error. */
+    /** Request could not be completed: bad input, not found, a conflict, or execution error. */
     public static final int REQUEST_ERROR = 5;
 
     private ExitCode() {
@@ -50,7 +50,7 @@ public final class ExitCode {
         return switch (kind) {
             case UNAUTHORIZED -> AUTH;
             case NOT_ALLOWED -> NOT_ALLOWED;
-            case NOT_FOUND, INVALID_INPUT, EXECUTION_ERROR -> REQUEST_ERROR;
+            case NOT_FOUND, INVALID_INPUT, CONFLICT, EXECUTION_ERROR -> REQUEST_ERROR;
         };
     }
 }

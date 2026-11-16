@@ -464,7 +464,8 @@ public class AssistantRunWorker {
 				request.locale(), clock, attributes);
 		List<RequelAssistant<?>> matched = assistantRegistry.findAssistantsFor(target, context);
 		if (matched.isEmpty()) {
-			return new Analysis("No assistants registered for " + target.getClass().getName());
+			// #486: name the entity type, not the Java class (a Hibernate proxy's, often).
+			return new Analysis("No assistant analyses a " + entityTypeName(target) + " here.");
 		}
 		// Route by task type: an assistant runs only if it serves this run's task
 		// (default serves the null/post-edit task; e.g. REQUIREMENTS_REVIEW routes to the
@@ -631,5 +632,18 @@ public class AssistantRunWorker {
 	private AssistantResult analyze(RequelAssistant assistant, AssistantContext context,
 			Object target) throws AssistantException {
 		return assistant.analyze(context, target);
+	}
+
+	/** #486: a target's entity type for a message ("Project"), never a proxy class name. */
+	static String entityTypeName(Object target) {
+		if (target instanceof com.rreganjr.requel.project.ProjectOrDomainEntity entity
+				&& entity.getProjectOrDomainEntityInterface() != null) {
+			return entity.getProjectOrDomainEntityInterface().getSimpleName();
+		}
+		if (target instanceof com.rreganjr.requel.project.ProjectOrDomain projectOrDomain) {
+			return projectOrDomain instanceof com.rreganjr.requel.project.Project ? "Project" : "Domain";
+		}
+		String name = org.hibernate.Hibernate.getClass(target).getSimpleName();
+		return name.endsWith("Impl") ? name.substring(0, name.length() - 4) : name;
 	}
 }

@@ -102,7 +102,8 @@ export class CommandService {
         error: (body as ErrorResponse)?.message ?? err.message,
         entity: null,
         violations: null,
-        status: err.status
+        status: err.status,
+        code: (body as ErrorResponse)?.error ?? undefined
       };
     }
     return {
@@ -114,6 +115,35 @@ export class CommandService {
       status: 0
     };
   }
+}
+
+/**
+ * Issue #486: what to tell the user about a refused command. A refusal whose reasons are field
+ * violations with no field on the form (a delete has no form at all) comes back as the generic
+ * "Validation failed"; the violations carry the reason, so they're shown instead, without the
+ * "validation failed: " prefix the server puts on them.
+ */
+export function refusalMessage(result: CommandResult<unknown>, fallback: string): string {
+  const reasons = (result.violations ?? [])
+    .map(violation => (violation.message ?? '').replace(/^validation failed:\s*/i, '').trim())
+    .filter(reason => reason.length > 0);
+  if (reasons.length > 0 && (!result.error || result.error === 'Validation failed')) {
+    return reasons.join(' ');
+  }
+  return result.error ?? fallback;
+}
+
+/** The server's error code for a stale version (#482). */
+export const STALE_VERSION = 'STALE_VERSION';
+
+/**
+ * True when a command was refused because the caller's version is stale: someone else saved
+ * the entity since it was loaded. The editors reload for this, and only this (#482). The server
+ * answers 409 for other refusals too (a name already taken, a business rule), and those show the
+ * server's message instead.
+ */
+export function isStaleVersion(result: CommandResult): boolean {
+  return result.status === 409 && result.code === STALE_VERSION;
 }
 
 /**
