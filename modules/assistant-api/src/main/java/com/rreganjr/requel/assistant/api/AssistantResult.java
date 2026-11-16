@@ -33,7 +33,7 @@ import java.util.UUID;
  */
 public record AssistantResult(String assistantId, UUID runId, String summary, String severity,
 		List<AnnotationAction> annotationActions, List<AssistantMessage> messages,
-		List<ExternalAction> externalActions, Map<String, Object> metadata) {
+		List<ExternalAction> externalActions, Map<String, Object> metadata, String extractedText) {
 
 	public AssistantResult {
 		Objects.requireNonNull(assistantId, "assistantId");
@@ -43,6 +43,7 @@ public record AssistantResult(String assistantId, UUID runId, String summary, St
 		externalActions = List.copyOf(Objects.requireNonNull(externalActions,
 				"externalActions"));
 		metadata = Map.copyOf(Objects.requireNonNull(metadata, "metadata"));
+		extractedText = Objects.requireNonNullElse(extractedText, "");
 	}
 
 	public Optional<UUID> runIdValue() {
@@ -62,6 +63,7 @@ public record AssistantResult(String assistantId, UUID runId, String summary, St
 		private final List<AssistantMessage> messages = new ArrayList<AssistantMessage>();
 		private final List<ExternalAction> externalActions = new ArrayList<ExternalAction>();
 		private Map<String, Object> metadata = Map.of();
+		private String extractedText = "";
 
 		private Builder() {
 		}
@@ -106,9 +108,14 @@ public record AssistantResult(String assistantId, UUID runId, String summary, St
 			return this;
 		}
 
+		public Builder extractedText(String extractedText) {
+			this.extractedText = extractedText;
+			return this;
+		}
+
 		public AssistantResult build() {
 			return new AssistantResult(assistantId, runId, summary, severity, annotationActions,
-					messages, externalActions, metadata);
+					messages, externalActions, metadata, extractedText);
 		}
 	}
 }

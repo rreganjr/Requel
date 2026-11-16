@@ -2,78 +2,67 @@
   <div class="card">
     <h2>Submit New Idea</h2>
     <p class="subtitle">Enter your requirement idea or upload a document</p>
-    
+
     <form [formGroup]="ideaForm" (ngSubmit)="onSubmit()" class="idea-form">
       <div class="form-group">
         <label for="projectName">Project *</label>
-        <input 
-          type="text" 
-          id="projectName" 
-          formControlName="projectName" 
-          class="form-control"
-          placeholder="Enter project name">
-        <div *ngIf="projectName?.invalid && projectName?.touched" class="error-message">
-          <span *ngIf="projectName?.errors?.['required']">Project name is required</span>
-        </div>
+        <input type="text" id="projectName" formControlName="projectName"
+               class="form-control" placeholder="Enter project name">
+        @if (projectName?.invalid && projectName?.touched) {
+          <div class="error-message">Project name is required</div>
+        }
       </div>
 
       <div class="form-group">
         <label for="text">Idea Description *</label>
-        <textarea 
-          id="text" 
-          formControlName="text" 
-          class="form-control"
-          rows="6"
-          placeholder="Describe your requirement idea in detail...">
-        </textarea>
-        <div *ngIf="text?.invalid && text?.touched" class="error-message">
-          <span *ngIf="text?.errors?.['required']">Idea description is required</span>
-          <span *ngIf="text?.errors?.['minlength']">Description must be at least 10 characters</span>
-        </div>
+        <textarea id="text" formControlName="text" class="form-control" rows="6"
+                  placeholder="Describe your requirement idea in detail..."></textarea>
+        @if (text?.invalid && text?.touched) {
+          <div class="error-message">
+            @if (text?.errors?.['required']) { Idea description is required }
+            @else if (text?.errors?.['minlength']) { Description must be at least 10 characters }
+          </div>
+        }
       </div>
 
       <div class="form-group">
         <label for="file">Upload Document (Optional)</label>
         <div class="file-upload-area" (click)="fileInput.click()">
-          <input 
-            type="file" 
-            #fileInput 
-            id="file" 
-            (change)="onFileSelected($event)"
-            accept=".txt,.doc,.docx,.pdf"
-            style="display: none;">
+          <input type="file" #fileInput id="file" (change)="onFileSelected($event)"
+                 (click)="$event.stopPropagation()"
+                 accept=".txt,.md,.doc,.docx,.pdf" style="display: none;">
           <div class="file-upload-content">
             <i class="pi pi-cloud-upload"></i>
-            <p>Click to upload or drag and drop</p>
-            <p class="file-size-info">PDF, DOC, DOCX, TXT up to 10MB</p>
-            <p *ngIf="selectedFile" class="selected-file">{{ selectedFile.name }}</p>
+            <p>Click to upload</p>
+            <p class="file-size-info">PDF, DOC, DOCX, TXT, MD up to 10MB</p>
+            @if (selectedFile) {
+              <p class="selected-file">{{ selectedFile.name }}</p>
+            }
+            @if (extractedText) {
+              <p class="file-size-info">Extracted text preview: {{ extractedText.length }} characters</p>
+            }
           </div>
         </div>
-        <div *ngIf="submissionError" class="error-message">
-          {{ submissionError }}
-        </div>
+        @if (submissionError) {
+          <div class="error-message" role="alert">{{ submissionError }}</div>
+        }
       </div>
 
       <div class="form-actions">
-        <button 
-          type="button" 
-          (click)="onCancel()" 
-          class="btn btn-secondary"
-          [disabled]="isSubmitting">
+        <button type="button" (click)="onCancel()" class="btn btn-secondary" [disabled]="isSubmitting">
           Cancel
         </button>
-        <button 
-          type="submit" 
-          class="btn btn-primary"
-          [disabled]="ideaForm.invalid || isSubmitting">
+        <button type="submit" class="btn btn-primary" [disabled]="ideaForm.invalid || isSubmitting">
           {{ isSubmitting ? 'Submitting...' : 'Submit Idea' }}
         </button>
       </div>
     </form>
 
-    <div *ngIf="submissionSuccess" class="success-message">
-      <i class="pi pi-check-circle"></i>
-      <p>Idea submitted successfully!</p>
-    </div>
+    @if (submissionSuccess) {
+      <div class="success-message" role="status">
+        <i class="pi pi-check-circle"></i>
+        <p>Idea submitted successfully!</p>
+      </div>
+    }
   </div>
 </div>
