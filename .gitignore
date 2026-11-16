@@ -47,3 +47,5 @@ node_modules/
 # Python bytecode (scripts/ai-eval, #355)
 __pycache__/
 *.pyc
+.aider*
+*.docx
