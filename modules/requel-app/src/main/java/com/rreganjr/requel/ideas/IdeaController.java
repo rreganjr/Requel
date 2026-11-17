@@ -20,7 +20,6 @@
  */
 package com.rreganjr.requel.ideas;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -32,15 +31,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.requel.assistant.ai.IdeaGenerationService;
 import com.rreganjr.requel.assistant.ai.IdeaGenerationService.IdeaView;
-import com.rreganjr.requel.assistant.ai.IdeaToRequirementsService.Idea;
-import com.rreganjr.requel.assistant.api.UserRef;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.StakeholderAuthorizationChecker;
@@ -58,22 +54,17 @@ import com.rreganjr.requel.user.User;
  * <li>{@code GET /api/projects/{name}/ideas}: the project's ideas, newest first, without drafts.</li>
  * <li>{@code GET /api/projects/{name}/ideas/{id}}: one idea with its drafts, open questions
  * ({@code messages}) and what validation dropped or adjusted ({@code problems}).</li>
- * <li>{@code POST /api/projects/{name}/ideas}: save an idea and queue its generation.</li>
  * <li>{@code POST /api/projects/{name}/ideas/{id}/retry}: generate again a failed or skipped idea.</li>
  * </ul>
  *
- * Reading needs {@code View} on the project, writing {@code Edit}. The bean exists only when
+ * Ideas are submitted through the {@code SubmitIdea} command, not here. Reading needs
+ * {@code View} on the project, retrying {@code Edit}. The bean exists only when
  * {@code requel.ai.enabled=true}, like {@link IdeaGenerationService}.
  */
 @RestController
 @RequestMapping("/api/projects")
 @ConditionalOnProperty(name = "requel.ai.enabled", havingValue = "true")
 public class IdeaController {
-
-	/** The text of an idea, and optionally the project names it should not propose again. */
-	public record SubmitIdeaRequest(String ideaText, List<String> existingGoals,
-			List<String> existingActors, List<String> existingGlossaryTerms) {
-	}
 
 	private final ProjectRepository projectRepository;
 	private final CurrentUserResolver currentUserResolver;
@@ -112,26 +103,6 @@ public class IdeaController {
 			return ResponseEntity.notFound().build();
 		} catch (AuthorizationException e) {
 			return forbidden(e);
-		}
-	}
-
-	@PostMapping("/{name}/ideas")
-	@Transactional
-	public ResponseEntity<?> submit(@PathVariable String name,
-			@RequestBody SubmitIdeaRequest request) {
-		try {
-			Caller caller = require(name, "Edit");
-			String id = ideas.submit(caller.project().getId(),
-					new UserRef(caller.user().getId(), caller.user().getUsername()),
-					new Idea(request.ideaText(), request.existingGoals(),
-							request.existingActors(), request.existingGlossaryTerms()));
-			return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of("id", id));
-		} catch (NoSuchProjectException e) {
-			return ResponseEntity.notFound().build();
-		} catch (AuthorizationException e) {
-			return forbidden(e);
-		} catch (IllegalArgumentException e) {
-			return ResponseEntity.badRequest().body(ErrorResponse.of("BAD_REQUEST", e.getMessage()));
 		}
 	}
 
