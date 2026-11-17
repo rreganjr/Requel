@@ -21,7 +21,7 @@
 package com.rreganjr.requel.assistant.core.persistence;
 
 /**
- * Where an idea is in generating its drafts. The names are stored in {@code ideas.status} and
+ * Where an idea is in generating its drafts. The names are stored in {@code idea_generations.status} and
  * written as literals in {@link IdeaRepository}'s claim query, so keep them in step.
  */
 public enum IdeaStatus {

@@ -29,12 +29,12 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 /**
- * JPA mapping for the {@code ideas} table: a product manager's free-text idea for a project, the
+ * JPA mapping for the {@code idea_generations} table: a product manager's free-text idea for a project, the
  * state of generating requirement drafts from it, and the last error. Soft references (no FK) to
  * the project and user.
  */
 @Entity
-@Table(name = "ideas")
+@Table(name = "idea_generations")
 public class IdeaEntity {
 
 	@Id

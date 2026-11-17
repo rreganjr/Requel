@@ -29,11 +29,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 /**
- * JPA mapping for the {@code idea_drafts} table: one proposed requirement entity generated from an
+ * JPA mapping for the {@code idea_generation_drafts} table: one proposed requirement entity generated from an
  * idea. {@code evidenceJson} and {@code referencesJson} are JSON lists, always read with the row.
  */
 @Entity
-@Table(name = "idea_drafts")
+@Table(name = "idea_generation_drafts")
 public class IdeaDraftEntity {
 
 	@Id
