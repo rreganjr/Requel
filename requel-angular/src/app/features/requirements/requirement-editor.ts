@@ -30,34 +30,34 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
-import { TagModule } from 'primeng/tag'.
-import { TooltipModule } from 'primeng/tooltip'.
-import { SubmitErrorComponent } from '../../shared/app-submit-error'.
-import { UpdateBannerComponent } from '../../shared/app-update-banner'.
-import { AnnouncerService } from '../../core/announcer.service'.
-import { ConfirmDialogModule } from 'primeng/confirmdialog'.
-import { ConfirmationService, MessageService } from 'primeng/api'.
-import { CommandResult } from '../../models/command'.
+import { TagModule } from 'primeng/tag';
+import { TooltipModule } from 'primeng/tooltip';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
+import { UpdateBannerComponent } from '../../shared/app-update-banner';
+import { AnnouncerService } from '../../core/announcer.service';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ConfirmationService, MessageService } from 'primeng/api';
+import { CommandResult } from '../../models/command';
 import { RequirementDto, RequirementReviewDto, RequirementStatus, ReviewDepartment, ReviewResult,
          getStatusLabel, getStatusSeverity, getDepartmentLabel, REVIEW_DEPARTMENTS,
-         canReviewDepartment, canApprove, canPublish, getReviewResultLabel, getReviewResultSeverity } from '../../models/requirement'.
-import { EntityReferenceDto } from '../../models/entity-reference'.
-import { RequirementService } from '../../core/requirement.service'.
-import { CommandService, isNetworkError } from '../../core/command.service'.
-import { ProjectService } from '../../core/project.service'.
-import { PermissionService } from '../../core/permission.service'.
-import { EventStreamService } from '../../core/event-stream.service'.
-import { AnnotationsSectionComponent } from '../../shared/annotations-section'.
-import { SourcesSectionComponent } from '../../shared/sources-section'.
-import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field'.
-import { LoadingStateComponent } from '../../shared/loading-state'.
-import { ErrorStateComponent } from '../../shared/error-state'.
-import { AppFormWizardComponent, AppWizardStepComponent, WizardCommitRequest } from '../../shared/app-form-wizard'.
-import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits'.
-import { SelectModule } from 'primeng/select'.
-import { DialogModule } from 'primeng/dialog'.
-import { AppDataTableComponent } from '../../shared/app-data-table'.
-import { FormsModule } from '@angular/forms'.
+         canReviewDepartment, canApprove, canPublish, getReviewResultLabel, getReviewResultSeverity } from '../../models/requirement';
+import { EntityReferenceDto } from '../../models/entity-reference';
+import { RequirementService } from '../../core/requirement.service';
+import { CommandService, isNetworkError } from '../../core/command.service';
+import { ProjectService } from '../../core/project.service';
+import { PermissionService } from '../../core/permission.service';
+import { EventStreamService } from '../../core/event-stream.service';
+import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { SourcesSectionComponent } from '../../shared/sources-section';
+import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import { LoadingStateComponent } from '../../shared/loading-state';
+import { ErrorStateComponent } from '../../shared/error-state';
+import { AppFormWizardComponent, AppWizardStepComponent, WizardCommitRequest } from '../../shared/app-form-wizard';
+import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
+import { SelectModule } from 'primeng/select';
+import { DialogModule } from 'primeng/dialog';
+import { AppDataTableComponent } from '../../shared/app-data-table';
+import { FormsModule } from '@angular/forms';
 
 const STALE_VERSION_MESSAGE =
   'This requirement was changed elsewhere. Your copy has been refreshed — review the values and continue.';
@@ -712,10 +712,16 @@ export class RequirementEditorComponent implements OnInit, OnDestroy, DirtyCheck
       alert('Comments are required for a FAILED review.');
       return;
     }
+    // Service only accepts PASSED or FAILED, not NOT_REVIEWED
+    const resultValue = this.reviewDialogResult();
+    if (resultValue === 'NOT_REVIEWED') {
+      alert('Please select Passed or Failed.');
+      return;
+    }
     this.submittingReview.set(true);
     try {
       const result = await this.requirementService.submitReview(
-        this.projectName, this.requirementId, dept, this.reviewDialogResult(), this.reviewDialogComments, this.version!
+        this.projectName, this.requirementId, dept, resultValue, this.reviewDialogComments, this.version!
       );
       this.requirement.set(result);
       this.version = result.version;
