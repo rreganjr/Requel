@@ -1,0 +1,93 @@
+<div class="idea-review">
+  <div class="card">
+    <h2>Requirements for {{ projectName }}</h2>
+
+    @if (error(); as message) {
+      <div class="error-message" role="alert">{{ message }}</div>
+    }
+
+    @if (accepted(); as done) {
+      <div class="success-message" role="status">
+        <p>Created {{ createdSummary(done) }} in the new project.</p>
+        @for (note of done.notes; track $index) {
+          <p class="note">{{ note }}</p>
+        }
+        <button type="button" class="btn btn-primary" (click)="openProject()">Open the project</button>
+      </div>
+    } @else if (!idea()) {
+      @if (!error()) {
+        <p class="subtitle">Loading...</p>
+      }
+    } @else if (working()) {
+      <p class="subtitle" role="status">Proposing requirements from your idea. This can take a minute...</p>
+    } @else if (idea()!.status === 'FAILED' || idea()!.status === 'SKIPPED') {
+      <div class="error-message" role="alert">
+        {{ idea()!.status === 'SKIPPED' ? 'No requirements were proposed: ' : 'Generating requirements failed: ' }}
+        {{ idea()!.errorSummary || 'no reason was given.' }}
+      </div>
+      <p class="subtitle">Your idea is saved in the project{{ idea()!.retryable ? ', and you can try again.' : '.' }}</p>
+      <div class="form-actions">
+        @if (idea()!.retryable) {
+          <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="retry()">Try again</button>
+        }
+        <button type="button" class="btn btn-secondary" (click)="openProject()">Open the project</button>
+      </div>
+    } @else {
+      @if (idea()!.summary) {
+        <p class="subtitle">{{ idea()!.summary }}</p>
+      }
+
+      @if (idea()!.messages.length) {
+        <div class="questions">
+          <h3>Open questions</h3>
+          <ul>
+            @for (message of idea()!.messages; track $index) {
+              <li>{{ message }}</li>
+            }
+          </ul>
+        </div>
+      }
+
+      @if (idea()!.drafts.length === 0) {
+        <p class="subtitle">Nothing could be proposed from this idea. Add more detail and submit it again.</p>
+      } @else {
+        <div class="toolbar">
+          <span>{{ selected().size }} of {{ idea()!.drafts.length }} chosen</span>
+          <button type="button" class="link" (click)="selectAll(true)">Choose all</button>
+          <button type="button" class="link" (click)="selectAll(false)">Choose none</button>
+        </div>
+
+        @for (group of groups(); track group.heading) {
+          <h3>{{ group.heading }}</h3>
+          <ul class="drafts">
+            @for (item of group.items; track item.index) {
+              <li>
+                <label>
+                  <input type="checkbox" [checked]="isSelected(item.index)" (change)="toggle(item.index)">
+                  <span class="draft-name">{{ item.draft.name }}</span>
+                  @if (item.draft.assumption) {
+                    <span class="tag">assumption</span>
+                  }
+                  @if (confidenceLabel(item.draft); as sure) {
+                    <span class="tag">{{ sure }}</span>
+                  }
+                </label>
+                <p class="draft-text">{{ item.draft.text }}</p>
+                @if (item.draft.note) {
+                  <p class="draft-note">{{ item.draft.note }}</p>
+                }
+              </li>
+            }
+          </ul>
+        }
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" (click)="openProject()">Skip, keep an empty project</button>
+          <button type="button" class="btn btn-primary" [disabled]="selected().size === 0 || busy()" (click)="accept()">
+            {{ busy() ? 'Creating...' : 'Create ' + selected().size + ' requirements' }}
+          </button>
+        </div>
+      }
+    }
+  </div>
+</div>

@@ -1,14 +1,14 @@
 @if (userIsPM) {
   <div class="idea-input-container">
     <div class="card">
-      <h2>Submit New Idea</h2>
-      <p class="subtitle">Enter your requirement idea or upload a document</p>
+      <h2>New project from an idea</h2>
+      <p class="subtitle">Describe your idea. Requel proposes requirements, you choose the ones to keep, and they become a new project.</p>
 
       <form [formGroup]="ideaForm" (ngSubmit)="onSubmit()" class="idea-form">
         <div class="form-group">
-          <label for="projectName">Project *</label>
+          <label for="projectName">New project name *</label>
           <input type="text" id="projectName" formControlName="projectName"
-                 class="form-control" placeholder="Enter project name">
+                 class="form-control" placeholder="Name for the new project">
           @if (projectName?.invalid && projectName?.touched) {
             <div class="error-message">Project name is required</div>
           }
@@ -54,17 +54,11 @@
             Cancel
           </button>
           <button type="submit" class="btn btn-primary" [disabled]="ideaForm.invalid || isSubmitting">
-            {{ isSubmitting ? 'Submitting...' : 'Submit Idea' }}
+            {{ isSubmitting ? 'Creating project...' : 'Create project and propose requirements' }}
           </button>
         </div>
       </form>
 
-      @if (submissionSuccess) {
-        <div class="success-message" role="status">
-          <i class="pi pi-check-circle"></i>
-          <p>Idea submitted successfully!</p>
-        </div>
-      }
     </div>
   </div>
 } @else {

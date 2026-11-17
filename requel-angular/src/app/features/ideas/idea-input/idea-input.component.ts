@@ -2,7 +2,6 @@ import { Component } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { IdeaService } from '../idea.service';
-import { IdeaSubmission } from '../../../models/idea-submission';
 
 @Component({
   selector: 'app-idea-input',
@@ -13,7 +12,6 @@ import { IdeaSubmission } from '../../../models/idea-submission';
 export class IdeaInputComponent {
   ideaForm: FormGroup;
   isSubmitting = false;
-  submissionSuccess = false;
   submissionError: string | null = null;
   selectedFile: File | null = null;
   extractedText: string | null = null;
@@ -88,26 +86,21 @@ export class IdeaInputComponent {
     
     this.isSubmitting = true;
     this.submissionError = null;
-    
-    const submission: IdeaSubmission = {
-      projectName: this.ideaForm.value.projectName.trim(),
-      text: this.ideaForm.value.text,
-      file: this.selectedFile
-    };
-    
-    const result = await this.ideaService.submitIdea(submission);
-    this.isSubmitting = false;
-    
-    if (result.success) {
-      this.submissionSuccess = true;
-      setTimeout(() => this.router.navigate(['/projects']), 2000);
-    } else {
-      this.submissionError = result.error || 'Failed to submit idea';
+
+    try {
+      // A .txt/.md file was read into the description box, so the text is all that is sent.
+      const started = await this.ideaService.startNewProject(
+        this.ideaForm.value.projectName.trim(), this.ideaForm.value.text);
+      await this.router.navigate(['/ideas', started.projectName, started.ideaId]);
+    } catch (err) {
+      this.submissionError = err instanceof Error ? err.message : 'Failed to submit idea';
+    } finally {
+      this.isSubmitting = false;
     }
   }
 
   onCancel(): void {
-    this.router.navigate(['/projects']);
+    this.router.navigate(['/']);
   }
 
   get projectName() {

@@ -160,9 +160,6 @@ import jakarta.annotation.PostConstruct;
 @Component
 public class ProjectCommandRegistrar {
 
-    /** The largest file SubmitIdea accepts. */
-    private static final long MAX_IDEA_FILE_BYTES = 10L * 1024 * 1024;
-
     private static final Logger log = LoggerFactory.getLogger(ProjectCommandRegistrar.class);
 
     private final ProjectCommandFactory factory;
@@ -235,21 +232,8 @@ public class ProjectCommandRegistrar {
                 },
                 (cmd, file) -> {
                     MultipartFile mf = (MultipartFile) file;
-                    String name = mf.getOriginalFilename();
-                    String lower = name == null ? "" : name.toLowerCase(java.util.Locale.ROOT);
-                    if (!lower.endsWith(".txt") && !lower.endsWith(".md")) {
-                        throw new IllegalArgumentException(
-                                "Only .txt and .md files can be attached to an idea for now.");
-                    }
-                    if (mf.getSize() > MAX_IDEA_FILE_BYTES) {
-                        throw new IllegalArgumentException("The file is larger than 10 MB.");
-                    }
-                    try {
-                        ((SubmitIdeaCommand) cmd).setFileText(
-                                new String(mf.getBytes(), java.nio.charset.StandardCharsets.UTF_8), name);
-                    } catch (IOException e) {
-                        throw new IllegalStateException("Failed to read uploaded file", e);
-                    }
+                    ((SubmitIdeaCommand) cmd).setFileText(IdeaFileText.read(mf),
+                            mf.getOriginalFilename());
                 },
                 cmd -> {
                     var idea = ((SubmitIdeaCommand) cmd).getIdea();

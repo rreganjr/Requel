@@ -1,0 +1,85 @@
+.idea-review {
+  padding: 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+
+  .card {
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 2rem;
+  }
+
+  h2 { margin-top: 0; }
+  h3 { margin: 1.5rem 0 0.5rem; }
+  .subtitle { opacity: 0.75; }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 1rem 0;
+
+    .link {
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      color: #007bff;
+      text-decoration: underline;
+      font: inherit;
+    }
+  }
+
+  .drafts {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    li {
+      padding: 0.75rem 0;
+      border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+    }
+
+    label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+    .draft-name { font-weight: 600; }
+    .draft-text { margin: 0.25rem 0 0 1.75rem; }
+    .draft-note { margin: 0.25rem 0 0 1.75rem; font-size: 0.875rem; opacity: 0.7; }
+  }
+
+  .tag {
+    font-size: 0.75rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid rgba(128, 128, 128, 0.5);
+  }
+
+  .error-message { color: #dc3545; margin: 0.75rem 0; }
+
+  .success-message {
+    padding: 1rem;
+    border: 1px solid #c3e6cb;
+    background-color: #d4edda;
+    color: #155724;
+    border-radius: 4px;
+    .note { font-size: 0.875rem; }
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+
+  .btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    color: white;
+    &.btn-primary { background-color: #007bff; }
+    &.btn-secondary { background-color: #6c757d; }
+    &:disabled { background-color: #6c757d; cursor: not-allowed; opacity: 0.7; }
+  }
+}

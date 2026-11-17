@@ -12,6 +12,7 @@ const EXPECTED = [
   '', 'account', 'settings',
   'users', 'users/:username', 'global-tags', 'tag-categories', 'dictionary', 'maintenance',
   'projects', 'projects/new',
+  'ideas/new', 'ideas/:project/:id',
   'projects/:name/stakeholders', 'projects/:name/stakeholders/:stakeholderId',
   'projects/:name/goals', 'projects/:name/goals/:goalId',
   'projects/:name/stories', 'projects/:name/stories/:storyId',

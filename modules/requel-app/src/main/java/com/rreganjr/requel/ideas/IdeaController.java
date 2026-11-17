@@ -139,8 +139,27 @@ public class IdeaController {
 	private Caller require(String name, String permission) {
 		Project project = projectRepository.findProjectByName(name);
 		User user = currentUserResolver.resolve();
-		StakeholderAuthorizationChecker.require(project, user, Project.class, permission);
+		if ("View".equals(permission)) {
+			requireStakeholder(project, user);
+		} else {
+			StakeholderAuthorizationChecker.require(project, user, Project.class, permission);
+		}
 		return new Caller(project, user);
+	}
+
+	/**
+	 * Requel has no View permission type (only Edit, Delete and Grant), so reading an idea needs
+	 * the user to be a stakeholder of the project, with any permission.
+	 */
+	private static void requireStakeholder(Project project, User user) {
+		try {
+			if (project.getUserStakeholder(user) != null) {
+				return;
+			}
+		} catch (RuntimeException e) {
+			// not a stakeholder: the lookup reports that in more than one shape
+		}
+		throw new AuthorizationException("User is not a stakeholder on the target project");
 	}
 
 	private static ResponseEntity<ErrorResponse> forbidden(AuthorizationException e) {
