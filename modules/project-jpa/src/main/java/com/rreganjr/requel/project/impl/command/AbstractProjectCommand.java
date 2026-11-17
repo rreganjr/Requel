@@ -107,6 +107,18 @@ public abstract class AbstractProjectCommand extends AbstractUserCommand
 		return ignoredFindingStore;
 	}
 
+	private com.rreganjr.requel.project.IdeaStore ideaStore;
+
+	/** Setter-injected like the stores above; null in unit tests that build a command directly. */
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setIdeaStore(com.rreganjr.requel.project.IdeaStore ideaStore) {
+		this.ideaStore = ideaStore;
+	}
+
+	protected com.rreganjr.requel.project.IdeaStore getIdeaStore() {
+		return ideaStore;
+	}
+
 	private com.rreganjr.requel.project.ProvenanceStore provenanceStore;
 
 	/**

@@ -31,11 +31,11 @@
           <div class="file-upload-area" (click)="fileInput.click()">
             <input type="file" #fileInput id="file" (change)="onFileSelected($event)"
                    (click)="$event.stopPropagation()"
-                   accept=".txt,.md,.doc,.docx,.pdf" style="display: none;">
+                   accept=".txt,.md" style="display: none;">
             <div class="file-upload-content">
               <i class="pi pi-cloud-upload"></i>
               <p>Click to upload</p>
-              <p class="file-size-info">PDF, DOC, DOCX, TXT, MD up to 10MB</p>
+              <p class="file-size-info">TXT or MD up to 10MB</p>
               @if (selectedFile) {
                 <p class="selected-file">{{ selectedFile.name }}</p>
               }

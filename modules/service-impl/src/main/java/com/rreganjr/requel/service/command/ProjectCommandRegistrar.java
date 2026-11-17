@@ -94,6 +94,7 @@ import com.rreganjr.requel.project.command.EditUseCaseCommand;
 import com.rreganjr.requel.project.command.EditUserStakeholderCommand;
 import com.rreganjr.requel.project.command.RepairProjectStakeholdersCommand;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
+import com.rreganjr.requel.project.command.SubmitIdeaCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.command.RemoveActorFromActorContainerCommand;
 import com.rreganjr.requel.project.command.RemoveGoalFromGoalContainerCommand;
@@ -132,7 +133,9 @@ import com.rreganjr.requel.service.api.dto.EditProjectInput;
 import com.rreganjr.requel.service.api.dto.EditStoryInput;
 import com.rreganjr.requel.service.api.dto.EditUseCaseInput;
 import com.rreganjr.requel.service.api.dto.EditUserStakeholderInput;
+import com.rreganjr.requel.service.api.dto.IdeaDto;
 import com.rreganjr.requel.service.api.dto.ImportProjectInput;
+import com.rreganjr.requel.service.api.dto.SubmitIdeaInput;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.RemoveActorFromActorContainerInput;
 import com.rreganjr.requel.service.api.dto.RemoveGoalFromGoalContainerInput;
@@ -156,6 +159,9 @@ import jakarta.annotation.PostConstruct;
  */
 @Component
 public class ProjectCommandRegistrar {
+
+    /** The largest file SubmitIdea accepts. */
+    private static final long MAX_IDEA_FILE_BYTES = 10L * 1024 * 1024;
 
     private static final Logger log = LoggerFactory.getLogger(ProjectCommandRegistrar.class);
 
@@ -218,6 +224,39 @@ public class ProjectCommandRegistrar {
                     }
                 },
                 cmd -> toDto(((ImportProjectCommand) cmd).getProject()));
+
+        registry.register("SubmitIdea", SubmitIdeaInput.class,
+                factory::newSubmitIdeaCommand,
+                (cmd, input) -> {
+                    SubmitIdeaCommand c = (SubmitIdeaCommand) cmd;
+                    SubmitIdeaInput i = (SubmitIdeaInput) input;
+                    c.setProject(projectRepository.findProjectByName(i.projectName()));
+                    c.setText(i.text());
+                },
+                (cmd, file) -> {
+                    MultipartFile mf = (MultipartFile) file;
+                    String name = mf.getOriginalFilename();
+                    String lower = name == null ? "" : name.toLowerCase(java.util.Locale.ROOT);
+                    if (!lower.endsWith(".txt") && !lower.endsWith(".md")) {
+                        throw new IllegalArgumentException(
+                                "Only .txt and .md files can be attached to an idea for now.");
+                    }
+                    if (mf.getSize() > MAX_IDEA_FILE_BYTES) {
+                        throw new IllegalArgumentException("The file is larger than 10 MB.");
+                    }
+                    try {
+                        ((SubmitIdeaCommand) cmd).setFileText(
+                                new String(mf.getBytes(), java.nio.charset.StandardCharsets.UTF_8), name);
+                    } catch (IOException e) {
+                        throw new IllegalStateException("Failed to read uploaded file", e);
+                    }
+                },
+                cmd -> {
+                    var idea = ((SubmitIdeaCommand) cmd).getIdea();
+                    return new IdeaDto(idea.getId(),
+                            ((SubmitIdeaCommand) cmd).getProject().getName(), idea.getText(),
+                            idea.getSourceFileName(), idea.getStatus().name());
+                });
 
         registry.register("DeleteProject", DeleteProjectInput.class,
                 factory::newDeleteProjectCommand,

@@ -109,7 +109,7 @@ final class LegacyLexicalIssues {
 		actions.addAll(result.annotationActions());
 		return new AssistantResult(result.assistantId(), result.runId(), result.summary(),
 				result.severity(), actions, result.messages(), result.externalActions(),
-				result.metadata());
+				result.metadata(), result.extractedText());
 	}
 
 	private static Set<String> reportedKeys(AssistantResult result) {

@@ -236,6 +236,12 @@ public interface ProjectCommandFactory extends CommandFactory {
 	public RemoveSourceAuthorityCommand newRemoveSourceAuthorityCommand();
 
 	/**
+	 * @return a new command submitting a requirement idea to a project; requires
+	 *         {@code Project[Edit]}.
+	 */
+	public SubmitIdeaCommand newSubmitIdeaCommand();
+
+	/**
 	 * @return a new command adding an installation-wide dictionary word; administrators only
 	 *         (issue #319).
 	 */

@@ -81,6 +81,8 @@ public class GatewayPolicyConfig {
             "EditGlossaryTerm", "DeleteGlossaryTerm",
             // Project dictionary (#319; Project[Edit] at the command layer)
             "AddProjectDictionaryWord", "DeleteProjectDictionaryWord",
+            // Requirement ideas (Project[Edit]; a .txt attachment needs multipart, so JSON only here)
+            "SubmitIdea",
             // Ignored assistant findings (#320; Project[Edit] at the command layer)
             "DeleteIgnoredFinding",
             // Re-run the assistants on a whole project (#268; Annotation[Edit]) and switch
