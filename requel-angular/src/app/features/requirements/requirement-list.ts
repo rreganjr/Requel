@@ -21,6 +21,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { SelectModule } from 'primeng/select';
 import { FormsModule } from '@angular/forms';
@@ -46,6 +47,7 @@ import { DestroyRef } from '@angular/core';
   standalone: true,
   imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ButtonModule, SelectModule, FormsModule,
             TagModule, TooltipModule, AppDataTableComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
+  providers: [DatePipe],
   template: `
     <div class="requirement-list" data-testid="requirement-list">
       <div class="page-header">

@@ -22,12 +22,10 @@ import { Routes } from '@angular/router';
 import { RequirementListComponent } from './requirement-list';
 import { RequirementEditorComponent } from './requirement-editor';
 import { IdeaEditorComponent } from '../ideas/idea-editor';
-import { ProjectGuard } from '../../core/project.guard';
 
 export const REQUIREMENTS_ROUTES: Routes = [
   {
     path: 'projects/:name/requirements',
-    canActivate: [ProjectGuard],
     children: [
       { path: '', component: RequirementListComponent },
       { path: 'new', component: RequirementEditorComponent },
@@ -37,7 +35,6 @@ export const REQUIREMENTS_ROUTES: Routes = [
   },
   {
     path: 'projects/:name/ideas',
-    canActivate: [ProjectGuard],
     children: [
       { path: 'new', component: IdeaEditorComponent },
       { path: ':ideaId', component: IdeaEditorComponent },

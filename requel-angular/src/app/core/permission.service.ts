@@ -11,7 +11,7 @@
  *
  * Requel is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -99,12 +99,45 @@ export class PermissionService {
     return promise;
   }
 
+  /** Public read-only access to the permissions signal. */
+  readonly permissions = this._permissions.asReadonly();
+
   get isStakeholder(): boolean {
     return this._permissions()?.isStakeholder ?? false;
   }
 
   get canCreateProjects(): boolean {
     return this._permissions()?.canCreateProjects ?? false;
+  }
+
+  /**
+   * Get the user's roles for the current project.
+   * Derived from the permissions map: a user has a role if they have any permission for that role's entity types.
+   * This is a simplified mapping - the backend should ideally return explicit roles.
+   */
+  getRoles(): string[] {
+    const perms = this._permissions();
+    if (!perms) return [];
+    
+    const roles = new Set<string>();
+    const permissionMap = perms.permissions ?? {};
+    
+    // Map entity permissions to roles based on the requirement workflow needs
+    // This is a heuristic mapping; backend should provide explicit roles
+    if (permissionMap['Requirement']?.includes('Edit')) roles.add('Analyst');
+    if (permissionMap['Requirement']?.includes('Grant')) roles.add('ProductManager');
+    if (permissionMap['Idea']?.includes('Edit')) roles.add('ProductManager');
+    if (permissionMap['Goal']?.includes('Edit')) roles.add('Analyst');
+    if (permissionMap['Story']?.includes('Edit')) roles.add('Analyst');
+    if (permissionMap['UseCase']?.includes('Edit')) roles.add('Engineer');
+    if (permissionMap['Actor']?.includes('Edit')) roles.add('Engineer');
+    if (permissionMap['Scenario']?.includes('Edit')) roles.add('TestEngineer');
+    
+    // Admin-like: has Grant on multiple types
+    const grantTypes = Object.entries(permissionMap).filter(([, perms]) => perms.includes('Grant')).length;
+    if (grantTypes >= 2) roles.add('ProductManager');
+    
+    return Array.from(roles);
   }
 
   /**

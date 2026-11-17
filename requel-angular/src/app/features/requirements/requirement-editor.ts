@@ -21,6 +21,7 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgTemplateOutlet } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -67,7 +68,7 @@ const STALE_VERSION_MESSAGE =
             AnnotationsSectionComponent, SourcesSectionComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,
             LoadingStateComponent, ErrorStateComponent],
-  providers: [ConfirmationService],
+  providers: [ConfirmationService, DatePipe],
   template: `
     <div class="requirement-editor" data-testid="requirement-editor">
       <div class="page-header">
@@ -669,17 +670,17 @@ export class RequirementEditorComponent implements OnInit, OnDestroy, DirtyCheck
   }
 
   canReviewDept(dept: ReviewDepartment): boolean {
-    const userRoles = this.permissionService._permissions()?.roles ?? [];
+    const userRoles = this.permissionService.getRoles();
     return canReviewDepartment(userRoles, dept);
   }
 
   canApproveUser(): boolean {
-    const userRoles = this.permissionService._permissions()?.roles ?? [];
+    const userRoles = this.permissionService.getRoles();
     return canApprove(userRoles);
   }
 
   canPublishUser(): boolean {
-    const userRoles = this.permissionService._permissions()?.roles ?? [];
+    const userRoles = this.permissionService.getRoles();
     return canPublish(userRoles);
   }
 

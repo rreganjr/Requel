@@ -21,27 +21,28 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgTemplateOutlet } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
-import { InputText } from 'primeng/inputtext';
-import { TextareaModule } from 'primeng/textarea';
-import { FileUploadModule } from 'primeng/fileupload';
-import { SubmitErrorComponent } from '../../shared/app-submit-error';
-import { UpdateBannerComponent } from '../../shared/app-update-banner';
-import { AnnouncerService } from '../../core/announcer.service';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { ConfirmationService, MessageService } from 'primeng/api';
-import { CommandResult } from '../../models/command';
-import { IdeaDto, ClarificationDto } from '../../models/requirement';
-import { EntityReferenceDto } from '../../models/entity-reference';
-import { RequirementService } from '../../core/requirement.service';
-import { CommandService, isNetworkError } from '../../core/command.service';
-import { ProjectService } from '../../core/project.service';
-import { PermissionService } from '../../core/permission.service';
+import { InputText } from 'primeng/inputtext'.
+import { TextareaModule } from 'primeng/textarea'.
+import { FileUploadModule } from 'primeng/fileupload'.
+import { SubmitErrorComponent } from '../../shared/app-submit-error'.
+import { UpdateBannerComponent } from '../../shared/app-update-banner'.
+import { AnnouncerService } from '../../core/announcer.service'.
+import { ConfirmDialogModule } from 'primeng/confirmdialog'.
+import { ConfirmationService, MessageService } from 'primeng/api'.
+import { CommandResult } from '../../models/command'.
+import { IdeaDto, ClarificationDto } from '../../models/requirement'.
+import { EntityReferenceDto } from '../../models/entity-reference'.
+import { RequirementService } from '../../core/requirement.service'.
+import { CommandService, isNetworkError } from '../../core/command.service'.
+import { ProjectService } from '../../core/project.service'.
+import { PermissionService } from '../../core/permission.service'.
 import { EventStreamService } from '../../core/event-stream.service'.
 import { AnnotationsSectionComponent } from '../../shared/annotations-section'.
 import { SourcesSectionComponent } from '../../shared/sources-section'.
@@ -64,7 +65,7 @@ const STALE_VERSION_MESSAGE =
             AnnotationsSectionComponent, SourcesSectionComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,
             LoadingStateComponent, ErrorStateComponent],
-  providers: [ConfirmationService],
+  providers: [ConfirmationService, DatePipe],
   template: `
     <div class="idea-editor" data-testid="idea-editor">
       <div class="page-header">
