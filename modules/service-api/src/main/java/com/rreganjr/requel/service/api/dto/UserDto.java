@@ -21,6 +21,7 @@
 package com.rreganjr.requel.service.api.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.rreganjr.requel.user.WorkflowRole;
 
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,7 @@ public record UserDto(
         List<String> roles,
         List<String> permissions,
         Map<String, List<String>> permissionsByRole,
-        int version
+        int version,
+        WorkflowRole workflowRole
 ) {
 }

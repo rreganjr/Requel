@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN workflow_role varchar(30) NOT NULL DEFAULT 'ANALYST';

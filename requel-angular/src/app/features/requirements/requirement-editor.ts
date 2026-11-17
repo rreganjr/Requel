@@ -24,7 +24,7 @@ import { NgIf, NgTemplateOutlet } from '@angular/common';
 import { DatePipe } from '@angular/common';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -40,7 +40,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { CommandResult } from '../../models/command';
 import { RequirementDto, RequirementReviewDto, RequirementStatus, ReviewDepartment, ReviewResult,
          getStatusLabel, getStatusSeverity, getDepartmentLabel, REVIEW_DEPARTMENTS,
-         canReviewDepartment, canApprove, canPublish, getReviewResultLabel, getReviewResultSeverity } from '../../models/requirement';
+         canPublish, getReviewResultLabel, getReviewResultSeverity } from '../../models/requirement';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { RequirementService } from '../../core/requirement.service';
 import { CommandService, isNetworkError } from '../../core/command.service';
@@ -66,7 +66,7 @@ const STALE_VERSION_MESSAGE =
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-requirement-editor',
   standalone: true,
-  imports: [DatePipe, NgIf, PageHeaderComponent, AppCardComponent, RouterLink, ReactiveFormsModule, NgTemplateOutlet,
+  imports: [DatePipe, NgIf, PageHeaderComponent, AppCardComponent, ReactiveFormsModule, NgTemplateOutlet,
             ButtonModule, InputText, TextareaModule, TagModule, TooltipModule,
             SubmitErrorComponent, UpdateBannerComponent, ConfirmDialogModule,
             AnnotationsSectionComponent, SourcesSectionComponent, AppFieldComponent, AppFieldControlDirective,
@@ -176,24 +176,27 @@ const STALE_VERSION_MESSAGE =
           </div>
 
           <!-- Approve / Publish Actions -->
-          <div class="review-actions" *ngIf="reqStatus() === 'IN_REVIEW' && allReviewsPassed()">
-            <hr />
-            @if (canApproveUser()) {
+          @if (reqStatus() === 'IN_REVIEW' && allReviewsPassed() && canApproveUser()) {
+            <div class="review-actions">
+              <hr />
               <p-button label="Approve Requirement" icon="pi pi-check-circle" severity="success"
                         data-testid="req-approve" (onClick)="onApprove()" />
-            }
-          </div>
-          <div class="review-actions" *ngIf="reqStatus() === 'APPROVED'">
-            <hr />
-            @if (canPublishUser()) {
-              <p-button label="Publish to Jama" icon="pi pi-upload" severity="info"
-                        data-testid="req-publish" (onClick)="onPublish()" />
-            }
-            @if (canApproveUser()) {
-              <p-button label="Reopen for Review" icon="pi pi-undo" severity="secondary" [outlined]="true"
-                        data-testid="req-reopen" (onClick)="onReopen()" />
-            }
-          </div>
+            </div>
+          }
+          @if ((reqStatus() === 'APPROVED' && canPublishUser()) ||
+               ((reqStatus() === 'APPROVED' || reqStatus() === 'REJECTED') && canApproveUser())) {
+            <div class="review-actions">
+              <hr />
+              @if (reqStatus() === 'APPROVED' && canPublishUser()) {
+                <p-button label="Publish to Jama" icon="pi pi-upload" severity="info"
+                          data-testid="req-publish" (onClick)="onPublish()" />
+              }
+              @if (canApproveUser()) {
+                <p-button label="Reopen for Review" icon="pi pi-undo" severity="secondary" [outlined]="true"
+                          data-testid="req-reopen" (onClick)="onReopen()" />
+              }
+            </div>
+          }
         </app-card>
 
         <!-- Overlap Comparisons -->
@@ -674,13 +677,11 @@ export class RequirementEditorComponent implements OnInit, OnDestroy, DirtyCheck
   }
 
   canReviewDept(dept: ReviewDepartment): boolean {
-    const userRoles = this.permissionService.getRoles();
-    return canReviewDepartment(userRoles, dept);
+    return this.requirement()?.allowedReviewDepartments?.includes(dept) === true;
   }
 
   canApproveUser(): boolean {
-    const userRoles = this.permissionService.getRoles();
-    return canApprove(userRoles);
+    return this.requirement()?.canApproveOrReopen === true;
   }
 
   canPublishUser(): boolean {

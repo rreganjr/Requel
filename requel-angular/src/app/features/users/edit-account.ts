@@ -31,6 +31,7 @@ import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { AuthService } from '../../core/auth.service';
 import { CommandService, isNetworkError } from '../../core/command.service';
 import { UserService } from '../../core/user.service';
+import { WORKFLOW_ROLE_OPTIONS } from '../../models/user';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
 import { applyCommandErrors, clearServerErrors, notBlank, passwordsMatch } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH, PASSWORD_MAX_LENGTH } from '../../shared/validation-limits';
@@ -91,6 +92,12 @@ const SEPARATOR = '; ';
         <app-field label="Username" controlId="username" [control]="form.controls.username">
           <input pInputText appFieldControl id="username" formControlName="username" autocomplete="username" />
         </app-field>
+
+        @if (workflowRoleLabel(); as role) {
+          <app-field label="Workflow role" controlId="accountWorkflowRole">
+            <input pInputText appFieldControl id="accountWorkflowRole" [value]="role" readonly />
+          </app-field>
+        }
 
         <app-field
           label="Name"
@@ -196,6 +203,9 @@ export class EditAccountComponent implements OnInit, DirtyCheckable {
   readonly successMessage = signal<string | null>(null);
 
   readonly username = computed(() => this.authService.user()?.username ?? '');
+  readonly workflowRoleLabel = computed(() =>
+    WORKFLOW_ROLE_OPTIONS.find(option => option.value === this.authService.user()?.workflowRole)?.label
+  );
 
   readonly organizations = signal<{label: string; value: string}[]>([]);
   readonly orgOptions = computed(() => this.organizations());

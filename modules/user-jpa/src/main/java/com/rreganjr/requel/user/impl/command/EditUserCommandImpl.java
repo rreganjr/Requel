@@ -44,6 +44,7 @@ import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.UserRole;
 import com.rreganjr.requel.user.UserRolePermission;
+import com.rreganjr.requel.user.WorkflowRole;
 import com.rreganjr.requel.user.command.EditUserCommand;
 import com.rreganjr.requel.user.exception.NoSuchOrganizationException;
 import com.rreganjr.requel.user.impl.OrganizationImpl;
@@ -65,6 +66,7 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 	private String phoneNumber;
 	private String organizationName;
 	private Boolean editable = Boolean.TRUE;
+	private WorkflowRole workflowRole;
 	private Set<String> userRoleNames = new HashSet<String>();
 	private boolean userRolesProvided = false;
 	private Map<String, Set<String>> userRolePermissionNames = new HashMap<String, Set<String>>();
@@ -85,6 +87,9 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 	@Override
 	public void execute() {
 		boolean isAdmin = getEditedBy() != null && getEditedBy().hasRole(SystemAdminUserRole.class);
+		if (workflowRole != null && !isAdmin && getEditedBy() != null) {
+			throw new AuthorizationException("Only administrators can assign requirement workflow roles.");
+		}
 		UserImpl userImpl = (UserImpl) getUser();
 		if (userImpl == null) {
 			// Only admins can create new users; null editedBy = system bootstrap (initializers)
@@ -121,6 +126,9 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 			Organization organization = getOrCreateOrganization(getOrganizationName());
 			UserImpl userImpl = new UserImpl(getUsername(), getPassword(),
 					getName(), getEmailAddress(), getPhoneNumber(), organization, getEditable());
+			if (workflowRole != null) {
+				userImpl.setWorkflowRole(workflowRole);
+			}
 			updateRoles(userImpl);
 			return getUserRepository().persist(userImpl);
 		} else {
@@ -144,6 +152,9 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 		if (isAdmin) {
 			userImpl.setUsername(getUsername());
 			userImpl.setEditable(getEditable());
+			if (workflowRole != null) {
+				userImpl.setWorkflowRole(workflowRole);
+			}
 			if (userRolesProvided) {
 				updateRoles(userImpl);
 			}
@@ -253,6 +264,11 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 
 	public void setEditable(Boolean editable) {
 		this.editable = editable;
+	}
+
+	@Override
+	public void setWorkflowRole(WorkflowRole workflowRole) {
+		this.workflowRole = workflowRole;
 	}
 
 	protected Set<String> getUserRoleNames() {

@@ -24,11 +24,10 @@ import { NgIf, NgTemplateOutlet } from '@angular/common';
 import { DatePipe } from '@angular/common';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
-import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { FileUploadModule } from 'primeng/fileupload';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
@@ -63,8 +62,8 @@ const STALE_VERSION_MESSAGE =
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-idea-editor',
   standalone: true,
-  imports: [DatePipe, NgIf, PageHeaderComponent, AppCardComponent, RouterLink, ReactiveFormsModule, NgTemplateOutlet,
-            ButtonModule, InputText, TextareaModule, FileUploadModule,
+  imports: [DatePipe, NgIf, PageHeaderComponent, AppCardComponent, ReactiveFormsModule, NgTemplateOutlet,
+            ButtonModule, TextareaModule, FileUploadModule,
             SubmitErrorComponent, UpdateBannerComponent, ConfirmDialogModule,
             AnnotationsSectionComponent, SourcesSectionComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,

@@ -25,6 +25,7 @@ import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.user.User;
+import com.rreganjr.requel.user.WorkflowRole;
 import com.rreganjr.requel.user.command.EditUserCommand;
 import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 import com.rreganjr.validator.EntityValidationException;
@@ -107,6 +108,7 @@ public class EditUserCommandTest extends AbstractIntegrationTestCase {
         cmd.setPhoneNumber("");
         cmd.setOrganizationName("NewOrg-" + ts);
         cmd.addUserRoleName(ProjectUserRole.class.getSimpleName());
+        cmd.setWorkflowRole(WorkflowRole.ENGINEER);
         cmd = getCommandHandler().execute(cmd);
 
         User created = cmd.getUser();
@@ -120,6 +122,7 @@ public class EditUserCommandTest extends AbstractIntegrationTestCase {
         // Verify findable in repository
         User found = getUserRepository().findUserByUsername(username);
         assertNotNull(found, "created user should be findable by username");
+        assertEquals(WorkflowRole.ENGINEER, found.getWorkflowRole());
     }
 
     // -------------------------------------------------------------------------
@@ -146,6 +149,18 @@ public class EditUserCommandTest extends AbstractIntegrationTestCase {
         assertEquals("Updated Name", updated.getName(), "name should be updated");
         assertEquals("updated-" + ts + "@example.com", updated.getEmailAddress(),
                 "email should be updated");
+        assertEquals(WorkflowRole.ANALYST, updated.getWorkflowRole());
+    }
+
+    @Test
+    public void userCannotAssignTheirOwnWorkflowRole() throws Exception {
+        User user = createUser("self-role-" + System.currentTimeMillis(), "pass123!", "Analyst");
+        EditUserCommand cmd = getUserCommandFactory().newEditUserCommand();
+        cmd.setEditedBy(user);
+        cmd.setUser(user);
+        cmd.setWorkflowRole(WorkflowRole.PRODUCT_MANAGER);
+
+        assertThrows(AuthorizationException.class, () -> getCommandHandler().execute(cmd));
     }
 
     @Test
@@ -163,10 +178,13 @@ public class EditUserCommandTest extends AbstractIntegrationTestCase {
         cmd.setPhoneNumber("");
         cmd.setOrganizationName("TestOrg");
         cmd.setExpectedVersion(user.getVersion());
+        cmd.setWorkflowRole(WorkflowRole.TEST_ENGINEER);
         cmd = getCommandHandler().execute(cmd);
 
         assertEquals("Updated With Current Version", cmd.getUser().getName(),
                 "matching-version update should be applied");
+        assertEquals(WorkflowRole.TEST_ENGINEER,
+                getUserRepository().findUserByUsername(user.getUsername()).getWorkflowRole());
     }
 
     @Test

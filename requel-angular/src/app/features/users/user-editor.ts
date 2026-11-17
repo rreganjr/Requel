@@ -32,7 +32,7 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { SelectModule } from 'primeng/select';
 import { MessageModule } from 'primeng/message';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
-import { UserDto } from '../../models/user';
+import { UserDto, WorkflowRole, WORKFLOW_ROLE_OPTIONS } from '../../models/user';
 import { RoleDto } from '../../models/role';
 import { UserService } from '../../core/user.service';
 import { CommandService, isNetworkError } from '../../core/command.service';
@@ -165,6 +165,12 @@ const SEPARATOR = '; ';
                  straight after the page h1 is an axe heading-order violation. -->
             <h2 class="rq-section-title">Roles &amp; Permissions</h2>
 
+            <app-field label="Workflow role" controlId="userWorkflowRole"
+                       [control]="form.controls.workflowRole" [submitted]="submitted()">
+              <p-select appFieldControl inputId="userWorkflowRole" formControlName="workflowRole"
+                        [options]="workflowRoles" optionLabel="label" optionValue="value" appendTo="body" />
+            </app-field>
+
             @for (role of availableRoles(); track role.roleName) {
               <div class="role-group" data-testid="user-role-group" [attr.data-role-name]="role.roleName">
                 <label class="checkbox-label" data-testid="user-role-label">
@@ -260,6 +266,8 @@ export class UserEditorComponent implements OnInit, DirtyCheckable {
    * that once `isNew` is known. `minLength(1)` is a no-op on an empty value, so the edit
    * case needs no conditional branch beyond dropping `required`.
    */
+  readonly workflowRoles = [...WORKFLOW_ROLE_OPTIONS];
+
   readonly form = new FormGroup(
     {
       username: new FormControl('', {
@@ -277,6 +285,7 @@ export class UserEditorComponent implements OnInit, DirtyCheckable {
       password: new FormControl('', { nonNullable: true }),
       repassword: new FormControl('', { nonNullable: true }),
       userRoleNames: new FormControl<string[]>([], { validators: atLeastOne(), nonNullable: true }),
+      workflowRole: new FormControl<WorkflowRole>('ANALYST', { validators: Validators.required, nonNullable: true }),
       permissions: new FormGroup<Record<string, FormControl<string[]>>>({}),
     },
     { validators: passwordsMatch('password', 'repassword') }
@@ -366,6 +375,7 @@ export class UserEditorComponent implements OnInit, DirtyCheckable {
     this.lastUsernameParam = usernameParam;
     this.userId = null;
     this.userVersion = 0;
+    this.form.controls.workflowRole.reset(undefined, { emitEvent: false });
 
     // Username is the identity of an existing user and cannot be changed; disabling the
     // control both matches the previous [disabled]="!isNew()" markup and keeps it out of
@@ -439,6 +449,7 @@ export class UserEditorComponent implements OnInit, DirtyCheckable {
         phoneNumber: value.phoneNumber,
         organizationName: value.organizationName,
         editable: true,
+        workflowRole: value.workflowRole,
         userRoleNames: value.userRoleNames,
         // Only the selected roles' permissions, so a deselected role does not ship a
         // stale permission list the server would have to ignore.
@@ -451,8 +462,11 @@ export class UserEditorComponent implements OnInit, DirtyCheckable {
         input['repassword'] = value.repassword;
       }
 
-      const result = await this.commandService.execute('EditUser', input);
+      const result = await this.commandService.execute<UserDto>('EditUser', input);
       if (result.success) {
+        if (result.entity) {
+          this.userVersion = result.entity.version;
+        }
         this.successMessage.set('User saved successfully.');
         this.form.markAsPristine();
         this.submitted.set(false);
@@ -500,6 +514,7 @@ export class UserEditorComponent implements OnInit, DirtyCheckable {
         phoneNumber: user.phoneNumber ?? '',
         organizationName: user.organizationName ?? '',
         userRoleNames: [...user.roles],
+        workflowRole: user.workflowRole ?? 'ANALYST',
       },
       { emitEvent: false }
     );

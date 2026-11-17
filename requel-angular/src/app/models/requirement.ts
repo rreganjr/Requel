@@ -59,6 +59,8 @@ export interface RequirementDto {
   reviews: RequirementReviewDto[];
   /** Derived: true when all three reviews have PASSED. */
   allReviewsPassed: boolean;
+  allowedReviewDepartments: ReviewDepartment[];
+  canApproveOrReopen: boolean;
   /** Derived: true when status is APPROVED or PUBLISHED. */
   isApproved: boolean;
   /** Derived: true when status is PUBLISHED. */
@@ -149,21 +151,6 @@ export function getStatusSeverity(status: RequirementStatus): 'success' | 'info'
 /** Get severity for a review result. */
 export function getReviewResultSeverity(result: ReviewResult): 'success' | 'warn' | 'danger' | 'secondary' {
   return REVIEW_RESULT_OPTIONS.find(r => r.value === result)?.severity ?? 'secondary';
-}
-
-/** Check if a user role can review a specific department. */
-export function canReviewDepartment(userRoles: string[], department: ReviewDepartment): boolean {
-  const roleMap: Record<ReviewDepartment, string[]> = {
-    QUALITY: ['Analyst', 'ProductManager'],
-    FEASIBILITY: ['Engineer', 'ProductManager'],
-    TESTABILITY: ['TestEngineer', 'ProductManager'],
-  };
-  return userRoles.some(r => roleMap[department]?.includes(r));
-}
-
-/** Check if a user role can approve requirements. */
-export function canApprove(userRoles: string[]): boolean {
-  return userRoles.includes('ProductManager');
 }
 
 /** Check if a user role can publish to Jama. */

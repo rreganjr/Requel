@@ -19,6 +19,7 @@ const MOCK_USER = {
   id: 1, version: 0, username: 'bob', name: 'Bob Smith',
   emailAddress: 'bob@example.com', phoneNumber: null, organizationName: 'Acme',
   roles: ['ProjectUserRole'], permissions: ['editGoals'],
+  workflowRole: 'TEST_ENGINEER',
   permissionsByRole: { ProjectUserRole: ['editGoals'] }
 };
 
@@ -103,12 +104,13 @@ describe('UserEditorComponent', () => {
     expect(comp.form.getRawValue().username).toBe('bob');
     expect(comp.form.controls.name.value).toBe('Bob Smith');
     expect(comp.form.controls.userRoleNames.value).toContain('ProjectUserRole');
+    expect(comp.form.controls.workflowRole.value).toBe('TEST_ENGINEER');
   });
 
   it('onSave calls commandService.execute("EditUser") with roles and permissions', async () => {
     fixture.detectChanges();
     await flush();
-    fillNewUser();
+    fillNewUser({ workflowRole: 'ENGINEER' });
     comp.permissionsControl('ProjectUserRole').setValue(['editGoals']);
 
     await comp.onSave();
@@ -117,6 +119,7 @@ describe('UserEditorComponent', () => {
       username: 'newuser',
       name: 'New User',
       userRoleNames: ['ProjectUserRole'],
+      workflowRole: 'ENGINEER',
       userRolePermissionNames: { ProjectUserRole: ['editGoals'] }
     }));
   });

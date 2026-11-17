@@ -25,6 +25,7 @@ import com.rreganjr.requel.service.api.dto.LoginRequest;
 import com.rreganjr.requel.service.api.dto.UserDto;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
+import com.rreganjr.requel.user.WorkflowRole;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -96,7 +97,7 @@ class AuthControllerTest {
         when(userDtoMapper.toDto(user)).thenReturn(new UserDto(
                 1L, "alice", "Alice", null, null, null,
                 List.of("ProjectUserRole"), List.of("createProject"),
-                Map.of("ProjectUserRole", List.of("createProject")), 0));
+                Map.of("ProjectUserRole", List.of("createProject")), 0, WorkflowRole.ENGINEER));
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -104,7 +105,8 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value("jwt-token-abc"))
                 .andExpect(jsonPath("$.user.username").value("alice"))
-                .andExpect(jsonPath("$.user.roles[0]").value("ProjectUserRole"));
+                .andExpect(jsonPath("$.user.roles[0]").value("ProjectUserRole"))
+                .andExpect(jsonPath("$.user.workflowRole").value("ENGINEER"));
     }
 
     @Test
@@ -148,7 +150,7 @@ class AuthControllerTest {
         when(userDtoMapper.toDto(user)).thenReturn(new UserDto(
                 7L, "bob", "Bob", "bob@example.com", null, "ACME",
                 List.of("SystemAdminUserRole"), List.of(),
-                Map.of("SystemAdminUserRole", List.of()), 2));
+                Map.of("SystemAdminUserRole", List.of()), 2, null));
 
         mockMvc.perform(get("/api/auth/me"))
                 .andExpect(status().isOk())

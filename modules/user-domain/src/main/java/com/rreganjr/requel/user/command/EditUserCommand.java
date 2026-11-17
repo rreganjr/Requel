@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.user.command;
 
+import com.rreganjr.requel.user.WorkflowRole;
+
 import java.util.Map;
 import java.util.Set;
 
@@ -100,6 +102,8 @@ public interface EditUserCommand extends Command {
 	 * @param editable
 	 */
 	public void setEditable(Boolean editable);
+
+	void setWorkflowRole(WorkflowRole workflowRole);
 
 	/**
 	 * Set the names of the user roles this user has.

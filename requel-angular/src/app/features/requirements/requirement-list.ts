@@ -20,7 +20,6 @@
  */
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { NgTemplateOutlet } from '@angular/common';
 import { DatePipe } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { SelectModule } from 'primeng/select';
@@ -32,7 +31,6 @@ import { AppCardComponent } from '../../shared/app-card';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { LoadingStateComponent } from '../../shared/loading-state';
 import { ErrorStateComponent } from '../../shared/error-state';
-import { EmptyStateComponent } from '../../shared/empty-state';
 import { RequirementService } from '../../core/requirement.service';
 import { RequirementDto, RequirementStatus, getStatusLabel, getStatusSeverity, REVIEW_DEPARTMENTS, getDepartmentLabel } from '../../models/requirement';
 import { ProjectService } from '../../core/project.service';
@@ -45,8 +43,8 @@ import { DestroyRef } from '@angular/core';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-requirement-list',
   standalone: true,
-  imports: [DatePipe, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ButtonModule, SelectModule, FormsModule,
-            TagModule, TooltipModule, AppDataTableComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
+  imports: [DatePipe, PageHeaderComponent, AppCardComponent, RouterLink, ButtonModule, SelectModule, FormsModule,
+            TagModule, TooltipModule, AppDataTableComponent, LoadingStateComponent, ErrorStateComponent],
   template: `
     <div class="requirement-list" data-testid="requirement-list">
       <div class="page-header">

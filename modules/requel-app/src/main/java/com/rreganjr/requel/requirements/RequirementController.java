@@ -9,6 +9,8 @@ import com.rreganjr.requel.service.auth.CurrentUserResolver;
 import com.rreganjr.requel.service.audit.CommandAuditLog;
 import com.rreganjr.requel.service.command.IdeaFileText;
 import com.rreganjr.requel.user.User;
+import com.rreganjr.requel.user.WorkflowRole;
+import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.*;
@@ -40,19 +42,29 @@ public class RequirementController {
     private Caller caller(String name, String permission, Class<?> type) {
         Project p = projects.findProjectByName(name);
         User u = users.resolve();
-        if (permission == null) {
+        if (permission != null) {
+            StakeholderAuthorizationChecker.require(p, u, type, permission);
+        } else if (!u.hasRole(SystemAdminUserRole.class)) {
             try {
                 if (p.getUserStakeholder(u) == null) throw new AuthorizationException("Not a stakeholder");
             } catch (RuntimeException e) { throw new AuthorizationException("Not a stakeholder of this project"); }
-        } else { StakeholderAuthorizationChecker.require(p, u, type, permission); }
+        }
         return new Caller(p, u);
     }
-    private boolean has(Caller c, Class<?> type, String permission) {
-        return StakeholderAuthorizationChecker.isSatisfied(c.project, c.user, type, permission);
+    private static List<Department> allowedReviewDepartments(User user) {
+        if (user.hasRole(SystemAdminUserRole.class)) return List.of(Department.values());
+        WorkflowRole role = user.getWorkflowRole();
+        if (role == null) return List.of();
+        return switch (role) {
+            case ANALYST -> List.of(Department.QUALITY);
+            case ENGINEER -> List.of(Department.FEASIBILITY);
+            case TEST_ENGINEER -> List.of(Department.TESTABILITY);
+            case PRODUCT_MANAGER -> List.of();
+        };
     }
-    private boolean manager(Caller c) { return has(c, Project.class, "Grant"); }
+    private boolean manager(Caller c) { return c.user.getWorkflowRole() == WorkflowRole.PRODUCT_MANAGER; }
     private void requireManager(Caller c) {
-        if (!manager(c)) throw new AuthorizationException("Project Grant permission is required to approve or reopen requirements.");
+        if (!manager(c)) throw new AuthorizationException("Only Product Managers can approve or reopen requirements.");
     }
     private RequirementImpl requirement(Caller c, long id) {
         RequirementImpl r = em.find(RequirementImpl.class, id);
@@ -73,7 +85,7 @@ public class RequirementController {
         em.persist(new CommandAuditLog(c.user.getId(), Instant.now(), operation,
             getClass().getName(), c.project.getId(), "{\"entityId\":" + id + "}"));
     }
-    private Map<String, Object> view(RequirementImpl r) {
+    private Map<String, Object> view(Caller c, RequirementImpl r) {
         Map<String, Object> v = new LinkedHashMap<>();
         v.put("id", r.getId()); v.put("version", r.getVersion());
         v.put("requirementId", r.getRequirementCode()); v.put("shallText", r.getShallText());
@@ -81,6 +93,8 @@ public class RequirementController {
         v.put("ideaName", r.getIdea() == null ? null : "Idea " + r.getIdea().getId()); v.put("jamaItemId", null);
         v.put("createdBy", r.getCreatedBy()); v.put("createdAt", r.getCreatedAt()); v.put("updatedAt", r.getUpdatedAt());
         v.put("allReviewsPassed", r.allReviewsPassed());
+        v.put("allowedReviewDepartments", allowedReviewDepartments(c.user));
+        v.put("canApproveOrReopen", manager(c));
         v.put("isApproved", r.getStatus() == Status.APPROVED || r.getStatus() == Status.PUBLISHED);
         v.put("isPublished", r.getStatus() == Status.PUBLISHED);
         v.put("reviews", r.getReviews().entrySet().stream().map(e -> {
@@ -111,52 +125,51 @@ public class RequirementController {
         Caller c = caller(projectName, null, null);
         return em.createQuery("select r from RequirementImpl r where r.projectId = :p order by r.id desc", RequirementImpl.class)
             .setParameter("p", c.project.getId()).getResultList().stream()
-            .filter(r -> status == null || r.getStatus() == status).map(this::view).toList();
+            .filter(r -> status == null || r.getStatus() == status).map(r -> view(c, r)).toList();
     }
     @GetMapping("/{id}")
     @Transactional(readOnly = true)
     public Map<String, Object> get(@RequestParam String projectName, @PathVariable long id) {
-        return view(requirement(caller(projectName, null, null), id));
+        Caller c = caller(projectName, null, null);
+        return view(c, requirement(c, id));
     }
     @PostMapping
     public Map<String, Object> create(@RequestParam String projectName, @RequestBody Create body) {
         Caller c = caller(projectName, "Edit", Project.class);
         RequirementImpl r = new RequirementImpl(c.project.getId(), body.ideaId == null ? null : idea(c, body.ideaId), body.shallText, c.user.getUsername());
         r.setRequirementCode(body.requirementId);
-        em.persist(r); em.flush(); audit(c, "CreateRequirement", r.getId()); return view(r);
+        em.persist(r); em.flush(); audit(c, "CreateRequirement", r.getId()); return view(c, r);
     }
     @PutMapping("/{id}")
     public Map<String, Object> edit(@RequestParam String projectName, @PathVariable long id, @RequestBody Edit body) {
         Caller c = caller(projectName, "Edit", Project.class);
         RequirementImpl r = requirement(c, id); version(r, body.version); r.revise(body.shallText); r.setRequirementCode(body.requirementId);
-        em.flush(); audit(c, "EditRequirement", id); return view(r);
+        em.flush(); audit(c, "EditRequirement", id); return view(c, r);
     }
     @PostMapping("/{id}/reviews")
     public Map<String, Object> review(@RequestParam String projectName, @PathVariable long id, @RequestBody ReviewRequest body) {
         Caller c = caller(projectName, null, null);
         if (body.department == null) throw new IllegalArgumentException("A department is required.");
-        boolean allowed = manager(c) || switch (body.department) {
-            case QUALITY -> has(c, Goal.class, "Edit") || has(c, Story.class, "Edit");
-            case FEASIBILITY -> has(c, UseCase.class, "Edit") || has(c, Actor.class, "Edit");
-            case TESTABILITY -> has(c, Scenario.class, "Edit");
-        };
-        if (!allowed) throw new AuthorizationException("No permission for this department review.");
+        if (!allowedReviewDepartments(c.user).contains(body.department)) {
+            throw new AuthorizationException("Your workflow role cannot submit this department review.");
+        }
         RequirementImpl r = requirement(c, id); version(r, body.version);
-        r.review(body.department, body.result, body.comments, c.user.getUsername(),
-            manager(c) ? "ProductManager" : switch(body.department) { case QUALITY -> "Analyst"; case FEASIBILITY -> "Engineer"; case TESTABILITY -> "TestEngineer"; });
-        em.flush(); audit(c, "ReviewRequirement", id); return view(r);
+        String reviewerRole = c.user.hasRole(SystemAdminUserRole.class)
+                ? "System Administrator" : c.user.getWorkflowRole().getDisplayName();
+        r.review(body.department, body.result, body.comments, c.user.getUsername(), reviewerRole);
+        em.flush(); audit(c, "ReviewRequirement", id); return view(c, r);
     }
     @PostMapping("/{id}/approve")
     public Map<String, Object> approve(@RequestParam String projectName, @PathVariable long id, @RequestBody Version body) {
         Caller c = caller(projectName, null, null); requireManager(c);
         RequirementImpl r = requirement(c, id); version(r, body.version); r.approve();
-        em.flush(); audit(c, "ApproveRequirement", id); return view(r);
+        em.flush(); audit(c, "ApproveRequirement", id); return view(c, r);
     }
     @PostMapping("/{id}/reopen")
     public Map<String, Object> reopen(@RequestParam String projectName, @PathVariable long id, @RequestBody Version body) {
         Caller c = caller(projectName, null, null); requireManager(c);
         RequirementImpl r = requirement(c, id); version(r, body.version); r.reopen();
-        em.flush(); audit(c, "ReopenRequirement", id); return view(r);
+        em.flush(); audit(c, "ReopenRequirement", id); return view(c, r);
     }
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

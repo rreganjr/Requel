@@ -87,6 +87,7 @@ public class UserCommandRegistrar {
                     if (i.editable() != null) c.setEditable(i.editable());
                     if (i.userRoleNames() != null) c.setUserRoleNames(i.userRoleNames());
                     if (i.userRolePermissionNames() != null) c.setUserRolePermissionNames(i.userRolePermissionNames());
+                    if (i.workflowRole() != null) c.setWorkflowRole(i.workflowRole());
                 },
                 null,
                 cmd -> userDtoMapper.toDto(((EditUserCommand) cmd).getUser()));

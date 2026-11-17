@@ -23,6 +23,7 @@ package com.rreganjr.requel.service.api.dto;
 import java.util.Map;
 import java.util.Set;
 import com.rreganjr.requel.service.api.FromEntityProperty;
+import com.rreganjr.requel.user.WorkflowRole;
 import com.rreganjr.validator.ValidationLimits;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Email;
@@ -55,6 +56,7 @@ public record EditUserInput(
         Boolean editable,
         @FromEntityProperty("roles")
         Set<String> userRoleNames,
-        Map<String, Set<String>> userRolePermissionNames
+        Map<String, Set<String>> userRolePermissionNames,
+        WorkflowRole workflowRole
 ) {
 }

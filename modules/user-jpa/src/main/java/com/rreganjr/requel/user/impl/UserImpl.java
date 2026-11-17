@@ -27,6 +27,8 @@ import java.util.*;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -69,6 +71,7 @@ import com.rreganjr.repository.jpa.EntityProxyInterceptor;
 import com.rreganjr.requel.user.exception.NoSuchRoleForUserException;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
 import com.rreganjr.requel.user.exception.UserEntityException;
+import com.rreganjr.requel.user.WorkflowRole;
 import com.rreganjr.requel.user.JAXBOrganizedEntityPatcher;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.validator.ValidationLimits;
@@ -125,6 +128,7 @@ public class UserImpl implements User, Serializable {
 	private String phoneNumber;
 	private Organization organization;
 	private boolean editable = true;
+	private WorkflowRole workflowRole = WorkflowRole.ANALYST;
 	private Set<UserRole> userRoles;
 	// start at 1 so hibernate recognizes the new
 	// instance as the initial value and not stale.
@@ -388,6 +392,18 @@ public class UserImpl implements User, Serializable {
 		this.editable = editable;
 	}
 
+	@Override
+	@XmlTransient
+	@Enumerated(EnumType.STRING)
+	@Column(name = "workflow_role", nullable = false, length = 30)
+	public WorkflowRole getWorkflowRole() {
+		return workflowRole;
+	}
+
+	public void setWorkflowRole(WorkflowRole workflowRole) {
+		this.workflowRole = workflowRole;
+	}
+
 	@XmlElementWrapper(name = "userRoles", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRef(type = AbstractUserRole.class)
 	// #247: no REFRESH cascade into the roles - a ProjectUserRole's activeProjects fans out
@@ -490,49 +506,6 @@ public class UserImpl implements User, Serializable {
 				throw UserEntityException.exceptionRevokingRole(userRoleType, this, e);
 			}
 		}
-	}
-
-	/**
-	 * Grant a role by its simple name (for REST API convenience)
-	 * @param roleName - Simple name of the role (e.g., "ProductManager")
-	 */
-	public void grantRoleByName(String roleName) {
-		for (Class<? extends UserRole> roleType : AbstractUserRole.getAvailableUserRoles()) {
-			if (roleType.getSimpleName().equals(roleName)) {
-				grantRole(roleType);
-				return;
-			}
-		}
-		throw new IllegalArgumentException("Unknown role: " + roleName);
-	}
-
-	/**
-	 * Get the user's primary role (first role in sorted set)
-	 * @return Primary role or null if none
-	 */
-	@Transient
-	public UserRole getPrimaryRole() {
-		if (userRoles != null && !userRoles.isEmpty()) {
-			return userRoles.iterator().next();
-		}
-		return null;
-	}
-
-	/**
-	 * Check if user has a specific permission through any of their roles
-	 * @param permission Permission to check
-	 * @return true if user has permission
-	 */
-	@Transient
-	public boolean hasPermission(UserRolePermission permission) {
-		if (userRoles != null) {
-			for (UserRole role : userRoles) {
-				if (role.hasUserRolePermission(permission)) {
-					return true;
-				}
-			}
-		}
-		return false;
 	}
 
 	/**
@@ -671,6 +644,7 @@ public class UserImpl implements User, Serializable {
 		setEmailAddress(existingUser.getEmailAddress());
 		setPhoneNumber(existingUser.getPhoneNumber());
 		setEditable(existingUser.isEditable());
+		setWorkflowRole(existingUser.getWorkflowRole());
 		setOrganization(existingUser.getOrganization());
 		setEncryptedPassword(existingUser.getEncryptedPassword());
 		setPasswordSalt(existingUser.getPasswordSalt());
