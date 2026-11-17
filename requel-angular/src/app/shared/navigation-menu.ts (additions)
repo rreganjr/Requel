@@ -1,0 +1,26 @@
+/*
+ * Add these items to the existing navigation menu configuration
+ * in your app's layout/shell component.
+ */
+
+// In the project-level navigation menu, add:
+const requirementMenuItems = [
+  {
+    label: 'Requirements',
+    icon: 'pi pi-list',
+    routerLink: '/projects/{{projectName}}/requirements',
+    roles: ['ProductManager', 'Analyst', 'Engineer', 'TestEngineer']
+  },
+  {
+    label: 'Ideas',
+    icon: 'pi pi-lightbulb',
+    routerLink: '/projects/{{projectName}}/ideas',
+    roles: ['ProductManager', 'Analyst']
+  },
+  {
+    label: 'My Reviews',
+    icon: 'pi pi-inbox',
+    routerLink: '/projects/{{projectName}}/reviews/my-assigned',
+    roles: ['Analyst', 'Engineer', 'TestEngineer']
+  }
+];
