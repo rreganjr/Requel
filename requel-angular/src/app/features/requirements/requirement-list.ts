@@ -203,7 +203,7 @@ export class RequirementListComponent implements OnInit {
     });
   }
 
-  async loadRequirements(): void {
+  async loadRequirements(): Promise<void> {
     this.loading.set(true);
     this.loadError.set(null);
     try {

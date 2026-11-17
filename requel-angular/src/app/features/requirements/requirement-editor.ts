@@ -54,6 +54,9 @@ import { LoadingStateComponent } from '../../shared/loading-state';
 import { ErrorStateComponent } from '../../shared/error-state';
 import { AppFormWizardComponent, AppWizardStepComponent, WizardCommitRequest } from '../../shared/app-form-wizard';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
+import { SelectModule } from 'primeng/select';
+import { DialogModule } from 'primeng/dialog';
+import { AppDataTableComponent } from '../../shared/app-data-table';
 
 const STALE_VERSION_MESSAGE =
   'This requirement was changed elsewhere. Your copy has been refreshed — review the values and continue.';
@@ -67,7 +70,7 @@ const STALE_VERSION_MESSAGE =
             SubmitErrorComponent, UpdateBannerComponent, ConfirmDialogModule,
             AnnotationsSectionComponent, SourcesSectionComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,
-            LoadingStateComponent, ErrorStateComponent],
+            LoadingStateComponent, ErrorStateComponent, SelectModule, DialogModule, AppDataTableComponent],
   providers: [ConfirmationService, DatePipe],
   template: `
     <div class="requirement-editor" data-testid="requirement-editor">
@@ -237,7 +240,7 @@ const STALE_VERSION_MESSAGE =
       }
 
       <!-- Review Dialog -->
-      <p-dialog [visible]="reviewDialogVisible()" (visibleChange)="reviewDialogVisible.set($event)"
+      <p-dialog [visible]="reviewDialogVisible()" (visibleChange)="onReviewDialogVisibleChange($event)"
                 [modal]="true" [focusOnShow]="true" [dismissableMask]="true" [style]="{ width: '40rem' }"
                 [header]="'Review: ' + (reviewDialogDept() ? getDepartmentLabel(reviewDialogDept()!) : '')"
                 appendTo="body" data-testid="req-review-dialog">
@@ -260,7 +263,7 @@ const STALE_VERSION_MESSAGE =
       </p-dialog>
 
       <!-- Compare Dialog -->
-      <p-dialog [visible]="compareDialogVisible()" (visibleChange)="compareDialogVisible.set($event)"
+      <p-dialog [visible]="compareDialogVisible()" (visibleChange)="onCompareDialogVisibleChange($event)"
                 [modal]="true" [focusOnShow]="true" [dismissableMask]="true" [style]="{ width: '50rem' }"
                 header="Compare with Existing Requirements" appendTo="body" data-testid="req-compare-dialog">
         <div class="dialog-body">
@@ -688,8 +691,16 @@ export class RequirementEditorComponent implements OnInit, OnDestroy, DirtyCheck
     this.reviewDialogDept.set(dept);
     const existing = this.requirement()?.reviews?.find(r => r.department === dept);
     this.reviewDialogResult.set(existing?.result ?? 'PASSED');
-    this.reviewDialogComments.set(existing?.comments ?? '');
+    this.reviewDialogComments = existing?.comments ?? '';
     this.reviewDialogVisible.set(true);
+  }
+
+  onReviewDialogVisibleChange(visible: boolean): void {
+    this.reviewDialogVisible.set(visible);
+  }
+
+  onCompareDialogVisibleChange(visible: boolean): void {
+    this.compareDialogVisible.set(visible);
   }
 
   async submitReview(): Promise<void> {
