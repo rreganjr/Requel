@@ -1,0 +1,110 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "One sentence on what the idea is about."
+    },
+    "findings": {
+      "type": "array",
+      "description": "The proposed requirement entities: goals, actors, stories, use cases and glossary terms.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "findingType": {
+            "type": "string",
+            "enum": [
+              "GOAL",
+              "ACTOR",
+              "STORY",
+              "USE_CASE",
+              "GLOSSARY_TERM"
+            ],
+            "description": "The kind of entity proposed."
+          },
+          "severity": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              null
+            ],
+            "description": "Always null: a proposal has no severity."
+          },
+          "confidence": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Model confidence 0.0-1.0 that the idea calls for this entity, or null."
+          },
+          "evidenceReferences": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Exact words from the idea that the proposal comes from. Empty when it is inferred."
+          },
+          "suggestedIssueText": {
+            "type": "string",
+            "description": "The proposed entity's text: its description, or a glossary term's definition."
+          },
+          "suggestedNoteText": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What in the idea led to the proposal, or an assumption flagged as such. Null for none."
+          },
+          "suggestedPositions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Always empty."
+          },
+          "suggestedEntityName": {
+            "type": "string",
+            "description": "The proposed entity's name."
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The other entities this one refers to, each as TYPE:name, naming another proposal in this response or an entity that already exists in the project. A story or use case lists its primary actor first, then its goals."
+          }
+        },
+        "required": [
+          "findingType",
+          "severity",
+          "confidence",
+          "evidenceReferences",
+          "suggestedIssueText",
+          "suggestedNoteText",
+          "suggestedPositions",
+          "suggestedEntityName",
+          "participants"
+        ]
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Open questions and assumptions about the idea as a whole."
+    }
+  },
+  "required": [
+    "summary",
+    "findings",
+    "warnings"
+  ]
+}

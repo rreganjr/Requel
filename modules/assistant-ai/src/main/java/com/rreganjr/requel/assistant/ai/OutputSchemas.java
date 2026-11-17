@@ -43,7 +43,10 @@ final class OutputSchemas {
 			// #265: v2's finding plus the key of the policy that raised it
 			"PolicyReviewOutput:1", "/ai/schemas/policy-review-output.v1.json",
 			// #266: a finding names the two or more entities it is about
-			"CorpusReviewOutput:1", "/ai/schemas/corpus-review-output.v1.json");
+			"CorpusReviewOutput:1", "/ai/schemas/corpus-review-output.v1.json",
+			// a PM's idea decomposed: findings are proposed entities, related through participants
+			IdeaToRequirements.OUTPUT_SCHEMA_NAME + ":" + IdeaToRequirements.OUTPUT_SCHEMA_VERSION,
+			"/ai/schemas/idea-decomposition-output.v1.json");
 
 	private final ObjectMapper objectMapper;
 	private final Map<String, JsonNode> loaded = new ConcurrentHashMap<>();

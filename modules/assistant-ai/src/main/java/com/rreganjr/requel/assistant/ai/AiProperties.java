@@ -40,7 +40,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <li>{@code maxInputTokens} — app-side input budget hint included in the prompt;</li>
  * <li>{@code projectAllowlist} — optional CSV of project ids permitted to use AI;</li>
  * <li>{@code policies.maxComposed} — how many policies one composed pass may carry (#265);</li>
- * <li>{@code decomposition.maxSubGoals} — how many sub-goals one goal decomposition may propose.</li>
+ * <li>{@code decomposition.maxSubGoals} — how many sub-goals one goal decomposition may propose;</li>
+ * <li>{@code idea.maxProposals} — how many entities one idea-to-requirements call may propose.</li>
  * </ul>
  */
 @ConfigurationProperties(prefix = "requel.ai")
@@ -59,12 +60,19 @@ public class AiProperties {
 	/** The goal decomposition ({@code requel.ai.decomposition.*}). */
 	private final Decomposition decomposition = new Decomposition();
 
+	/** The idea-to-requirements call ({@code requel.ai.idea.*}). */
+	private final Idea idea = new Idea();
+
 	public Corpus getCorpus() {
 		return corpus;
 	}
 
 	public Decomposition getDecomposition() {
 		return decomposition;
+	}
+
+	public Idea getIdea() {
+		return idea;
 	}
 
 	/** {@code requel.ai.policies.*} (#265). */
@@ -131,6 +139,24 @@ public class AiProperties {
 
 		public void setMaxSubGoals(int maxSubGoals) {
 			this.maxSubGoals = maxSubGoals;
+		}
+	}
+
+	/** Limits on the idea-to-requirements call. */
+	public static class Idea {
+
+		/**
+		 * The most entities one idea asks the model for, across goals, actors, stories, use cases
+		 * and glossary terms. It bounds the prompt's ask; the reply is parsed and capped later.
+		 */
+		private int maxProposals = 25;
+
+		public int getMaxProposals() {
+			return maxProposals;
+		}
+
+		public void setMaxProposals(int maxProposals) {
+			this.maxProposals = maxProposals;
 		}
 	}
 
