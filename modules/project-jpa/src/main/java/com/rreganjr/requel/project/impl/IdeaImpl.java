@@ -20,128 +20,160 @@
  */
 package com.rreganjr.requel.project.impl;
 
-import java.util.Date;
+import com.rreganjr.platform.User;
+import com.rreganjr.requel.project.*;
+import jakarta.persistence.*;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
+import java.time.Instant;
+import java.util.*;
 
-import com.rreganjr.platform.identity.User;
-import com.rreganjr.requel.project.Idea;
-import com.rreganjr.requel.user.impl.UserImpl;
-
-/**
- * A row of {@code ideas} (Flyway V39). No foreign keys, like {@code ignored_findings}: the
- * project is referred to by id and the project delete path removes its ideas explicitly.
- */
 @Entity
-@Table(name = "ideas", indexes = @Index(name = "idx_ideas_project", columnList = "project_id"))
+@Table(name = "idea", indexes = @Index(name = "idx_idea_project", columnList = "project_id"))
 public class IdeaImpl implements Idea {
 
-	private Long id;
-	private Long projectId;
-	private String text;
-	private String sourceFileName;
-	private Status status = Status.SUBMITTED;
-	private User createdBy;
-	private Date dateCreated;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", unique = true, nullable = false)
+    private Long id;
 
-	public IdeaImpl(Long projectId, String text, String sourceFileName, User createdBy) {
-		this.projectId = projectId;
-		this.text = text;
-		this.sourceFileName = sourceFileName;
-		this.createdBy = createdBy;
-		this.dateCreated = new Date();
-	}
+    @Column(name = "external_id", length = 100)
+    private String externalId;
 
-	protected IdeaImpl() {
-		// for hibernate
-	}
+    @Lob
+    @Column(name = "source_text", nullable = false)
+    private String sourceText;
 
-	@Override
-	@Id
-	@Column(name = "id", unique = true, nullable = false)
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	public Long getId() {
-		return id;
-	}
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private Status status = Status.SUBMITTED;
 
-	protected void setId(Long id) {
-		this.id = id;
-	}
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "project_id", nullable = false)
+    private ProjectImpl project;
 
-	@Override
-	@Column(name = "project_id", nullable = false)
-	public Long getProjectId() {
-		return projectId;
-	}
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "created_by_id", nullable = false)
+    private User createdBy;
 
-	protected void setProjectId(Long projectId) {
-		this.projectId = projectId;
-	}
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
 
-	@Override
-	@Lob
-	@Column(name = "idea_text", nullable = false)
-	public String getText() {
-		return text;
-	}
+    @OneToMany(mappedBy = "idea", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<RequirementImpl> derivedRequirements = new HashSet<>();
 
-	protected void setText(String text) {
-		this.text = text;
-	}
+    @Version
+    private Long version;
 
-	@Override
-	@Column(name = "source_file_name", length = 255)
-	public String getSourceFileName() {
-		return sourceFileName;
-	}
+    protected IdeaImpl() {
+        // for hibernate
+    }
 
-	protected void setSourceFileName(String sourceFileName) {
-		this.sourceFileName = sourceFileName;
-	}
+    public IdeaImpl(String sourceText, ProjectImpl project, User createdBy) {
+        this.sourceText = sourceText;
+        this.project = project;
+        this.createdBy = createdBy;
+        this.createdAt = Instant.now();
+    }
 
-	@Override
-	@Enumerated(EnumType.STRING)
-	@Column(name = "status", nullable = false, length = 20)
-	public Status getStatus() {
-		return status;
-	}
+    @Override
+    public Long getId() {
+        return id;
+    }
 
-	protected void setStatus(Status status) {
-		this.status = status;
-	}
+    protected void setId(Long id) {
+        this.id = id;
+    }
 
-	@Override
-	@ManyToOne(targetEntity = UserImpl.class)
-	@JoinColumn(name = "created_by_id")
-	public User getCreatedBy() {
-		return createdBy;
-	}
+    @Override
+    public String getExternalId() {
+        return externalId;
+    }
 
-	protected void setCreatedBy(User createdBy) {
-		this.createdBy = createdBy;
-	}
+    public void setExternalId(String externalId) {
+        this.externalId = externalId;
+    }
 
-	@Override
-	@Temporal(TemporalType.TIMESTAMP)
-	@Column(name = "date_created")
-	public Date getDateCreated() {
-		return dateCreated;
-	}
+    @Override
+    public String getSourceText() {
+        return sourceText;
+    }
 
-	protected void setDateCreated(Date dateCreated) {
-		this.dateCreated = dateCreated;
-	}
+    protected void setSourceText(String sourceText) {
+        this.sourceText = sourceText;
+    }
+
+    @Override
+    public Status getStatus() {
+        return status;
+    }
+
+    public void setStatus(Status status) {
+        this.status = status;
+    }
+
+    @Override
+    public Set<Requirement> getDerivedRequirements() {
+        return new HashSet<>(derivedRequirements);
+    }
+
+    @Override
+    public String getDescription() {
+        return sourceText;
+    }
+
+    @Override
+    public String getName() {
+        return "Idea " + (externalId != null ? externalId : id);
+    }
+
+    @Override
+    public User getCreatedBy() {
+        return createdBy;
+    }
+
+    protected void setCreatedBy(User createdBy) {
+        this.createdBy = createdBy;
+    }
+
+    @Override
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    protected void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    @Override
+    public Long getVersion() {
+        return version;
+    }
+
+    @Override
+    public Project getProject() {
+        return project;
+    }
+
+    protected void setProject(ProjectImpl project) {
+        this.project = project;
+    }
+
+    @Override
+    public Set<Annotation> getAnnotations() {
+        return new HashSet<>();
+    }
+
+    @Override
+    public int compareTo(ProjectOrDomainEntity o) {
+        return Long.compare(this.id, o.getId());
+    }
+
+    // JPA helper
+    Set<RequirementImpl> getDerivedRequirementsInternal() {
+        return derivedRequirements;
+    }
+
+    void addDerivedRequirement(RequirementImpl requirement) {
+        derivedRequirements.add(requirement);
+    }
 }
