@@ -20,37 +20,35 @@
  */
 package com.rreganjr.requel.project;
 
-import com.rreganjr.platform.CreatedEntity;
-import com.rreganjr.platform.domain.Describable;
-import com.rreganjr.requel.project.ProjectOrDomainEntity;
+import java.util.Date;
 
-import java.util.Set;
+import com.rreganjr.platform.identity.User;
 
 /**
  * A rough requirement idea submitted to a project, as text or as the text of an uploaded file.
  * It starts {@link Status#SUBMITTED}; later work (decomposition, clarification) moves it on.
  */
-public interface Idea extends ProjectOrDomainEntity, CreatedEntity, Describable {
+public interface Idea {
 
-    enum Status {
-        SUBMITTED,
-        CLARIFYING,
-        BREAKDOWN_REVIEW,
-        COMPLETE
-    }
+	enum Status {
+		SUBMITTED, CLARIFYING, BREAKDOWN_REVIEW, COMPLETE
+	}
 
-    /**
-     * @return the idea source text (typed text + extracted file text)
-     */
-    String getSourceText();
+	java.util.Set<Requirement> getDerivedRequirements();
 
-    /**
-     * @return current workflow status
-     */
-    Status getStatus();
+	Long getId();
 
-    /**
-     * @return requirements derived from this idea
-     */
-    Set<Requirement> getDerivedRequirements();
+	Long getProjectId();
+
+	/** The idea text; when a file was uploaded, its text follows the typed text. */
+	String getText();
+
+	/** The name of the uploaded file, or null when the idea was typed only. */
+	String getSourceFileName();
+
+	Status getStatus();
+
+	User getCreatedBy();
+
+	Date getDateCreated();
 }

@@ -70,7 +70,17 @@ public class JpaIdeaStore implements IdeaStore {
 		if (projectId == null) {
 			return 0;
 		}
-		return entityManager.createQuery("delete from IdeaImpl i where i.projectId = :projectId")
-				.setParameter("projectId", projectId).executeUpdate();
+		// Include standalone requirements as well as those linked to an idea.
+		entityManager.createQuery(
+				"select r from RequirementImpl r where r.projectId = :projectId",
+				com.rreganjr.requel.project.impl.RequirementImpl.class)
+				.setParameter("projectId", projectId).getResultList().forEach(entityManager::remove);
+		entityManager.flush();
+		// Remove through JPA so owned collections are cleaned up too.
+		List<IdeaImpl> ideas = entityManager.createQuery(
+				"select i from IdeaImpl i where i.projectId = :projectId", IdeaImpl.class)
+				.setParameter("projectId", projectId).getResultList();
+		ideas.forEach(entityManager::remove);
+		return ideas.size();
 	}
 }

@@ -127,6 +127,7 @@ export class PermissionService {
     if (permissionMap['Requirement']?.includes('Edit')) roles.add('Analyst');
     if (permissionMap['Requirement']?.includes('Grant')) roles.add('ProductManager');
     if (permissionMap['Idea']?.includes('Edit')) roles.add('ProductManager');
+    if (permissionMap['Project']?.includes('Grant')) roles.add('ProductManager');
     if (permissionMap['Goal']?.includes('Edit')) roles.add('Analyst');
     if (permissionMap['Story']?.includes('Edit')) roles.add('Analyst');
     if (permissionMap['UseCase']?.includes('Edit')) roles.add('Engineer');
@@ -148,7 +149,8 @@ export class PermissionService {
   hasPermission(entityType: string, permissionType: string): boolean {
     const perms = this._permissions();
     if (!perms) return false;
-    return perms.permissions[entityType]?.includes(permissionType) ?? false;
+    const permissionEntity = entityType === 'Requirement' || entityType === 'Idea' ? 'Project' : entityType;
+    return perms.permissions[permissionEntity]?.includes(permissionType) ?? false;
   }
 
   /** Shorthand: can the user edit entities of this type? */

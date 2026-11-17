@@ -44,15 +44,15 @@ export class RequirementService {
   }
 
   /** Create a new requirement from an idea (UC-03). */
-  async createRequirement(projectName: string, ideaId: number, shallText: string): Promise<RequirementDto> {
+  async createRequirement(projectName: string, ideaId: number | null, shallText: string, requirementId?: string): Promise<RequirementDto> {
     const params = new HttpParams().set('projectName', projectName);
-    return firstValueFrom(this.http.post<RequirementDto>(this.base, { ideaId, shallText }, { params }));
+    return firstValueFrom(this.http.post<RequirementDto>(this.base, { ideaId, shallText, requirementId }, { params }));
   }
 
   /** Update requirement text (resets reviews per BR-07/08). */
-  async updateRequirement(projectName: string, requirementId: number, shallText: string, version: number): Promise<RequirementDto> {
+  async updateRequirement(projectName: string, requirementId: number, shallText: string, version: number, reference?: string): Promise<RequirementDto> {
     const params = new HttpParams().set('projectName', projectName);
-    return firstValueFrom(this.http.put<RequirementDto>(`${this.base}/${requirementId}`, { shallText, version }, { params }));
+    return firstValueFrom(this.http.put<RequirementDto>(`${this.base}/${requirementId}`, { shallText, version, requirementId: reference }, { params }));
   }
 
   /** Submit a review for a department (UC-06/07/08). */

@@ -388,6 +388,8 @@ export class SidebarNavComponent implements OnInit {
     if (!data) return;
     if (data.type === 'project') {
       this.router.navigate(['/projects', data.name]);
+    } else if (data.type === 'Requirements') {
+      this.router.navigate(['/projects', data.projectName, 'requirements']);
     } else if (data.type === 'Stakeholders') {
       this.router.navigate(['/projects', data.projectName, 'stakeholders']);
     } else if (data.type === 'Goals') {
@@ -423,6 +425,7 @@ export class SidebarNavComponent implements OnInit {
 
   private entityGroups(project: ProjectDto): TreeNode[] {
     const groups: { label: string; type: string; count: number; icon: string }[] = [
+      { label: 'Requirements & reviews', type: 'Requirements', count: -1, icon: 'pi pi-check-square' },
       { label: 'Stakeholders', type: 'Stakeholders', count: project.stakeholderCount, icon: 'pi pi-users' },
       { label: 'Goals', type: 'Goals', count: project.goalCount, icon: 'pi pi-flag' },
       { label: 'Stories', type: 'Stories', count: project.storyCount, icon: 'pi pi-book' },

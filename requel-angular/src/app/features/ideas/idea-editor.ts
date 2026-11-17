@@ -20,7 +20,7 @@
  */
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { NgTemplateOutlet } from '@angular/common';
+import { NgIf, NgTemplateOutlet } from '@angular/common';
 import { DatePipe } from '@angular/common';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
@@ -63,13 +63,13 @@ const STALE_VERSION_MESSAGE =
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-idea-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, RouterLink, ReactiveFormsModule, NgTemplateOutlet,
+  imports: [DatePipe, NgIf, PageHeaderComponent, AppCardComponent, RouterLink, ReactiveFormsModule, NgTemplateOutlet,
             ButtonModule, InputText, TextareaModule, FileUploadModule,
             SubmitErrorComponent, UpdateBannerComponent, ConfirmDialogModule,
             AnnotationsSectionComponent, SourcesSectionComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,
             LoadingStateComponent, ErrorStateComponent, SelectModule, FormsModule, TagModule, AppDataTableComponent],
-  providers: [ConfirmationService, DatePipe],
+  providers: [ConfirmationService],
   template: `
     <div class="idea-editor" data-testid="idea-editor">
       <div class="page-header">
@@ -345,7 +345,7 @@ export class IdeaEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
       this.projectName = params.get('name') ?? '';
       const idParam = params.get('ideaId') ?? '';
-      const newIsNew = idParam === 'new';
+      const newIsNew = this.route.snapshot.routeConfig?.path === 'new' || idParam === 'new';
 
       if (newIsNew) {
         this.isNew.set(true);
@@ -599,7 +599,7 @@ export class IdeaEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   }
 
   onBack(): void {
-    this.router.navigate(['/projects', this.projectName, 'ideas']);
+    this.router.navigate(['/projects', this.projectName]);
   }
 
   getStatusSeverity(status: string): 'success' | 'info' | 'warn' | 'danger' | 'secondary' {

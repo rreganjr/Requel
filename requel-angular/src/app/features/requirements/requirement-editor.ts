@@ -20,7 +20,7 @@
  */
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { NgTemplateOutlet } from '@angular/common';
+import { NgIf, NgTemplateOutlet } from '@angular/common';
 import { DatePipe } from '@angular/common';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
@@ -66,13 +66,13 @@ const STALE_VERSION_MESSAGE =
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-requirement-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, RouterLink, ReactiveFormsModule, NgTemplateOutlet,
+  imports: [DatePipe, NgIf, PageHeaderComponent, AppCardComponent, RouterLink, ReactiveFormsModule, NgTemplateOutlet,
             ButtonModule, InputText, TextareaModule, TagModule, TooltipModule,
             SubmitErrorComponent, UpdateBannerComponent, ConfirmDialogModule,
             AnnotationsSectionComponent, SourcesSectionComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,
             LoadingStateComponent, ErrorStateComponent, SelectModule, DialogModule, AppDataTableComponent, FormsModule],
-  providers: [ConfirmationService, DatePipe],
+  providers: [ConfirmationService],
   template: `
     <div class="requirement-editor" data-testid="requirement-editor">
       <div class="page-header">
@@ -166,7 +166,7 @@ const STALE_VERSION_MESSAGE =
                   Reviewed by {{ getReviewer(dept.value) }} ({{ getReviewerRole(dept.value) }})
                   @if (getReviewedAt(dept.value)) { · {{ getReviewedAt(dept.value) | date:'short' }} }
                 </div>
-                @if (canReviewDept(dept.value) && reqStatus() === 'IN_REVIEW') {
+                @if (canReviewDept(dept.value) && (reqStatus() === 'DRAFT' || reqStatus() === 'IN_REVIEW' || reqStatus() === 'REJECTED')) {
                   <p-button label="Submit Review" icon="pi pi-pencil" size="small"
                             [attr.data-testid]="'req-review-' + dept.value.toLowerCase()"
                             (onClick)="openReviewDialog(dept.value)" />
@@ -317,7 +317,6 @@ const STALE_VERSION_MESSAGE =
           @if (requirement()?.ideaId) {
             <div class="source-info">
               <strong>{{ requirement()?.ideaName ?? 'Idea #' + requirement()?.ideaId }}</strong>
-              <p class="source-text">{{ requirement()?.sourceText }}</p>
               <p-button label="View Idea" icon="pi pi-external-link" size="small" [outlined]="true"
                         (onClick)="navigateToIdea()" />
             </div>
@@ -449,7 +448,7 @@ export class RequirementEditorComponent implements OnInit, OnDestroy, DirtyCheck
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
       this.projectName = params.get('name') ?? '';
       const idParam = params.get('requirementId') ?? '';
-      const newIsNew = idParam === 'new';
+      const newIsNew = this.route.snapshot.routeConfig?.path === 'new' || idParam === 'new';
 
       if (newIsNew) {
         this.isNew.set(true);
@@ -576,13 +575,10 @@ export class RequirementEditorComponent implements OnInit, OnDestroy, DirtyCheck
     this.showError(null);
     try {
       const { requirementId, shallText } = this.detailsForm.getRawValue();
-      const input: Record<string, unknown> = { projectName: this.projectName, shallText };
-      if (requirementId) input['requirementId'] = requirementId;
-      if (this.requirementId != null) input['requirementId'] = this.requirementId;
-      if (this.version != null) input['version'] = this.version;
-
-      const result = await this.commandService.execute('EditRequirement', input);
-      if (!result.success) return result;
+      const entity = this.requirementId == null
+        ? await this.requirementService.createRequirement(this.projectName, null, shallText, requirementId)
+        : await this.requirementService.updateRequirement(this.projectName, this.requirementId, shallText, this.version!, requirementId);
+      const result: CommandResult<RequirementDto> = { success: true, entityType: 'Requirement', entity, error: null, violations: null };
 
       const wasCreate = this.requirementId == null;
       if (wasCreate) this.projectService.notifyTreeChanged();
@@ -600,8 +596,9 @@ export class RequirementEditorComponent implements OnInit, OnDestroy, DirtyCheck
         await this.loadRequirement(false);
       }
       return result;
-    } catch {
-      return { success: false, entityType: 'Requirement', entity: null, error: 'Unexpected error', violations: null };
+    } catch (error: unknown) {
+      const response = error as { status?: number; error?: { message?: string } };
+      return { success: false, entityType: 'Requirement', entity: null, error: response.error?.message ?? 'Could not save requirement.', violations: null, status: response.status };
     } finally {
       this.saving.set(false);
     }
@@ -627,12 +624,13 @@ export class RequirementEditorComponent implements OnInit, OnDestroy, DirtyCheck
     this.confirmationService.confirm({
       message: 'Create a copy of this requirement?',
       accept: async () => {
-        const result = await this.commandService.execute('CopyRequirement', { projectName: this.projectName, requirementId: this.requirementId });
-        if (result.success && result.entity) {
+        try {
+          const source = this.requirement();
+          if (!source) return;
+          const copy = await this.requirementService.createRequirement(this.projectName, source.ideaId, source.shallText);
           this.projectService.notifyTreeChanged();
-          const copy = result.entity as RequirementDto;
           this.router.navigate(['/projects', this.projectName, 'requirements', copy.id]);
-        } else { this.showError(result.error ?? 'Copy failed.'); }
+        } catch { this.showError('Copy failed.'); }
       }
     });
   }
@@ -641,12 +639,13 @@ export class RequirementEditorComponent implements OnInit, OnDestroy, DirtyCheck
     this.confirmationService.confirm({
       message: 'Delete this requirement?',
       accept: async () => {
-        const result = await this.commandService.execute('DeleteRequirement', { projectName: this.projectName, requirementId: this.requirementId, version: this.version });
-        if (result.success) {
+        try {
+          if (this.requirementId == null || this.version == null) return;
+          await this.requirementService.deleteRequirement(this.projectName, this.requirementId, this.version);
           this.projectService.notifyTreeChanged();
           this.detailsForm.markAsPristine();
           this.router.navigate(['/projects', this.projectName, 'requirements']);
-        } else { this.showError(result.error ?? 'Delete failed.'); }
+        } catch { this.showError('Delete failed.'); }
       }
     });
   }

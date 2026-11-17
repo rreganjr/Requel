@@ -45,9 +45,8 @@ import { DestroyRef } from '@angular/core';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-requirement-list',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ButtonModule, SelectModule, FormsModule,
+  imports: [DatePipe, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ButtonModule, SelectModule, FormsModule,
             TagModule, TooltipModule, AppDataTableComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent],
-  providers: [DatePipe],
   template: `
     <div class="requirement-list" data-testid="requirement-list">
       <div class="page-header">

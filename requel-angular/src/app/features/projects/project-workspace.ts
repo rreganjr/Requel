@@ -69,6 +69,12 @@ interface NextAction {
       <div class="ws-header">
         <app-page-header [title]="projectName" eyebrow="Project" />
         <div class="ws-header-actions">
+          <a class="p-button p-button-outlined" [routerLink]="['/projects', projectName, 'requirements']"
+             data-testid="workspace-requirements">Requirements</a>
+          @if (canEditProject()) {
+            <a class="p-button p-button-outlined" [routerLink]="['/projects', projectName, 'ideas', 'new']"
+               data-testid="workspace-submit-idea">Submit idea</a>
+          }
           <a class="p-button p-button-outlined" [routerLink]="['/projects', projectName, 'edit']"
              data-testid="workspace-edit">
             <i class="pi pi-pencil" aria-hidden="true"></i> Edit project
