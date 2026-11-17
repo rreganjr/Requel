@@ -18,6 +18,15 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
+export const WORKFLOW_ROLE_OPTIONS = [
+  { value: 'PRODUCT_MANAGER', label: 'Product Manager' },
+  { value: 'ENGINEER', label: 'Engineer' },
+  { value: 'TEST_ENGINEER', label: 'Test Engineer' },
+  { value: 'ANALYST', label: 'Analyst' },
+] as const;
+
+export type WorkflowRole = typeof WORKFLOW_ROLE_OPTIONS[number]['value'];
+
 export interface UserDto {
   id: number;
   username: string;
@@ -29,6 +38,7 @@ export interface UserDto {
   permissions: string[];
   permissionsByRole: Record<string, string[]> | null;
   version: number;
+  workflowRole?: WorkflowRole;
 }
 
 export interface OrganizationDto {
