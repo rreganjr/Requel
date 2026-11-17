@@ -57,6 +57,7 @@ import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { SelectModule } from 'primeng/select';
 import { DialogModule } from 'primeng/dialog';
 import { AppDataTableComponent } from '../../shared/app-data-table';
+import { FormsModule } from '@angular/forms';
 
 const STALE_VERSION_MESSAGE =
   'This requirement was changed elsewhere. Your copy has been refreshed — review the values and continue.';
@@ -70,7 +71,7 @@ const STALE_VERSION_MESSAGE =
             SubmitErrorComponent, UpdateBannerComponent, ConfirmDialogModule,
             AnnotationsSectionComponent, SourcesSectionComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,
-            LoadingStateComponent, ErrorStateComponent, SelectModule, DialogModule, AppDataTableComponent],
+            LoadingStateComponent, ErrorStateComponent, SelectModule, DialogModule, AppDataTableComponent, FormsModule],
   providers: [ConfirmationService, DatePipe],
   template: `
     <div class="requirement-editor" data-testid="requirement-editor">
@@ -507,7 +508,8 @@ export class RequirementEditorComponent implements OnInit, OnDestroy, DirtyCheck
       const req = await this.requirementService.getRequirement(this.projectName, this.requirementId!);
       this.requirement.set(req);
       this.version = req.version;
-      this.comparisons.set(req.comparisons ?? []);
+      // Comparisons not in current model - using empty array
+      this.comparisons.set([]);
       if (!this.hasUnsavedChanges()) {
         this.requirementName.set(req.requirementId);
         this.detailsForm.reset({ requirementId: req.requirementId, shallText: req.shallText });

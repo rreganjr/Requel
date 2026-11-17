@@ -52,6 +52,9 @@ import { ErrorStateComponent } from '../../shared/error-state';
 import { AppFormWizardComponent, AppWizardStepComponent, WizardCommitRequest } from '../../shared/app-form-wizard';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { SelectModule } from 'primeng/select';
+import { FormsModule } from '@angular/forms';
+import { TagModule } from 'primeng/tag';
+import { AppDataTableComponent } from '../../shared/app-data-table';
 
 const STALE_VERSION_MESSAGE =
   'This idea was changed elsewhere. Your copy has been refreshed — review the values and continue.';
@@ -65,7 +68,7 @@ const STALE_VERSION_MESSAGE =
             SubmitErrorComponent, UpdateBannerComponent, ConfirmDialogModule,
             AnnotationsSectionComponent, SourcesSectionComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,
-            LoadingStateComponent, ErrorStateComponent, SelectModule],
+            LoadingStateComponent, ErrorStateComponent, SelectModule, FormsModule, TagModule, AppDataTableComponent],
   providers: [ConfirmationService, DatePipe],
   template: `
     <div class="idea-editor" data-testid="idea-editor">
@@ -398,7 +401,8 @@ export class IdeaEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       const idea = await this.requirementService.getIdea(this.projectName, this.ideaId!);
       this.idea.set(idea);
       this.version = idea.version;
-      this.clarifications.set(idea.clarifications ?? []);
+      // Clarifications are not in the current IdeaDto model - using empty array
+      this.clarifications.set([]);
       this.derivedRequirements.set(idea.derivedRequirements ?? []);
       if (!this.hasUnsavedChanges()) {
         this.ideaName.set(idea.externalId ?? 'Idea #' + idea.id);
@@ -456,22 +460,20 @@ export class IdeaEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     try {
       const { sourceText } = this.detailsForm.getRawValue();
       const file = this.selectedFile();
-      let result: CommandResult<unknown>;
+      let savedIdea: IdeaDto;
       if (file) {
-        result = await this.requirementService.submitIdea(this.projectName, sourceText, file);
+        savedIdea = await this.requirementService.submitIdea(this.projectName, sourceText, file);
       } else {
-        result = await this.requirementService.submitIdea(this.projectName, sourceText);
+        savedIdea = await this.requirementService.submitIdea(this.projectName, sourceText);
       }
-      if (!result.success) return result;
 
       const wasCreate = this.ideaId == null;
       if (wasCreate) this.projectService.notifyTreeChanged();
 
-      const saved = result.entity as IdeaDto | null;
-      if (saved) {
-        this.ideaId = saved.id;
-        this.version = saved.version;
-        this.ideaName.set(saved.externalId ?? 'Idea #' + saved.id);
+      if (savedIdea) {
+        this.ideaId = savedIdea.id;
+        this.version = savedIdea.version;
+        this.ideaName.set(savedIdea.externalId ?? 'Idea #' + savedIdea.id);
       }
       this.detailsForm.markAsPristine();
       this.selectedFile.set(null);
@@ -480,9 +482,9 @@ export class IdeaEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       if (wasCreate && this.ideaId != null) {
         await this.loadIdea(false);
       }
-      return result;
-    } catch {
-      return { success: false, entityType: 'Idea', entity: null, error: 'Unexpected error', violations: null };
+      return { success: true, entityType: 'Idea', entity: savedIdea, error: null, violations: null };
+    } catch (e: any) {
+      return { success: false, entityType: 'Idea', entity: null, error: e.error?.message ?? 'Unexpected error', violations: null };
     } finally {
       this.saving.set(false);
     }
