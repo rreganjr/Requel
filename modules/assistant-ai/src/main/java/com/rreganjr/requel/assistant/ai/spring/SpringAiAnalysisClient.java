@@ -135,6 +135,8 @@ public class SpringAiAnalysisClient implements AiAnalysisClient {
 		Objects.requireNonNull(request, "request");
 		DataHandlingGuard.requireAllowed(request, locality);
 		Instant startedAt = clock.instant();
+		log.info("spring-ai request starting for run {} (task {}, provider {}, model {})",
+				request.runId(), request.taskType(), properties.getProvider(), properties.getModel());
 
 		ReviewResult result;
 		ChatResponse chatResponse;
@@ -157,6 +159,8 @@ public class SpringAiAnalysisClient implements AiAnalysisClient {
 
 		ReviewResultMapper.validate(result);
 		Duration latency = Duration.between(startedAt, clock.instant());
+		log.info("spring-ai reply for run {} received after {} ms", request.runId(),
+				latency.toMillis());
 		if (log.isDebugEnabled()) {
 			log.debug("spring-ai structured output for run {} ({} findings)", request.runId(),
 					result.findings() == null ? 0 : result.findings().size());
