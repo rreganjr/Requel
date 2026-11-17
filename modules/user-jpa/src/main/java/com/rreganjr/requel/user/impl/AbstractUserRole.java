@@ -259,4 +259,52 @@ private Set<JpaUserRolePermission> userRolePermissions = new HashSet<>();
 	public static Set<Class<? extends UserRole>> getAvailableUserRoles() {
 		return Collections.unmodifiableSet(userRoleTypes);
 	}
+
+	// Concrete role implementations as static nested classes
+	public static class ProductManagerRole extends AbstractUserRole {
+		static {
+			userRoleTypes.add(ProductManagerRole.class);
+			Set<UserRolePermission> perms = new HashSet<>();
+			perms.add(UserRolePermission.REVIEW_REQUIREMENT);
+			perms.add(UserRolePermission.APPROVE_REQUIREMENT);
+			perms.add(UserRolePermission.CREATE_REQUIREMENT);
+			perms.add(UserRolePermission.EDIT_REQUIREMENT);
+			userRoleTypePermissions.put(ProductManagerRole.class, Collections.unmodifiableSet(perms));
+		}
+	}
+
+	public static class EngineerRole extends AbstractUserRole {
+		static {
+			userRoleTypes.add(EngineerRole.class);
+			Set<UserRolePermission> perms = new HashSet<>();
+			perms.add(UserRolePermission.REVIEW_REQUIREMENT);
+			perms.add(UserRolePermission.IMPLEMENT_REQUIREMENT);
+			perms.add(UserRolePermission.CREATE_TECHNICAL_SPEC);
+			userRoleTypePermissions.put(EngineerRole.class, Collections.unmodifiableSet(perms));
+		}
+	}
+
+	public static class TestEngineerRole extends AbstractUserRole {
+		static {
+			userRoleTypes.add(TestEngineerRole.class);
+			Set<UserRolePermission> perms = new HashSet<>();
+			perms.add(UserRolePermission.REVIEW_REQUIREMENT);
+			perms.add(UserRolePermission.CREATE_TEST_CASE);
+			perms.add(UserRolePermission.EXECUTE_TEST);
+			perms.add(UserRolePermission.REPORT_DEFECT);
+			userRoleTypePermissions.put(TestEngineerRole.class, Collections.unmodifiableSet(perms));
+		}
+	}
+
+	public static class AnalystRole extends AbstractUserRole {
+		static {
+			userRoleTypes.add(AnalystRole.class);
+			Set<UserRolePermission> perms = new HashSet<>();
+			perms.add(UserRolePermission.REVIEW_REQUIREMENT);
+			perms.add(UserRolePermission.ANALYZE_REQUIREMENT);
+			perms.add(UserRolePermission.CREATE_USE_CASE);
+			perms.add(UserRolePermission.TRACE_REQUIREMENT);
+			userRoleTypePermissions.put(AnalystRole.class, Collections.unmodifiableSet(perms));
+		}
+	}
 }

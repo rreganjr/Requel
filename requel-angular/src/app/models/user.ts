@@ -18,15 +18,6 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-export const WORKFLOW_ROLE_OPTIONS = [
-  { value: 'PRODUCT_MANAGER', label: 'Product Manager' },
-  { value: 'ENGINEER', label: 'Engineer' },
-  { value: 'TEST_ENGINEER', label: 'Test Engineer' },
-  { value: 'ANALYST', label: 'Analyst' },
-] as const;
-
-export type WorkflowRole = typeof WORKFLOW_ROLE_OPTIONS[number]['value'];
-
 export interface UserDto {
   id: number;
   username: string;
@@ -38,7 +29,8 @@ export interface UserDto {
   permissions: string[];
   permissionsByRole: Record<string, string[]> | null;
   version: number;
-  workflowRole?: WorkflowRole;
+  // Primary role for UI display and quick authorization checks
+  primaryRole?: string;
 }
 
 export interface OrganizationDto {
@@ -55,3 +47,13 @@ export interface LoginResponse {
   token: string;
   user: UserDto;
 }
+
+// Role constants for frontend use
+export const USER_ROLES = {
+  PRODUCT_MANAGER: 'PRODUCT_MANAGER',
+  ENGINEER: 'ENGINEER',
+  TEST_ENGINEER: 'TEST_ENGINEER',
+  ANALYST: 'ANALYST'
+} as const;
+
+export type UserRoleType = typeof USER_ROLES[keyof typeof USER_ROLES];

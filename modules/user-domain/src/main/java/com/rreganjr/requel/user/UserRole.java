@@ -80,4 +80,10 @@ public interface UserRole extends com.rreganjr.platform.identity.Role {
 			return (o instanceof UserRoleComparator);
 		}
 	}
+
+	// Standard system roles
+	public static final String PRODUCT_MANAGER = "ProductManager";
+	public static final String ENGINEER = "Engineer";
+	public static final String TEST_ENGINEER = "TestEngineer";
+	public static final String ANALYST = "Analyst";
 }
