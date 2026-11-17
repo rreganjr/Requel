@@ -36,8 +36,8 @@ import com.rreganjr.requel.assistant.api.AssistantException;
 /**
  * The agent call of the idea-to-requirements feature: sends a product manager's free-text idea,
  * with the names the project already has, to the configured AI provider under the
- * {@link IdeaToRequirements} prompt, and returns the raw {@link AiAnalysisResponse}. It does not
- * parse or validate the proposals; a later step maps the findings to drafts.
+ * {@link IdeaToRequirements} prompt. {@link #analyze} returns the raw {@link AiAnalysisResponse};
+ * {@link #draft} also parses and validates it into {@link IdeaRequirementsDrafts}.
  *
  * <p>
  * It reuses {@link DefinitionExecutorAssistant} for the skip gating (task type, enabled flag,
@@ -147,6 +147,23 @@ public class IdeaToRequirementsService {
 					e);
 			throw new AssistantException("AI idea analysis failed: " + e.getMessage(), e);
 		}
+	}
+
+	/**
+	 * Send {@code idea} to the provider and turn the reply into validated drafts. A call that
+	 * was skipped returns drafts with {@code skippedReason} set. A bad proposal never fails the
+	 * call: it is dropped and listed in the result's problems.
+	 *
+	 * @throws AssistantException as {@link #analyze} does
+	 */
+	public IdeaRequirementsDrafts draft(AssistantContext context, Idea idea)
+			throws AssistantException {
+		Outcome outcome = analyze(context, idea);
+		if (outcome.skipped()) {
+			return IdeaRequirementsDrafts.skipped(outcome.skippedReason());
+		}
+		int max = Math.max(1, runtime.aiProperties.getIdea().getMaxProposals());
+		return IdeaRequirementsParser.parse(outcome.response(), idea, max);
 	}
 
 	/** The idea as sent: the text stripped, and the name lists cleaned and capped. */
