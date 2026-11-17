@@ -39,7 +39,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * {@code spring.ai.openai.chat.options.model};</li>
  * <li>{@code maxInputTokens} — app-side input budget hint included in the prompt;</li>
  * <li>{@code projectAllowlist} — optional CSV of project ids permitted to use AI;</li>
- * <li>{@code policies.maxComposed} — how many policies one composed pass may carry (#265).</li>
+ * <li>{@code policies.maxComposed} — how many policies one composed pass may carry (#265);</li>
+ * <li>{@code decomposition.maxSubGoals} — how many sub-goals one goal decomposition may propose.</li>
  * </ul>
  */
 @ConfigurationProperties(prefix = "requel.ai")
@@ -55,8 +56,15 @@ public class AiProperties {
 	/** #266: the corpus analysis ({@code requel.ai.corpus.*}). */
 	private final Corpus corpus = new Corpus();
 
+	/** The goal decomposition ({@code requel.ai.decomposition.*}). */
+	private final Decomposition decomposition = new Decomposition();
+
 	public Corpus getCorpus() {
 		return corpus;
+	}
+
+	public Decomposition getDecomposition() {
+		return decomposition;
 	}
 
 	/** {@code requel.ai.policies.*} (#265). */
@@ -105,6 +113,24 @@ public class AiProperties {
 
 		public void setCandidateOverlapThreshold(double candidateOverlapThreshold) {
 			this.candidateOverlapThreshold = candidateOverlapThreshold;
+		}
+	}
+
+	/** Limits on the goal decomposition. */
+	public static class Decomposition {
+
+		/**
+		 * The most sub-goals one decomposition asks for and keeps. Proposals past it are dropped,
+		 * so a model that ignores the prompt can't flood the user with proposals.
+		 */
+		private int maxSubGoals = 7;
+
+		public int getMaxSubGoals() {
+			return maxSubGoals;
+		}
+
+		public void setMaxSubGoals(int maxSubGoals) {
+			this.maxSubGoals = maxSubGoals;
 		}
 	}
 
