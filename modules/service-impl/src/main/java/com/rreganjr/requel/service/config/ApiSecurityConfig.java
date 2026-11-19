@@ -28,6 +28,8 @@ import com.rreganjr.requel.service.auth.UserDtoMapper;
 import com.rreganjr.requel.user.UserRepository;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
+import org.springframework.boot.actuate.health.HealthEndpoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -82,7 +84,8 @@ public class ApiSecurityConfig {
     // (Slice 2, #390), so it must have a HIGHER order number (lower precedence) than that chain.
     // Chain layering:
     //   1 = AS endpoints, 2 = interactive login/consent, 3 = /api/mcp/** + /api/gateway/** resource
-    //   server (OAuth tokens as well as PATs and login JWTs), 4 = this /api/** JWT chain.
+    //   server (OAuth tokens as well as PATs and login JWTs), 4 = this /api/** JWT chain,
+    //   5 = Actuator endpoints (#449), last = FallbackSecurityConfig (#449).
     @Bean
     @Order(4)
     public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
@@ -111,14 +114,50 @@ public class ApiSecurityConfig {
             )
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
-            .addFilterBefore(new JwtAuthenticationFilter(jwtService, apiTokenRepository,
-                    userRepository, userDtoMapper),
-                    UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
             // #381: after authentication, before the authorization rules above.
             .addFilterBefore(new PasswordChangeRequiredFilter(), AuthorizationFilter.class)
             .anonymous(AbstractHttpConfigurer::disable);
 
         return http.build();
+    }
+
+    /**
+     * #449: the Actuator endpoints. Before this chain nothing matched {@code /actuator/**}, so every
+     * exposed endpoint answered anonymous callers. {@code health} stays anonymous (CI and the
+     * container smoke test poll it; its details show only to a system admin, see
+     * {@code management.endpoint.health.*}); every other endpoint, now {@code info} and
+     * {@code metrics} and anything an operator exposes later, needs {@code SystemAdminUserRole},
+     * authenticated by the same login JWT or personal access token as {@code /api/admin/**}.
+     * <p>
+     * {@code @Order(5)}: its matcher doesn't overlap the earlier chains'. No
+     * {@link PasswordChangeRequiredFilter} here: a caller who must change their password holds only
+     * that authority, so the role check already refuses them, and health stays reachable.
+     */
+    @Bean
+    @Order(5)
+    public SecurityFilterChain managementSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .securityMatcher(EndpointRequest.toAnyEndpoint())
+            .csrf(AbstractHttpConfigurer::disable)
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(EndpointRequest.to(HealthEndpoint.class)).permitAll()
+                .anyRequest().hasRole("SystemAdminUserRole"))
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    /**
+     * A new filter per chain. Deliberately not a {@code @Bean}: Spring Boot registers every
+     * {@code Filter} bean with the servlet container, which would run it on every request outside
+     * the security chains too.
+     */
+    private JwtAuthenticationFilter jwtAuthenticationFilter() {
+        return new JwtAuthenticationFilter(jwtService, apiTokenRepository, userRepository, userDtoMapper);
     }
 
     @Bean

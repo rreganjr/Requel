@@ -173,6 +173,22 @@ Requel first, and registration is off by default. Turn on one of:
 Either way, registered clients get loopback-only redirects, PKCE, a consent screen and the `mcp`
 scope. If a client can't do any of this, give it a PAT.
 
+## Monitoring
+
+Requel serves Spring Boot's Actuator endpoints under `/actuator`:
+
+- `GET /actuator/health` is open to anyone, for load balancers and container health checks. It
+  answers `{"status":"UP"}`; a system admin also sees the database and disk details.
+- `GET /actuator/info` (version, git commit, build time, Java and OS) and `GET /actuator/metrics`
+  (JVM memory and GC, request latency, database pool, threads) need a system admin, signed in or
+  with an admin PAT as a bearer token.
+- Prometheus isn't bundled. To add it, rebuild with the `micrometer-registry-prometheus`
+  dependency, add `prometheus` to `management.endpoints.web.exposure.include`, and have Prometheus
+  send an admin PAT as a bearer token.
+
+Any signed-in user can see which version a server is running with `requel-cli server-info`, or the
+`getServerInfo` MCP tool.
+
 ## Configuration reference
 
 Set these as environment variables (shown) or as `--property=value` arguments.

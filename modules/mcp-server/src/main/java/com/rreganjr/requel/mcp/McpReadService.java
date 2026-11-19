@@ -100,6 +100,9 @@ public class McpReadService {
 
 	public Map<String, Object> listTools() {
 		List<McpToolDescriptor> tools = new ArrayList<>(List.of(
+				new McpToolDescriptor("getServerInfo", QueryDescriptions.GET_SERVER_INFO,
+						Map.of("type", "object", "properties", Map.of(), "additionalProperties",
+								false)),
 				new McpToolDescriptor("listProjects", QueryDescriptions.LIST_PROJECTS,
 						Map.of("type", "object", "properties", Map.of(), "additionalProperties",
 								false)),
@@ -163,6 +166,7 @@ public class McpReadService {
 					"isError", false);
 		}
 		Object result = switch (name) {
+			case "getServerInfo" -> projectQueryGateway.getServerInfo();
 			case "listProjects" -> projectQueryGateway.listProjects();
 			case "getProject" -> projectQueryGateway.getProject(requiredText(arguments,
 					"projectName"));

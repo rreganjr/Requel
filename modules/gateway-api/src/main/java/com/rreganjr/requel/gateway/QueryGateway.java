@@ -33,6 +33,7 @@ import com.rreganjr.requel.service.api.dto.ExternalSourceDto;
 import com.rreganjr.requel.service.api.dto.ProjectContentDto;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
+import com.rreganjr.requel.service.api.dto.ServerInfoDto;
 import com.rreganjr.requel.service.api.dto.SourceEntitiesDto;
 
 /**
@@ -156,5 +157,10 @@ public interface QueryGateway {
             long entityId) {
         throw new UnsupportedOperationException(
                 "getEntitySources is not supported by this gateway");
+    }
+
+    /** Issue #449: the version (and commit and build time) of the Requel server answering. */
+    default ServerInfoDto getServerInfo() {
+        throw new UnsupportedOperationException("getServerInfo is not supported by this gateway");
     }
 }

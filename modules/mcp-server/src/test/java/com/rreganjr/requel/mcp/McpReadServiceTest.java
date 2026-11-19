@@ -75,6 +75,29 @@ class McpReadServiceTest {
 		assertThat(response.get("isError")).isEqualTo(false);
 	}
 
+	/** Issue #449. */
+	@Test
+	void callsServerInfoTool() {
+		Map<String, Object> response = service.callTool(json("""
+				{ "name": "getServerInfo", "arguments": {} }
+				"""));
+
+		JsonNode content = objectMapper.valueToTree(response.get("content"));
+		assertThat(content.get(0).path("text").asText()).contains("\"version\" : \"2.2.0\"")
+				.contains("\"commit\" : \"8f67ab9\"");
+		assertThat(response.get("isError")).isEqualTo(false);
+	}
+
+	/** Issue #449: offered with no arguments and the shared description. */
+	@Test
+	@SuppressWarnings("unchecked")
+	void serverInfoToolIsListed() {
+		McpToolDescriptor tool = ((List<McpToolDescriptor>) service.listTools().get("tools")).stream()
+				.filter(t -> "getServerInfo".equals(t.name())).findFirst().orElseThrow();
+		assertThat(tool.description()).isEqualTo(QueryDescriptions.GET_SERVER_INFO);
+		assertThat(objectMapper.valueToTree(tool.inputSchema()).path("properties").size()).isZero();
+	}
+
 	@Test
 	void callsOpenIssuesTool() {
 		Map<String, Object> response = service.callTool(json("""

@@ -112,6 +112,11 @@ import java.util.function.Consumer;
  *       ({@code McpResourceServerConfig}; the gateway since #390, for {@code requel-cli login --oauth}).</li>
  *   <li>{@code @Order(4)} — the existing stateless JWT chain on {@code /api/**}
  *       ({@code ApiSecurityConfig}).</li>
+ *   <li>{@code @Order(5)} — the Actuator endpoints: health anonymous, the rest for a system admin
+ *       ({@code ApiSecurityConfig#managementSecurityFilterChain}, #449).</li>
+ *   <li>Last — the fallback for anything no chain above matches: GET and HEAD (the SPA and static
+ *       files) and forward/error dispatches allowed, every other method refused
+ *       ({@code FallbackSecurityConfig}, #449).</li>
  * </ol>
  * The AS and login chains use sessions + CSRF (defaults) for the browser flow; the {@code /api/**}
  * chain stays stateless. Session policy and CSRF are per-chain, so they do not interfere.

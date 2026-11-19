@@ -50,6 +50,11 @@ public final class QueryDescriptions {
 
     // ---- tools / commands ----------------------------------------------------------------------
 
+    public static final String GET_SERVER_INFO = "Reports which build of Requel this server is"
+            + " running: its version, the short git commit it was built from, that commit's time"
+            + " and the build time. Commit and times are absent when the build didn't record them."
+            + " Takes no arguments.";
+
     public static final String LIST_PROJECTS = "Lists the projects you can read, sorted by name:"
             + " every project for a system administrator, otherwise the projects you are a"
             + " stakeholder on. Each entry has the project's description, status, organization and"

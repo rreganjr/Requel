@@ -23,6 +23,7 @@ package com.rreganjr.requel.gateway.rest;
 import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.gateway.ProjectContentTooLargeException;
 import com.rreganjr.requel.gateway.QueryGateway;
+import com.rreganjr.requel.service.api.dto.ServerInfoDto;
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
@@ -59,6 +60,12 @@ public class RestQueryGateway implements QueryGateway {
     /** For tests: inject a preconfigured (e.g. MockRestServiceServer-bound) client. */
     RestQueryGateway(RestClient http) {
         this.http = http;
+    }
+
+    /** Issue #449. */
+    @Override
+    public ServerInfoDto getServerInfo() {
+        return http.get().uri(BASE + "/server-info").retrieve().body(ServerInfoDto.class);
     }
 
     @Override

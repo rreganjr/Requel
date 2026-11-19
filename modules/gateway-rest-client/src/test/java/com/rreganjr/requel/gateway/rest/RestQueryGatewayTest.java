@@ -32,6 +32,7 @@ import java.util.Map;
 import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.gateway.ProjectContentTooLargeException;
 import com.rreganjr.requel.service.api.dto.ProjectContentDto;
+import com.rreganjr.requel.service.api.dto.ServerInfoDto;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -61,6 +62,22 @@ class RestQueryGatewayTest {
         List<?> projects = f.gateway().listProjects();
 
         assertThat(projects).isEmpty();
+        f.server().verify();
+    }
+
+    /** Issue #449. */
+    @Test
+    void getServerInfoCallsGatewayEndpoint() {
+        Fixture f = newFixture();
+        f.server().expect(requestTo("/api/gateway/query/server-info"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"version\":\"2.2.0\",\"commit\":\"8f67ab9\","
+                        + "\"commitTime\":null,\"buildTime\":\"2026-11-18T23:00:00Z\"}",
+                        MediaType.APPLICATION_JSON));
+
+        ServerInfoDto info = f.gateway().getServerInfo();
+
+        assertThat(info).isEqualTo(new ServerInfoDto("2.2.0", "8f67ab9", null, "2026-11-18T23:00:00Z"));
         f.server().verify();
     }
 

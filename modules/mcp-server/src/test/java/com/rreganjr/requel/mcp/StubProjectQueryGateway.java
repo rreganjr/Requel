@@ -25,6 +25,7 @@ import java.util.Map;
 
 import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.gateway.QueryGateway;
+import com.rreganjr.requel.service.api.dto.ServerInfoDto;
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
@@ -34,6 +35,11 @@ import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
 
 class StubProjectQueryGateway implements QueryGateway {
+
+	@Override
+	public ServerInfoDto getServerInfo() {
+		return new ServerInfoDto("2.2.0", "8f67ab9", null, null);
+	}
 
 	@Override
 	public List<ProjectDto> listProjects() {
