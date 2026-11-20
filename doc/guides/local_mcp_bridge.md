@@ -197,6 +197,7 @@ the same dispatch path, not a second write path.
 
 ### Read tools (reuse existing)
 
+`requel.getServerInfo` (the server's version, commit and build time, #449),
 `requel.listProjects`, `requel.getProject`, `requel.getProjectContext`,
 `requel.getProjectContent` (the whole project's content in one call, #274), `requel.getProjectTree`,
 `requel.getEntity`, `requel.getEntityNeighbors`, `requel.getAnnotations`,

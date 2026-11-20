@@ -44,6 +44,7 @@ import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
 import com.rreganjr.requel.service.api.dto.ScenarioDto;
+import com.rreganjr.requel.service.api.dto.ServerInfoDto;
 import com.rreganjr.requel.service.api.dto.StepDto;
 import com.rreganjr.requel.service.api.dto.StoryDto;
 import com.rreganjr.requel.service.api.dto.UseCaseDto;
@@ -62,11 +63,20 @@ public class InProcessQueryGateway implements QueryGateway {
 
 	private final ProjectQueryController projectQueryController;
 	private final AnnotationQueryController annotationQueryController;
+	private final ServerInfoService serverInfoService;
 
 	public InProcessQueryGateway(ProjectQueryController projectQueryController,
-			AnnotationQueryController annotationQueryController) {
+			AnnotationQueryController annotationQueryController,
+			ServerInfoService serverInfoService) {
 		this.projectQueryController = projectQueryController;
 		this.annotationQueryController = annotationQueryController;
+		this.serverInfoService = serverInfoService;
+	}
+
+	/** Issue #449: open to any signed-in caller; the gateway chains already require one. */
+	@Override
+	public ServerInfoDto getServerInfo() {
+		return serverInfoService.current();
 	}
 
 	@Override

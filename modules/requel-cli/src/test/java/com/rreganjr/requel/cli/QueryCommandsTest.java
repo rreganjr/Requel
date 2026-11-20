@@ -35,6 +35,7 @@ import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.api.dto.ProjectContentDto;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
+import com.rreganjr.requel.service.api.dto.ServerInfoDto;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -91,7 +92,8 @@ class QueryCommandsTest {
     void readCommandUsageRenders() {
         for (Object command : List.of(new ProjectsCommand(), new ProjectCommand(),
                 new GlossaryCommand(), new OpenIssuesCommand(), new EntityCommand(),
-                new SearchCommand(), new ContextCommand(), new ContentCommand())) {
+                new SearchCommand(), new ContextCommand(), new ContentCommand(),
+                new ServerInfoCommand())) {
             assertThat(new CommandLine(command).getUsageMessage()).isNotBlank();
         }
     }
@@ -130,6 +132,57 @@ class QueryCommandsTest {
 
         String out = capture(() -> assertThat(cmd.call()).isEqualTo(ExitCode.SUCCESS));
         assertThat(out.trim()).startsWith("[").contains("\"name\" : \"Demo\"");
+    }
+
+    /** Issue #449. */
+    @Test
+    void serverInfoShowsVersionCommitAndBuildTime() {
+        QueryGateway gw = mock(QueryGateway.class);
+        when(gw.getServerInfo()).thenReturn(new ServerInfoDto("2.2.0", "8f67ab9",
+                "2026-11-18T22:00:00Z", "2026-11-18T23:00:00Z"));
+        ServerInfoCommand cmd = new ServerInfoCommand();
+        cmd.parent = parent(OutputFormat.TEXT);
+        cmd.queryOverride = gw;
+
+        String out = capture(() -> assertThat(cmd.call()).isEqualTo(ExitCode.SUCCESS));
+        assertThat(out).contains("version: 2.2.0")
+                .contains("commit:  8f67ab9 (2026-11-18T22:00:00Z)")
+                .contains("built:   2026-11-18T23:00:00Z");
+    }
+
+    /** Issue #449: a build without git or build-info shows the version only. */
+    @Test
+    void serverInfoWithoutBuildFilesShowsTheVersionOnly() {
+        QueryGateway gw = mock(QueryGateway.class);
+        when(gw.getServerInfo()).thenReturn(new ServerInfoDto("unknown", null, null, null));
+        ServerInfoCommand cmd = new ServerInfoCommand();
+        cmd.parent = parent(OutputFormat.TEXT);
+        cmd.queryOverride = gw;
+
+        String out = capture(() -> assertThat(cmd.call()).isEqualTo(ExitCode.SUCCESS));
+        assertThat(out.trim()).isEqualTo("version: unknown");
+    }
+
+    /** Issue #449. */
+    @Test
+    void serverInfoAsJson() {
+        QueryGateway gw = mock(QueryGateway.class);
+        when(gw.getServerInfo()).thenReturn(new ServerInfoDto("2.2.0", "8f67ab9", null, null));
+        ServerInfoCommand cmd = new ServerInfoCommand();
+        cmd.parent = parent(OutputFormat.JSON);
+        cmd.queryOverride = gw;
+
+        String out = capture(() -> assertThat(cmd.call()).isEqualTo(ExitCode.SUCCESS));
+        assertThat(out).contains("\"version\" : \"2.2.0\"").contains("\"commit\" : \"8f67ab9\"");
+    }
+
+    /** Issue #449: registered on the root command, with the shared description. */
+    @Test
+    void serverInfoIsASubcommandWithTheSharedDescription() {
+        CommandLine root = new CommandLine(new RequelCli());
+        assertThat(root.getSubcommands()).containsKey("server-info");
+        assertThat(root.getSubcommands().get("server-info").getCommandSpec().usageMessage()
+                .description()).containsExactly(QueryDescriptions.GET_SERVER_INFO);
     }
 
     @Test

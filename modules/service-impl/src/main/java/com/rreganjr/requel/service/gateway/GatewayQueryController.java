@@ -22,6 +22,7 @@ package com.rreganjr.requel.service.gateway;
 
 import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.gateway.QueryGateway;
+import com.rreganjr.requel.service.api.dto.ServerInfoDto;
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
@@ -55,6 +56,12 @@ public class GatewayQueryController {
 
     public GatewayQueryController(QueryGateway queryGateway) {
         this.queryGateway = queryGateway;
+    }
+
+    /** Issue #449: the server's version, commit and build time. */
+    @GetMapping("/server-info")
+    public ServerInfoDto getServerInfo() {
+        return queryGateway.getServerInfo();
     }
 
     @GetMapping("/projects")
