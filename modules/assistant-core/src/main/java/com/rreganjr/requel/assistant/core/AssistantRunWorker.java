@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,6 +85,15 @@ import com.rreganjr.requel.project.TargetFingerprint;
  * A {@link StagedAssistant} now only <em>prepares</em> its call inside the analyze transaction;
  * the call itself is made after that transaction commits and before apply begins, with no
  * transaction open.
+ * <p>
+ * Issue #495: the apply phase is retried. Runs on different entities share rows (positions are
+ * shared by text within a project), so two runs offering the same position collide on its version,
+ * and a delete of the target can deadlock against the run's inserts. Inside the apply transaction
+ * the command handler doesn't retry (#247), so a lost race used to fail the whole run and lose its
+ * findings. Now a {@linkplain RetryableApplyFailure retryable} failure re-runs the apply phase, up
+ * to {@value #APPLY_ATTEMPTS} attempts with a short random pause: each attempt is a fresh
+ * transaction that takes the project lock again, re-checks the target (skipping the run if it is
+ * gone) and re-reads what it writes. The analysis and any model calls are never repeated.
  */
 @Component
 public class AssistantRunWorker {
@@ -100,6 +110,18 @@ public class AssistantRunWorker {
 	/** #263: result metadata, other assistant ids whose findings on the target this run retires. */
 	public static final String RETIRES_ASSISTANTS = "retiresAssistants";
 
+	/** #495: attempts at the apply phase, the same as {@code RetryOnLockFailuresCommandHandler}. */
+	static final int APPLY_ATTEMPTS = 3;
+
+	/** #495: how a retry pauses; replaced by tests so they don't sleep. */
+	interface ApplyBackoff {
+		void pause(int attempt) throws InterruptedException;
+	}
+
+	/** 50-200 ms, longer for each attempt, so two colliding runs don't collide again in step. */
+	static final ApplyBackoff RANDOM_PAUSE = attempt ->
+			Thread.sleep(ThreadLocalRandom.current().nextLong(50L * attempt, 100L * attempt + 101L));
+
 	private final AssistantRunStore runStore;
 	private final AssistantRegistry assistantRegistry;
 	private final AssistantResultApplicator resultApplicator;
@@ -108,6 +130,7 @@ public class AssistantRunWorker {
 	private final Clock clock;
 	private final TransactionOperations analyzeTransaction;
 	private final TransactionOperations applyTransaction;
+	ApplyBackoff applyBackoff = RANDOM_PAUSE;
 
 	@Autowired
 	public AssistantRunWorker(AssistantRunStore runStore, AssistantRegistry assistantRegistry,
@@ -232,7 +255,7 @@ public class AssistantRunWorker {
 			// user may have deleted either while phase 1 ran, in which case writing findings
 			// would produce FK violations against rows that are gone - or, worse, silent
 			// orphans under the soft-FK columns that have no constraint at all (#279).
-			Outcome outcome = applyTransaction.execute(status -> apply(record, analysis));
+			Outcome outcome = applyWithRetry(record, analysis);
 			// TransactionOperations.execute is declared @Nullable; apply() never returns
 			// null, so a null here can only mean "nothing said otherwise" - treat as applied.
 			if (outcome == null) {
@@ -255,6 +278,38 @@ public class AssistantRunWorker {
 		} catch (RuntimeException e) {
 			runStore.markFailed(runId, e);
 			throw new AssistantWorkerException("Assistant run failed: " + runId, e);
+		}
+	}
+
+	/**
+	 * #495: run the apply phase, re-running it after a {@linkplain RetryableApplyFailure lost race}
+	 * up to {@value #APPLY_ATTEMPTS} attempts. Logs "succeeded after retry" when a retry recovers,
+	 * matching the command handler, so the e2e log can be checked the same way for both.
+	 */
+	private Outcome applyWithRetry(AssistantRunRecord record, Analysis analysis) {
+		List<String> earlier = new ArrayList<>();
+		for (int attempt = 1; ; attempt++) {
+			try {
+				Outcome outcome = applyTransaction.execute(status -> apply(record, analysis));
+				if (attempt > 1) {
+					log.info("Assistant run {} apply succeeded after retry: {}", record.runId(),
+							String.join("; ", earlier));
+				}
+				return outcome;
+			} catch (RuntimeException e) {
+				if (attempt >= APPLY_ATTEMPTS || !RetryableApplyFailure.isRetryable(e)) {
+					throw e;
+				}
+				earlier.add("attempt " + attempt + ": " + e);
+				log.info("Assistant run {} apply failed ({}), retrying attempt {}", record.runId(),
+						e.toString(), attempt);
+				try {
+					applyBackoff.pause(attempt);
+				} catch (InterruptedException interrupted) {
+					Thread.currentThread().interrupt();
+					throw e;
+				}
+			}
 		}
 	}
 
@@ -611,6 +666,12 @@ public class AssistantRunWorker {
 				resultApplicator.apply(analysis.context, analysis.results.get(i),
 						assistant.cleanupPolicy(), request.targetRef());
 			} catch (RuntimeException e) {
+				if (RetryableApplyFailure.isRetryable(e)) {
+					// #495: a lost race leaves this transaction unusable; abort the attempt so the
+					// whole apply phase is retried rather than recording a PARTIAL that the
+					// rollback-only commit then turns into FAILED.
+					throw e;
+				}
 				log.warn("applying assistant {} result failed for run {}: {}",
 						assistant.assistantId(), record.runId(), e.toString(), e);
 				problems.add(assistant.assistantId() + " apply failed: " + e);

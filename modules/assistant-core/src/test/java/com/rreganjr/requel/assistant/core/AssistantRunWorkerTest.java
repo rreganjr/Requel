@@ -1065,4 +1065,193 @@ class AssistantRunWorkerTest {
 			};
 		}
 	}
+
+	// -------------------------------------------------------------------------
+	// #495: the apply phase is retried after a lost race
+	// -------------------------------------------------------------------------
+
+	/** Fails the first {@code failures} apply calls with {@code failure}, then applies. */
+	private static RecordingApplicator failingFirst(int failures, RuntimeException failure) {
+		return new RecordingApplicator() {
+			private int calls;
+
+			@Override
+			public AppliedAssistantResult apply(AssistantContext context, AssistantResult result,
+					CleanupPolicy cleanupPolicy, EntityRef dispatchTarget) {
+				if (calls++ < failures) {
+					throw failure;
+				}
+				return super.apply(context, result, cleanupPolicy, dispatchTarget);
+			}
+		};
+	}
+
+	private static RuntimeException staleVersion() {
+		return com.rreganjr.platform.exception.EntityLockException.staleEntity(Object.class, null,
+				com.rreganjr.platform.exception.EntityExceptionActionType.Updating);
+	}
+
+	private static AssistantRunWorker retryingWorker(InMemoryAssistantRunStore runStore,
+			List<RequelAssistant<?>> assistants, AssistantResultApplicator applicator,
+			AssistantTargetLoader loader, List<String> phases, List<Integer> pauses) {
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(assistants), applicator, List.of(loader),
+				java.time.Clock.systemUTC(), phaseRecorder(phases, "analyze"),
+				phaseRecorder(phases, "apply"));
+		worker.applyBackoff = pauses::add;
+		return worker;
+	}
+
+	/** #495: a stale version on the first apply is retried in a fresh transaction, and recovers. */
+	@Test
+	@org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
+	void aStaleVersionDuringApplyIsRetriedAndTheRunSucceeds(
+			org.springframework.boot.test.system.CapturedOutput output) {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		RecordingApplicator applicator = failingFirst(1, staleVersion());
+		List<String> phases = new java.util.ArrayList<>();
+		List<Integer> pauses = new java.util.ArrayList<>();
+		AssistantRunWorker worker = retryingWorker(runStore, List.of(new StringAssistant()),
+				applicator, new StringTargetLoader(), phases, pauses);
+
+		worker.run(record.runId());
+
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> {
+			assertThat(updated.status()).isEqualTo(AssistantRunStatus.SUCCEEDED);
+			assertThat(updated.errorSummary()).isNull();
+		});
+		assertThat(applicator.appliedResults).hasSize(1);
+		// The analysis ran once; the apply transaction ran twice.
+		assertThat(phases).containsExactly("analyze-begin", "analyze-commit", "apply-begin",
+				"apply-begin", "apply-commit");
+		assertThat(pauses).containsExactly(1);
+		assertThat(output).contains("apply succeeded after retry");
+	}
+
+	/** #495: the retry is bounded; a race lost three times fails the run. */
+	@Test
+	void anApplyThatKeepsLosingTheRaceFailsAfterThreeAttempts() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		RecordingApplicator applicator = failingFirst(Integer.MAX_VALUE,
+				new org.springframework.dao.CannotAcquireLockException("Deadlock found"));
+		List<String> phases = new java.util.ArrayList<>();
+		List<Integer> pauses = new java.util.ArrayList<>();
+		AssistantRunWorker worker = retryingWorker(runStore, List.of(new StringAssistant()),
+				applicator, new StringTargetLoader(), phases, pauses);
+
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> worker.run(record.runId()))
+				.isInstanceOf(AssistantWorkerException.class);
+
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> assertThat(
+				updated.status()).isEqualTo(AssistantRunStatus.FAILED));
+		assertThat(phases).filteredOn("apply-begin"::equals)
+				.hasSize(AssistantRunWorker.APPLY_ATTEMPTS);
+		assertThat(pauses).containsExactly(1, 2);
+		assertThat(applicator.appliedResults).isEmpty();
+	}
+
+	/**
+	 * #495: a foreign-key failure because the target was deleted after the apply phase checked
+	 * for it. The retry finds the target gone and the run is skipped, not failed.
+	 */
+	@Test
+	void aTargetDeletedDuringApplyIsSkippedOnTheRetry() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		RecordingApplicator applicator = failingFirst(1,
+				new org.springframework.dao.DataIntegrityViolationException("FK annotation_annotatable"));
+		DeletedAfterLoader loader = new DeletedAfterLoader(2);
+		AssistantRunWorker worker = retryingWorker(runStore, List.of(new StringAssistant()),
+				applicator, loader, new java.util.ArrayList<>(), new java.util.ArrayList<>());
+
+		worker.run(record.runId());
+
+		assertThat(loader.loads).isEqualTo(3);
+		assertThat(applicator.appliedResults).isEmpty();
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> assertThat(
+				updated.status()).isEqualTo(AssistantRunStatus.SKIPPED));
+	}
+
+	/** #495: only a lost race is retried; any other apply-transaction failure fails at once. */
+	@Test
+	void aFailureThatIsNotARaceIsNotRetried() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		int[] attempts = new int[1];
+		org.springframework.transaction.support.TransactionOperations failingCommit =
+				new org.springframework.transaction.support.TransactionOperations() {
+					@Override
+					public <T> T execute(
+							org.springframework.transaction.support.TransactionCallback<T> action) {
+						attempts[0]++;
+						action.doInTransaction(
+								new org.springframework.transaction.support.SimpleTransactionStatus());
+						throw new IllegalStateException("commit failed");
+					}
+				};
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new StringAssistant())),
+				new RecordingApplicator(), List.of(new StringTargetLoader()),
+				java.time.Clock.systemUTC(),
+				org.springframework.transaction.support.TransactionOperations.withoutTransaction(),
+				failingCommit);
+		List<Integer> pauses = new java.util.ArrayList<>();
+		worker.applyBackoff = pauses::add;
+
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> worker.run(record.runId()))
+				.isInstanceOf(AssistantWorkerException.class);
+
+		assertThat(attempts[0]).isEqualTo(1);
+		assertThat(pauses).isEmpty();
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> assertThat(
+				updated.status()).isEqualTo(AssistantRunStatus.FAILED));
+	}
+
+	/**
+	 * #495: a lost race in one assistant's apply can't be recorded as a PARTIAL problem - it
+	 * marked the transaction rollback-only, so the commit would fail anyway. It aborts the
+	 * attempt, and the retry applies every assistant's findings.
+	 */
+	@Test
+	void aRaceLostByOneAssistantAbortsTheAttemptInsteadOfBeingPartial() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		RecordingApplicator applicator = failingFirst(1, staleVersion());
+		List<Integer> pauses = new java.util.ArrayList<>();
+		AssistantRunWorker worker = retryingWorker(runStore,
+				List.of(new StringAssistant(), new StringAssistant()), applicator,
+				new StringTargetLoader(), new java.util.ArrayList<>(), pauses);
+
+		worker.run(record.runId());
+
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> {
+			assertThat(updated.status()).isEqualTo(AssistantRunStatus.SUCCEEDED);
+			assertThat(updated.errorSummary()).isNull();
+		});
+		assertThat(applicator.appliedResults).hasSize(2);
+		assertThat(pauses).containsExactly(1);
+	}
+
+	/** Loads the target {@code present} times, then reports it gone. */
+	private static final class DeletedAfterLoader implements AssistantTargetLoader {
+		private final int present;
+		private int loads;
+
+		DeletedAfterLoader(int present) {
+			this.present = present;
+		}
+
+		@Override
+		public boolean supports(EntityRef targetRef) {
+			return "Goal".equals(targetRef.entityType());
+		}
+
+		@Override
+		public Optional<Object> loadTarget(EntityRef targetRef) {
+			loads++;
+			return (loads <= present) ? Optional.of("target") : Optional.empty();
+		}
+	}
 }
