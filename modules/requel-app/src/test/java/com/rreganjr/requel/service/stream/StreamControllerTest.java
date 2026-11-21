@@ -60,6 +60,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
  * - GET  /api/events/stream (no subs)    → empty list forwarded to service
  * - POST   /api/events/stream/subscriptions → 200, verifyOwnership + addSubscription called
  * - POST   /api/events/stream/subscriptions → 403 when verifyOwnership rejects
+ * - POST   /api/events/stream/subscriptions → 403 when verifyCanSubscribe rejects (#450)
  * - DELETE /api/events/stream/subscriptions → 200, verifyOwnership + removeSubscription called
  * - DELETE /api/events/stream/subscriptions → 403 when verifyOwnership rejects
  * - DELETE /api/events/stream/connection    → 200, verifyOwnership + closeConnection called
@@ -138,7 +139,25 @@ class StreamControllerTest {
                 .andExpect(status().isOk());
 
         verify(streamService).verifyOwnership("session-abc", "alice");
+        verify(streamService).verifyCanSubscribe("alice", "Goal:7");
         verify(streamService).addSubscription("session-abc", "Goal:7");
+    }
+
+    /** #450: a target the caller may not read is refused, and nothing is subscribed. */
+    @Test
+    void addSubscriptionReturnsForbiddenWhenTheTargetIsNotReadable() throws Exception {
+        doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Not allowed"))
+                .when(streamService).verifyCanSubscribe("alice", "Goal:7");
+
+        SubscriptionRequest body = new SubscriptionRequest("Goal", 7L);
+
+        mockMvc.perform(post("/api/events/stream/subscriptions")
+                        .header("X-Session-Id", "session-abc")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isForbidden());
+
+        verify(streamService, never()).addSubscription(any(), any());
     }
 
     @Test

@@ -78,7 +78,21 @@ class StreamServiceTest {
         doReturn(future).when(taskScheduler).schedule(any(Runnable.class), any(java.time.Instant.class));
 
         streamService = new StreamService(
-                sessionStore, taskScheduler, new ObjectMapper(), new SimpleMeterRegistry());
+                sessionStore, taskScheduler, new ObjectMapper(), new SimpleMeterRegistry(),
+                allowAll);
+    }
+
+    /** The access rule most tests run with; {@link #denied} is the restrictive one. */
+    private final StreamTargetAccess allowAll = (user, key) -> true;
+
+    /**
+     * Open a stream under a known id. Since #450 a client can't choose a new session's id (an
+     * unknown id gets a server-generated one), so the test registers the session first, as an
+     * earlier stream would have, and the stream re-attaches to it.
+     */
+    private SseEmitter openSeeded(String sessionId, String owner, long jwtExpiry, List<String> subs) {
+        sessionStore.createSession(sessionId, owner);
+        return streamService.createStream(sessionId, owner, jwtExpiry, subs);
     }
 
     // -------------------------------------------------------------------------
@@ -87,7 +101,7 @@ class StreamServiceTest {
 
     @Test
     void verifyOwnershipPassesWhenCallerIsOwner() {
-        streamService.createStream("sess-1", "alice", 0L, List.of());
+        openSeeded("sess-1", "alice", 0L, List.of());
 
         // Should not throw
         assertThatNoException().isThrownBy(
@@ -96,7 +110,7 @@ class StreamServiceTest {
 
     @Test
     void verifyOwnershipThrows403WhenCallerIsNotOwner() {
-        streamService.createStream("sess-1", "alice", 0L, List.of());
+        openSeeded("sess-1", "alice", 0L, List.of());
 
         assertThatThrownBy(() -> streamService.verifyOwnership("sess-1", "bob"))
                 .isInstanceOf(ResponseStatusException.class)
@@ -131,15 +145,16 @@ class StreamServiceTest {
     }
 
     @Test
-    void createStreamWithExistingIdUsesthatId() {
-        streamService.createStream("existing-id", "alice", 0L, List.of());
+    void createStreamWithTheOwnersExistingIdUsesThatId() {
+        openSeeded("existing-id", "alice", 0L, List.of());
 
         assertThat(sessionStore.getSessionOwner("existing-id")).isEqualTo("alice");
+        assertThat(sessionStore.getActiveSessionCount()).isEqualTo(1);
     }
 
     @Test
     void createStreamRegistersInitialSubscriptions() {
-        streamService.createStream("sess-1", "alice", 0L, List.of("Goal:1", "Project:2"));
+        openSeeded("sess-1", "alice", 0L, List.of("Goal:1", "Project:2"));
 
         assertThat(sessionStore.getSubscriptions("sess-1"))
                 .containsExactlyInAnyOrder("Goal:1", "Project:2");
@@ -172,7 +187,7 @@ class StreamServiceTest {
 
     @Test
     void addSubscriptionDelegatesToStore() {
-        streamService.createStream("sess-1", "alice", 0L, List.of());
+        openSeeded("sess-1", "alice", 0L, List.of());
         streamService.addSubscription("sess-1", "Story:5");
 
         assertThat(sessionStore.getSubscriptions("sess-1")).contains("Story:5");
@@ -180,7 +195,7 @@ class StreamServiceTest {
 
     @Test
     void removeSubscriptionDelegatesToStore() {
-        streamService.createStream("sess-1", "alice", 0L, List.of("Actor:3"));
+        openSeeded("sess-1", "alice", 0L, List.of("Actor:3"));
         streamService.removeSubscription("sess-1", "Actor:3");
 
         assertThat(sessionStore.getSubscriptions("sess-1")).doesNotContain("Actor:3");
@@ -192,7 +207,7 @@ class StreamServiceTest {
 
     @Test
     void closeConnectionOnValidSessionDoesNotThrow() {
-        streamService.createStream("sess-1", "alice", 0L, List.of());
+        openSeeded("sess-1", "alice", 0L, List.of());
 
         // Should not throw — completes the emitter held for this session
         assertThatNoException().isThrownBy(() -> streamService.closeConnection("sess-1"));
@@ -255,9 +270,9 @@ class StreamServiceTest {
         // Three sessions all subscribed to Project:0. Middle one's emitter
         // throws "Broken pipe" on send — represents a browser tab that was
         // closed without a graceful disconnect.
-        streamService.createStream("alive-1", "alice", 0L, List.of("Project:0"));
-        streamService.createStream("dead",    "alice", 0L, List.of("Project:0"));
-        streamService.createStream("alive-2", "alice", 0L, List.of("Project:0"));
+        openSeeded("alive-1", "alice", 0L, List.of("Project:0"));
+        openSeeded("dead",    "alice", 0L, List.of("Project:0"));
+        openSeeded("alive-2", "alice", 0L, List.of("Project:0"));
 
         SseEmitter alive1 = swapInMockEmitter("alive-1");
         SseEmitter dead   = swapInMockEmitter("dead");
@@ -288,8 +303,8 @@ class StreamServiceTest {
         // completeWithError(e) ALSO throws IllegalStateException because Tomcat
         // already fired AsyncListener.onError. Original code didn't catch the
         // second throw and aborted the loop.
-        streamService.createStream("alive",  "alice", 0L, List.of("Project:0"));
-        streamService.createStream("doomed", "alice", 0L, List.of("Project:0"));
+        openSeeded("alive",  "alice", 0L, List.of("Project:0"));
+        openSeeded("doomed", "alice", 0L, List.of("Project:0"));
 
         SseEmitter alive  = swapInMockEmitter("alive");
         SseEmitter doomed = swapInMockEmitter("doomed");
@@ -309,7 +324,7 @@ class StreamServiceTest {
 
     @Test
     void pushBroadcastIsNoOpWhenNoSessionsAreSubscribed() {
-        streamService.createStream("sess-1", "alice", 0L, List.of("Goal:5"));
+        openSeeded("sess-1", "alice", 0L, List.of("Goal:5"));
 
         // No subscribers for Project:0 — must not throw, must not visit any session
         assertThatNoException().isThrownBy(
@@ -322,8 +337,8 @@ class StreamServiceTest {
 
     @Test
     void pushToSubscribedSessionsSkipsExcludedSession() throws Exception {
-        streamService.createStream("originator", "alice", 0L, List.of("Goal:1"));
-        streamService.createStream("other",      "alice", 0L, List.of("Goal:1"));
+        openSeeded("originator", "alice", 0L, List.of("Goal:1"));
+        openSeeded("other",      "alice", 0L, List.of("Goal:1"));
 
         SseEmitter originator = swapInMockEmitter("originator");
         SseEmitter other      = swapInMockEmitter("other");
@@ -337,8 +352,8 @@ class StreamServiceTest {
 
     @Test
     void pushToSubscribedSessionsWithNullExclusionDeliversToAll() throws Exception {
-        streamService.createStream("s1", "alice", 0L, List.of("Goal:1"));
-        streamService.createStream("s2", "alice", 0L, List.of("Goal:1"));
+        openSeeded("s1", "alice", 0L, List.of("Goal:1"));
+        openSeeded("s2", "alice", 0L, List.of("Goal:1"));
 
         SseEmitter e1 = swapInMockEmitter("s1");
         SseEmitter e2 = swapInMockEmitter("s2");
@@ -347,5 +362,144 @@ class StreamServiceTest {
 
         verify(e1).send(any(SseEmitter.SseEventBuilder.class));
         verify(e2).send(any(SseEmitter.SseEventBuilder.class));
+    }
+
+    // -------------------------------------------------------------------------
+    // #450: reconnect ownership, emitter replacement, subscription access
+    // -------------------------------------------------------------------------
+
+    /** Every scheduled task gets its own future, recorded in order, so tests can see which were cancelled. */
+    private List<ScheduledFuture<?>> distinctFutures() {
+        List<ScheduledFuture<?>> futures = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        org.mockito.stubbing.Answer<ScheduledFuture<?>> answer = inv -> {
+            ScheduledFuture<?> f = mock(ScheduledFuture.class);
+            futures.add(f);
+            return f;
+        };
+        doAnswer(answer).when(taskScheduler).scheduleAtFixedRate(any(Runnable.class), any(), any());
+        doAnswer(answer).when(taskScheduler).schedule(any(Runnable.class), any(java.time.Instant.class));
+        return futures;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> localEmitters() throws Exception {
+        Field field = StreamService.class.getDeclaredField("localEmitters");
+        field.setAccessible(true);
+        return (Map<String, Object>) field.get(streamService);
+    }
+
+    private static Object component(Object holder, String name) throws Exception {
+        Field field = holder.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        return field.get(holder);
+    }
+
+    @Test
+    void anotherUsersReconnectIsRefusedAndChangesNothing() throws Exception {
+        List<ScheduledFuture<?>> futures = distinctFutures();
+        openSeeded("sess-1", "alice", 0L, List.of("Goal:1"));
+        Object aliceHolder = localEmitters().get("sess-1");
+
+        assertThatThrownBy(() -> streamService.createStream("sess-1", "bob", 0L, List.of("Goal:2")))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+                        .isEqualTo(HttpStatus.FORBIDDEN));
+
+        assertThat(sessionStore.getSessionOwner("sess-1")).isEqualTo("alice");
+        assertThat(sessionStore.getSubscriptions("sess-1")).containsExactly("Goal:1");
+        assertThat(sessionStore.getSessionsForTarget("Goal:2")).isEmpty();
+        assertThat(localEmitters().get("sess-1")).isSameAs(aliceHolder);
+        assertThat(futures).hasSize(1);
+        verify(futures.get(0), never()).cancel(anyBoolean());
+    }
+
+    @Test
+    void theOwnersReconnectReplacesTheEmitterCancelsTheOldTasksAndKeepsSubscriptions() throws Exception {
+        List<ScheduledFuture<?>> futures = distinctFutures();
+        openSeeded("sess-1", "alice", System.currentTimeMillis() + 60_000L, List.of("Goal:1"));
+        Object first = localEmitters().get("sess-1");
+
+        streamService.createStream("sess-1", "alice", System.currentTimeMillis() + 60_000L, List.of("Story:2"));
+
+        Object second = localEmitters().get("sess-1");
+        assertThat(second).isNotSameAs(first);
+        assertThat(localEmitters()).hasSize(1);
+        // The first stream's keep-alive and expiry tasks are cancelled; the second's aren't.
+        assertThat(futures).hasSize(4);
+        verify(futures.get(0)).cancel(false);
+        verify(futures.get(1)).cancel(false);
+        verify(futures.get(2), never()).cancel(anyBoolean());
+        verify(futures.get(3), never()).cancel(anyBoolean());
+        assertThat(sessionStore.getSessionOwner("sess-1")).isEqualTo("alice");
+        assertThat(sessionStore.getSubscriptions("sess-1")).containsExactlyInAnyOrder("Goal:1", "Story:2");
+    }
+
+    @Test
+    void anUnknownSessionIdGetsANewServerGeneratedSession() throws Exception {
+        streamService.createStream("made-up-id", "alice", 0L, List.of());
+
+        assertThat(sessionStore.getSessionOwner("made-up-id")).isNull();
+        assertThat(sessionStore.getActiveSessionCount()).isEqualTo(1);
+        assertThat(localEmitters()).doesNotContainKey("made-up-id").hasSize(1);
+    }
+
+    @Test
+    void unreadableInitialSubscriptionsAreSkippedAndTheStreamStillOpens() {
+        StreamService restricted = new StreamService(sessionStore, taskScheduler, new ObjectMapper(),
+                new SimpleMeterRegistry(), (user, key) -> key.equals("Project:0"));
+
+        SseEmitter emitter = restricted.createStream(null, "alice", 0L, List.of("Project:0", "Goal:9"));
+
+        assertThat(emitter).isNotNull();
+        assertThat(sessionStore.getSessionsForTarget("Project:0")).hasSize(1);
+        assertThat(sessionStore.getSessionsForTarget("Goal:9")).isEmpty();
+    }
+
+    @Test
+    void verifyCanSubscribeRefusesWithForbidden() {
+        StreamService restricted = new StreamService(sessionStore, taskScheduler, new ObjectMapper(),
+                new SimpleMeterRegistry(), (user, key) -> false);
+
+        assertThatThrownBy(() -> restricted.verifyCanSubscribe("alice", "Goal:9"))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+                        .isEqualTo(HttpStatus.FORBIDDEN));
+        assertThatNoException().isThrownBy(() -> streamService.verifyCanSubscribe("alice", "Goal:9"));
+    }
+
+    @Test
+    void concurrentReconnectsLeaveOneLiveEmitterAndCancelEveryReplacedOne() throws Exception {
+        List<ScheduledFuture<?>> futures = distinctFutures();
+        openSeeded("sess-1", "alice", 0L, List.of("Goal:1"));
+
+        int threads = 8;
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(threads);
+        java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+        List<java.util.concurrent.Future<?>> done = new java.util.ArrayList<>();
+        for (int i = 0; i < threads; i++) {
+            done.add(pool.submit(() -> {
+                start.await();
+                return streamService.createStream("sess-1", "alice", 0L, List.of());
+            }));
+        }
+        start.countDown();
+        for (java.util.concurrent.Future<?> f : done) {
+            f.get(10, java.util.concurrent.TimeUnit.SECONDS);
+        }
+        pool.shutdown();
+
+        assertThat(localEmitters()).hasSize(1);
+        Object live = localEmitters().get("sess-1");
+        Object liveKeepAlive = component(live, "keepAlive");
+        assertThat(futures).hasSize(threads + 1);
+        for (ScheduledFuture<?> f : futures) {
+            if (f == liveKeepAlive) {
+                verify(f, never()).cancel(anyBoolean());
+            } else {
+                verify(f).cancel(false);
+            }
+        }
+        assertThat(sessionStore.getSessionOwner("sess-1")).isEqualTo("alice");
+        assertThat(sessionStore.getSubscriptions("sess-1")).containsExactly("Goal:1");
     }
 }

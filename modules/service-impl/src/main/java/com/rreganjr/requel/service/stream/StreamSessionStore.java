@@ -37,9 +37,37 @@ public class StreamSessionStore {
     private final ConcurrentHashMap<String, Set<String>> targetToSessions = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> sessionOwners = new ConcurrentHashMap<>();
 
+    /**
+     * Register a session for its owner. An existing session keeps the owner it has (#450: a
+     * reconnect used to overwrite it with whoever asked); use {@link #claimSession} to decide
+     * whether a caller may use an id.
+     */
     public void createSession(String sessionId, String ownerUsername) {
         sessionSubscriptions.putIfAbsent(sessionId, ConcurrentHashMap.newKeySet());
-        sessionOwners.put(sessionId, ownerUsername);
+        sessionOwners.putIfAbsent(sessionId, ownerUsername);
+    }
+
+    /**
+     * Issue #450: the session id {@code ownerUsername} may use for a stream.
+     * <ul>
+     *   <li>{@code requestedId} when that session exists and belongs to {@code ownerUsername} (a
+     *       reconnect; its subscriptions are kept);</li>
+     *   <li>{@code null} when it exists and belongs to someone else (nothing is changed);</li>
+     *   <li>otherwise, including a {@code null} or unknown {@code requestedId}, a new session with
+     *       a server-generated id. A client never chooses a new session's id.</li>
+     * </ul>
+     * The caller serializes calls for the same session ({@code StreamService}'s lifecycle lock).
+     */
+    public String claimSession(String requestedId, String ownerUsername) {
+        if (requestedId != null) {
+            String owner = sessionOwners.get(requestedId);
+            if (owner != null) {
+                return owner.equals(ownerUsername) ? requestedId : null;
+            }
+        }
+        String sessionId = UUID.randomUUID().toString();
+        createSession(sessionId, ownerUsername);
+        return sessionId;
     }
 
     /**
