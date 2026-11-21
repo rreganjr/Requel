@@ -23,11 +23,15 @@ package com.rreganjr.requel.service.stream;
 import java.util.Optional;
 
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.spi.AnnotatableTypeRegistry;
@@ -49,6 +53,14 @@ import com.rreganjr.requel.user.UserRepository;
  *       exist: refused. One answer for all of these, so a refusal says nothing about what
  *       exists.</li>
  * </ul>
+ * <b>Database connections.</b> {@code GET /api/events/stream} is a request that lasts as long as
+ * the stream, and open-in-view binds one EntityManager to it for that whole time. A lookup on that
+ * EntityManager would pin a pooled connection to every open stream (ten browser tabs exhausted the
+ * pool in the e2e run). With no transaction yet active, even a {@code REQUIRES_NEW} transaction
+ * starts on that request-bound EntityManager, which holds its connection until the request ends.
+ * So broadcasts and malformed keys never touch the database, and for the entity lookup the
+ * request's EntityManager is unbound for the duration: the read-only transaction then gets its own
+ * EntityManager, closed (connection returned) as soon as it ends, and the request's is bound back.
  */
 @Component
 public class ProjectStreamTargetAccess implements StreamTargetAccess {
@@ -58,16 +70,22 @@ public class ProjectStreamTargetAccess implements StreamTargetAccess {
     private final AnnotatableTypeRegistry annotatableTypeRegistry;
     private final EntityManager entityManager;
     private final UserRepository userRepository;
+    private final TransactionTemplate lookupTransaction;
+    private final EntityManagerFactory entityManagerFactory;
 
     public ProjectStreamTargetAccess(AnnotatableTypeRegistry annotatableTypeRegistry,
-            EntityManager entityManager, UserRepository userRepository) {
+            EntityManager entityManager, UserRepository userRepository,
+            PlatformTransactionManager transactionManager, EntityManagerFactory entityManagerFactory) {
         this.annotatableTypeRegistry = annotatableTypeRegistry;
         this.entityManager = entityManager;
         this.userRepository = userRepository;
+        this.entityManagerFactory = entityManagerFactory;
+        this.lookupTransaction = new TransactionTemplate(transactionManager);
+        this.lookupTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        this.lookupTransaction.setReadOnly(true);
     }
 
     @Override
-    @Transactional(readOnly = true)
     public boolean canSubscribe(String username, String targetKey) {
         if (username == null || targetKey == null) {
             return false;
@@ -75,28 +93,44 @@ public class ProjectStreamTargetAccess implements StreamTargetAccess {
         if (PROJECT_BROADCAST.equals(targetKey) || PERMISSIONS_BROADCAST.equals(targetKey)) {
             return true;
         }
+        int colon = targetKey.indexOf(':');
+        if (colon <= 0 || colon == targetKey.length() - 1) {
+            return false;
+        }
+        Optional<Class<? extends Annotatable>> type = annotatableTypeRegistry
+                .resolveEntityType(targetKey.substring(0, colon));
+        if (type.isEmpty()) {
+            return false;
+        }
+        long id;
         try {
-            int colon = targetKey.indexOf(':');
-            if (colon <= 0 || colon == targetKey.length() - 1) {
-                return false;
-            }
-            Optional<Class<? extends Annotatable>> type = annotatableTypeRegistry
-                    .resolveEntityType(targetKey.substring(0, colon));
-            if (type.isEmpty()) {
-                return false;
-            }
-            long id = Long.parseLong(targetKey.substring(colon + 1));
-            Annotatable entity = entityManager.find(type.get(), id);
-            if (entity == null) {
-                return false;
-            }
-            Project project = ProjectReadAccess.projectOf(entity);
-            User user = userRepository.findUserByUsername(username);
-            return ProjectReadAccess.canRead(project, user);
+            id = Long.parseLong(targetKey.substring(colon + 1));
+        } catch (NumberFormatException e) {
+            return false;
+        }
+        // The request's open-in-view EntityManager, if any: unbound so the lookup can't pin a
+        // connection to it (see the class comment), and bound back afterwards.
+        Object requestEntityManager = TransactionSynchronizationManager
+                .unbindResourceIfPossible(entityManagerFactory);
+        try {
+            Boolean allowed = lookupTransaction.execute(status -> {
+                Annotatable entity = entityManager.find(type.get(), id);
+                if (entity == null) {
+                    return false;
+                }
+                Project project = ProjectReadAccess.projectOf(entity);
+                User user = userRepository.findUserByUsername(username);
+                return ProjectReadAccess.canRead(project, user);
+            });
+            return Boolean.TRUE.equals(allowed);
         } catch (Exception e) {
-            // A bad id, an unknown user, a lookup failure: all "no".
+            // An unknown user, a lookup failure: "no".
             log.debug("canSubscribe user={} target={} refused: {}", username, targetKey, e.toString());
             return false;
+        } finally {
+            if (requestEntityManager != null) {
+                TransactionSynchronizationManager.bindResource(entityManagerFactory, requestEntityManager);
+            }
         }
     }
 }

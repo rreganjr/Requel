@@ -29,6 +29,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.Map;
 import java.util.Set;
 
+import javax.sql.DataSource;
+
+import com.zaxxer.hikari.HikariDataSource;
 import org.hibernate.Hibernate;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -75,6 +78,9 @@ class StreamAccessIT extends AbstractIntegrationTestCase {
 
 	@Autowired
 	private StreamSessionStore sessionStore;
+
+	@Autowired
+	private DataSource dataSource;
 
 	private String member;
 	private String memberToken;
@@ -146,6 +152,25 @@ class StreamAccessIT extends AbstractIntegrationTestCase {
 
 		assertThat(sessionStore.getSessionsForTarget("Goal:" + otherGoal)).isEmpty();
 		assertThat(sessionStore.getSessionsForTarget("Goal:" + memberGoal)).isNotEmpty();
+	}
+
+	/**
+	 * An open stream is a request that lasts as long as the stream, with open-in-view's
+	 * EntityManager bound to it. The subscription check must not pin a pooled connection to it:
+	 * the first version did, and ten browser tabs exhausted the pool in the e2e run.
+	 */
+	@Test
+	void openStreamsHoldNoDatabaseConnection() throws Exception {
+		assertThat(dataSource.isWrapperFor(HikariDataSource.class)).isTrue();
+		HikariDataSource pool = dataSource.unwrap(HikariDataSource.class);
+		int before = pool.getHikariPoolMXBean().getActiveConnections();
+		for (int i = 0; i < 3; i++) {
+			mockMvc.perform(get("/api/events/stream")
+					.param("subscribe", "Project:0", "Permissions:0", "Goal:" + memberGoal)
+					.header("Authorization", "Bearer " + memberToken))
+					.andExpect(request().asyncStarted());
+		}
+		assertThat(pool.getHikariPoolMXBean().getActiveConnections()).isLessThanOrEqualTo(before);
 	}
 
 	// ---- subscribe ----------------------------------------------------------------------------
