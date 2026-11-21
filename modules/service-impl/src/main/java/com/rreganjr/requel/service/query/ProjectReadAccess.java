@@ -34,15 +34,15 @@ import com.rreganjr.requel.user.impl.SystemAdminUserRole;
  * Who may read a project, shared by the read controllers (issue #296). {@code ProjectQueryController}
  * had the rule to itself, and {@code AnnotationQueryController} applied none: it loaded any entity
  * by type and id, so any signed-in user could read the notes and issues of a project they are not
- * a stakeholder on.
+ * a stakeholder on. Public since #450, for the event stream's subscription check.
  */
-final class ProjectReadAccess {
+public final class ProjectReadAccess {
 
     private ProjectReadAccess() {
     }
 
     /** A system administrator reads every project; anyone else, the projects they are a user stakeholder on. */
-    static boolean canRead(Project project, User user) {
+    public static boolean canRead(Project project, User user) {
         if (project == null || user == null) {
             return false;
         }
@@ -61,7 +61,7 @@ final class ProjectReadAccess {
      * The project an annotatable belongs to, or {@code null} when it has none this can find: the
      * project itself, a project entity's project, or a goal relation's goals' project.
      */
-    static Project projectOf(Annotatable annotatable) {
+    public static Project projectOf(Annotatable annotatable) {
         if (annotatable instanceof Project project) {
             return project;
         }

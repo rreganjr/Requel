@@ -213,4 +213,52 @@ class StreamSessionStoreTest {
 
         assertThat(store.getSessionsForTarget("Project:5")).containsExactly("s2");
     }
+
+    // -------------------------------------------------------------------------
+    // #450: claimSession
+    // -------------------------------------------------------------------------
+
+    @Test
+    void claimSessionWithNoIdCreatesANewSessionForTheCaller() {
+        String id = store.claimSession(null, "alice");
+
+        assertThat(id).isNotBlank();
+        assertThat(store.getSessionOwner(id)).isEqualTo("alice");
+    }
+
+    @Test
+    void claimSessionWithAnUnknownIdCreatesANewSessionWithADifferentId() {
+        String id = store.claimSession("made-up", "alice");
+
+        assertThat(id).isNotEqualTo("made-up");
+        assertThat(store.getSessionOwner("made-up")).isNull();
+        assertThat(store.getSessionOwner(id)).isEqualTo("alice");
+    }
+
+    @Test
+    void claimSessionReturnsTheOwnersOwnId() {
+        store.createSession("sess-1", "alice");
+
+        assertThat(store.claimSession("sess-1", "alice")).isEqualTo("sess-1");
+        assertThat(store.getActiveSessionCount()).isEqualTo(1);
+    }
+
+    @Test
+    void claimSessionRefusesAnotherUsersIdAndChangesNothing() {
+        store.createSession("sess-1", "alice");
+        store.addSubscription("sess-1", "Goal:1");
+
+        assertThat(store.claimSession("sess-1", "bob")).isNull();
+        assertThat(store.getSessionOwner("sess-1")).isEqualTo("alice");
+        assertThat(store.getSubscriptions("sess-1")).containsExactly("Goal:1");
+        assertThat(store.getActiveSessionCount()).isEqualTo(1);
+    }
+
+    @Test
+    void createSessionKeepsAnExistingOwner() {
+        store.createSession("sess-1", "alice");
+        store.createSession("sess-1", "bob");
+
+        assertThat(store.getSessionOwner("sess-1")).isEqualTo("alice");
+    }
 }

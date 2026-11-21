@@ -45,7 +45,10 @@ public class StreamController {
 
     /**
      * GET /api/events/stream?subscribe=Project:1&subscribe=Goal:7
-     * Opens SSE connection, creates session owned by the authenticated user.
+     * Opens SSE connection, creates session owned by the authenticated user. With
+     * {@code sessionId} it reconnects to the caller's own session; another user's session is a
+     * 403, and an unknown one starts a new session (#450). Subscriptions the caller may not read
+     * are skipped.
      * JWT expiry (stored as Authentication.details by JwtAuthenticationFilter) is
      * forwarded so the server can schedule a session-expired event before the token dies.
      */
@@ -62,7 +65,8 @@ public class StreamController {
 
     /**
      * POST /api/events/stream/subscriptions — add subscription to existing session.
-     * Rejects with 403 if the session does not belong to the authenticated user.
+     * Rejects with 403 if the session does not belong to the authenticated user, or (#450) if the
+     * user may not read the target ({@link StreamTargetAccess}).
      */
     @PostMapping("/subscriptions")
     public ResponseEntity<Void> addSubscription(
@@ -70,6 +74,7 @@ public class StreamController {
             @RequestBody SubscriptionRequest request,
             Principal principal) {
         streamService.verifyOwnership(sessionId, principal.getName());
+        streamService.verifyCanSubscribe(principal.getName(), request.toKey());
         streamService.addSubscription(sessionId, request.toKey());
         return ResponseEntity.ok().build();
     }
