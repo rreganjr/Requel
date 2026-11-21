@@ -36,6 +36,10 @@ error.
 5. **Logging** matches the command handler: a line per retry, and "succeeded after retry" when one
    recovers, so the issue's e2e log check (`Deadlock found` equals `succeeded after retry`, no
    `Assistant run failed`) reads the same for both. CI's e2e job runs on MySQL and keeps the app log.
+   CI uploads that log only when the e2e job fails, so a green run couldn't be checked. Added
+   after the first CI run: a CI step that writes the log counts to the job summary on every run,
+   and the log uploaded as the `requel-e2e-log` artifact on every run. The step reports the
+   counts and doesn't fail the build.
 
 ## Steps
 

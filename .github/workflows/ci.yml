@@ -316,6 +316,42 @@ jobs:
           (cd requel-angular && npm run e2e:coverage)
           perl -0pi -e 's#^SF:src/#SF:requel-angular/src/#mg' requel-angular/coverage/lcov.info
 
+      # A green Playwright run proves little on its own (CLAUDE.md, "Writing tests"): the app log
+      # shows whether lock failures were retried. Report the counts on every run (#495).
+      - name: Check E2E app log for lock failures
+        if: always()
+        run: |
+          [ -f requel-e2e.log ] || { echo "requel-e2e.log not found"; exit 0; }
+          count() { grep -c -- "$1" requel-e2e.log || true; }
+          deadlocks=$(count 'Deadlock found')
+          retried=$(count 'succeeded after retry')
+          lock_waits=$(count 'Lock wait timeout')
+          run_failures=$(count 'Assistant run failed')
+          command_failures=$(count 'Command execution failed')
+          transient=$(count 'TransientObject')
+          {
+            echo "### E2E app log"
+            echo
+            echo "| Check | Count | Expected |"
+            echo "|---|---|---|"
+            echo "| \`Deadlock found\` | $deadlocks | equal to retries |"
+            echo "| \`succeeded after retry\` | $retried | equal to deadlocks |"
+            echo "| \`Lock wait timeout\` | $lock_waits | 0 |"
+            echo "| \`Assistant run failed\` | $run_failures | 0 |"
+            echo "| \`Command execution failed\` | $command_failures | 0 |"
+            echo "| \`TransientObject\` | $transient | 0 |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload E2E app log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: requel-e2e-log
+          path: requel-e2e.log
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Upload E2E coverage to Codecov
         if: always()
         uses: codecov/codecov-action@v7
