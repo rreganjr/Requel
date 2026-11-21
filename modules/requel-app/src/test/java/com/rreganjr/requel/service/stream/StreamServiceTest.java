@@ -492,11 +492,14 @@ class StreamServiceTest {
         Object live = localEmitters().get("sess-1");
         Object liveKeepAlive = component(live, "keepAlive");
         assertThat(futures).hasSize(threads + 1);
+        // A replaced holder can be cancelled twice: once by the reconnect that replaced it, and
+        // again when its own Session event then fails on its completed emitter. Cancelling is
+        // idempotent; what matters is that every replaced one is cancelled and the live one isn't.
         for (ScheduledFuture<?> f : futures) {
             if (f == liveKeepAlive) {
                 verify(f, never()).cancel(anyBoolean());
             } else {
-                verify(f).cancel(false);
+                verify(f, atLeastOnce()).cancel(false);
             }
         }
         assertThat(sessionStore.getSessionOwner("sess-1")).isEqualTo("alice");

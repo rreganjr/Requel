@@ -157,8 +157,10 @@ public class StreamService {
         log.debug("createStream session={} owner={} initialSubs={} (requestedSessionId={}, reconnect={})",
                 sessionId, ownerUsername, allowedKeys, requestedSessionId, replaced != null);
 
-        // Send Session event
-        sendEvent(sessionId, StreamEventEnvelope.session(sessionId));
+        // Send Session event to THIS stream's emitter. Looking it up by session id could find a
+        // newer emitter that a concurrent reconnect of the same session swapped in (#450), which
+        // would give that connection a second Session event and this one none.
+        sendEvent(sessionId, holder, StreamEventEnvelope.session(sessionId));
 
         // Cleanup callbacks
         String callbackSession = sessionId;
@@ -281,6 +283,11 @@ public class StreamService {
                     sessionId, envelope.eventType());
             return;
         }
+        sendEvent(sessionId, holder, envelope);
+    }
+
+    /** Send to one specific emitter of a session; on failure, end that emitter. */
+    private void sendEvent(String sessionId, EmitterHolder holder, StreamEventEnvelope envelope) {
         try {
             String json = objectMapper.writeValueAsString(envelope);
             holder.emitter().send(SseEmitter.event().data(json));
