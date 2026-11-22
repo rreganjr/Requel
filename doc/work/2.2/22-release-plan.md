@@ -20,6 +20,10 @@ exports and MCP, AI import, and the domains epic last.
 
 Total: about 92 points against 48 planned for 2.1. See "Scope" below.
 
+**Updated 2026-11-22, after #519.** The UI review filed #525–#529 (11 points), bringing the release
+to about 103. The two bugs and two cleanups go in a new Phase 2b before #468; the editor shell
+(#525) goes first in Phase 5, before #501 adds approval controls to every editor header.
+
 ## Order
 
 ### Phase 1 — hardening and bugs
@@ -36,63 +40,76 @@ Total: about 92 points against 48 planned for 2.1. See "Scope" below.
 |---|---|---|---|
 | 4 | #519 UI review and cleanup | 3 | First, so the five new pages start from cleaned-up patterns. Needs the jar running locally with the dev profile. Decides whether a shared editor shell gets its own ticket. |
 
+### Phase 2b — UI review follow-ups
+
+From the #519 report (`519-ui-review.md`). Done before #468 so the bugs are fixed early and the new
+pages in Phase 4 start from the finished cleanup.
+
+| # | Issue | Size | Notes |
+|---|---|---|---|
+| 5 | #529 Accent contrast: white text on emerald and amber | 1 | #519 made the accent recolour buttons, which exposed it. |
+| 6 | #526 Report editor: annotations fail to load | 2 | Bug: `Unknown entity type: ReportGenerator`. Decide: register it as annotatable or drop the section. |
+| 7 | #528 Admin pages in cards, full-width tables | 1 | |
+| 8 | #527 Definition editor layout | 2 | |
+
 ### Phase 3 — step model
 
 | # | Issue | Size | Notes |
 |---|---|---|---|
-| 5 | #468 A step's actor as a role, rendered per use case | 8 | Changes the model, a migration and `project.xsd`. Unlocks #496's When/Then and #505's role column. Decide at review: migrating existing steps, roles on scenario names, a named actor not in the use case. |
+| 9 | #468 A step's actor as a role, rendered per use case | 8 | Changes the model, a migration and `project.xsd`. Unlocks #496's When/Then and #505's role column. Decide at review: migrating existing steps, roles on scenario names, a named actor not in the use case. |
 
 ### Phase 4 — reading and navigation
 
 | # | Issue | Size | Notes |
 |---|---|---|---|
-| 6 | #504 Project search | 3 | Extends the gateway's `searchProjectEntities` (see the issue comment); no second search read. |
-| 7 | #505 Steps list page | 2 | |
-| 8 | #506 Glossary terms used | 2 | |
-| 9 | #497 Traceability page | 3 | Gaps shown only on the page; raising issues from them is a later decision. |
-| 10 | #507 Bulk actions on Open Issues | 3 | New `BulkResolveIssues` command. |
+| 10 | #504 Project search | 3 | Extends the gateway's `searchProjectEntities` (see the issue comment); no second search read. |
+| 11 | #505 Steps list page | 2 | |
+| 12 | #506 Glossary terms used | 2 | |
+| 13 | #497 Traceability page | 3 | Gaps shown only on the page; raising issues from them is a later decision. |
+| 14 | #507 Bulk actions on Open Issues | 3 | New `BulkResolveIssues` command. |
 
 ### Phase 5 — living document
 
 | # | Issue | Size | Notes |
 |---|---|---|---|
-| 11 | #501 Review and approval status | 5 | Migration: `permission_type` enum to VARCHAR plus `Approve`. |
-| 12 | #500 Baselines, diff, restore as a new project | 8 | Requel's first scheduled job. Attribution waits on #499 (no milestone). |
+| 15 | #525 Shared editor shell, with a not-found state | 5 | Before #501, so approval controls go in one header instead of eight. Fixes the not-found state in every editor (#519 F11). |
+| 16 | #501 Review and approval status | 5 | Migration: `permission_type` enum to VARCHAR plus `Approve`. |
+| 17 | #500 Baselines, diff, restore as a new project | 8 | Requel's first scheduled job. Attribution waits on #499 (no milestone). |
 
 ### Phase 6 — exports and MCP
 
 | # | Issue | Size | Notes |
 |---|---|---|---|
-| 13 | #496 Gherkin export | 2 | After #468. |
-| 14 | #508 MCP prompts and resources | 2 | Check prompt and resource-template support in Spring AI 1.1.7. |
-| 15 | #509 Reverse-engineer a feature's code | 3 | After #508 (adds a prompt). Trial on `modules/mcp-server`; gaps found become issues. |
+| 18 | #496 Gherkin export | 2 | After #468. |
+| 19 | #508 MCP prompts and resources | 2 | Check prompt and resource-template support in Spring AI 1.1.7. |
+| 20 | #509 Reverse-engineer a feature's code | 3 | After #508 (adds a prompt). Trial on `modules/mcp-server`; gaps found become issues. |
 
 ### Phase 7 — AI
 
 | # | Issue | Size | Notes |
 |---|---|---|---|
-| 16 | #503 Import requirements from a document | 13 | Largest item. New `EXTRACT` definition kind, draft tables, PDFBox and POI. Consider splitting at review (e.g. formats or review UI). |
-| 17 | #370 Organization-level assistant definitions | 5 | Moved from 2.1. Decide: who authors, what a fork forks from, locking. |
+| 21 | #503 Import requirements from a document | 13 | Largest item. New `EXTRACT` definition kind, draft tables, PDFBox and POI. Consider splitting at review (e.g. formats or review UI). |
+| 22 | #370 Organization-level assistant definitions | 5 | Moved from 2.1. Decide: who authors, what a fork forks from, locking. |
 
 ### Phase 8 — domains (epic #513)
 
 | # | Issue | Size | Notes |
 |---|---|---|---|
-| 18 | #514 Domain type, file format and loader, browse-only view | 8 | Decide at review: name uniqueness across projects and domains; whether assistants see domain entities. |
-| 19 | #517 File format guide and validation | 2 | Right after #514, while the format is fresh. |
-| 20 | #515 Option position applies its bundle | 5 | Provenance (#272) records domain, version and option. |
-| 21 | #516 Wizard checkboxes and Add domain | 3 | |
-| 22 | #518 Starter domain "Web application" | 3 | Content needs the maintainer's review. |
+| 23 | #514 Domain type, file format and loader, browse-only view | 8 | Decide at review: name uniqueness across projects and domains; whether assistants see domain entities. |
+| 24 | #517 File format guide and validation | 2 | Right after #514, while the format is fresh. |
+| 25 | #515 Option position applies its bundle | 5 | Provenance (#272) records domain, version and option. |
+| 26 | #516 Wizard checkboxes and Add domain | 3 | |
+| 27 | #518 Starter domain "Web application" | 3 | Content needs the maintainer's review. |
 
 ### Modeling research
 
 | # | Issue | Size | Notes |
 |---|---|---|---|
-| 23 | #383 Research modeling languages and plan the modeling epic | 3 | Can run alongside any phase; it's research, not product code. Its comment adds the EARS/requirements-spec mapping. |
+| 28 | #383 Research modeling languages and plan the modeling epic | 3 | Can run alongside any phase; it's research, not product code. Its comment adds the EARS/requirements-spec mapping. |
 
 ## Scope
 
-92 points is nearly twice 2.1's plan. The modeling epic that #383 produces is meant to be filed
+About 103 points (92 planned, plus #519's 11) is more than twice 2.1's plan. The modeling epic that #383 produces is meant to be filed
 on `v2.2` too, which would add more. Options at the first checkpoint (after Phase 4):
 
 - keep everything and accept a longer cycle;
@@ -103,6 +120,7 @@ on `v2.2` too, which would add more. Options at the first checkpoint (after Phas
 
 | Issue | Decision |
 |---|---|
+| #526 | Register `ReportGenerator` as annotatable, or drop the report editor's Annotations section |
 | #468 | Migrating existing steps; scenario-name roles; reporting a named actor not in the use case |
 | #503 | Split or not |
 | #370 | Author role; fork base; locking |
