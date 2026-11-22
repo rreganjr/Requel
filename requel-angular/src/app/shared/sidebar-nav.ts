@@ -167,6 +167,7 @@ function persistExpandedProjectNames(names: Set<string>): void {
                       (onNodeSelect)="onNodeSelect($event)"
                       (onNodeExpand)="onNodeExpand($event)"
                       (onNodeCollapse)="onNodeCollapse($event)"
+                      [pt]="treePt"
                       styleClass="sidebar-tree" data-testid="sidebar-tree" />
             }
           </p-accordion-content>
@@ -244,6 +245,14 @@ function persistExpandedProjectNames(names: Set<string>): void {
   `]
 })
 export class SidebarNavComponent implements OnInit {
+
+  /**
+   * #519: PrimeNG renders each node's expand/collapse toggle as a nameless button with
+   * tabindex -1. Keyboard and screen-reader users expand from the treeitem itself (arrow keys,
+   * aria-expanded), so the toggle is a mouse affordance only: hide it from assistive tech
+   * instead of leaving an unnamed button on every page (axe button-name, critical).
+   */
+  readonly treePt = { nodeToggleButton: { 'aria-hidden': 'true' } };
 
   readonly loading = signal(false);
   private readonly projects = signal<ProjectDto[]>([]);

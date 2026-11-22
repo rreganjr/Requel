@@ -127,7 +127,7 @@ const SCENARIO_TYPE_OPTIONS = [
     .create-form h4 { margin: 0 0 0.75rem; }
     .create-grid { display: grid; grid-template-columns: 80px 1fr; gap: 0.5rem; align-items: center; }
     .create-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
-    .create-error { color: var(--p-red-500); font-size: 0.85rem; margin-top: 0.5rem; }
+    .create-error { color: var(--rq-field-error-fg); font-size: 0.85rem; margin-top: 0.5rem; }
     hr { margin: 0.75rem 0; border: none; border-top: 1px solid var(--p-surface-200); }
   `]
 })

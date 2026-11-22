@@ -425,8 +425,8 @@ const STALE_VERSION_MESSAGE =
     </div>
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .page-actions { display: flex; gap: 0.5rem; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--rq-space-2); margin-bottom: 1rem; }
+    .page-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .form-grid { display: grid; grid-template-columns: 130px 1fr; gap: 0.75rem 1rem; align-items: start; max-width: 700px; }
     .form-actions { margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .section { margin-top: 1.5rem; }

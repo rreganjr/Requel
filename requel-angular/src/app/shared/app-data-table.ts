@@ -117,7 +117,7 @@ export interface RowAction<T = unknown> {
     }
 
     <p-table #dt [value]="value" [loading]="loading" [rowHover]="true"
-             [paginator]="paginator" [rows]="rows"
+             [paginator]="paginator && value.length > rows" [rows]="rows"
              [scrollable]="!!scrollHeight" [scrollHeight]="scrollHeight || undefined"
              [dataKey]="dataKey" [sortField]="sortField" [sortOrder]="sortOrder"
              [selectionMode]="null"
@@ -140,7 +140,9 @@ export interface RowAction<T = unknown> {
               <th [class]="col.class ?? ''">{{ col.header }}</th>
             }
           }
-          @if (hasRowActions) { <th class="dt-actions-col"></th> }
+          @if (hasRowActions) {
+            <th class="dt-actions-col"><span class="rq-visually-hidden">Actions</span></th>
+          }
         </tr>
       </ng-template>
 
@@ -173,7 +175,7 @@ export interface RowAction<T = unknown> {
               } @else {
                 <p-button icon="pi pi-ellipsis-v" [text]="true" [rounded]="true"
                           severity="secondary" size="small"
-                          [attr.aria-label]="actionsAriaLabel"
+                          [ariaLabel]="actionsAriaLabel"
                           data-testid="data-table-row-actions"
                           (onClick)="openRowMenu(row, $event, rowMenu)" />
               }
@@ -228,7 +230,8 @@ export class AppDataTableComponent<T = Record<string, unknown>> {
   @Input() columns: DataTableColumn<T>[] = [];
   /** Drives the PrimeNG loading overlay. */
   @Input() loading = false;
-  /** Show the built-in paginator. */
+  /** Show the built-in paginator. It stays hidden while every row fits on one page (#519:
+   *  an empty or one-page list showed page arrows with nothing to page through). */
   @Input() paginator = true;
   /** Page size. */
   @Input() rows = 20;

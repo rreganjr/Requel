@@ -51,9 +51,9 @@ import { ButtonModule } from 'primeng/button';
       display: flex; align-items: center; gap: var(--rq-space-2, 0.5rem);
       padding: var(--rq-space-2, 0.5rem) var(--rq-space-3, 0.75rem);
       margin-bottom: var(--rq-space-3, 0.75rem);
-      border: 1px solid var(--p-blue-200, #bfdbfe);
-      background: var(--p-blue-50, #eff6ff);
-      color: var(--p-blue-800, #1e40af);
+      border: 1px solid var(--rq-tag-info-border);
+      background: var(--rq-tag-info-bg);
+      color: var(--rq-tag-info-fg);
       border-radius: var(--rq-radius-sm, 4px);
     }
     .rq-update-banner__icon { flex-shrink: 0; }

@@ -44,7 +44,7 @@ import { InlineErrorComponent } from './app-inline-error';
   template: `
     @if (entityId != null) {
       <div class="tags-section" data-testid="tags-section">
-        <div class="section-header"><h3>Tags</h3></div>
+        <div class="section-header"><h2 class="rq-section-title">Tags</h2></div>
 
         @if (loadError()) {
           <app-error-state severity="warn" [message]="loadError()!" retryLabel="Retry"
@@ -97,7 +97,7 @@ import { InlineErrorComponent } from './app-inline-error';
   styles: [`
     .tags-section { margin-top: 1.5rem; }
     .section-header { margin-bottom: 0.5rem; }
-    .section-header h3 { margin: 0; }
+    .section-header h2 { margin: 0; }
     .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
     .add-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
     .cat-input, .val-input { max-width: 200px; }

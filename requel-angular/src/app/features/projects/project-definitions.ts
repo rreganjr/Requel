@@ -121,7 +121,7 @@ import {
     .definition-main { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; align-items: baseline; }
     .source, .covers { color: var(--p-text-muted-color); font-size: 0.875rem; }
     .covers { flex-basis: 100%; }
-    .newer { color: var(--p-orange-600, #c2410c); font-size: 0.875rem; }
+    .newer { color: var(--rq-tag-warning-fg); font-size: 0.875rem; }
   `]
 })
 export class ProjectDefinitionsComponent implements OnInit {

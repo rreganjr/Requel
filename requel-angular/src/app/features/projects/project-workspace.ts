@@ -157,7 +157,10 @@ interface NextAction {
       display: flex; align-items: flex-start; justify-content: space-between;
       gap: var(--rq-space-4); margin-bottom: var(--rq-space-6);
     }
-    .ws-header-actions { display: flex; align-items: center; gap: var(--rq-space-2); }
+    .ws-header-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--rq-space-2); }
+    /* #519: a link styled as a button; without this it kept the link underline, unlike the
+       Delete button beside it. */
+    .ws-header-actions a.p-button { text-decoration: none; gap: var(--rq-space-2); }
     .count-grid {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
       gap: var(--rq-space-4); margin-bottom: var(--rq-space-6);

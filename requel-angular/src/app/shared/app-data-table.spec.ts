@@ -56,6 +56,28 @@ describe('AppDataTableComponent (issue #157)', () => {
     expect(firstRowCells).toContain('A-label');
   });
 
+  it('names the actions column for screen readers (#519: axe empty-table-header)', () => {
+    const { fixture } = make();
+    fixture.detectChanges();
+    const actions = fixture.nativeElement.querySelector('thead th.dt-actions-col');
+    expect(actions.textContent.trim()).toBe('Actions');
+    expect(actions.querySelector('.rq-visually-hidden')).not.toBeNull();
+  });
+
+  it('hides the paginator while every row fits on one page (#519)', () => {
+    const { fixture, comp } = make();
+    comp.rows = 20;
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.p-paginator')).toBeNull();
+  });
+
+  it('shows the paginator once there is more than one page', () => {
+    const { fixture, comp } = make();
+    comp.rows = 1;
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.p-paginator')).not.toBeNull();
+  });
+
   it('marks a sortable column with a sort icon', () => {
     const { fixture } = make();
     fixture.detectChanges();
@@ -140,7 +162,9 @@ describe('AppDataTableComponent (issue #157)', () => {
     it('gives the ⋯ trigger an accessible name (#136/#137)', () => {
       const { fixture } = make();
       fixture.detectChanges();
-      const trigger = fixture.nativeElement.querySelector('[data-testid="data-table-row-actions"]');
+      // #519: on the <button> itself. An aria-label on the p-button host named nothing the
+      // screen reader lands on, so every row's trigger was an unnamed button.
+      const trigger = fixture.nativeElement.querySelector('[data-testid="data-table-row-actions"] button');
       expect(trigger.getAttribute('aria-label')).toBe('Row actions');
     });
 

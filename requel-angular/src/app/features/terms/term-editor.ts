@@ -313,8 +313,8 @@ const SEPARATOR = '; ';
     <p-confirmDialog />
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--rq-space-4); }
-    .page-actions { display: flex; gap: var(--rq-space-2); }
+    .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--rq-space-2); margin-bottom: var(--rq-space-4); }
+    .page-actions { display: flex; flex-wrap: wrap; gap: var(--rq-space-2); }
     /* The rows are app-field's now (issue #132); the local .form-grid that redefined a
        160px label column is gone. Only control width stays with the caller. */
     app-field input, app-field textarea, app-field p-select { width: 100%; }

@@ -286,7 +286,7 @@ test.describe('Project management', () => {
 
     expect(response.status(), 'export endpoint returns 200 OK to the click').toBe(200);
     expect(
-      response.request().headers().authorization,
+      response.request().headers()['authorization'],
       'click sends Authorization: Bearer header (proves AuthInterceptor ran)'
     ).toMatch(/^Bearer /);
 

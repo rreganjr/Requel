@@ -20,6 +20,7 @@
  */
 import { Component, OnInit, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
+import { AppCardComponent } from '../../shared/app-card';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { InputText } from 'primeng/inputtext';
@@ -57,6 +58,7 @@ const SEPARATOR = '; ';
   selector: 'app-edit-account',
   standalone: true,
   imports: [
+    AppCardComponent,
     PageHeaderComponent,
     ReactiveFormsModule,
     InputText,
@@ -83,6 +85,8 @@ const SEPARATOR = '; ';
         }
       </div>
 
+      <!-- #519: in a card, like every other form (it sat straight on the canvas). -->
+      <app-card>
       <form [formGroup]="form" (ngSubmit)="onSave()">
         <!--
           controlId values match the ids the e2e page objects locate (#username, #name,
@@ -150,6 +154,7 @@ const SEPARATOR = '; ';
                     [disabled]="form.invalid || form.pristine || saving()" />
         </div>
       </form>
+      </app-card>
     </div>
   `,
   styles: [`

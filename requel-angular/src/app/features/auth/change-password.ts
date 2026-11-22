@@ -50,7 +50,7 @@ import { PASSWORD_MAX_LENGTH } from '../../shared/validation-limits';
     AppFieldControlDirective,
   ],
   template: `
-    <div class="change-password-container">
+    <main class="change-password-container">
       <app-card class="change-password-card">
         <h1 class="change-password-title">Change your password</h1>
         @if (required) {
@@ -133,7 +133,7 @@ import { PASSWORD_MAX_LENGTH } from '../../shared/validation-limits';
           </div>
         </form>
       </app-card>
-    </div>
+    </main>
   `,
   styles: [
     `

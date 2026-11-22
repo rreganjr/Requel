@@ -102,7 +102,7 @@ const TERMINAL = ['SUCCEEDED', 'FAILED', 'SKIPPED', 'CANCELLED'];
     .corpus-actions { display: flex; gap: var(--rq-space-2); margin-top: var(--rq-space-2); }
     .ws-hint { color: var(--rq-text-muted); font-size: var(--rq-font-size-sm); }
     .ws-status:empty { display: none; }
-    .ws-error { color: var(--rq-danger-text, #b42318); }
+    .ws-error { color: var(--rq-field-error-fg); }
   `],
 })
 export class ProjectCorpusPanelComponent implements OnChanges, OnDestroy {
