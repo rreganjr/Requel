@@ -43,3 +43,24 @@ describe('RequelPreset dark scheme (#390)', () => {
     expect(dark.text['color']).toBe('{slate.100}');
   });
 });
+
+describe('RequelPreset light scheme contrast (#519)', () => {
+  const preset = RequelPreset as unknown as {
+    semantic: { colorScheme: { light: { primary: Tokens }; dark: { primary: Tokens } } };
+    components: { button: { colorScheme: { light: { outlined: Tokens; text: Tokens } } } };
+  };
+
+  it('draws primary from the 600 stop of the primary ramp, so it is AA on white and follows the accent', () => {
+    expect(preset.semantic.colorScheme.light.primary['color']).toBe('{primary.600}');
+    expect(preset.semantic.colorScheme.dark.primary['color']).toBe('{primary.400}');
+  });
+
+  it('draws outlined and text severity button labels from the 700 stop', () => {
+    const { outlined, text } = preset.components.button.colorScheme.light;
+    for (const variant of [outlined, text]) {
+      for (const severity of ['success', 'info', 'warn', 'help', 'danger']) {
+        expect((variant[severity] as Tokens)['color']).toMatch(/\.700\}$/);
+      }
+    }
+  });
+});

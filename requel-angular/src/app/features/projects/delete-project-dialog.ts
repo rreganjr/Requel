@@ -113,13 +113,13 @@ export interface DeleteProjectTarget {
       margin: 0; display: flex; gap: var(--rq-space-2); align-items: flex-start;
       color: var(--p-text-color);
     }
-    .dpd-warning .pi { color: var(--rq-tag-danger-fg, var(--p-red-500)); margin-top: 0.15rem; flex: 0 0 auto; }
+    .dpd-warning .pi { color: var(--rq-tag-danger-fg); margin-top: 0.15rem; flex: 0 0 auto; }
     .dpd-backup { display: flex; align-items: center; gap: var(--rq-space-2); }
     .dpd-exported {
       margin: 0; display: flex; align-items: center; gap: var(--rq-space-2);
       color: var(--p-text-secondary-color);
     }
-    .dpd-exported .pi { color: var(--p-green-500, green); }
+    .dpd-exported .pi { color: var(--rq-tag-success-fg); }
     .dpd-actions { display: flex; justify-content: flex-end; gap: var(--rq-space-2); margin-top: var(--rq-space-2); }
   `]
 })

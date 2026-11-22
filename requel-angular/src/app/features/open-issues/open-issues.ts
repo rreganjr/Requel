@@ -138,7 +138,7 @@ const SEVERITY_FILTER_OPTIONS: { label: string; value: SeverityFilter }[] = [
     .entity-link:hover { opacity: 0.8; }
     /* red-700 (not red-500) so the small bold text clears WCAG AA 4.5:1 on the
        white table cell (issue #141: red-500 on white is only 3.76:1). */
-    .must-resolve { color: var(--p-red-700); font-weight: 600; }
+    .must-resolve { color: var(--rq-tag-danger-fg); font-weight: 600; }
     .optional { color: var(--p-text-secondary-color); }
     /* #270: muted; the "May no longer apply" tag carries the meaning, not the colour. */
     .issue-text.stale { opacity: 0.7; }

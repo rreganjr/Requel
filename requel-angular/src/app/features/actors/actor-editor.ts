@@ -264,8 +264,8 @@ const STALE_VERSION_MESSAGE =
     </ng-template>
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .page-actions { display: flex; gap: 0.5rem; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--rq-space-2); margin-bottom: 1rem; }
+    .page-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .form-actions { margin-top: 1rem; max-width: 700px; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .goals-section { margin-top: 2rem; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }

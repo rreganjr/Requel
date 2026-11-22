@@ -43,7 +43,12 @@ export const appConfig: ApplicationConfig = {
         // Dark-mode hook only: the Requel dark token set is deferred to #159 (N6).
         // Toggling `.rq-dark` on a root element activates dark mode when authored.
         options: { darkModeSelector: '.rq-dark' }
-      }
+      },
+      // #519: p-confirmdialog binds role="alertdialog" on its p-dialog as a static attribute,
+      // so the empty host element carries the role even when nothing is open, and axe reports
+      // an unnamed dialog on every page that mounts one. The open dialog's own container
+      // carries the role and its aria-labelledby; the host never needs one.
+      pt: { dialog: { host: { role: null } } }
     })
   ]
 };

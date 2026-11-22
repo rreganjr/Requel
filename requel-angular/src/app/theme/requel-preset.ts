@@ -145,16 +145,20 @@ export const RequelPreset = definePreset(Aura, auraDarkOnSlate(), {
     focusRing: {
       width: '2px',
       style: 'solid',
-      color: '{primary.500}',
+      color: '{primary.600}',
       offset: '2px'
     },
     colorScheme: {
       light: {
+        // #519: 600, not 500. White text on blue-500 (and blue-500 text on white) is 3.7:1,
+        // under AA's 4.5:1; 600 is 5.2:1. The stops come from the primary ramp, not blue,
+        // so the user's accent (theme.service updatePrimaryPalette) recolours buttons and
+        // links too - pinned to blue, it only reached the ramp.
         primary: {
-          color: '{blue.500}',
+          color: '{primary.600}',
           contrastColor: '#ffffff',
-          hoverColor: '{blue.600}',
-          activeColor: '{blue.700}'
+          hoverColor: '{primary.700}',
+          activeColor: '{primary.800}'
         },
         surface: {
           0: '{slate.0}',
@@ -198,10 +202,10 @@ export const RequelPreset = definePreset(Aura, auraDarkOnSlate(), {
       // holds at slate-300 to stay AA on the dark surfaces it is used over.
       dark: {
         primary: {
-          color: '{blue.400}',
+          color: '{primary.400}',
           contrastColor: '{slate.950}',
-          hoverColor: '{blue.300}',
-          activeColor: '{blue.200}'
+          hoverColor: '{primary.300}',
+          activeColor: '{primary.200}'
         },
         surface: {
           0: '{slate.900}',
@@ -234,7 +238,32 @@ export const RequelPreset = definePreset(Aura, auraDarkOnSlate(), {
   },
   components: {
     // 6px content radius across the interactive/content surfaces.
-    button: { root: { borderRadius: '6px' } },
+    button: {
+      root: { borderRadius: '6px' },
+      // #519: Aura's light outlined and text buttons draw their label in the severity's 500
+      // stop, which is under AA's 4.5:1 on white (green 2.3, orange 2.8, sky 2.8, red 3.6,
+      // purple 4.2). The 700 stop clears it on white and on the canvas. Only the label
+      // colour changes; borders and hover washes keep Aura's values. Dark mode already uses
+      // the light 400 stops on a dark surface and passes.
+      colorScheme: {
+        light: {
+          outlined: {
+            success: { color: '{green.700}' },
+            info: { color: '{sky.700}' },
+            warn: { color: '{orange.700}' },
+            help: { color: '{purple.700}' },
+            danger: { color: '{red.700}' }
+          },
+          text: {
+            success: { color: '{green.700}' },
+            info: { color: '{sky.700}' },
+            warn: { color: '{orange.700}' },
+            help: { color: '{purple.700}' },
+            danger: { color: '{red.700}' }
+          }
+        }
+      }
+    },
     card: { root: { borderRadius: '6px' } },
     chip: { root: { borderRadius: '6px' } },
     tag: { root: { borderRadius: '6px' } }

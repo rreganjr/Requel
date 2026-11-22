@@ -175,8 +175,8 @@ import { ArtifactNameService } from '../../core/artifact-name.service';
     <p-confirmDialog />
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--rq-space-4); }
-    .page-actions { display: flex; gap: var(--rq-space-2); }
+    .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--rq-space-2); margin-bottom: var(--rq-space-4); }
+    .page-actions { display: flex; flex-wrap: wrap; gap: var(--rq-space-2); }
     /* The local .form-grid (140px label column) is gone; app-field owns the rows now. */
     .xslt-field { display: flex; flex-direction: column; gap: var(--rq-space-2); }
     .xslt-textarea { width: 100%; font-family: monospace; font-size: var(--rq-font-size-xs); }

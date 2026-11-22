@@ -11,6 +11,7 @@
     "e2e:headed": "playwright test --headed",
     "e2e:report": "playwright show-report",
     "e2e:coverage": "playwright test --config=playwright.coverage.config.ts",
+    "ui-review": "playwright test --config=playwright.ui-review.config.ts",
     "build:stats": "ng build --stats-json",
     "lint": "eslint \"src/**/*.ts\""
   },

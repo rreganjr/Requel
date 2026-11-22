@@ -152,7 +152,7 @@ const REDACTION_LABELS: Record<string, string> = {
     .ws-hint { font-size: var(--rq-font-size-sm); }
     .ws-status { color: var(--p-text-secondary-color); font-size: var(--rq-font-size-sm);
       margin: var(--rq-space-2) 0 0; min-height: 1em; }
-    .ws-error { color: var(--p-red-600, #b91c1c); font-size: var(--rq-font-size-sm); margin: var(--rq-space-1) 0 0; }
+    .ws-error { color: var(--rq-field-error-fg); font-size: var(--rq-font-size-sm); margin: var(--rq-space-1) 0 0; }
   `]
 })
 export class ProjectAssistantsPanelComponent implements OnChanges {

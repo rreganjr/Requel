@@ -144,8 +144,8 @@ const STEP_TYPE_OPTIONS = [
     </div>
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--rq-space-4); }
-    .page-actions { display: flex; gap: var(--rq-space-2); }
+    .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--rq-space-2); margin-bottom: var(--rq-space-4); }
+    .page-actions { display: flex; flex-wrap: wrap; gap: var(--rq-space-2); }
     app-field input, app-field textarea { width: 100%; }
     .shared-hint { font-size: var(--rq-font-size-sm); color: var(--p-text-secondary-color); margin: 0 0 var(--rq-space-3); }
     .form-actions { margin-block: var(--rq-space-4) var(--rq-space-2); }

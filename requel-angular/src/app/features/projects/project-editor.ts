@@ -178,7 +178,7 @@ const SEPARATOR = '; ';
   `,
   styles: [`
     .project-editor { max-width: 800px; }
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--rq-space-2); margin-bottom: 1rem; }
     .empty-text { color: var(--p-text-muted-color); font-style: italic; }
     .actions { display: flex; gap: 0.5rem; }
   `]

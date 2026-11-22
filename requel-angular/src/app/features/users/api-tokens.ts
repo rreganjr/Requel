@@ -19,7 +19,7 @@
  *
  */
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, TemplateRef, ViewChild, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormGroup, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -31,6 +31,7 @@ import { notBlank } from '../../shared/form-errors';
 import { SelectModule } from 'primeng/select';
 import { TokenService } from '../../core/token.service';
 import { ApiTokenDto } from '../../models/api-token';
+import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-table';
 
 /**
  * Personal access token management (#73, Slice 6): list, create (showing the one-time plaintext),
@@ -42,11 +43,19 @@ import { ApiTokenDto } from '../../models/api-token';
   selector: 'app-api-tokens',
   standalone: true,
   imports: [DatePipe, ReactiveFormsModule, ButtonModule, DialogModule, InputTextModule, MessageModule, SubmitErrorComponent,
-    SelectModule, InlineErrorComponent],
+    SelectModule, InlineErrorComponent, AppDataTableComponent],
   template: `
+    <!-- Cell templates for the token table's columns (static, so the columns can be built in ngOnInit). -->
+    <ng-template #statusCell let-t>
+      <span class="status status-{{ t.status.toLowerCase() }}">{{ t.status }}</span>
+    </ng-template>
+    <ng-template #createdCell let-t>{{ t.createdAt | date:'short' }}</ng-template>
+    <ng-template #lastUsedCell let-t>{{ t.lastUsedAt ? (t.lastUsedAt | date:'short') : '—' }}</ng-template>
+    <ng-template #expiresCell let-t>{{ t.expiresAt ? (t.expiresAt | date:'short') : 'Never' }}</ng-template>
+
     <div class="api-tokens" data-testid="api-tokens">
       <div class="section-header">
-        <h3>Personal Access Tokens</h3>
+        <h2 class="rq-section-title">Personal Access Tokens</h2>
         <p-button label="New token" icon="pi pi-plus" data-testid="pat-new"
                   (onClick)="openCreate()" />
       </div>
@@ -65,31 +74,20 @@ import { ApiTokenDto } from '../../models/api-token';
       } @else if (tokens().length === 0) {
         <p class="empty">No tokens yet.</p>
       } @else {
-        <table class="pat-table" data-testid="pat-table">
-          <thead>
-            <tr><th>Name</th><th>Status</th><th>Created</th><th>Last used</th><th>Expires</th><th></th></tr>
-          </thead>
-          <tbody>
-            @for (t of tokens(); track t.id) {
-              <tr>
-                <td>{{ t.name }}</td>
-                <td><span class="status status-{{ t.status.toLowerCase() }}">{{ t.status }}</span></td>
-                <td>{{ t.createdAt | date:'short' }}</td>
-                <td>{{ t.lastUsedAt ? (t.lastUsedAt | date:'short') : '—' }}</td>
-                <td>{{ t.expiresAt ? (t.expiresAt | date:'short') : 'Never' }}</td>
-                <td>
-                  @if (t.status === 'ACTIVE') {
-                    <p-button label="Revoke" severity="danger" [text]="true"
-                              (onClick)="revoke(t)" />
-                  } @else {
-                    <p-button label="Delete" icon="pi pi-trash" severity="danger" [text]="true"
-                              data-testid="pat-delete" (onClick)="deleteToken(t)" />
-                  }
-                </td>
-              </tr>
+        <app-data-table [value]="tokens()" [columns]="columns" [showToolbar]="false"
+                        [paginator]="false" [rowClickable]="false" testid="pat-table"
+                        rowTestid="pat-row" actionsAriaLabel="Token actions"
+                        data-testid="pat-table">
+          <ng-template #rowActions let-t>
+            @if (t.status === 'ACTIVE') {
+              <p-button label="Revoke" severity="danger" [text]="true" size="small"
+                        (onClick)="revoke(t)" />
+            } @else {
+              <p-button label="Delete" icon="pi pi-trash" severity="danger" [text]="true"
+                        size="small" data-testid="pat-delete" (onClick)="deleteToken(t)" />
             }
-          </tbody>
-        </table>
+          </ng-template>
+        </app-data-table>
       }
 
       <p-dialog header="New personal access token" [(visible)]="createDialogVisible"
@@ -137,27 +135,33 @@ import { ApiTokenDto } from '../../models/api-token';
   styles: [`
     .api-tokens { margin-top: 2rem; }
     .section-header { display: flex; align-items: center; justify-content: space-between; }
-    .section-header h3 { margin: 0; }
+    .section-header h2 { margin: 0; }
     .hint { color: var(--p-text-muted-color); margin: 0.25rem 0 1rem; }
     /* Reserve fixed space (a single message line ≈ 2.13rem) so showing/clearing a
        status message never shifts the table below it. */
     .message-slot { min-height: 2.25rem; margin-bottom: 0.5rem; display: flex; align-items: center; }
     .message-slot p-message { width: 100%; }
-    .pat-table { width: 100%; border-collapse: collapse; }
-    .pat-table th, .pat-table td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--p-content-border-color); }
     .status { font-size: 0.8rem; font-weight: 600; }
-    .status-active { color: var(--p-green-600, #16a34a); }
+    .status-active { color: var(--rq-tag-success-fg); }
     .status-expired { color: var(--p-text-muted-color); }
-    .status-revoked { color: var(--p-red-600, #dc2626); }
+    .status-revoked { color: var(--rq-tag-danger-fg); }
     .field { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 1rem; }
     .field label { font-weight: 600; }
     .token-display { display: flex; align-items: center; gap: 0.5rem; margin: 0.75rem 0; }
-    .token-display code { flex: 1; padding: 0.5rem; background: var(--p-content-hover-background, #f1f5f9); border-radius: 4px; word-break: break-all; }
+    .token-display code { flex: 1; padding: 0.5rem; background: var(--p-content-hover-background); border-radius: 4px; word-break: break-all; }
     .dialog-actions { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
     .empty { color: var(--p-text-muted-color); }
   `]
 })
 export class ApiTokensComponent implements OnInit {
+
+  @ViewChild('statusCell', { static: true }) private statusCell!: TemplateRef<{ $implicit: ApiTokenDto }>;
+  @ViewChild('createdCell', { static: true }) private createdCell!: TemplateRef<{ $implicit: ApiTokenDto }>;
+  @ViewChild('lastUsedCell', { static: true }) private lastUsedCell!: TemplateRef<{ $implicit: ApiTokenDto }>;
+  @ViewChild('expiresCell', { static: true }) private expiresCell!: TemplateRef<{ $implicit: ApiTokenDto }>;
+
+  /** The token table's columns (#519: app-data-table, like every other list). */
+  columns: DataTableColumn<ApiTokenDto>[] = [];
 
   readonly tokens = signal<ApiTokenDto[]>([]);
   readonly loading = signal(false);
@@ -189,6 +193,13 @@ export class ApiTokensComponent implements OnInit {
   constructor(private tokenService: TokenService) {}
 
   async ngOnInit(): Promise<void> {
+    this.columns = [
+      { field: 'name', header: 'Name' },
+      { field: 'status', header: 'Status', cellTemplate: this.statusCell },
+      { field: 'createdAt', header: 'Created', cellTemplate: this.createdCell },
+      { field: 'lastUsedAt', header: 'Last used', cellTemplate: this.lastUsedCell },
+      { field: 'expiresAt', header: 'Expires', cellTemplate: this.expiresCell },
+    ];
     await this.load();
   }
 

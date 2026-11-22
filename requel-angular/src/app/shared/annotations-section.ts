@@ -353,12 +353,12 @@ const SUBJECT_LABELS: Record<string, string> = { UseCase: 'Use case', GlossaryTe
   `,
   styles: [`
     .annotations-section { margin-top: 1.5rem; }
-    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
     .section-header h2 { margin: 0; }
-    .header-actions { display: flex; align-items: center; gap: 0.5rem; }
-    .action-buttons { display: flex; gap: 0.5rem; }
+    .header-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+    .action-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 
-    .add-form { background: var(--p-surface-50, #f8f9fa); border: 1px solid var(--p-surface-200); border-radius: 6px; padding: 0.75rem; margin-bottom: 0.75rem; }
+    .add-form { background: var(--p-surface-50); border: 1px solid var(--p-surface-200); border-radius: 6px; padding: 0.75rem; margin-bottom: 0.75rem; }
     .nested-form { margin-left: 1.5rem; margin-top: 0.5rem; }
     .add-textarea { width: 100%; }
     .add-input { width: 100%; }
@@ -383,7 +383,10 @@ const SUBJECT_LABELS: Record<string, string> = { UseCase: 'Use case', GlossaryTe
     .resolution-label { font-weight: 600; color: var(--rq-tag-success-fg); white-space: nowrap; }
     .resolution-text { color: var(--p-text-color); font-style: italic; }
 
-    .annotation-text { flex: 1; min-width: 0; }
+    /* #519: a 16rem basis, not 0: on a narrow window the creator and the actions wrap onto
+       their own line and the text keeps the width, instead of the text shrinking to a word
+       per line beside them. */
+    .annotation-text { flex: 1 1 16rem; min-width: 0; }
     /* Collapsed issue (#226): the row is one line and the text ellipsizes. */
     .issue-item.collapsed .annotation-row { flex-wrap: nowrap; }
     .issue-item.collapsed .annotation-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

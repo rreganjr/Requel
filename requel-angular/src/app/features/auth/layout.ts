@@ -104,7 +104,7 @@ function persistSidebarCollapsed(collapsed: boolean): void {
             <i class="pi pi-bars" aria-hidden="true"></i>
           </button>
           <a routerLink="/" class="header-brand" data-testid="header-brand">
-            <img src="images/logo_robot.png" alt="Requel" class="header-logo" />
+            <img src="images/logo_robot.png" alt="" class="header-logo" />
             <span class="header-title">REQUEL</span>
           </a>
           @if (showBack()) {
@@ -195,6 +195,12 @@ function persistSidebarCollapsed(collapsed: boolean): void {
       min-width: 0;
       overflow: hidden;
     }
+    /* #519: below the sidebar's collapse point the trail has room for a few characters per
+       crumb ("› u… › P…"), which reads as noise. The page title and the back button carry
+       the location there. */
+    @media (max-width: 767.98px) {
+      .breadcrumb-region { display: none; }
+    }
 
     .header-brand {
       display: flex;
@@ -230,7 +236,7 @@ function persistSidebarCollapsed(collapsed: boolean): void {
       cursor: pointer;
     }
     .icon-btn:hover:not(:disabled) {
-      background: rgba(255, 255, 255, 0.12);
+      background: var(--rq-header-hover-bg);
     }
     .icon-btn:focus-visible {
       outline: 2px solid var(--rq-header-fg);

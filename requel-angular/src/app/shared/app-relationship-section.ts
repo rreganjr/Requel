@@ -124,13 +124,13 @@ import { ButtonModule } from 'primeng/button';
     }
     .rq-rel-header .rq-section-title { margin: 0; }
     .rq-rel-titles { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; }
-    .rq-rel-description { margin: 0; font-size: 0.8125rem; font-weight: 400; color: var(--p-text-muted-color, #6b7280); }
+    .rq-rel-description { margin: 0; font-size: 0.8125rem; font-weight: 400; color: var(--p-text-muted-color); }
     .rq-rel-table { width: 100%; border-collapse: collapse; }
     .rq-rel-table.rq-rel-fixed { table-layout: fixed; }
     .rq-rel-table.rq-rel-fixed td { overflow-wrap: anywhere; }
     .rq-rel-table th, .rq-rel-table td {
       text-align: left; padding: var(--rq-space-2, 0.5rem); vertical-align: middle;
-      border-bottom: 1px solid var(--p-content-border-color, #e5e7eb);
+      border-bottom: 1px solid var(--p-content-border-color);
     }
     .rq-rel-actions-col { width: 3rem; text-align: right; }
     /* The icon remove button otherwise renders taller than a text row, adding an
@@ -141,7 +141,7 @@ import { ButtonModule } from 'primeng/button';
     .rq-rel-actions-col ::ng-deep .p-button {
       width: 1.5rem !important; height: 1.5rem !important; padding: 0 !important;
     }
-    .rq-rel-hint, .rq-rel-empty { color: var(--p-text-muted-color, #6b7280); margin: 0.5rem 0; }
+    .rq-rel-hint, .rq-rel-empty { color: var(--p-text-muted-color); margin: 0.5rem 0; }
     .rq-visually-hidden {
       position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
       overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;

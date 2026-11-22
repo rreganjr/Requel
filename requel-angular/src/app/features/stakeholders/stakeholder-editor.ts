@@ -218,8 +218,9 @@ export function userLabel(stakeholderName: string, username: string): string {
 
           @if (permissionGroups().length > 0) {
             <div class="permissions-section">
-              <!-- h3 under the card/panel heading, not a page-level section title. -->
-              <h3 id="stakeholder-permissions-heading">Permissions</h3>
+              <!-- #519: h2, like the editor's other section titles; an h3 here followed the
+                   page's h1 directly (axe heading-order). -->
+              <h2 class="rq-section-title" id="stakeholder-permissions-heading">Permissions</h2>
               <div class="permission-grid" role="group"
                    aria-labelledby="stakeholder-permissions-heading">
                 <div class="permission-header"></div>
@@ -314,12 +315,12 @@ export function userLabel(stakeholderName: string, username: string): string {
     </div>
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .page-actions { display: flex; gap: 0.5rem; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--rq-space-2); margin-bottom: 1rem; }
+    .page-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .readonly-field { color: var(--p-text-color); padding: 0.5rem 0; }
     .form-actions { margin-top: 1rem; }
     .permissions-section { grid-column: 1 / -1; margin-top: 0.5rem; }
-    .permissions-section h3 { margin: 0 0 0.5rem 0; font-size: 1rem; }
+    .permissions-section h2 { margin: 0 0 0.5rem 0; }
     .permission-grid { display: grid; grid-template-columns: 140px repeat(3, 60px); gap: 0.25rem 0.5rem; align-items: center; }
     .permission-header { font-weight: 600; font-size: 0.85rem; text-align: center; }
     .permission-entity { font-size: 0.9rem; }

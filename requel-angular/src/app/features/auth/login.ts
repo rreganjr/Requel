@@ -44,7 +44,7 @@ import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-fi
     AppFieldControlDirective,
   ],
   template: `
-    <div class="login-container">
+    <main class="login-container">
       <app-card class="login-card">
         <div class="login-brand">
           <img class="login-logo" src="images/logo_robot.png" alt="" />
@@ -105,7 +105,7 @@ import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-fi
           />
         </form>
       </app-card>
-    </div>
+    </main>
   `,
   styles: [
     `

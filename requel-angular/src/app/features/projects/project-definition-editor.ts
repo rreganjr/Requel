@@ -208,18 +208,18 @@ const INSTRUCTION_CHARS = 64000;
   `,
   styles: [`
     .hint { margin: 0 0 0.75rem; color: var(--p-text-muted-color); }
-    .newer { color: var(--p-orange-600, #c2410c); }
+    .newer { color: var(--rq-tag-warning-fg); }
     .definition-form { display: flex; flex-direction: column; gap: 0.5rem; max-width: 52rem; }
-    fieldset { border: 1px solid var(--rq-card-border, #ddd); border-radius: 6px;
+    fieldset { border: 1px solid var(--rq-card-border); border-radius: 6px;
       padding: 0.5rem 0.75rem; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
     .check { display: inline-flex; gap: 0.35rem; align-items: center; }
     .vocab-row { display: flex; gap: 0.5rem; flex-basis: 100%; align-items: center; }
     .vocab-row .grow { flex: 1; }
     .count { color: var(--p-text-muted-color); font-size: 0.8rem; margin-left: 0.5rem; }
-    .field-error { color: var(--p-red-600, #b91c1c); }
+    .field-error { color: var(--rq-field-error-fg); }
     .form-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
     .section-title { margin: 1.5rem 0 0.5rem; font-size: 1.1rem; }
-    .baseline { white-space: pre-wrap; background: var(--p-surface-100, #f5f5f5); padding: 0.75rem;
+    .baseline { white-space: pre-wrap; background: var(--p-surface-100); padding: 0.75rem;
       border-radius: 6px; max-height: 24rem; overflow: auto; }
   `]
 })

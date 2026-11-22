@@ -497,8 +497,8 @@ const STEP_SUGGESTION_LIMIT = 10;
     </div>
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .page-actions { display: flex; gap: 0.5rem; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--rq-space-2); margin-bottom: 1rem; }
+    .page-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .form-actions { margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .section { margin-top: 1.5rem; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
@@ -522,8 +522,8 @@ const STEP_SUGGESTION_LIMIT = 10;
     .step-row.cdk-drag-animating { transition: transform 250ms cubic-bezier(0,0,0.2,1); }
     .step-list.cdk-drop-list-dragging .step-row:not(.cdk-drag-placeholder) { transition: transform 250ms cubic-bezier(0,0,0.2,1); }
     .step-row-placeholder {
-      height: 41px; background: var(--p-primary-50, #e8f0fe);
-      border: 2px dashed var(--p-primary-300, #93b4fb);
+      height: 41px; background: var(--rq-drop-target-bg);
+      border: 2px dashed var(--rq-drop-target-border);
       border-radius: 4px; flex: 1;
     }
 
