@@ -61,13 +61,33 @@ export const PRIMARY_PALETTES: Record<PrimaryPaletteKey, ColorRamp> = {
 /** The palette that ships as the app default; selecting it resets the primary. */
 export const DEFAULT_PRIMARY: PrimaryPaletteKey = 'blue';
 
-/** Panel-facing option list: key, human label, and the swatch color (500 stop). */
+/**
+ * #529: the stop each accent's light-mode primary (buttons with white text, links on white)
+ * is drawn from. 600 reaches AA's 4.5:1 for blue, violet and rose; emerald-600 (3.8:1) and
+ * amber-600 (3.2:1) don't, so those two use 700. The preset's light primary is 600 (with
+ * hover 700, active 800); ThemeService adds PRIMARY_STOP_700_CLASS to <html> for a 700 accent,
+ * and styles.scss moves the three tokens one stop down. Dark mode uses 400 for every accent
+ * (with dark text), which passes.
+ */
+export const LIGHT_PRIMARY_STOP: Record<PrimaryPaletteKey, 600 | 700> = {
+  blue: 600, emerald: 700, violet: 600, rose: 600, amber: 700,
+};
+
+/** Root class for an accent whose light primary is the 700 stop (see styles.scss). */
+export const PRIMARY_STOP_700_CLASS = 'rq-primary-stop-700';
+
+/** The picker's swatch is the colour light-mode buttons use (#529; it was the 500 stop). */
+function swatch(key: PrimaryPaletteKey): string {
+  return PRIMARY_PALETTES[key][LIGHT_PRIMARY_STOP[key]];
+}
+
+/** Panel-facing option list: key, human label, and the swatch color. */
 export const PRIMARY_OPTIONS: { key: PrimaryPaletteKey; label: string; swatch: string }[] = [
-  { key: 'blue', label: 'Blue', swatch: PRIMARY_PALETTES.blue[500] },
-  { key: 'emerald', label: 'Emerald', swatch: PRIMARY_PALETTES.emerald[500] },
-  { key: 'violet', label: 'Violet', swatch: PRIMARY_PALETTES.violet[500] },
-  { key: 'rose', label: 'Rose', swatch: PRIMARY_PALETTES.rose[500] },
-  { key: 'amber', label: 'Amber', swatch: PRIMARY_PALETTES.amber[500] },
+  { key: 'blue', label: 'Blue', swatch: swatch('blue') },
+  { key: 'emerald', label: 'Emerald', swatch: swatch('emerald') },
+  { key: 'violet', label: 'Violet', swatch: swatch('violet') },
+  { key: 'rose', label: 'Rose', swatch: swatch('rose') },
+  { key: 'amber', label: 'Amber', swatch: swatch('amber') },
 ];
 
 /** Type guard for values read back from localStorage. */
