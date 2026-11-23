@@ -22,6 +22,8 @@ import { Injectable, signal, computed, effect, inject, DestroyRef } from '@angul
 import { updatePrimaryPalette } from '@primeuix/themes';
 import {
   PRIMARY_PALETTES,
+  LIGHT_PRIMARY_STOP,
+  PRIMARY_STOP_700_CLASS,
   DEFAULT_PRIMARY,
   PrimaryPaletteKey,
   isPrimaryPaletteKey,
@@ -81,6 +83,11 @@ export class ThemeService {
     effect(() => {
       const key = this.primary();
       updatePrimaryPalette(PRIMARY_PALETTES[key]);
+      // #529: emerald and amber take their light primary from the 700 stop (contrast); the
+      // class moves the primary tokens down a stop in styles.scss.
+      if (typeof document !== 'undefined') {
+        document.documentElement.classList.toggle(PRIMARY_STOP_700_CLASS, LIGHT_PRIMARY_STOP[key] === 700);
+      }
       this.persist(PRIMARY_KEY, key);
     });
 

@@ -55,7 +55,7 @@ describe('ThemeService (issue #159)', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     localStorage.clear();
-    document.documentElement.classList.remove('rq-dark');
+    document.documentElement.classList.remove('rq-dark', 'rq-primary-stop-700');
   });
 
   it('defaults to system mode and blue primary with nothing stored', () => {
@@ -113,6 +113,23 @@ describe('ThemeService (issue #159)', () => {
     // mocked updatePrimaryPalette; the persist proves the primary effect ran.
     expect(theme.primary()).toBe('emerald');
     expect(localStorage.getItem('requel_primary')).toBe('emerald');
+  });
+
+  it('moves the light primary down a stop for emerald and amber, and back for the others (#529)', () => {
+    const { theme } = render();
+    const root = document.documentElement.classList;
+    theme.setPrimary('amber');
+    flush();
+    expect(root.contains('rq-primary-stop-700')).toBe(true);
+    theme.setPrimary('violet');
+    flush();
+    expect(root.contains('rq-primary-stop-700')).toBe(false);
+    theme.setPrimary('emerald');
+    flush();
+    expect(root.contains('rq-primary-stop-700')).toBe(true);
+    theme.setPrimary('blue');
+    flush();
+    expect(root.contains('rq-primary-stop-700')).toBe(false);
   });
 
   it('falls back to defaults for corrupt stored values', () => {

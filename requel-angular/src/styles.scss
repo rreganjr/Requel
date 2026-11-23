@@ -198,6 +198,15 @@
   --p-font-family: var(--rq-font-family);
 }
 
+/* #529 - accents whose 600 stop is under AA with white text (emerald, amber) take their
+   light-mode primary one stop down. ThemeService sets the class from LIGHT_PRIMARY_STOP;
+   dark mode keeps the preset's 400 stop. */
+html.rq-primary-stop-700:not(.rq-dark) {
+  --p-primary-color: var(--p-primary-700);
+  --p-primary-hover-color: var(--p-primary-800);
+  --p-primary-active-color: var(--p-primary-900);
+}
+
 /* #159 - dark scheme token overrides. Most --rq-* tokens are --p-* aliases and
    flip automatically via the preset's dark colorScheme; only tokens carrying a
    literal color or a light-surface assumption are overridden here. No
