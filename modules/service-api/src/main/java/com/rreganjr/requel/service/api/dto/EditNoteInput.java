@@ -29,8 +29,8 @@ import jakarta.validation.constraints.NotNull;
  */
 @CommandDescription("Creates or edits a note attached to the entity given by entityType and"
         + " entityId. entityType is case-sensitive: Project, ProjectTeam, Goal, GoalRelation,"
-        + " UseCase, Scenario, Step, Story, Actor, GlossaryTerm, NonUserStakeholder or"
-        + " UserStakeholder. Leave noteId null to create a note; when a note with the same text,"
+        + " UseCase, Scenario, Step, Story, Actor, GlossaryTerm, NonUserStakeholder,"
+        + " UserStakeholder or ReportGenerator. Leave noteId null to create a note; when a note with the same text,"
         + " ignoring case, already exists anywhere in the project, that note is attached instead of"
         + " a new one. Pass noteId to replace a note's text. A note can be attached to several"
         + " entities, so editing it changes it everywhere. An unknown noteId, or one from another"

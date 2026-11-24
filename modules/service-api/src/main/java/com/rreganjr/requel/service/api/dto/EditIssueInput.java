@@ -38,8 +38,8 @@ import jakarta.validation.constraints.Pattern;
  */
 @CommandDescription("Creates or edits an issue attached to the entity given by entityType and"
         + " entityId. entityType is case-sensitive: Project, ProjectTeam, Goal, GoalRelation,"
-        + " UseCase, Scenario, Step, Story, Actor, GlossaryTerm, NonUserStakeholder or"
-        + " UserStakeholder. Leave issueId null to create one; when the entity already has an issue"
+        + " UseCase, Scenario, Step, Story, Actor, GlossaryTerm, NonUserStakeholder,"
+        + " UserStakeholder or ReportGenerator. Leave issueId null to create one; when the entity already has an issue"
         + " with exactly the same text, that issue is reused and only a supplied severity is"
         + " applied to it. severity is LOW, MEDIUM or HIGH, ignoring case, and cannot be cleared; a"
         + " new issue gets MEDIUM and mustBeResolved false. When editing, a null mustBeResolved or"
