@@ -29,6 +29,7 @@ import org.springframework.beans.factory.InitializingBean;
 import com.rreganjr.requel.annotation.spi.DefaultAnnotatableTypeRegistry;
 import com.rreganjr.requel.annotation.spi.DefaultGroupingObjectRegistry;
 import com.rreganjr.requel.project.impl.ProjectImpl;
+import com.rreganjr.requel.project.impl.ReportGeneratorImpl;
 
 public class ProjectAnnotatableRegistryConfigurationTest {
 
@@ -49,5 +50,18 @@ public class ProjectAnnotatableRegistryConfigurationTest {
 
 		assertEquals("Project",
 				groupingRegistry.resolveDiscriminator(ProjectImpl.class).orElse(null));
+	}
+
+	/** #526: report generators are annotatable, both ways round. */
+	@Test
+	public void registersReportGenerators() throws Exception {
+		DefaultAnnotatableTypeRegistry annotatableRegistry = new DefaultAnnotatableTypeRegistry();
+		new ProjectAnnotatableRegistryConfiguration().projectAnnotatableRegistryInitializer(
+				annotatableRegistry, new DefaultGroupingObjectRegistry()).afterPropertiesSet();
+
+		assertEquals(ReportGeneratorImpl.class,
+				annotatableRegistry.resolveEntityType("ReportGenerator").orElse(null));
+		assertEquals("ReportGenerator",
+				annotatableRegistry.resolveDiscriminator(ReportGeneratorImpl.class).orElse(null));
 	}
 }

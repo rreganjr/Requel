@@ -38,6 +38,7 @@ import com.rreganjr.requel.project.impl.GoalRelationImpl;
 import com.rreganjr.requel.project.impl.NonUserStakeholderImpl;
 import com.rreganjr.requel.project.impl.ProjectImpl;
 import com.rreganjr.requel.project.impl.ProjectTeamImpl;
+import com.rreganjr.requel.project.impl.ReportGeneratorImpl;
 import com.rreganjr.requel.project.impl.ScenarioImpl;
 import com.rreganjr.requel.project.impl.StepImpl;
 import com.rreganjr.requel.project.impl.StoryImpl;
@@ -68,6 +69,9 @@ public class ProjectAnnotatableRegistryConfiguration {
 		mappings.put("GlossaryTerm", GlossaryTermImpl.class);
 		mappings.put("NonUserStakeholder", NonUserStakeholderImpl.class);
 		mappings.put("UserStakeholder", UserStakeholderImpl.class);
+		// #526: report generators always carried annotations (reports_annotations, V1) but were never
+		// registered, so the annotations API rejected the type and the report editor's section failed.
+		mappings.put("ReportGenerator", ReportGeneratorImpl.class);
 		PROJECT_ANNOTATABLE_TYPES = Collections.unmodifiableMap(mappings);
 		ProjectAnnotatableMetadataContributor.registerAnnotatableTypes(PROJECT_ANNOTATABLE_TYPES);
 

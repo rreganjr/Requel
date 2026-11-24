@@ -46,7 +46,8 @@ public final class QueryDescriptions {
      */
     public static final List<String> ANNOTATABLE_ENTITY_TYPES = List.of(
             "Project", "ProjectTeam", "Goal", "GoalRelation", "UseCase", "Scenario", "Step",
-            "Story", "Actor", "GlossaryTerm", "NonUserStakeholder", "UserStakeholder");
+            "Story", "Actor", "GlossaryTerm", "NonUserStakeholder", "UserStakeholder",
+            "ReportGenerator");
 
     // ---- tools / commands ----------------------------------------------------------------------
 
@@ -250,7 +251,7 @@ public final class QueryDescriptions {
 
     public static final String ANNOTATABLE_ENTITY_TYPE = "The entity's type, case-sensitive:"
             + " Project, ProjectTeam, Goal, GoalRelation, UseCase, Scenario, Step, Story, Actor,"
-            + " GlossaryTerm, NonUserStakeholder or UserStakeholder.";
+            + " GlossaryTerm, NonUserStakeholder, UserStakeholder or ReportGenerator.";
 
     public static final String ENTITY_ID = "The entity's numeric id, as the project tree, a search"
             + " or another read returns it.";
