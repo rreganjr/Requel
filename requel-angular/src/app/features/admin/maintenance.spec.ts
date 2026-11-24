@@ -51,6 +51,12 @@ describe('MaintenanceComponent (issue #256)', () => {
       accept ? conf.accept?.() : undefined);
   }
 
+  it('renders in the shared list frame, the repair task in the card (#528)', () => {
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('app-list-page h1')?.textContent).toContain('Maintenance');
+    expect(el.querySelector('app-list-page app-card [data-testid="repair-stakeholders-task"]')).not.toBeNull();
+  });
+
   it('repairs one project without confirming when a name is given', async () => {
     const confirm = stubConfirm(true);
     comp.repairForm.controls.projectName.setValue('  Imported Project 2  ');

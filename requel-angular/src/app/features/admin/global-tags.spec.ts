@@ -40,6 +40,17 @@ describe('GlobalTagsComponent', () => {
     comp = fixture.componentInstance;
   });
 
+  it('renders in the shared list frame: title, then the add form and table in the card (#528)', async () => {
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('app-list-page h1')?.textContent).toContain('Global Tags');
+    const card = el.querySelector('app-list-page app-card');
+    expect(card?.querySelector('[data-testid="global-tag-add-form"]')).not.toBeNull();
+    expect(card?.querySelector('app-data-table')).not.toBeNull();
+  });
+
   it('loads global tags on init (no projectName argument)', async () => {
     fixture.detectChanges();
     await flush();
