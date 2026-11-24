@@ -3,6 +3,7 @@ import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { MessageService } from 'primeng/api';
+import { expectNoAxeViolations } from '../../shared/testing/a11y';
 import { ProjectDefinitionEditorComponent } from './project-definition-editor';
 import { AssistantDefinitionsService } from '../../core/assistant-definitions.service';
 import { PermissionService } from '../../core/permission.service';
@@ -73,6 +74,26 @@ describe('ProjectDefinitionEditorComponent (#264)', () => {
     expect(el.querySelector('[data-testid="definition-newer"]')?.textContent).toContain('v4');
     expect(el.querySelector('[data-testid="definition-revert"]')).not.toBeNull();
     expect(el.querySelector('[data-testid="definition-delete"]')).toBeNull();
+  });
+
+  it('lays the fields out in app-field rows and the finding types as code plus a wrapping description (#527)', async () => {
+    const { el } = await render('ai-review-goal');
+    const labels = Array.from(el.querySelectorAll('app-field .app-field-label'))
+      .map(l => l.textContent?.trim());
+    expect(labels).toEqual(['Name', 'Instructions']);
+    const nameLabel = el.querySelector('app-field label.app-field-label') as HTMLLabelElement;
+    expect(el.querySelector(`#${nameLabel.htmlFor}`)?.getAttribute('data-testid')).toBe('definition-name');
+    const desc = el.querySelector('[data-testid="vocab-desc-0"]') as HTMLTextAreaElement;
+    expect(desc.tagName).toBe('TEXTAREA');
+    expect(desc.rows).toBe(2);
+    expect(desc.value).toBe('unclear');
+    expect(Array.from(el.querySelectorAll('fieldset legend')).map(l => l.textContent?.trim()))
+      .toContain('Finding types');
+  });
+
+  it('has no axe violations (#527)', async () => {
+    const { el } = await render('ai-review-goal');
+    await expectNoAxeViolations(el);
   });
 
   it('saves an edit with the lock version it read', async () => {

@@ -32,6 +32,7 @@ import { TextareaModule } from 'primeng/textarea';
 import { AssistantDefinitionsService } from '../../core/assistant-definitions.service';
 import { PermissionService } from '../../core/permission.service';
 import { ListPageComponent } from '../../shared/list-page';
+import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import {
   CONTEXT_PROVIDERS, CORPUS_PROVIDERS, CORPUS_SET_KINDS, DEFINITION_RISK, DefinitionDraft,
@@ -55,7 +56,7 @@ const INSTRUCTION_CHARS = 64000;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-project-definition-editor',
   standalone: true,
-  imports: [FormsModule, RouterLink, ButtonModule, CheckboxModule, InputTextModule, SelectModule,
+  imports: [FormsModule, AppFieldComponent, AppFieldControlDirective, RouterLink, ButtonModule, CheckboxModule, InputTextModule, SelectModule,
             TextareaModule, ListPageComponent, SubmitErrorComponent],
   template: `
     <app-list-page [title]="title()" [showSearch]="false">
@@ -86,15 +87,17 @@ const INSTRUCTION_CHARS = 64000;
           }
           <form class="definition-form" (ngSubmit)="save()" data-testid="definition-form">
             @if (isNew()) {
-              <label for="def-kind">Kind</label>
-              <p-select inputId="def-kind" name="kind" [options]="kinds" optionLabel="label"
-                        optionValue="value" [(ngModel)]="draft.kind" (onChange)="kindChanged()"
-                        data-testid="definition-kind" />
-              <label for="def-key">Key</label>
-              <input pInputText id="def-key" name="key" [(ngModel)]="draft.key"
-                     data-testid="definition-key" />
-              @if (fieldErrors()['key']) { <small class="field-error" data-testid="error-key">{{ fieldErrors()['key'] }}</small> }
-              @if (fieldErrors()['kind']) { <small class="field-error" data-testid="error-kind">{{ fieldErrors()['kind'] }}</small> }
+              <app-field label="Kind" controlId="def-kind">
+                <p-select inputId="def-kind" name="kind" [options]="kinds" optionLabel="label"
+                          optionValue="value" [(ngModel)]="draft.kind" (onChange)="kindChanged()"
+                          data-testid="definition-kind" />
+                @if (fieldErrors()['kind']) { <small class="field-error" data-testid="error-kind">{{ fieldErrors()['kind'] }}</small> }
+              </app-field>
+              <app-field label="Key" controlId="def-key">
+                <input appFieldControl pInputText id="def-key" name="key" [(ngModel)]="draft.key"
+                       data-testid="definition-key" />
+                @if (fieldErrors()['key']) { <small class="field-error" data-testid="error-key">{{ fieldErrors()['key'] }}</small> }
+              </app-field>
             } @else {
               <p class="hint" data-testid="definition-identity">
                 {{ kindLabel(draft.kind) }} · {{ draft.key }} · v{{ current()?.version }}
@@ -103,10 +106,12 @@ const INSTRUCTION_CHARS = 64000;
               </p>
             }
 
-            <label for="def-name">Name</label>
-            <input pInputText id="def-name" name="displayName" [(ngModel)]="draft.displayName"
-                   [disabled]="readOnly()" data-testid="definition-name" />
-            @if (fieldErrors()['displayName']) { <small class="field-error">{{ fieldErrors()['displayName'] }}</small> }
+            <app-field label="Name" controlId="def-name">
+              <input appFieldControl pInputText id="def-name" name="displayName"
+                     [(ngModel)]="draft.displayName" [disabled]="readOnly()"
+                     data-testid="definition-name" />
+              @if (fieldErrors()['displayName']) { <small class="field-error">{{ fieldErrors()['displayName'] }}</small> }
+            </app-field>
 
             <fieldset>
               <legend>{{ draft.kind === 'CORPUS' ? 'Sets it analyzes' : 'Entity types' }}
@@ -138,24 +143,27 @@ const INSTRUCTION_CHARS = 64000;
               @if (fieldErrors()['contextProviders']) { <small class="field-error" data-testid="error-contextProviders">{{ fieldErrors()['contextProviders'] }}</small> }
             </fieldset>
 
-            <label for="def-instructions">Instructions
+            <app-field label="Instructions" controlId="def-instructions">
+              <textarea appFieldControl pTextarea id="def-instructions" name="instructions" rows="12"
+                        [(ngModel)]="draft.instructions" [disabled]="readOnly()"
+                        data-testid="definition-instructions"></textarea>
               <span class="count" data-testid="instructions-count">
-                {{ draft.instructions.length }} / {{ instructionChars }}</span></label>
-            <textarea pTextarea id="def-instructions" name="instructions" rows="12"
-                      [(ngModel)]="draft.instructions" [disabled]="readOnly()"
-                      data-testid="definition-instructions"></textarea>
-            @if (fieldErrors()['instructions']) { <small class="field-error" data-testid="error-instructions">{{ fieldErrors()['instructions'] }}</small> }
+                {{ draft.instructions.length }} / {{ instructionChars }} characters</span>
+              @if (fieldErrors()['instructions']) { <small class="field-error" data-testid="error-instructions">{{ fieldErrors()['instructions'] }}</small> }
+            </app-field>
 
             <fieldset>
               <legend>Finding types</legend>
               @for (v of draft.vocabulary; track $index) {
                 <div class="vocab-row">
-                  <input pInputText [name]="'vocab-type-' + $index" [(ngModel)]="v.type"
-                         placeholder="TYPE" [disabled]="readOnly()"
+                  <input pInputText class="vocab-type" [name]="'vocab-type-' + $index" [(ngModel)]="v.type"
+                         placeholder="TYPE" [disabled]="readOnly()" aria-label="Finding type"
                          [attr.data-testid]="'vocab-type-' + $index" />
-                  <input pInputText class="grow" [name]="'vocab-desc-' + $index"
-                         [(ngModel)]="v.description" placeholder="What it means"
-                         [disabled]="readOnly()" />
+                  <textarea pTextarea class="vocab-desc" rows="2" [autoResize]="true"
+                            [name]="'vocab-desc-' + $index" [(ngModel)]="v.description"
+                            placeholder="What it means" [disabled]="readOnly()"
+                            aria-label="What the finding type means"
+                            [attr.data-testid]="'vocab-desc-' + $index"></textarea>
                   @if (!readOnly()) {
                     <p-button icon="pi pi-times" [text]="true" size="small"
                               ariaLabel="Remove finding type" (onClick)="removeVocabulary($index)"
@@ -170,12 +178,15 @@ const INSTRUCTION_CHARS = 64000;
               @if (fieldErrors()['vocabulary']) { <small class="field-error" data-testid="error-vocabulary">{{ fieldErrors()['vocabulary'] }}</small> }
             </fieldset>
 
-            <span class="check">
-              <p-checkbox inputId="def-local" name="localOnly" [binary]="true"
-                          [(ngModel)]="draft.localOnly" [disabled]="readOnly()"
-                          data-testid="definition-local-only" />
-              <label for="def-local">Local AI provider only (never send this work off the server)</label>
-            </span>
+            <fieldset>
+              <legend>Where it runs</legend>
+              <span class="check">
+                <p-checkbox inputId="def-local" name="localOnly" [binary]="true"
+                            [(ngModel)]="draft.localOnly" [disabled]="readOnly()"
+                            data-testid="definition-local-only" />
+                <label for="def-local">Local AI provider only (never send this work off the server)</label>
+              </span>
+            </fieldset>
             @if (otherErrors().length > 0) {
               <ul class="field-error" data-testid="definition-other-errors">
                 @for (e of otherErrors(); track $index) { <li>{{ e }}</li> }
@@ -209,15 +220,25 @@ const INSTRUCTION_CHARS = 64000;
   styles: [`
     .hint { margin: 0 0 0.75rem; color: var(--p-text-muted-color); }
     .newer { color: var(--rq-tag-warning-fg); }
-    .definition-form { display: flex; flex-direction: column; gap: 0.5rem; max-width: 52rem; }
-    fieldset { border: 1px solid var(--rq-card-border); border-radius: 6px;
-      padding: 0.5rem 0.75rem; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+    /* #527: the editor width and the shared field rows (app-field), like the other editors. */
+    .definition-form { display: flex; flex-direction: column; max-width: var(--rq-editor-max); }
+    app-field input, app-field textarea, app-field p-select { width: 100%; }
+    /* Checkbox groups keep fieldset + legend (a group has no single label), drawn as rows. */
+    fieldset { border: 0; border-bottom: 1px solid var(--rq-field-divider); margin: 0;
+      padding: var(--rq-space-3) 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+    legend { padding: 0; margin-bottom: var(--rq-space-2); font-size: var(--rq-text-label-size);
+      font-weight: var(--rq-text-label-weight); }
     .check { display: inline-flex; gap: 0.35rem; align-items: center; }
-    .vocab-row { display: flex; gap: 0.5rem; flex-basis: 100%; align-items: center; }
-    .vocab-row .grow { flex: 1; }
-    .count { color: var(--p-text-muted-color); font-size: 0.8rem; margin-left: 0.5rem; }
-    .field-error { color: var(--rq-field-error-fg); }
-    .form-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+    /* A finding type: the code wide enough for the longest bundled one (34 characters, plus the
+       input's padding), the
+       description a textarea between two and six lines; on a narrow window they stack. */
+    .vocab-row { display: flex; flex-wrap: wrap; gap: 0.5rem; flex-basis: 100%; align-items: flex-start; }
+    .vocab-type { flex: 0 1 calc(35ch + 1.75rem); min-width: 0; font-family: var(--p-font-family-mono, monospace); }
+    .vocab-desc { flex: 1 1 16rem; min-width: 0; min-height: 3.5em; max-height: 9em;
+      overflow-y: auto !important; resize: vertical; }
+    .count { display: block; color: var(--p-text-muted-color); font-size: 0.8rem; margin-top: 0.25rem; }
+    .field-error { display: block; color: var(--rq-field-error-fg); }
+    .form-actions { display: flex; gap: 0.5rem; margin-top: var(--rq-space-4); }
     .section-title { margin: 1.5rem 0 0.5rem; font-size: 1.1rem; }
     .baseline { white-space: pre-wrap; background: var(--p-surface-100); padding: 0.75rem;
       border-radius: 6px; max-height: 24rem; overflow: auto; }
