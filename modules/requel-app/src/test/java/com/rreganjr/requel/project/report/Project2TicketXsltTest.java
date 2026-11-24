@@ -98,6 +98,26 @@ public class Project2TicketXsltTest {
 				ticket);
 	}
 
+	/** #468: a step's actor role reads with the use case's primary actor, or as the role. */
+	@Test
+	void stepsWithAnActorRoleReadWithTheirActor() throws Exception {
+		String ticket = render(resource(FIXTURE)
+				.replace("<step id=\"STP_1\" scenarioType=\"Primary\"><name>Open the admin console</name>",
+						"<step id=\"STP_1\" scenarioType=\"Primary\" actorRole=\"PRIMARY_ACTOR\">"
+								+ "<name>opens the admin console</name>")
+				.replace("<step id=\"STP_3\" scenarioType=\"Primary\"><name>Confirm in the dialog</name>",
+						"<step id=\"STP_3\" scenarioType=\"Primary\" actorRole=\"NAMED\">"
+								+ "<actorRef>ACT_4</actorRef><name>confirms in the dialog</name>")
+				.replace("<step id=\"STP_2\" scenarioType=\"Primary\"><name>Press End</name>",
+						"<step id=\"STP_2\" scenarioType=\"Primary\" actorRole=\"SYSTEM\">"
+								+ "<name>ends the room</name>"));
+		assertTrue(ticket.contains("1. Operator opens the admin console\n2. The system ends the room\n"),
+				ticket);
+		assertTrue(ticket.contains("   1. Viewer confirms in the dialog\n"), ticket);
+		assertTrue(ticket.contains("**Scenario: Rehearse in test**\n\n1. Primary actor opens the admin"
+				+ " console\n"), ticket);
+	}
+
 	@Test
 	void aScenarioWithNoStepsSaysSo() throws Exception {
 		assertTrue(render(resource(FIXTURE)).contains(

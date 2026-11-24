@@ -46,4 +46,25 @@ public interface Step extends TextEntity, Comparable<Step> {
 	 */
 	public Set<Scenario> getUsingScenarios();
 
+	/**
+	 * #468: who does the step, or null when its wording names the actor.
+	 */
+	public ActorRole getActorRole();
+
+	/**
+	 * #468: sets who does the step; null means the wording names the actor. A role other than
+	 * {@link ActorRole#NAMED} clears the named actor.
+	 */
+	public void setActorRole(ActorRole actorRole);
+
+	/**
+	 * #468: the actor a {@link ActorRole#NAMED} step names, otherwise null.
+	 */
+	public Actor getActor();
+
+	/**
+	 * #468: sets the named actor; a non-null actor also sets the role to {@link ActorRole#NAMED}.
+	 */
+	public void setActor(Actor actor);
+
 }

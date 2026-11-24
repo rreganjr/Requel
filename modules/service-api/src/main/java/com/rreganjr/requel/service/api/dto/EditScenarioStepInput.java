@@ -39,6 +39,7 @@ import jakarta.validation.constraints.Size;
         + " and reorder its steps, with EditScenario. Pass version to refuse the edit if the step"
         + " changed since you read it. Step and scenario names are unique together within a"
         + " project, so a name already in use is refused."
+        + " A step's (or scenario's) actor can be a role: actorRole PRIMARY_ACTOR (the primary actor of the use case it is shown in), SYSTEM, or NAMED with actorName (an actor in the project); with a role, name is only the action (\"ends the room\") and reads with the actor filled in. NONE clears the role so the wording names the actor; null leaves it as it is."
         + CommandDescriptions.PARTIAL_UPDATE)
 public record EditScenarioStepInput(
     @NotBlank String projectName,
@@ -47,5 +48,7 @@ public record EditScenarioStepInput(
     @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
     String name,
     String text,
-    String scenarioTypeName
+    String scenarioTypeName,
+    String actorRole,
+    String actorName
 ) {}

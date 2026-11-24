@@ -136,7 +136,8 @@ public class GatewayPolicyConfig {
             // cascade steps, #75) but never driven by an external client
             "ReplaceGlossaryTerm", "EditAddWordToGlossaryPosition", "EditAddActorToProjectPosition",
             "RemoveUnneedLexicalIssues", "EditLexicalIssue", "EditChangeSpellingPosition",
-            "EditRewriteNamePosition", "EditMergeStepsPosition",
+            "EditRewriteNamePosition", "EditMergeStepsPosition", "EditSetStepActorPosition",
+            "EditAddActorToUseCasePosition",
             "EditAddWordToDictionaryPosition", "RemoveAnnotationFromAnnotatable");
 
     @Bean

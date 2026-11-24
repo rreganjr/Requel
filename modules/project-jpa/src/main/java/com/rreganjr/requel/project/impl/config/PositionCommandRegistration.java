@@ -27,6 +27,10 @@ import com.rreganjr.requel.annotation.impl.command.AnnotationCommandFactoryImpl;
 import com.rreganjr.requel.project.impl.AddActorPosition;
 import com.rreganjr.requel.project.impl.AddGlossaryTermPosition;
 import com.rreganjr.requel.project.impl.MergeStepsPosition;
+import com.rreganjr.requel.project.impl.SetStepActorPosition;
+import com.rreganjr.requel.project.impl.AddActorToUseCasePosition;
+import com.rreganjr.requel.project.impl.command.ResolveIssueWithSetStepActorPositionCommandImpl;
+import com.rreganjr.requel.project.impl.command.ResolveIssueWithAddActorToUseCasePositionCommandImpl;
 import com.rreganjr.requel.project.impl.command.ResolveIssueWithAddActorPositionCommandImpl;
 import com.rreganjr.requel.project.impl.command.ResolveIssueWithMergeStepsPositionCommandImpl;
 import com.rreganjr.requel.project.impl.command.ResolveIssueWithAddGlossaryTermPositionCommandImpl;
@@ -47,5 +51,10 @@ public class PositionCommandRegistration {
 		// #472: merge two steps of a scenario
 		AnnotationCommandFactoryImpl.addPositionResolverCommand(MergeStepsPosition.class,
 				ResolveIssueWithMergeStepsPositionCommandImpl.class);
+		// #468: give a step an actor role; add an actor to a use case
+		AnnotationCommandFactoryImpl.addPositionResolverCommand(SetStepActorPosition.class,
+				ResolveIssueWithSetStepActorPositionCommandImpl.class);
+		AnnotationCommandFactoryImpl.addPositionResolverCommand(AddActorToUseCasePosition.class,
+				ResolveIssueWithAddActorToUseCasePositionCommandImpl.class);
 	}
 }

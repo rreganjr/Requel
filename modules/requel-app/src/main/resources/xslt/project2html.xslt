@@ -112,7 +112,7 @@
 	<xsl:template match="rp:stakeholder[count(rp:user/rp:username) = 0]|rp:team|rp:actor|rp:goal|rp:story|rp:usecase|rp:scenario|rp:term" mode="summary">
 		<li>
 			<a href="#{generate-id(.)}">
-				<xsl:value-of select="rp:name" />
+				<xsl:call-template name="reads-as" />
 			</a>
 		</li>
 	</xsl:template>
@@ -483,7 +483,9 @@
 				<xsl:apply-templates select="rp:actors" />
 				<h4>Scenario</h4>
 				<xsl:variable name="scenarioRef" select="string(rp:scenarioRef)" />
-				<xsl:apply-templates select="//rp:scenario[@id = $scenarioRef]" mode="usecase" />
+				<xsl:apply-templates select="//rp:scenario[@id = $scenarioRef]" mode="usecase">
+					<xsl:with-param name="primary" select="string(rp:primaryActorRef)" />
+				</xsl:apply-templates>
 				<xsl:apply-templates select="rp:annotations" />
 			</div>
 		</div>
@@ -524,8 +526,11 @@
 	</xsl:template>
 
 	<xsl:template match="rp:scenario" mode="usecase">
+		<xsl:param name="primary" select="''" />
 		<div class="scenario">
-			<xsl:apply-templates select="rp:steps" />
+			<xsl:apply-templates select="rp:steps">
+				<xsl:with-param name="primary" select="$primary" />
+			</xsl:apply-templates>
 		</div>
 	</xsl:template>
 
@@ -535,7 +540,7 @@
 				<a name="{generate-id(.)}">
 				<xsl:value-of select="@scenarioType" />
 				-
-				<xsl:value-of select="rp:name" />
+				<xsl:call-template name="reads-as" />
 				</a>
 			</h4>
 			<xsl:if test="string-length(rp:text) > 0">
@@ -548,25 +553,60 @@
 	</xsl:template>
 
 	<xsl:template match="rp:steps">
+		<xsl:param name="primary" select="''" />
 		<ol class="scenario">
 			<xsl:for-each select="rp:stepRef">
-				<li class="step"><xsl:apply-templates select="."/></li>
+				<li class="step"><xsl:apply-templates select=".">
+					<xsl:with-param name="primary" select="$primary" />
+				</xsl:apply-templates></li>
 			</xsl:for-each>
 		</ol>
 	</xsl:template>
 
 	<xsl:template match="rp:stepRef">
+		<xsl:param name="primary" select="''" />
 		<xsl:variable name="stepRefId" select="text()" />
-		<xsl:apply-templates select="//rp:scenario[@id = $stepRefId]|//rp:step[@id = $stepRefId]" mode="steps"/>
+		<xsl:apply-templates select="//rp:scenario[@id = $stepRefId]|//rp:step[@id = $stepRefId]" mode="steps">
+			<xsl:with-param name="primary" select="$primary" />
+		</xsl:apply-templates>
 	</xsl:template>
 	
 	<!-- Steps and embedded scenarios -->
 	<xsl:template match="rp:scenario" mode="steps">
-		<xsl:value-of select="@scenarioType" /> - <xsl:value-of select="rp:name" />
-		<xsl:apply-templates select="rp:steps" />
+		<xsl:param name="primary" select="''" />
+		<xsl:value-of select="@scenarioType" /> - <xsl:call-template name="reads-as">
+			<xsl:with-param name="primary" select="$primary" />
+		</xsl:call-template>
+		<xsl:apply-templates select="rp:steps">
+			<xsl:with-param name="primary" select="$primary" />
+		</xsl:apply-templates>
 	</xsl:template>
 	<xsl:template match="rp:step" mode="steps">
-		<xsl:value-of select="@scenarioType" /> - <xsl:value-of select="rp:name" />
+		<xsl:param name="primary" select="''" />
+		<xsl:value-of select="@scenarioType" /> - <xsl:call-template name="reads-as">
+			<xsl:with-param name="primary" select="$primary" />
+		</xsl:call-template>
+	</xsl:template>
+
+	<!--
+	  #468: the context node's name as it reads, with its actor role filled in: the primary actor
+	  of the use case it is shown in ("Primary actor" when there is none), "The system", or the
+	  actor a NAMED role names. A name with no role reads as written.
+	-->
+	<xsl:template name="reads-as">
+		<xsl:param name="primary" select="''" />
+		<xsl:choose>
+			<xsl:when test="@actorRole = 'PRIMARY_ACTOR' and string-length($primary) > 0">
+				<xsl:value-of select="//rp:actor[@id = $primary]/rp:name" /><xsl:text> </xsl:text>
+			</xsl:when>
+			<xsl:when test="@actorRole = 'PRIMARY_ACTOR'"><xsl:text>Primary actor </xsl:text></xsl:when>
+			<xsl:when test="@actorRole = 'SYSTEM'"><xsl:text>The system </xsl:text></xsl:when>
+			<xsl:when test="@actorRole = 'NAMED'">
+				<xsl:variable name="actor" select="string(rp:actorRef)" />
+				<xsl:value-of select="//rp:actor[@id = $actor]/rp:name" /><xsl:text> </xsl:text>
+			</xsl:when>
+		</xsl:choose>
+		<xsl:value-of select="rp:name" />
 	</xsl:template>
 
 	<!-- Glossary -->

@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ActorService } from '../../core/actor.service';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angular/router';
 import { Location } from '@angular/common';
@@ -49,6 +50,7 @@ describe('ScenarioEditorComponent — step-detail dialog accessibility', () => {
             removeSubscription: vi.fn().mockResolvedValue(undefined),
           } },
         { provide: MessageService, useValue: { add: vi.fn() } },
+        { provide: ActorService, useValue: { listActors: vi.fn().mockResolvedValue([{ id: 1, name: 'User' }, { id: 2, name: 'Clerk' }]) } },
       ],
     });
     fixture = TestBed.createComponent(ScenarioEditorComponent);
@@ -153,6 +155,7 @@ describe('ScenarioEditorComponent - create wizard accessibility', () => {
             removeSubscription: vi.fn().mockResolvedValue(undefined),
           } },
         { provide: MessageService, useValue: { add: vi.fn() } },
+        { provide: ActorService, useValue: { listActors: vi.fn().mockResolvedValue([{ id: 1, name: 'User' }, { id: 2, name: 'Clerk' }]) } },
       ],
     });
     fixture = TestBed.createComponent(ScenarioEditorComponent);

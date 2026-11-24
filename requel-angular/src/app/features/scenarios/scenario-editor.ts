@@ -69,6 +69,10 @@ import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors'
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { issueSeverityTone } from '../../shared/severity';
 import { ArtifactNameService } from '../../core/artifact-name.service';
+import { ActorService } from '../../core/actor.service';
+import {
+  actorRoleChoices, actorRoleFieldsOf, fromActorRoleChoice, readsAs, toActorRoleChoice,
+} from '../../shared/actor-role';
 
 const SCENARIO_TYPE_OPTIONS = [
   { label: 'Primary', value: 'Primary' },
@@ -94,6 +98,8 @@ const STALE_VERSION_MESSAGE =
  */
 type StepGroup = FormGroup<{
   stepId: FormControl<number | null>;
+  /** #468: who does the step: '' (the wording says), PRIMARY_ACTOR, SYSTEM or NAMED:<actor>. */
+  who: FormControl<string>;
   name: FormControl<string>;
   text: FormControl<string | null>;
   scenarioType: FormControl<string>;
@@ -210,6 +216,12 @@ const STEP_SUGGESTION_LIMIT = 10;
                 [modal]="true" [focusOnShow]="true" [dismissableMask]="true" closeAriaLabel="Close"
                 [style]="{ width: '32rem' }" appendTo="body" header="Step Details"
                 data-testid="scenario-step-edit-dialog">
+        <app-field label="Who does it" controlId="stepEditWho" [control]="editForm.controls.who"
+                   [submitted]="editSubmitted()">
+          <p-select appFieldControl inputId="stepEditWho" data-testid="scenario-step-edit-who"
+                    [formControl]="editForm.controls.who" [options]="roleChoices()"
+                    optionLabel="label" optionValue="value" appendTo="body" />
+        </app-field>
         <app-field label="Name" controlId="stepEditName" [control]="editForm.controls.name"
                    [errorMessages]="stepNameErrors" [submitted]="editSubmitted()">
           <input appFieldControl pInputText [formControl]="editForm.controls.name" id="stepEditName"
@@ -320,7 +332,16 @@ const STEP_SUGGESTION_LIMIT = 10;
         a parent formGroup that is not there.
       -->
       <ng-template #detailsFields>
-        <app-field label="Name" helper="What happens in this scenario."
+        <!-- #468: a scenario's name can have an actor role too. -->
+        <app-field label="Who does it" controlId="scenarioWho" [control]="detailsForm.controls.who"
+                   [submitted]="submitted()"
+                   helper="With an actor, the name is only the action.">
+          <p-select appFieldControl inputId="scenarioWho" data-testid="scenario-who"
+                    [formControl]="detailsForm.controls.who" [options]="roleChoices()"
+                    optionLabel="label" optionValue="value" />
+        </app-field>
+        <app-field [label]="detailsForm.controls.who.value ? 'Action' : 'Name'"
+                   [helper]="detailsForm.controls.who.value ? scenarioReadsAs() : 'What happens in this scenario.'"
                    controlId="name" [control]="detailsForm.controls.name"
                    [errorMessages]="nameErrors"
                    [submitted]="submitted()">
@@ -381,7 +402,7 @@ const STEP_SUGGESTION_LIMIT = 10;
                   <i class="pi pi-sitemap step-icon"></i>
                   <a class="entity-link step-name"
                      data-testid="scenario-step-link"
-                     [routerLink]="['/projects', projectName, 'scenarios', group.controls.stepId.value!]">{{ group.controls.name.value }}</a>
+                     [routerLink]="['/projects', projectName, 'scenarios', group.controls.stepId.value!]">{{ rowReadsAs(group) }}</a>
                   <span class="step-type-badge">{{ group.controls.scenarioType.value }}</span>
                   <ng-container [ngTemplateOutlet]="stepIssuesIcon" [ngTemplateOutletContext]="{ $implicit: group }" />
                   @if (canEdit()) {
@@ -391,6 +412,13 @@ const STEP_SUGGESTION_LIMIT = 10;
                               (onClick)="removeStep(group)" />
                   }
                 } @else {
+                  <!-- #468: who does the step; with an actor the name is only the action. -->
+                  <p-select [formControl]="group.controls.who" [options]="roleChoices()"
+                            optionLabel="label" optionValue="value" appendTo="body"
+                            class="step-who" data-testid="scenario-step-who"
+                            [ariaLabel]="'Step ' + (stepIndex + 1) + ': who does it'"
+                            [readonly]="!canEdit()"
+                            (onChange)="onStepNameChange()" />
                   @if (group.controls.isNew.value && canEdit()) {
                     <!-- #483: a new step's name suggests the project's existing steps; picking one
                          links that step instead of adding a new one. -->
@@ -412,7 +440,7 @@ const STEP_SUGGESTION_LIMIT = 10;
                                     (onBlur)="onStepNameChange()">
                       <ng-template #item let-step>
                         <div class="step-suggestion" data-testid="scenario-step-suggestion">
-                          <span class="step-suggestion-name">{{ step.name }}</span>
+                          <span class="step-suggestion-name">{{ step.displayName ?? step.name }}</span>
                           <span class="step-suggestion-meta">{{ step.scenarioType }} &middot;
                             used in {{ step.usedIn }} {{ step.usedIn === 1 ? 'scenario' : 'scenarios' }}</span>
                         </div>
@@ -518,6 +546,8 @@ const STEP_SUGGESTION_LIMIT = 10;
     /* Inline per-step required message drops to its own line under the input. */
     app-inline-error { display: block; }
     .step-row app-inline-error:has(p) { flex-basis: 100%; margin-left: 1.75rem; }
+    /* #468: the step's actor role, compact before its name. */
+    .step-who { flex: 0 1 12rem; width: 12rem; min-width: 8rem; }
     .step-row:last-child { border-bottom: none; }
     .step-row.cdk-drag-animating { transition: transform 250ms cubic-bezier(0,0,0.2,1); }
     .step-list.cdk-drop-list-dragging .step-row:not(.cdk-drag-placeholder) { transition: transform 250ms cubic-bezier(0,0,0.2,1); }
@@ -546,7 +576,8 @@ const STEP_SUGGESTION_LIMIT = 10;
     }
     .drag-handle:active { cursor: grabbing; }
 
-    .step-name-input { flex: 1; min-width: 0; font-size: 0.9rem; }
+    /* #468: room for the action beside the role; on a narrow window it wraps under it. */
+    .step-name-input { flex: 1 1 12rem; min-width: 0; font-size: 0.9rem; }
     /* #483: the autocomplete fills the row like the plain input, and its suggestions show each
        step's type and use under its name. */
     .step-name-suggest { display: flex; }
@@ -573,6 +604,30 @@ const STEP_SUGGESTION_LIMIT = 10;
 export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   isNew = signal(true);
   scenarioName = signal('');
+  /** #468: the project's actors, for the "Who does it" choices. */
+  private readonly actorService = inject(ActorService);
+  readonly actorNames = signal<string[]>([]);
+  readonly roleChoices = computed(() => actorRoleChoices(this.actorNames(),
+    this.scenario()?.primaryActorName));
+  /** #468: the details form's role and name, as a signal for the "reads as" helper text. */
+  private readonly detailsValue = signal({ who: '', name: '' });
+  readonly scenarioReadsAs = computed(() => {
+    const { who, name } = this.detailsValue();
+    const readings = this.scenario()?.readsIn ?? [];
+    const fields = actorRoleFieldsOf(who);
+    if (!readings.length) return 'Reads "' + readsAs(name, fields, null) + '".';
+    return 'Reads ' + readings.map(r => '"' + readsAs(name, fields, r.primaryActorName) + '" in '
+      + r.useCaseName).join('; ') + '.';
+  });
+
+  /**
+   * #468: how a row reads in this scenario: its role filled in with the primary actor the
+   * scenario's use cases share, or the role itself when they don't.
+   */
+  rowReadsAs(group: StepGroup): string {
+    return readsAs(group.controls.name.value, actorRoleFieldsOf(group.controls.who.value),
+      this.scenario()?.primaryActorName);
+  }
   /** #486: the breadcrumb and tab title follow this entity's current name (a rename, a rewrite). */
   private readonly artifactName = inject(ArtifactNameService);
   private readonly leafNameSync = effect(() => {
@@ -635,6 +690,8 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
    * is no bound to mirror and inventing one would reject content the server accepts.
    */
   readonly detailsForm = new FormGroup({
+    /** #468: the scenario name's actor role, as a step's. */
+    who: new FormControl('', { nonNullable: true }),
     name: new FormControl('', {
       validators: [Validators.required, Validators.maxLength(ARTIFACT_NAME_MAX_LENGTH)],
       nonNullable: true,
@@ -661,6 +718,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
    * Apply (via markStepsDirty) touches the persisted list.
    */
   readonly editForm = new FormGroup({
+    who: new FormControl('', { nonNullable: true }),
     name: new FormControl('', {
       validators: [Validators.required, Validators.maxLength(ARTIFACT_NAME_MAX_LENGTH)],
       nonNullable: true,
@@ -693,8 +751,15 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   ) {}
 
   ngOnInit(): void {
+    this.detailsForm.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      const { who, name } = this.detailsForm.getRawValue();
+      this.detailsValue.set({ who, name });
+    });
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
       this.projectName = params.get('name') ?? '';
+      void this.actorService.listActors(this.projectName)
+        .then(actors => this.actorNames.set(actors.map(a => a.name)))
+        .catch(() => this.actorNames.set([]));
       const idParam = params.get('scenarioId') ?? '';
       const newIsNew = idParam === 'new';
 
@@ -709,7 +774,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
         this.version = null;
         this.wizardStep = 'details';
         this.submitted.set(false);
-        this.detailsForm.reset({ name: '', scenarioType: 'Primary', text: '' });
+        this.detailsForm.reset({ who: '', name: '', scenarioType: 'Primary', text: '' });
         this.stepsForm.clear();
         this.stepsForm.markAsPristine();
         // New scenarios don't load — resolve the loading/error state so the
@@ -820,8 +885,9 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
         this.mergeStepIds(s.steps ?? []);
         return;
       }
-      this.scenarioName.set(s.name);
+      this.scenarioName.set(s.displayName ?? s.name);
       this.detailsForm.reset({
+        who: toActorRoleChoice(s),
         name: s.name,
         scenarioType: s.scenarioType ?? 'Primary',
         text: s.text ?? '',
@@ -898,6 +964,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     for (const step of steps) {
       this.stepsForm.push(this.makeStepGroup({
         stepId: step.id,
+        who: toActorRoleChoice(step),
         name: step.name,
         text: step.text ?? null,
         scenarioType: step.scenarioType ?? this.detailsForm.controls.scenarioType.value,
@@ -954,6 +1021,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   onStepSuggestionSelected(group: StepGroup, step: StepSummaryDto): void {
     group.patchValue({
       stepId: step.id,
+      who: toActorRoleChoice(step),
       name: step.name,
       text: step.text ?? null,
       scenarioType: step.scenarioType ?? group.controls.scenarioType.value,
@@ -1034,7 +1102,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
    * invalid; `getRawValue()` still emits it, so the submit payload is unchanged.
    */
   private makeStepGroup(data: {
-    stepId: number | null; name: string; text: string | null;
+    stepId: number | null; who?: string; name: string; text: string | null;
     scenarioType: string; isScenario: boolean; isNew: boolean;
   }): StepGroup {
     const name = new FormControl(data.name, {
@@ -1042,8 +1110,12 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       nonNullable: true,
     });
     if (data.isScenario) name.disable();
+    const who = new FormControl(data.who ?? '', { nonNullable: true });
+    // A nested scenario's role is edited on its own page.
+    if (data.isScenario) who.disable();
     return new FormGroup({
       stepId: new FormControl<number | null>(data.stepId),
+      who,
       name,
       text: new FormControl<string | null>(data.text),
       scenarioType: new FormControl(data.scenarioType, { nonNullable: true }),
@@ -1149,6 +1221,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   openStepEdit(group: StepGroup): void {
     this.editSubmitted.set(false);
     this.editForm.reset({
+      who: group.controls.who.value,
       name: group.controls.name.value,
       scenarioType: group.controls.scenarioType.value,
       text: group.controls.text.value,
@@ -1166,8 +1239,8 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       this.editForm.markAllAsTouched();
       return;
     }
-    const { name, scenarioType, text } = this.editForm.getRawValue();
-    group.patchValue({ name, scenarioType, text: text || null });
+    const { who, name, scenarioType, text } = this.editForm.getRawValue();
+    group.patchValue({ who, name, scenarioType, text: text || null });
     this.markStepsDirty();
     this.editingStep.set(null);
   }
@@ -1205,7 +1278,9 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       // '' clears; null would leave the step's text as it is (#316).
       text: step.text ?? '',
       scenarioTypeName: step.scenarioType,
-      isScenario: step.isScenario
+      isScenario: step.isScenario,
+      // #468: a plain step's role (NONE clears it); a nested scenario's is left as it is.
+      ...(step.isScenario ? {} : fromActorRoleChoice(step.who)),
     }));
   }
 
@@ -1264,10 +1339,12 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     this.showError(null);
     clearServerErrors(this.detailsForm);
     try {
-      const { name, scenarioType, text } = this.detailsForm.getRawValue();
+      const { who, name, scenarioType, text } = this.detailsForm.getRawValue();
       const input: Record<string, unknown> = {
         projectName: this.projectName,
         name,
+        // #468: the scenario name's role; NONE clears it.
+        ...fromActorRoleChoice(who),
         // '' clears; null would leave the text as it is (#316).
         text,
         scenarioTypeName: scenarioType,
@@ -1294,7 +1371,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       if (saved) {
         this.scenarioId = saved.id;
         this.version = saved.version;
-        this.scenarioName.set(saved.name);
+        this.scenarioName.set(saved.displayName ?? saved.name);
       }
       this.detailsForm.markAsPristine();
       this.stepsForm.markAsPristine();

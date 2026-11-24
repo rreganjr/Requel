@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ActorService } from '../../core/actor.service';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angular/router';
 import { Location } from '@angular/common';
@@ -75,7 +76,8 @@ describe('ScenarioEditorComponent', () => {
         { provide: ProjectService, useValue: { notifyTreeChanged: vi.fn() } },
         { provide: PermissionService, useValue: permissionServiceMock },
         { provide: EventStreamService, useValue: eventStreamServiceMock },
-        { provide: MessageService, useValue: { add: vi.fn() } }
+        { provide: MessageService, useValue: { add: vi.fn() } },
+        { provide: ActorService, useValue: { listActors: vi.fn().mockResolvedValue([{ id: 1, name: 'User' }, { id: 2, name: 'Clerk' }]) } }
       ]
     });
     fixture = TestBed.createComponent(ScenarioEditorComponent);
@@ -210,7 +212,7 @@ describe('ScenarioEditorComponent', () => {
     const group = stepAt(0);
     comp.openStepEdit(group);
     expect(comp.editingStep()).toBe(group);
-    comp.editForm.setValue({ name: 'Edited Name', scenarioType: 'Alternative', text: 'Some notes' });
+    comp.editForm.setValue({ who: '', name: 'Edited Name', scenarioType: 'Alternative', text: 'Some notes' });
     comp.applyStepEdit();
     expect(comp.editingStep()).toBeNull();
     expect(group.controls.name.value).toBe('Edited Name');
@@ -650,7 +652,7 @@ describe('ScenarioEditorComponent', () => {
       group.controls.text.setValue('some notes');
       comp.openStepEdit(group);
       expect(comp.editForm.getRawValue()).toEqual({
-        name: 'User opens login page', scenarioType: 'Primary', text: 'some notes',
+        who: '', name: 'User opens login page', scenarioType: 'Primary', text: 'some notes',
       });
       expect(comp.editSubmitted()).toBe(false);
     });
@@ -661,7 +663,7 @@ describe('ScenarioEditorComponent', () => {
       await flush();
       const group = stepAt(0);
       comp.openStepEdit(group);
-      comp.editForm.setValue({ name: 'Renamed step', scenarioType: 'Alternative', text: 'note' });
+      comp.editForm.setValue({ who: '', name: 'Renamed step', scenarioType: 'Alternative', text: 'note' });
       comp.applyStepEdit();
       expect(comp.editingStep()).toBeNull();
       expect(group.controls.name.value).toBe('Renamed step');
@@ -816,6 +818,70 @@ describe('ScenarioEditorComponent', () => {
       await comp.onSave();
 
       expect(comp.errorMessage()).toBe('Something else conflicted.');
+    });
+  });
+
+  describe('#468: actor roles', () => {
+    const ROLE_SCENARIO = {
+      ...MOCK_SCENARIO, name: 'ends a room', actorRole: 'PRIMARY_ACTOR',
+      displayName: 'Operator ends a room', primaryActorName: 'Operator',
+      readsIn: [{ useCaseId: 5, useCaseName: 'Run a session', primaryActorName: 'Operator', readsAs: 'Operator ends a room' }],
+      steps: [
+        { id: 1, name: 'ends the room', text: null, scenarioType: 'Primary', isScenario: false, actorRole: 'PRIMARY_ACTOR' },
+        { id: 2, name: 'logs the end', text: null, scenarioType: 'Primary', isScenario: false, actorRole: 'SYSTEM' },
+        { id: 3, name: 'approves it', text: null, scenarioType: 'Primary', isScenario: false, actorRole: 'NAMED', actorName: 'Clerk' },
+        { id: 4, name: 'Clerk tidies up', text: null, scenarioType: 'Primary', isScenario: false },
+        { id: 9, name: 'closes the session', text: null, scenarioType: 'Primary', isScenario: true, actorRole: 'PRIMARY_ACTOR' },
+      ],
+    };
+
+    async function loadRoleScenario(): Promise<HTMLElement> {
+      scenarioServiceMock.getScenario.mockResolvedValue(ROLE_SCENARIO);
+      paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('loads each role into its row, and the scenario name reads as its display name', async () => {
+      const el = await loadRoleScenario();
+      expect(stepValues().map(step => step.who))
+        .toEqual(['PRIMARY_ACTOR', 'SYSTEM', 'NAMED:Clerk', '', 'PRIMARY_ACTOR']);
+      expect(comp.detailsForm.controls.who.value).toBe('PRIMARY_ACTOR');
+      expect(comp.scenarioName()).toBe('Operator ends a room');
+      expect(comp.roleChoices().map(c => c.label))
+        .toEqual(['In the wording', 'Primary actor (Operator)', 'The system', 'Clerk', 'User']);
+      // a nested scenario reads with the shared primary actor; its role is edited on its page
+      expect(el.querySelector('[data-testid="scenario-step-link"]')?.textContent?.trim())
+        .toBe('Operator closes the session');
+      expect(stepAt(4).controls.who.disabled).toBe(true);
+      expect(el.querySelectorAll('[data-testid="scenario-step-who"]').length).toBe(4);
+    });
+
+    it('Save sends each plain step\'s role, NONE for none, and leaves a nested scenario\'s alone', async () => {
+      await loadRoleScenario();
+      stepAt(3).controls.who.setValue('NAMED:Clerk');
+      stepAt(3).controls.name.setValue('tidies up');
+      stepAt(3).markAsDirty();
+      comp.detailsForm.controls.who.setValue('');
+      comp.detailsForm.markAsDirty();
+      await comp.onSave();
+      const input = commandServiceMock.execute.mock.calls.at(-1)![1];
+      expect(input.actorRole).toBe('NONE');
+      expect(input.steps.map((step: { actorRole?: string; actorName?: string }) =>
+        [step.actorRole, step.actorName])).toEqual([
+        ['PRIMARY_ACTOR', undefined], ['SYSTEM', undefined], ['NAMED', 'Clerk'],
+        ['NAMED', 'Clerk'], [undefined, undefined],
+      ]);
+    });
+
+    it('the name helper says how the scenario reads in each use case', async () => {
+      await loadRoleScenario();
+      comp.detailsForm.controls.name.setValue('closes a room');
+      expect(comp.scenarioReadsAs()).toBe('Reads "Operator closes a room" in Run a session.');
+      comp.detailsForm.controls.who.setValue('SYSTEM');
+      expect(comp.scenarioReadsAs()).toBe('Reads "The system closes a room" in Run a session.');
     });
   });
 

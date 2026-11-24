@@ -47,4 +47,16 @@ public interface EditScenarioStepCommand extends EditTextEntityCommand {
 	 */
 	public void setScenarioTypeName(String scenarioTypeName);
 
+
+	/**
+	 * #468: sets who does the step: PRIMARY_ACTOR, SYSTEM, NAMED (with {@link #setActorName}), or
+	 * NONE to clear it so the wording names the actor. Null leaves the role as it is.
+	 */
+	public void setActorRoleName(String actorRoleName);
+
+	/**
+	 * #468: the project actor a NAMED step names. On its own it implies NAMED. Null leaves it as
+	 * it is.
+	 */
+	public void setActorName(String actorName);
 }

@@ -103,6 +103,9 @@ public final class QueryDescriptions {
             + " including its relationships: a goal's relations and their types, a story's or use"
             + " case's primary actor, actors, goals and stories, a use case's scenarios, a"
             + " scenario's steps, and a glossary term's alternate terms and referring entities."
+            + " A scenario and its steps carry actorRole and displayName: with a role the name is"
+            + " only the action, and displayName reads it with the actor filled in for this"
+            + " scenario's use cases."
             + " Steps, stakeholders and reports cannot be read this way.";
 
     public static final String GET_ENTITY_NEIGHBORS = "Lists the entities related to one entity as"
@@ -133,7 +136,10 @@ public final class QueryDescriptions {
             + " relations, a story's goals and actors, a use case's primary actor, scenarios,"
             + " goals, actors and stories, a glossary term's canonical term). A scenario lists its"
             + " steps in order as Step or Scenario references; a step shared by several scenarios"
-            + " has the same id in each and is listed once under steps. A user stakeholder's"
+            + " has the same id in each and is listed once under steps. A step or scenario with"
+            + " an actorRole (PRIMARY_ACTOR, SYSTEM or NAMED with actorName) stores only the action"
+            + " as its name; displayName is how it reads with the actor filled in, using the"
+            + " primary actor when every use case it is in has the same one. A user stakeholder's"
             + " account details are left out. Sources and references are not included; list"
             + " them separately. A project over the configured character cap is refused with a"
             + " message giving each section's size rather than cut short; the result also reports"

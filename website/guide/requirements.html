@@ -141,6 +141,16 @@
       use them; pick one to reuse that step instead of adding a new one. Step names are unique
       in a project, so a new step named like an existing one can&rsquo;t be saved: pick it from the
       suggestions, or choose another name.</p>
+    <p>A step can say who does it apart from its wording. Pick <em>Who does it</em> before its
+      name: <em>Primary actor</em>, <em>The system</em> or one of the project&rsquo;s actors, and
+      keep only the action as the name (&ldquo;ends the room&rdquo;). A primary-actor step reads
+      with the primary actor of the use case it is shown in, so one shared step reads
+      &ldquo;Operator ends the room&rdquo; in one use case and &ldquo;Engineer ends the room&rdquo;
+      in another. In a scenario that is in no use case, or in use cases with different primary
+      actors, it reads &ldquo;Primary actor ends the room&rdquo;. <em>In the wording</em> leaves
+      the actor in the name, as before. A scenario&rsquo;s own name can have an actor the same
+      way. Deleting an actor that a step names this way puts the actor back into the step&rsquo;s
+      wording.</p>
     <p>A saved step has a page of its own: its pencil opens it. The page shows the step&rsquo;s
       name, type and notes, the scenarios that use it, and its issues and notes, where an issue
       can be resolved. A step is shared, so an edit there changes it in every scenario listed.

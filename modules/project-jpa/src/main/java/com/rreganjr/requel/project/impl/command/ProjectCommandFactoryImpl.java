@@ -59,6 +59,8 @@ import com.rreganjr.requel.project.command.DeleteUseCaseCommand;
 import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.EditAddActorToProjectPositionCommand;
 import com.rreganjr.requel.project.command.EditMergeStepsPositionCommand;
+import com.rreganjr.requel.project.command.EditSetStepActorPositionCommand;
+import com.rreganjr.requel.project.command.EditAddActorToUseCasePositionCommand;
 import com.rreganjr.requel.project.command.EditAddWordToGlossaryPositionCommand;
 import com.rreganjr.requel.project.command.AddGlossaryTermRefererCommand;
 import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
@@ -350,6 +352,18 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	public EditMergeStepsPositionCommand newEditMergeStepsPositionCommand() {
 		return (EditMergeStepsPositionCommand) getCreationStrategy().newInstance(
 				EditMergeStepsPositionCommandImpl.class);
+	}
+
+	@Override
+	public EditSetStepActorPositionCommand newEditSetStepActorPositionCommand() {
+		return (EditSetStepActorPositionCommand) getCreationStrategy().newInstance(
+				EditSetStepActorPositionCommandImpl.class);
+	}
+
+	@Override
+	public EditAddActorToUseCasePositionCommand newEditAddActorToUseCasePositionCommand() {
+		return (EditAddActorToUseCasePositionCommand) getCreationStrategy().newInstance(
+				EditAddActorToUseCasePositionCommandImpl.class);
 	}
 
 	@Override

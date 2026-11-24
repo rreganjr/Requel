@@ -82,6 +82,8 @@ import com.rreganjr.requel.service.api.dto.ActorDto;
 import com.rreganjr.requel.service.api.dto.ScenarioDto;
 import com.rreganjr.requel.service.api.dto.StepDetailDto;
 import com.rreganjr.requel.service.api.dto.StepSummaryDto;
+import com.rreganjr.requel.service.api.dto.UseCaseReadingDto;
+import com.rreganjr.requel.project.StepNames;
 import com.rreganjr.requel.service.api.dto.StepDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.annotation.Annotation;
@@ -654,11 +656,39 @@ public class ProjectQueryController {
         }
     }
 
+    /** #468: the step's actor role, or null when its wording names the actor. */
+    public static String actorRoleOf(Step step) {
+        return step.getActorRole() != null ? step.getActorRole().name() : null;
+    }
+
+    /** #468: the id of the actor a NAMED step names, or null. */
+    public static Long actorIdOf(Step step) {
+        return step.getActor() != null ? step.getActor().getId() : null;
+    }
+
+    /** #468: the name of the actor a NAMED step names, or null. */
+    public static String actorNameOf(Step step) {
+        return step.getActor() != null ? step.getActor().getName() : null;
+    }
+
+    /** #468: how a step reads in each of the use cases given. */
+    static List<UseCaseReadingDto> readsIn(Step step, List<UseCase> useCases) {
+        return useCases.stream()
+                .map(uc -> new UseCaseReadingDto(uc.getId(), uc.getName(),
+                        nameOf(uc.getPrimaryActor()), StepNames.render(step, uc.getPrimaryActor())))
+                .toList();
+    }
+
+    private static String nameOf(com.rreganjr.requel.project.Actor actor) {
+        return actor != null ? actor.getName() : null;
+    }
+
     /** #483: a plain step for the project's step list. */
     public static StepSummaryDto toStepSummaryDto(Step step) {
         return new StepSummaryDto(step.getId(), step.getName(), step.getText(),
                 step.getType() != null ? step.getType().name() : null,
-                step.getUsingScenarios().size());
+                step.getUsingScenarios().size(),
+                actorRoleOf(step), actorIdOf(step), actorNameOf(step), StepNames.display(step));
     }
 
     /**
@@ -702,7 +732,9 @@ public class ProjectQueryController {
         return new StepDetailDto(step.getId(), step.getVersion(), step.getName(), step.getText(),
                 step.getType() != null ? step.getType().name() : null,
                 step.getCreatedBy() != null ? step.getCreatedBy().getDisplayName() : null,
-                usedIn);
+                usedIn,
+                actorRoleOf(step), actorIdOf(step), actorNameOf(step), StepNames.display(step),
+                readsIn(step, StepNames.useCasesOf(step)));
     }
 
     /**
@@ -1008,10 +1040,14 @@ public class ProjectQueryController {
                 scenario.getId(), scenario.getVersion(), scenario.getName(), scenario.getText(),
                 scenario.getType() != null ? scenario.getType().name() : null,
                 scenario.getCreatedBy() != null ? scenario.getCreatedBy().getDisplayName() : null,
-                null, null);
+                null, null,
+                actorRoleOf(scenario), actorIdOf(scenario), actorNameOf(scenario),
+                StepNames.display(scenario), null, null);
     }
 
     public static ScenarioDto toScenarioDetailDto(Scenario scenario) {
+        // #468: the steps read as they do in this scenario's use cases.
+        List<UseCase> scenarioUseCases = StepNames.useCasesOfScenario(scenario);
         List<StepDto> steps = new ArrayList<>();
         for (Step step : scenario.getSteps()) {
             boolean isScenario = step instanceof Scenario;
@@ -1036,7 +1072,9 @@ public class ProjectQueryController {
                     isScenario,
                     isScenario ? step.getId() : null,
                     openIssues,
-                    highestOpenSeverity));
+                    highestOpenSeverity,
+                    actorRoleOf(step), actorIdOf(step), actorNameOf(step),
+                    StepNames.renderFor(step, scenarioUseCases)));
         }
         List<EntityReferenceDto> referencedBy = List.of();
         if (scenario.getProjectOrDomain() instanceof Project project) {
@@ -1051,7 +1089,11 @@ public class ProjectQueryController {
                 scenario.getId(), scenario.getVersion(), scenario.getName(), scenario.getText(),
                 scenario.getType() != null ? scenario.getType().name() : null,
                 scenario.getCreatedBy() != null ? scenario.getCreatedBy().getDisplayName() : null,
-                steps, referencedBy);
+                steps, referencedBy,
+                actorRoleOf(scenario), actorIdOf(scenario), actorNameOf(scenario),
+                StepNames.renderFor(scenario, scenarioUseCases),
+                readsIn(scenario, scenarioUseCases),
+                nameOf(StepNames.singlePrimaryActor(scenarioUseCases)));
     }
 
     public static UseCaseDto toUseCaseSummaryDto(UseCase uc) {
@@ -1060,7 +1102,7 @@ public class ProjectQueryController {
                 uc.getPrimaryActor() != null ? uc.getPrimaryActor().getName() : null,
                 uc.getCreatedBy() != null ? uc.getCreatedBy().getDisplayName() : null,
                 uc.getScenario() != null ? uc.getScenario().getId() : null,
-                uc.getScenario() != null ? uc.getScenario().getName() : null,
+                uc.getScenario() != null ? StepNames.render(uc.getScenario(), uc.getPrimaryActor()) : null,
                 uc.getScenario() != null ? uc.getScenario().getSteps().size() : null,
                 null, null, null, null);
     }
@@ -1090,7 +1132,9 @@ public class ProjectQueryController {
                 .map(s -> new ScenarioDto(s.getId(), s.getVersion(), s.getName(), s.getText(),
                         s.getType() != null ? s.getType().name() : null,
                         s.getCreatedBy() != null ? s.getCreatedBy().getDisplayName() : null,
-                        null, null))
+                        null, null,
+                        actorRoleOf(s), actorIdOf(s), actorNameOf(s),
+                        StepNames.render(s, uc.getPrimaryActor()), null, null))
                 .sorted(Comparator.comparing(ScenarioDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
         return new UseCaseDto(
@@ -1098,7 +1142,7 @@ public class ProjectQueryController {
                 uc.getPrimaryActor() != null ? uc.getPrimaryActor().getName() : null,
                 uc.getCreatedBy() != null ? uc.getCreatedBy().getDisplayName() : null,
                 uc.getScenario() != null ? uc.getScenario().getId() : null,
-                uc.getScenario() != null ? uc.getScenario().getName() : null,
+                uc.getScenario() != null ? StepNames.render(uc.getScenario(), uc.getPrimaryActor()) : null,
                 uc.getScenario() != null ? uc.getScenario().getSteps().size() : null,
                 goals, actors, stories, additionalScenarios);
     }

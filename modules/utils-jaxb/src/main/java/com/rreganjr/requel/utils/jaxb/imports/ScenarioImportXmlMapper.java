@@ -36,6 +36,8 @@ public class ScenarioImportXmlMapper {
                 .name(xml.getName())
                 .description(xml.getText())
                 .scenarioType(xml.getScenarioType())
+                .actorRole(xml.getActorRole())
+                .actorExternalId(xml.getActorRef())
                 .stepRefs(xml.getStepRefs())
                 .annotationExternalIds(new HashSet<>(xml.getAnnotationRefs()))
                 .scenarioElement(scenarioElement)

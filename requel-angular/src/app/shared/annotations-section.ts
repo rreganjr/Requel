@@ -726,6 +726,9 @@ export class AnnotationsSectionComponent implements OnChanges {
       case 'ChangeSpellingPosition': return 'Fix Spelling';
       case 'RewriteNamePosition': return 'Rewrite';
       case 'MergeStepsPosition': return 'Merge';
+      // #468
+      case 'SetStepActorPosition': return 'Set Actor';
+      case 'AddActorToUseCasePosition': return 'Add to Use Case';
       case 'AddActorPosition': return 'Add as Actor';
       case 'AddGlossaryTermPosition': return 'Add to Glossary';
       case 'IgnorePosition': return 'Ignore';

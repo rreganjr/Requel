@@ -35,6 +35,10 @@
 
   <xs:element name="mergeStepsPosition" type="tns:mergeStepsPosition"/>
 
+  <xs:element name="setStepActorPosition" type="tns:setStepActorPosition"/>
+
+  <xs:element name="addActorToUseCasePosition" type="tns:addActorToUseCasePosition"/>
+
   <xs:element name="argument" type="tns:argument"/>
 
   <xs:element name="assistantUserRole" type="tns:assistantUserRole"/>
@@ -193,6 +197,32 @@
         <xs:attribute name="proposedName" type="xs:string"/>
         <xs:attribute name="expectedName" type="xs:string"/>
         <xs:attribute name="expectedSecondName" type="xs:string"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <!-- #468: a position that gives the step or scenario its issue is on an actor role: proposedName
+       is the action its name becomes, expectedName the name it was built from, actorRole the role
+       and actorName the actor a NAMED role names. -->
+  <xs:complexType name="setStepActorPosition">
+    <xs:complexContent>
+      <xs:extension base="tns:position">
+        <xs:sequence/>
+        <xs:attribute name="proposedName" type="xs:string"/>
+        <xs:attribute name="expectedName" type="xs:string"/>
+        <xs:attribute name="actorRole" type="xs:string"/>
+        <xs:attribute name="actorName" type="xs:string"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <!-- #468: a position that adds the actor actorName to the use case useCaseName. -->
+  <xs:complexType name="addActorToUseCasePosition">
+    <xs:complexContent>
+      <xs:extension base="tns:position">
+        <xs:sequence/>
+        <xs:attribute name="actorName" type="xs:string"/>
+        <xs:attribute name="useCaseName" type="xs:string"/>
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
@@ -487,12 +517,25 @@
     <xs:attribute name="phoneticCode" type="xs:string"/>
   </xs:complexType>
 
+  <!-- #468: who does a step or scenario, apart from its wording. With a role the name is only the
+       action ("ends the room"); actorRef is the actor a NAMED role names. Absent: the wording names
+       the actor. -->
+  <xs:simpleType name="actorRole">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="PRIMARY_ACTOR"/>
+      <xs:enumeration value="SYSTEM"/>
+      <xs:enumeration value="NAMED"/>
+    </xs:restriction>
+  </xs:simpleType>
+
   <xs:complexType name="step">
     <xs:complexContent>
       <xs:extension base="tns:abstractTextEntity">
         <xs:sequence>
+          <xs:element name="actorRef" type="xs:IDREF" form="qualified" minOccurs="0"/>
           <xs:element name="name" type="tns:artifactName" form="qualified" minOccurs="0"/>
         </xs:sequence>
+        <xs:attribute name="actorRole" type="tns:actorRole"/>
         <xs:attribute name="scenarioType" type="xs:string"/>
         <xs:attribute name="id" type="xs:ID"/>
       </xs:extension>
@@ -713,6 +756,8 @@
                     <xs:element ref="tns:ignorePosition"/>
                     <xs:element ref="tns:rewriteNamePosition"/>
                     <xs:element ref="tns:mergeStepsPosition"/>
+                    <xs:element ref="tns:setStepActorPosition"/>
+                    <xs:element ref="tns:addActorToUseCasePosition"/>
                   </xs:choice>
                 </xs:sequence>
               </xs:complexType>

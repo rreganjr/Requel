@@ -45,6 +45,7 @@ import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Step;
+import com.rreganjr.requel.project.StepNames;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.AnalysisRequestSource;
 
@@ -178,7 +179,7 @@ public class StepSequenceAssistant implements RequelAssistant<Scenario> {
 	}
 
 	/** #472: two steps in a row that can be merged into one named {@code merged}. */
-	private record Merge(Step first, Step second, String merged) {
+	private record Merge(Step first, Step second, String merged, String reads) {
 	}
 
 	private void findBreaks(Scenario scenario, List<String> breaks, List<String> names,
@@ -188,21 +189,24 @@ public class StepSequenceAssistant implements RequelAssistant<Scenario> {
 			return;
 		}
 		PrimaryActor primary = new PrimaryActor(scenario);
+		// #468: the steps read with their actor roles filled in, for this scenario's use cases.
+		List<UseCase> useCases = StepNames.useCasesOfScenario(scenario);
 		Step previousStep = null;
 		StepReading previousReading = null;
 		Turn previous = null;
 		for (int index = 0; index < steps.size(); index++) {
 			Step step = steps.get(index);
-			String name = step.getName();
+			String name = StepNames.renderFor(step, useCases);
 			StepReading reading = readingOf(step);
-			Turn turn = reading == null ? null : turnOf(step, reading, primary);
+			Turn turn = reading == null && step.getActorRole() == null ? null
+					: turnOf(step, reading, primary);
 			if (index == 0) {
 				if (turn != null && turn.system()) {
 					breaks.add(MessageFormat.format(STARTS_WITH_SYSTEM_MSG, name));
 					names.add(name);
 				}
 			} else if (previous != null && turn != null) {
-				String previousName = previousStep.getName();
+				String previousName = StepNames.renderFor(previousStep, useCases);
 				boolean pair = false;
 				if (previous.system() && turn.system()) {
 					breaks.add(MessageFormat.format(TWO_SYSTEM_STEPS_MSG, previousName, name));
@@ -235,15 +239,21 @@ public class StepSequenceAssistant implements RequelAssistant<Scenario> {
 	 */
 	private static Merge mergeOf(Scenario scenario, Step first, StepReading firstReading,
 			Step second, StepReading secondReading) {
-		if (isScenario(first) || isScenario(second)
-				|| firstReading.kind() != StepReading.Kind.SUBJECT) {
+		if (isScenario(first) || isScenario(second)) {
+			return null;
+		}
+		// #468: a step with an actor role stores only its action, which is what follows "and";
+		// the merged step keeps the first step's role.
+		if (first.getActorRole() == null
+				&& (firstReading == null || firstReading.kind() != StepReading.Kind.SUBJECT)) {
 			return null;
 		}
 		if (first.getUsingScenarios() != null && first.getUsingScenarios().stream()
 				.anyMatch(other -> !other.equals(scenario))) {
 			return null;
 		}
-		String rest = StepVerbs.predicate(second.getName(), secondReading);
+		String rest = second.getActorRole() != null ? second.getName().trim()
+				: StepVerbs.predicate(second.getName(), secondReading);
 		if (rest == null) {
 			return null;
 		}
@@ -252,8 +262,13 @@ public class StepSequenceAssistant implements RequelAssistant<Scenario> {
 			head = head.substring(0, head.length() - 1).trim();
 		}
 		String merged = head + " and " + rest;
-		return merged.length() > StepStructureAssistant.MAX_NAME_LENGTH ? null
-				: new Merge(first, second, merged);
+		if (merged.length() > StepStructureAssistant.MAX_NAME_LENGTH) {
+			return null;
+		}
+		// #468: how the merged step reads, with the first step's role filled in.
+		String actor = StepNames.actorLabel(first.getActorRole(), first.getActor(),
+				StepNames.singlePrimaryActor(StepNames.useCasesOfScenario(scenario)));
+		return new Merge(first, second, merged, actor == null ? merged : actor + " " + merged);
 	}
 
 	/** A scenario used as a step; asked of the entity, since a step may be a lazy proxy. */
@@ -263,6 +278,9 @@ public class StepSequenceAssistant implements RequelAssistant<Scenario> {
 	}
 
 	private StepReading readingOf(Step step) {
+		if (step.getActorRole() != null) {
+			return null; // #468: its actor is in its role, and its name is only the action
+		}
 		String name = step.getName();
 		// #486: the parser's reading, or the step's own words when it can't read them.
 		return name == null || name.isBlank() ? null
@@ -271,6 +289,21 @@ public class StepSequenceAssistant implements RequelAssistant<Scenario> {
 	}
 
 	private Turn turnOf(Step step, StepReading reading, PrimaryActor primary) {
+		// #468: a step with an actor role says who does it in the role, not its wording.
+		if (step.getActorRole() != null) {
+			switch (step.getActorRole()) {
+			case SYSTEM:
+				return Turn.SYSTEM;
+			case NAMED:
+				return step.getActor() == null || step.getActor().getName() == null ? null
+						: new Turn(false, step.getActor().getName());
+			case PRIMARY_ACTOR:
+			default:
+				Actor actor = primary.get();
+				return new Turn(false, actor == null || actor.getName() == null
+						? StepNames.PRIMARY_ACTOR_LABEL : actor.getName());
+			}
+		}
 		switch (reading.kind()) {
 		case COMMAND:
 			Actor actor = primary.get();
@@ -356,7 +389,7 @@ public class StepSequenceAssistant implements RequelAssistant<Scenario> {
 			builder.annotationAction(new AnnotationAction(
 					key + ":merge:" + merge.first().getId() + ":" + merge.second().getId(),
 					AnnotationAction.ActionType.CREATE_OR_UPDATE_POSITION, null, key,
-					MessageFormat.format(MERGE_MSG, merge.merged()), null, null,
+					MessageFormat.format(MERGE_MSG, merge.reads()), null, null,
 					List.of(EvidenceRef.ofSnippet(merge.first().getName()),
 							EvidenceRef.ofSnippet(merge.second().getName())),
 					Map.of("kind", MERGE_KIND, "proposedName", merge.merged(), "expectedName",

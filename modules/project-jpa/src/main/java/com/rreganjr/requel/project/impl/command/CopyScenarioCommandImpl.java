@@ -115,6 +115,9 @@ public class CopyScenarioCommandImpl extends AbstractEditProjectCommand implemen
 		ScenarioImpl newScenario = getProjectRepository().persist(
 				new ScenarioImpl(originalScenario.getProjectOrDomain(), editedBy, newName,
 						originalScenario.getText(), originalScenario.getType()));
+		// #468: the copy's name keeps the original's actor role.
+		newScenario.setActorRole(originalScenario.getActorRole());
+		newScenario.setActor(originalScenario.getActor());
 
 		// Copy steps in order; each gets a unique name via CopyScenarioStepCommand
 		// since step names are unique per project and the originals still exist.

@@ -36,5 +36,14 @@ public record StepDetailDto(
     String text,
     String scenarioType,
     String createdBy,
-    List<EntityReferenceDto> usedIn
+    List<EntityReferenceDto> usedIn,
+    /** #468: PRIMARY_ACTOR, SYSTEM or NAMED; absent when the name itself says who does it. */
+    String actorRole,
+    /** #468: the actor a NAMED role names. */
+    Long actorId,
+    String actorName,
+    /** #468: the name as it reads with the actor filled in (the name itself when no role). */
+    String displayName,
+    /** #468: how the name reads in each use case the step is in, by use case name. */
+    List<UseCaseReadingDto> readsIn
 ) {}

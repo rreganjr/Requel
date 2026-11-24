@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.assistant.core.context;
 
+import com.rreganjr.requel.project.StepNames;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -249,8 +250,11 @@ public class EntityContextPackBuilder {
 					text, authors.of(project.getCreatedBy()));
 		}
 		if (target instanceof Scenario scenario) {
-			String name = ContextPackTextUtils.prepareName("scenario.name", scenario.getName(), policy,
-					redacted);
+			// #468: names read with their actor role filled in, for this scenario's use cases.
+			List<com.rreganjr.requel.project.UseCase> scenarioUseCases =
+					StepNames.useCasesOfScenario(scenario);
+			String name = ContextPackTextUtils.prepareName("scenario.name",
+					StepNames.renderFor(scenario, scenarioUseCases), policy, redacted);
 			String text = ContextPackTextUtils.prepareText("scenario.text", scenario.getText(),
 					maxField, policy, redacted, truncated);
 			String typeName = scenario.getType() != null ? scenario.getType().name() : null;
@@ -259,7 +263,7 @@ public class EntityContextPackBuilder {
 				String stepText = ContextPackTextUtils.prepareText("scenario.step[" + step.getId()
 						+ "].text", step.getText(), maxField, policy, redacted, truncated);
 				String stepName = ContextPackTextUtils.prepareName("scenario.step[" + step.getId()
-						+ "].name", step.getName(), policy, redacted);
+						+ "].name", StepNames.renderFor(step, scenarioUseCases), policy, redacted);
 				steps.add(new StepSnapshot(step.getId(), step.getVersion(), stepName, stepText,
 						step instanceof Scenario));
 				budget.add(stepName, stepText);
@@ -269,8 +273,8 @@ public class EntityContextPackBuilder {
 					text, typeName, steps);
 		}
 		if (target instanceof Step step) {
-			String name = ContextPackTextUtils.prepareName("step.name", step.getName(), policy,
-					redacted);
+			String name = ContextPackTextUtils.prepareName("step.name", StepNames.display(step),
+					policy, redacted);
 			String text = ContextPackTextUtils.prepareText("step.text", step.getText(), maxField,
 					policy, redacted, truncated);
 			budget.add(name, text);

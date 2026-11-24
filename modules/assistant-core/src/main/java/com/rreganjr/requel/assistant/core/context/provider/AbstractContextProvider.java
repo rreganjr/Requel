@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.assistant.core.context.provider;
 
+import com.rreganjr.requel.project.StepNames;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -61,7 +62,7 @@ abstract class AbstractContextProvider implements ContextProvider {
 		String path = entity.getProjectOrDomainEntityInterface().getSimpleName() + "["
 				+ entity.getId() + "]";
 		return new RelatedEntity(ref(entity), relation,
-				context.name(path + ".name", entity.getName()),
+				context.name(path + ".name", nameOf(entity)),
 				context.text(path + ".text", textOf(entity), textChars), children);
 	}
 
@@ -74,6 +75,12 @@ abstract class AbstractContextProvider implements ContextProvider {
 			return stakeholder.getText();
 		}
 		return null;
+	}
+
+	/** #468: a step's or scenario's name reads with its actor role filled in. */
+	static String nameOf(ProjectOrDomainEntity entity) {
+		return entity instanceof com.rreganjr.requel.project.Step step ? StepNames.display(step)
+				: entity.getName();
 	}
 
 	static RelatedEntity related(ProviderContext context, ProjectOrDomainEntity entity,

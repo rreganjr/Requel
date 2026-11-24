@@ -56,6 +56,16 @@ public class PositionImportXml {
     @XmlAttribute(name = "expectedSecondName")
     private String expectedSecondName;
 
+    /** #468: setStepActorPosition and addActorToUseCasePosition. */
+    @XmlAttribute(name = "actorRole")
+    private String actorRole;
+
+    @XmlAttribute(name = "actorName")
+    private String actorName;
+
+    @XmlAttribute(name = "useCaseName")
+    private String useCaseName;
+
     @XmlElementWrapper(name = "arguments", namespace = "http://www.rreganjr.com/requel")
     @XmlElement(name = "argument", namespace = "http://www.rreganjr.com/requel")
     private List<ArgumentImportXml> arguments = new ArrayList<>();
@@ -67,6 +77,9 @@ public class PositionImportXml {
     public String getProposedName() { return proposedName; }
     public String getExpectedName() { return expectedName; }
     public String getExpectedSecondName() { return expectedSecondName; }
+    public String getActorRole() { return actorRole; }
+    public String getActorName() { return actorName; }
+    public String getUseCaseName() { return useCaseName; }
     public List<ArgumentImportXml> getArguments() { return arguments; }
 
     @XmlAccessorType(XmlAccessType.FIELD)

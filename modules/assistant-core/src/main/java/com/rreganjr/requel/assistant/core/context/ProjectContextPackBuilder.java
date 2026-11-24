@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.assistant.core.context;
 
+import com.rreganjr.requel.project.StepNames;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -159,7 +160,8 @@ public class ProjectContextPackBuilder {
 		List<ScenarioSnapshot> scenarios = new ArrayList<>();
 		for (Scenario scenario : project.getScenarios()) {
 			String scenarioName = ContextPackTextUtils.prepareName(
-					"scenario[" + scenario.getId() + "].name", scenario.getName(), policy, redacted);
+					"scenario[" + scenario.getId() + "].name", StepNames.display(scenario), policy,
+					redacted);
 			if (budget.exceeded()) {
 				truncated.add("scenarios list truncated by total-character budget");
 				break;
@@ -173,7 +175,8 @@ public class ProjectContextPackBuilder {
 			List<StepSnapshot> stepSnapshots = new ArrayList<>();
 			for (Step step : scenario.getSteps()) {
 				String stepName = ContextPackTextUtils.prepareName("scenario[" + scenario.getId()
-						+ "].step[" + step.getId() + "].name", step.getName(), policy, redacted);
+						+ "].step[" + step.getId() + "].name", StepNames.display(step), policy,
+						redacted);
 				String stepText = ContextPackTextUtils.prepareText(
 						"scenario[" + scenario.getId() + "].step[" + step.getId() + "].text",
 						step.getText(), maxField, policy, redacted, truncated);

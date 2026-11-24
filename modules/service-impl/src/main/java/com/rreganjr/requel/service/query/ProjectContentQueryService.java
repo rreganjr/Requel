@@ -57,6 +57,7 @@ import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.Scenario;
+import com.rreganjr.requel.project.StepNames;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.Story;
@@ -340,13 +341,17 @@ public class ProjectContentQueryService {
 							step.getId()))
 					.toList();
 			return new ScenarioContentDto(s.getId(), s.getVersion(), s.getName(), s.getText(),
-					nameOf(s.getType()), stepRefs, tags(s), annotations(s));
+					nameOf(s.getType()), stepRefs, tags(s), annotations(s),
+					ProjectQueryController.actorRoleOf(s), ProjectQueryController.actorIdOf(s),
+					ProjectQueryController.actorNameOf(s), StepNames.display(s));
 		}
 
 		StepContentDto step(Step s) {
 			count("steps", s.getName(), s.getText());
 			return new StepContentDto(s.getId(), s.getVersion(), s.getName(), s.getText(),
-					nameOf(s.getType()), tags(s), annotations(s));
+					nameOf(s.getType()), tags(s), annotations(s),
+					ProjectQueryController.actorRoleOf(s), ProjectQueryController.actorIdOf(s),
+					ProjectQueryController.actorNameOf(s), StepNames.display(s));
 		}
 
 		GlossaryTermContentDto term(GlossaryTerm t) {

@@ -54,6 +54,8 @@ import jakarta.validation.constraints.Size;
         + " editing one through the wrong scenario would change it everywhere. Link the existing"
         + " one instead: send its stepId for a step, or its id as stepId with isScenario true to"
         + " nest an existing scenario. The refusal names the id to use."
+        + " A step's (or scenario's) actor can be a role: actorRole PRIMARY_ACTOR (the primary actor of the use case it is shown in), SYSTEM, or NAMED with actorName (an actor in the project); with a role, name is only the action (\"ends the room\") and reads with the actor filled in. NONE clears the role so the wording names the actor; null leaves it as it is. The scenario's own name and each steps entry take actorRole and"
+        + " actorName the same way."
         + CommandDescriptions.PARTIAL_UPDATE)
 @RequiredOnCreate(id = "scenarioId")
 public record EditScenarioInput(
@@ -64,5 +66,7 @@ public record EditScenarioInput(
     String text,
     String scenarioTypeName,
     Integer version,
-    List<EditStepInput> steps
+    List<EditStepInput> steps,
+    String actorRole,
+    String actorName
 ) {}
