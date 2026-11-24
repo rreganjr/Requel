@@ -19,7 +19,7 @@
  *
  */
 import { Component, OnInit, TemplateRef, ViewChild, signal, ChangeDetectionStrategy } from '@angular/core';
-import { PageHeaderComponent } from '../../shared/page-header';
+import { ListPageComponent } from '../../shared/list-page';
 import { FormGroup, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
@@ -40,10 +40,10 @@ import { InlineErrorComponent } from '../../shared/app-inline-error';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-global-tags',
   standalone: true,
-  imports: [PageHeaderComponent, ReactiveFormsModule, AppDataTableComponent, ButtonModule, InputText, SubmitErrorComponent, InlineErrorComponent],
+  imports: [ListPageComponent, ReactiveFormsModule, AppDataTableComponent, ButtonModule, InputText, SubmitErrorComponent, InlineErrorComponent],
   template: `
-    <div class="global-tags" data-testid="global-tags">
-      <div class="page-header"><app-page-header title="Global Tags" /></div>
+    <!-- #528: the shared list frame (header and card), like every other list page. -->
+    <app-list-page title="Global Tags" [showSearch]="false" data-testid="global-tags">
 
       <app-submit-error [message]="errorMessage()" testid="global-tags-error" />
 
@@ -74,13 +74,11 @@ import { InlineErrorComponent } from '../../shared/app-inline-error';
                     (onClick)="deleteTag(t)" />
         </ng-template>
       </app-data-table>
-    </div>
+    </app-list-page>
 
     <ng-template #categoryCell let-t>{{ t.category ?? '—' }}</ng-template>
   `,
   styles: [`
-    .global-tags { max-width: 800px; }
-    .page-header { margin-bottom: 1rem; }
     .add-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
     .cat-input, .val-input { max-width: 220px; }
     .add-row .rq-field-error { flex-basis: 100%; margin: 0; }

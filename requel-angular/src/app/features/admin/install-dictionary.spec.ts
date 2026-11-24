@@ -43,6 +43,12 @@ describe('InstallDictionaryComponent (#319)', () => {
     expect(el.querySelector('[data-testid="install-dictionary-add-form"]')).not.toBeNull();
   });
 
+  it('renders in the shared list frame, the word list in the card (#528)', async () => {
+    const { el } = await render();
+    expect(el.querySelector('app-list-page h1')?.textContent).toContain('Installation Dictionary');
+    expect(el.querySelector('app-list-page app-card app-dictionary-word-list')).not.toBeNull();
+  });
+
   it('adds and removes words, reloading each time', async () => {
     const { comp } = await render();
     await comp.addWord('more');

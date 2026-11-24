@@ -19,7 +19,7 @@
  *
  */
 import { Component, OnInit, TemplateRef, ViewChild, signal, ChangeDetectionStrategy } from '@angular/core';
-import { PageHeaderComponent } from '../../shared/page-header';
+import { ListPageComponent } from '../../shared/list-page';
 import { FormGroup, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
@@ -41,10 +41,10 @@ import { InlineErrorComponent } from '../../shared/app-inline-error';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-tag-categories',
   standalone: true,
-  imports: [PageHeaderComponent, ReactiveFormsModule, AppDataTableComponent, ButtonModule, InputText, CheckboxModule, SubmitErrorComponent, InlineErrorComponent],
+  imports: [ListPageComponent, ReactiveFormsModule, AppDataTableComponent, ButtonModule, InputText, CheckboxModule, SubmitErrorComponent, InlineErrorComponent],
   template: `
-    <div class="tag-categories" data-testid="tag-categories">
-      <div class="page-header"><app-page-header title="Global Tag Categories" /></div>
+    <!-- #528: the shared list frame (header and card), like every other list page. -->
+    <app-list-page title="Global Tag Categories" [showSearch]="false" data-testid="tag-categories">
 
       <app-submit-error [message]="errorMessage()" testid="tag-categories-error" />
 
@@ -89,7 +89,7 @@ import { InlineErrorComponent } from '../../shared/app-inline-error';
                     (onClick)="deleteCategory(c)" />
         </ng-template>
       </app-data-table>
-    </div>
+    </app-list-page>
 
     <ng-template #exclusiveCell let-c>{{ c.exclusive ? 'yes' : '—' }}</ng-template>
     <ng-template #allowedCell let-c>{{ c.allowedEntityTypes.length ? c.allowedEntityTypes.join(', ') : 'any' }}</ng-template>
@@ -97,8 +97,6 @@ import { InlineErrorComponent } from '../../shared/app-inline-error';
     <ng-template #colorCell let-c>{{ c.color ?? '—' }}</ng-template>
   `,
   styles: [`
-    .tag-categories { max-width: 960px; }
-    .page-header { margin-bottom: 1rem; }
     .add-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
     .excl { display: inline-flex; align-items: center; gap: 0.35rem; }
     .hint { color: var(--p-text-muted-color); margin: 0.25rem 0 0.75rem; max-width: 60ch; }

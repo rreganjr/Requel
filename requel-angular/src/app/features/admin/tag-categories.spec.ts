@@ -40,6 +40,17 @@ describe('TagCategoriesComponent', () => {
     comp = fixture.componentInstance;
   });
 
+  it('renders in the shared list frame: title, then the add form and table in the card (#528)', async () => {
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('app-list-page h1')?.textContent).toContain('Global Tag Categories');
+    const card = el.querySelector('app-list-page app-card');
+    expect(card?.querySelector('[data-testid="tag-category-add-form"]')).not.toBeNull();
+    expect(card?.querySelector('app-data-table')).not.toBeNull();
+  });
+
   it('loads global categories on init (no projectName)', async () => {
     fixture.detectChanges();
     await flush();

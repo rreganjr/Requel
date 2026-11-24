@@ -22,7 +22,7 @@ import { ChangeDetectionStrategy, Component, OnInit, ViewChild, inject, signal }
 import { MessageService } from 'primeng/api';
 import { DictionaryWordDto } from '../../models/dictionary';
 import { DictionaryService } from '../../core/dictionary.service';
-import { PageHeaderComponent } from '../../shared/page-header';
+import { ListPageComponent } from '../../shared/list-page';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { DictionaryWordListComponent } from '../../shared/dictionary-word-list';
 
@@ -36,10 +36,10 @@ import { DictionaryWordListComponent } from '../../shared/dictionary-word-list';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-install-dictionary',
   standalone: true,
-  imports: [PageHeaderComponent, SubmitErrorComponent, DictionaryWordListComponent],
+  imports: [ListPageComponent, SubmitErrorComponent, DictionaryWordListComponent],
   template: `
-    <div class="install-dictionary" data-testid="install-dictionary">
-      <div class="page-header"><app-page-header title="Installation Dictionary" /></div>
+    <!-- #528: the shared list frame (header and card), like every other list page. -->
+    <app-list-page title="Installation Dictionary" [showSearch]="false" data-testid="install-dictionary">
       <p class="intro">
         Words the spell checker accepts in every project, in addition to the standard
         dictionaries. Project-specific words belong on that project's Dictionary page.
@@ -51,11 +51,9 @@ import { DictionaryWordListComponent } from '../../shared/dictionary-word-list';
                                 testid="install-dictionary"
                                 emptyMessage="No installation-wide words have been added."
                                 (add)="addWord($event)" (remove)="removeWord($event)" />
-    </div>
+    </app-list-page>
   `,
   styles: [`
-    .install-dictionary { max-width: 800px; }
-    .page-header { margin-bottom: 1rem; }
     .intro { margin: 0 0 1rem; color: var(--p-text-muted-color); }
   `]
 })

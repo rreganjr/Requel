@@ -24,7 +24,7 @@ import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { PageHeaderComponent } from '../../shared/page-header';
+import { ListPageComponent } from '../../shared/list-page';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { MaintenanceService } from '../../core/maintenance.service';
 import { RepairProjectStakeholdersResult } from '../../models/maintenance';
@@ -43,14 +43,14 @@ import { RepairProjectStakeholdersResult } from '../../models/maintenance';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-maintenance',
   standalone: true,
-  imports: [PageHeaderComponent, ReactiveFormsModule, ButtonModule, InputText,
+  imports: [ListPageComponent, ReactiveFormsModule, ButtonModule, InputText,
             SubmitErrorComponent, ConfirmDialogModule],
   // MessageService is inherited from the auth layout; ConfirmationService is provided
   // per-component throughout this codebase (see term-editor et al.), so provide it here.
   providers: [ConfirmationService],
   template: `
-    <div class="maintenance" data-testid="maintenance">
-      <div class="page-header"><app-page-header title="Maintenance" /></div>
+    <!-- #528: the shared list frame (header and card), like every other list page. -->
+    <app-list-page title="Maintenance" [showSearch]="false" data-testid="maintenance">
 
       <app-submit-error [message]="errorMessage()" testid="maintenance-error" />
 
@@ -80,11 +80,9 @@ import { RepairProjectStakeholdersResult } from '../../models/maintenance';
       </fieldset>
 
       <p-confirmDialog />
-    </div>
+    </app-list-page>
   `,
   styles: [`
-    .maintenance { max-width: 800px; }
-    .page-header { margin-bottom: 1rem; }
     .task-description { margin: 0 0 0.75rem; max-width: 60ch; }
     .task-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .name-input { max-width: 280px; }
