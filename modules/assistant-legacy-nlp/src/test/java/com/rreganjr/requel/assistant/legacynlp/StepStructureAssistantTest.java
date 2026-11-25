@@ -43,6 +43,7 @@ import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.UserRef;
 import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.project.ActorRole;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.UseCase;
@@ -164,25 +165,28 @@ class StepStructureAssistantTest {
 	private static final String MP4 = "Download the resulting MP4";
 
 	@Test
-	void oneUseCaseGivesTheActorAndSystemRewritesAndDoNothing() {
+	void oneUseCaseGivesThePrimaryActorAndSystemRolesAndDoNothing() {
 		parses(MP4, "Download");
 		Step step = stepIn(MP4, useCase("Run a session", actor("Host")));
 
 		List<AnnotationAction> actions = assistant.analyze(context(), step).annotationActions();
 
 		assertThat(actions.get(0).text()).isEqualTo("The step \"Download the resulting MP4\""
-				+ " doesn't say who does it. Name the actor, for example \"Host downloads the"
-				+ " resulting MP4\", or \"The system downloads the resulting MP4\" when the system"
-				+ " does it.");
+				+ " doesn't say who does it. Set its actor: as the primary actor it reads \"Host"
+				+ " downloads the resulting MP4\", or as the system \"The system downloads the"
+				+ " resulting MP4\".");
 		assertThat(positions(actions)).containsExactly(
-				"Rewrite as \"Host downloads the resulting MP4\".",
-				"Rewrite as \"The system downloads the resulting MP4\".", "Do nothing.");
-		AnnotationAction host = actions.get(1);
-		assertThat(host.actionKey()).isEqualTo("legacy-step-structure:Step:1:no-actor:rewrite:actor:Host");
-		assertThat(host.parentActionKey()).isEqualTo("legacy-step-structure:Step:1:no-actor");
-		assertThat(host.metadata()).containsEntry("kind", "REWRITE_NAME")
-				.containsEntry("proposedName", "Host downloads the resulting MP4")
-				.containsEntry("expectedName", MP4);
+				"Set the actor to the primary actor: \"Host downloads the resulting MP4\".",
+				"Set the actor to the system: \"The system downloads the resulting MP4\".",
+				"Do nothing.");
+		AnnotationAction primary = actions.get(1);
+		assertThat(primary.actionKey())
+				.isEqualTo("legacy-step-structure:Step:1:no-actor:set-actor:primary");
+		assertThat(primary.parentActionKey()).isEqualTo("legacy-step-structure:Step:1:no-actor");
+		assertThat(primary.metadata()).containsEntry("kind", "SET_STEP_ACTOR")
+				.containsEntry("proposedName", "downloads the resulting MP4")
+				.containsEntry("expectedName", MP4).containsEntry("actorRole", "PRIMARY_ACTOR")
+				.doesNotContainKey("actorName");
 	}
 
 	@Test
@@ -191,15 +195,19 @@ class StepStructureAssistantTest {
 		Step step = stepIn("Read the ticket",
 				useCase("Fix a bug", actor("User"), actor("Jira"), actor("Claude")));
 
-		assertThat(positions(assistant.analyze(context(), step).annotationActions()))
-				.containsExactly("Rewrite as \"User reads the ticket\".",
-						"Rewrite as \"Claude reads the ticket\".",
-						"Rewrite as \"Jira reads the ticket\".",
-						"Rewrite as \"The system reads the ticket\".", "Do nothing.");
+		List<AnnotationAction> actions = assistant.analyze(context(), step).annotationActions();
+
+		assertThat(positions(actions)).containsExactly(
+				"Set the actor to the primary actor: \"User reads the ticket\".",
+				"Set the actor to Claude: \"Claude reads the ticket\".",
+				"Set the actor to Jira: \"Jira reads the ticket\".",
+				"Set the actor to the system: \"The system reads the ticket\".", "Do nothing.");
+		assertThat(actions.get(2).metadata()).containsEntry("actorRole", "NAMED")
+				.containsEntry("actorName", "Claude");
 	}
 
 	@Test
-	void useCasesWithDifferentPrimaryActorsGetOnlyTheSystemRewrite() {
+	void useCasesWithDifferentPrimaryActorsGetThePrimaryActorRoleToo() {
 		parses("End the room", "End");
 		Step step = stepIn("End the room", useCase("Run a session", actor("Operator")),
 				useCase("Respond to an alarm", actor("Engineer")));
@@ -208,22 +216,65 @@ class StepStructureAssistantTest {
 
 		assertThat(actions.get(0).text()).isEqualTo("The step \"End the room\" doesn't say who"
 				+ " does it, and the use cases that share it have different primary actors (Respond"
-				+ " to an alarm: Engineer; Run a session: Operator). Split the step, or name the"
-				+ " actor, for example \"The system ends the room\" when the system does it.");
-		assertThat(positions(actions)).containsExactly("Rewrite as \"The system ends the room\".",
-				"Do nothing.");
+				+ " to an alarm: Engineer; Run a session: Operator). Set its actor to the primary"
+				+ " actor, so it reads with each use case's own, or to the system: \"The system"
+				+ " ends the room\".");
+		assertThat(positions(actions)).containsExactly(
+				"Set the actor to the primary actor: \"Primary actor ends the room\".",
+				"Set the actor to the system: \"The system ends the room\".", "Do nothing.");
 	}
 
 	@Test
-	void aStepInNoUseCaseGetsTheActorPlaceholderAndNoRewrites() {
+	void aStepInNoUseCaseGetsThePrimaryActorAndSystemRoles() {
 		parses(MP4, "Download");
 
 		List<AnnotationAction> actions = assistant.analyze(context(), step(MP4)).annotationActions();
 
 		assertThat(actions.get(0).text()).isEqualTo("The step \"Download the resulting MP4\""
-				+ " doesn't say who does it, and it isn't in a use case. Name the actor, for example"
-				+ " \"<actor> downloads the resulting MP4\".");
-		assertThat(positions(actions)).containsExactly("Do nothing.");
+				+ " doesn't say who does it, and it isn't in a use case. Set its actor to the primary"
+				+ " actor, so it reads \"Primary actor downloads the resulting MP4\" until it joins"
+				+ " one, or to the system.");
+		assertThat(positions(actions)).containsExactly(
+				"Set the actor to the primary actor: \"Primary actor downloads the resulting MP4\".",
+				"Set the actor to the system: \"The system downloads the resulting MP4\".",
+				"Do nothing.");
+	}
+
+	// ---- #468: steps with an actor role ---------------------------------------------------------
+
+	@Test
+	void aStepWithARoleRaisesNoNoActorIssueEvenInNoUseCase() {
+		Step step = step("ends the room");
+		when(step.getActorRole()).thenReturn(ActorRole.PRIMARY_ACTOR);
+
+		assertThat(assistant.analyze(context(), step).annotationActions()).isEmpty();
+	}
+
+	@Test
+	void aNamedActorNotInAUseCaseGetsTheIssueWithAnAddToUseCasePosition() {
+		Actor clerk = actor("Clerk");
+		Step step = stepIn("files the report", useCase("Close the month", actor("Manager")));
+		when(step.getActorRole()).thenReturn(ActorRole.NAMED);
+		when(step.getActor()).thenReturn(clerk);
+
+		List<AnnotationAction> actions = assistant.analyze(context(), step).annotationActions();
+
+		assertThat(actions.get(0).text()).isEqualTo("The actor of the step \"Clerk\" is not"
+				+ " associated to the use case \"Close the month\".");
+		assertThat(positions(actions)).containsExactly(
+				"Add \"Clerk\" to the use case \"Close the month\".", "Do nothing.");
+		assertThat(actions.get(1).metadata()).containsEntry("kind", "ADD_ACTOR_TO_USE_CASE")
+				.containsEntry("actorName", "Clerk").containsEntry("useCaseName", "Close the month");
+	}
+
+	@Test
+	void aNamedActorInItsUseCaseRaisesNothing() {
+		Actor clerk = actor("Clerk");
+		Step step = stepIn("files the report", useCase("Close the month", actor("Manager"), clerk));
+		when(step.getActorRole()).thenReturn(ActorRole.NAMED);
+		when(step.getActor()).thenReturn(clerk);
+
+		assertThat(assistant.analyze(context(), step).annotationActions()).isEmpty();
 	}
 
 	@Test

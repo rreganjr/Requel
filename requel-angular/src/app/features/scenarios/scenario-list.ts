@@ -40,7 +40,7 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
 
       <app-data-table scrollHeight="flex" [value]="scenarios()" [columns]="columns" [loading]="loading()"
                       [rowActions]="rowActions" [rows]="15" searchPlaceholder="Search scenarios..."
-                      [globalFilterFields]="['name', 'scenarioType', 'createdBy']"
+                      [globalFilterFields]="['displayName', 'name', 'scenarioType', 'createdBy']"
                       testid="scenario-list" (rowClick)="onSelect({ data: $event })"
                       emptyTitle="No scenarios yet"
                       emptyMessage="Describe the flows this project needs to support."
@@ -68,7 +68,8 @@ export class ScenarioListComponent implements OnInit {
   canEdit = computed(() => this.permissionService.canEdit('Scenario'));
 
   columns: DataTableColumn<ScenarioDto>[] = [
-    { field: 'name', header: 'Name', sortable: true, link: s => ['/projects', this.projectName, 'scenarios', s.id] },
+    // #468: a scenario's name reads with its actor role filled in.
+    { field: 'displayName', header: 'Name', sortable: true, link: s => ['/projects', this.projectName, 'scenarios', s.id] },
     { field: 'scenarioType', header: 'Type', sortable: true },
     { field: 'createdBy', header: 'Created By', sortable: true }
   ];
@@ -97,7 +98,9 @@ export class ScenarioListComponent implements OnInit {
   private async loadScenarios(): Promise<void> {
     this.loading.set(true);
     try {
-      this.scenarios.set(await this.scenarioService.listScenarios(this.projectName));
+      // #468: every row has the name as it reads (the stored name when the server sends none).
+      this.scenarios.set((await this.scenarioService.listScenarios(this.projectName))
+        .map(s => ({ ...s, displayName: s.displayName ?? s.name })));
     } catch {
       this.errorMessage.set('Failed to load scenarios.');
     } finally {

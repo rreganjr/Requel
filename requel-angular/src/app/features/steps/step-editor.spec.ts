@@ -11,6 +11,7 @@ import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { SourcesSectionComponent } from '../../shared/sources-section';
+import { ActorService } from '../../core/actor.service';
 
 // The real sections load their own data; the step page only has to place them.
 @Component({ selector: 'app-annotations-section', standalone: true, template: '' })
@@ -42,8 +43,8 @@ describe('StepEditorComponent (#476)', () => {
   let fixture: any;
   let comp: StepEditorComponent;
 
-  function setUp(): void {
-    scenarioService = { getStep: vi.fn().mockResolvedValue(STEP) };
+  function setUp(step: object = STEP): void {
+    scenarioService = { getStep: vi.fn().mockResolvedValue(step) };
     commandService = { execute: vi.fn().mockResolvedValue({ success: true, entity: STEP }) };
     canEdit = vi.fn().mockReturnValue(true);
     TestBed.configureTestingModule({
@@ -57,6 +58,7 @@ describe('StepEditorComponent (#476)', () => {
         { provide: PermissionService, useValue: { loadForProject: vi.fn().mockResolvedValue(undefined), canEdit, canDelete: vi.fn() } },
         { provide: EventStreamService, useValue: { events$: EMPTY, addSubscription: vi.fn().mockResolvedValue(undefined) } },
         { provide: MessageService, useValue: { add: vi.fn() } },
+        { provide: ActorService, useValue: { listActors: vi.fn().mockResolvedValue([{ id: 1, name: 'Clerk' }, { id: 2, name: 'Member' }]) } },
       ],
     });
     TestBed.overrideComponent(StepEditorComponent, {
@@ -78,7 +80,7 @@ describe('StepEditorComponent (#476)', () => {
     setUp();
     const el = await load();
     expect(scenarioService.getStep).toHaveBeenCalledWith('proj1', 9);
-    expect(comp.form.getRawValue()).toEqual({ name: 'Member signs in', scenarioType: 'Primary', text: 'with a card' });
+    expect(comp.form.getRawValue()).toEqual({ who: '', name: 'Member signs in', scenarioType: 'Primary', text: 'with a card' });
     const links = el.querySelectorAll('[data-testid="step-used-in-link"]');
     expect(Array.from(links).map(a => a.textContent?.trim())).toEqual(['Borrow', 'Return']);
     expect(el.querySelector('[data-testid="step-shared-hint"]')?.textContent).toContain('2 scenarios');
@@ -97,9 +99,47 @@ describe('StepEditorComponent (#476)', () => {
     await comp.onSave();
     expect(commandService.execute).toHaveBeenCalledWith('EditScenarioStep', {
       projectName: 'proj1', stepId: 9, version: 2, name: 'Member signs in with a card',
-      scenarioTypeName: 'Primary', text: 'with a card',
+      actorRole: 'NONE', scenarioTypeName: 'Primary', text: 'with a card',
     });
     expect(comp.hasUnsavedChanges()).toBe(false);
+  });
+
+  it('#468: loads the role, shows how it reads in each use case, and saves it', async () => {
+    setUp({
+      ...STEP, name: 'signs in', actorRole: 'PRIMARY_ACTOR', displayName: 'Primary actor signs in',
+      readsIn: [
+        { useCaseId: 5, useCaseName: 'Borrow a tool', primaryActorName: 'Member', readsAs: 'Member signs in' },
+        { useCaseId: 6, useCaseName: 'Run the desk', primaryActorName: 'Clerk', readsAs: 'Clerk signs in' },
+      ],
+    });
+    const el = await load();
+    expect(comp.form.controls.who.value).toBe('PRIMARY_ACTOR');
+    expect(comp.stepName()).toBe('Primary actor signs in');
+    expect(comp.roleChoices().map(c => c.label))
+      .toEqual(['In the wording', 'Primary actor', 'The system', 'Clerk', 'Member']);
+    const rows = () => Array.from(el.querySelectorAll('[data-testid="step-reads-as-row"]'))
+      .map(r => r.textContent?.replace(/\s+/g, ' ').trim());
+    expect(rows()).toEqual(['Member signs in in Borrow a tool', 'Clerk signs in in Run the desk']);
+
+    comp.form.controls.who.setValue('NAMED:Clerk');
+    comp.form.controls.who.markAsDirty();
+    fixture.detectChanges();
+    expect(rows()).toEqual(['Clerk signs in in Borrow a tool', 'Clerk signs in in Run the desk']);
+    await comp.onSave();
+    expect(commandService.execute).toHaveBeenCalledWith('EditScenarioStep', expect.objectContaining({
+      name: 'signs in', actorRole: 'NAMED', actorName: 'Clerk',
+    }));
+  });
+
+  it('#468: no role, no reads-as lines; the field is labelled Action once a role is picked', async () => {
+    setUp();
+    const el = await load();
+    expect(el.querySelector('[data-testid="step-reads-as"]')).toBeNull();
+    expect(el.querySelector('label[for="stepName"]')?.textContent?.trim()).toMatch(/^Name\b/);
+    comp.form.controls.who.setValue('SYSTEM');
+    fixture.detectChanges();
+    expect(el.querySelector('label[for="stepName"]')?.textContent?.trim()).toMatch(/^Action\b/);
+    expect(el.querySelector('[data-testid="step-reads-as-row"]')?.textContent).toContain('The system Member signs in');
   });
 
   it('a refused save shows the server message and keeps the edit', async () => {

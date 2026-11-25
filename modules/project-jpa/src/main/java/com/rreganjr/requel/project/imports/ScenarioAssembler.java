@@ -20,6 +20,9 @@
  */
 package com.rreganjr.requel.project.imports;
 
+import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.project.ActorRole;
+
 import com.rreganjr.requel.imports.AggregateAssembler;
 import com.rreganjr.requel.imports.ImportException;
 import com.rreganjr.requel.imports.ImportUnitOfWork;
@@ -80,6 +83,7 @@ public class ScenarioAssembler implements AggregateAssembler<ScenarioImportDraft
         } else {
             step = new StepImpl(project, createdBy, draft.getName(), draft.getDescription(), type);
         }
+        applyActorRole(step, draft, unitOfWork);
         unitOfWork.register(StepImpl.class, draft.getExternalId(), step);
         unitOfWork.register(com.rreganjr.requel.project.Step.class, draft.getExternalId(), step);
         return step;
@@ -90,6 +94,27 @@ public class ScenarioAssembler implements AggregateAssembler<ScenarioImportDraft
             draft.getStepRefs().forEach(stepId -> unitOfWork.resolve(StepImpl.class, stepId)
                     .ifPresent(scenario::addStep));
         });
+    }
+
+    /**
+     * #468: the step's actor role. Actors are assembled before scenarios. A NAMED role whose actor
+     * isn't in the file imports as no role, keeping the wording; an unknown role is refused.
+     */
+    private void applyActorRole(StepImpl step, ScenarioImportDraft draft, ImportUnitOfWork unitOfWork) {
+        ActorRole role;
+        try {
+            role = ActorRole.parse(draft.getActorRole());
+        } catch (IllegalArgumentException e) {
+            throw new ImportException("step \"" + draft.getName() + "\": " + e.getMessage());
+        }
+        if (role == ActorRole.NAMED) {
+            Optional<Actor> actor = StringUtils.hasText(draft.getActorExternalId())
+                    ? unitOfWork.resolve(Actor.class, draft.getActorExternalId())
+                    : Optional.empty();
+            actor.ifPresent(step::setActor);
+            return;
+        }
+        step.setActorRole(role);
     }
 
     private User resolveCreatedBy(ScenarioImportDraft draft, ImportUnitOfWork unitOfWork) {

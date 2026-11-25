@@ -737,6 +737,144 @@ class ProjectXmlStreamingRoundTripIT {
 		assertThat(imported.getExpectedSecondName()).isEqualTo("Host starts " + ts);
 	}
 
+	/** #468: the two new positions round-trip with what they change. */
+	@Test
+	@Transactional
+	void setStepActorAndAddActorToUseCasePositionsRoundTrip() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		Goal goal = originalProject.getGoals().iterator().next();
+		String ts = Long.toString(System.nanoTime());
+
+		com.rreganjr.requel.annotation.command.EditIssueCommand issueCommand =
+				annotationCommandFactory.newEditIssueCommand();
+		issueCommand.setEditedBy(projectUser);
+		issueCommand.setGroupingObject(originalProject);
+		issueCommand.setAnnotatable(goal);
+		issueCommand.setText("Who does it " + ts);
+		issueCommand.setMustBeResolved(false);
+		com.rreganjr.requel.annotation.Issue issue = commandHandler.execute(issueCommand).getIssue();
+		com.rreganjr.requel.project.command.EditSetStepActorPositionCommand set =
+				projectCommandFactory.newEditSetStepActorPositionCommand();
+		set.setEditedBy(projectUser);
+		set.setIssue(issue);
+		set.setText("Set the actor to Clerk: \"Clerk files it " + ts + "\".");
+		set.setProposedName("files it " + ts);
+		set.setExpectedName("File it " + ts);
+		set.setActorRoleName("NAMED");
+		set.setActorName("Clerk");
+		commandHandler.execute(set);
+		com.rreganjr.requel.project.command.EditAddActorToUseCasePositionCommand add =
+				projectCommandFactory.newEditAddActorToUseCasePositionCommand();
+		add.setEditedBy(projectUser);
+		add.setIssue(issue);
+		add.setText("Add \"Clerk\" to the use case \"Close " + ts + "\".");
+		add.setActorName("Clerk");
+		add.setUseCaseName("Close " + ts);
+		commandHandler.execute(add);
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		assertThat(new String(exportedBytes, StandardCharsets.UTF_8)).as("exported XML")
+				.contains("<setStepActorPosition ").contains("<addActorToUseCasePosition ");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		Project reimported = importProject(exportedBytes, projectUser,
+				originalProject.getName() + " Pos " + Instant.now().toEpochMilli());
+		entityManager.flush();
+
+		java.util.List<Object> positions = reimported.getGoals().stream()
+				.filter(candidate -> candidate.getName().equals(goal.getName())).findFirst()
+				.orElseThrow().getAnnotations().stream().map(org.hibernate.Hibernate::unproxy)
+				.filter(com.rreganjr.requel.annotation.Issue.class::isInstance)
+				.map(com.rreganjr.requel.annotation.Issue.class::cast)
+				.filter(candidate -> candidate.getText().equals("Who does it " + ts))
+				.flatMap(candidate -> candidate.getPositions().stream())
+				.map(position -> (Object) org.hibernate.Hibernate.unproxy(position)).toList();
+		com.rreganjr.requel.project.impl.SetStepActorPosition importedSet = positions.stream()
+				.filter(com.rreganjr.requel.project.impl.SetStepActorPosition.class::isInstance)
+				.map(com.rreganjr.requel.project.impl.SetStepActorPosition.class::cast)
+				.findFirst().orElseThrow(() -> new AssertionError("no SetStepActorPosition"));
+		assertThat(importedSet.getProposedName()).isEqualTo("files it " + ts);
+		assertThat(importedSet.getExpectedName()).isEqualTo("File it " + ts);
+		assertThat(importedSet.getActorRoleName()).isEqualTo("NAMED");
+		assertThat(importedSet.getActorName()).isEqualTo("Clerk");
+		com.rreganjr.requel.project.impl.AddActorToUseCasePosition importedAdd = positions.stream()
+				.filter(com.rreganjr.requel.project.impl.AddActorToUseCasePosition.class::isInstance)
+				.map(com.rreganjr.requel.project.impl.AddActorToUseCasePosition.class::cast)
+				.findFirst().orElseThrow(() -> new AssertionError("no AddActorToUseCasePosition"));
+		assertThat(importedAdd.getActorName()).isEqualTo("Clerk");
+		assertThat(importedAdd.getUseCaseName()).isEqualTo("Close " + ts);
+	}
+
+	/**
+	 * #468: each actor role on a step, and a role on a scenario's own name, round-trips; a NAMED
+	 * role keeps its actor.
+	 */
+	@Test
+	@Transactional
+	void stepActorRolesRoundTrip() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		Actor actor = originalProject.getActors().iterator().next();
+		String ts = Long.toString(System.nanoTime());
+
+		EditScenarioStepCommand primary = newScenarioStepCommand(originalProject, projectUser,
+				"ends the room " + ts, null, ScenarioType.Primary);
+		primary.setActorRoleName("PRIMARY_ACTOR");
+		EditScenarioStepCommand system = newScenarioStepCommand(originalProject, projectUser,
+				"logs the end " + ts, null, ScenarioType.Primary);
+		system.setActorRoleName("SYSTEM");
+		EditScenarioStepCommand named = newScenarioStepCommand(originalProject, projectUser,
+				"approves the end " + ts, null, ScenarioType.Primary);
+		named.setActorName(actor.getName());
+		EditScenarioStepCommand plain = newScenarioStepCommand(originalProject, projectUser,
+				"Someone tidies up " + ts, null, ScenarioType.Primary);
+		EditScenarioCommand scenarioCommand = projectCommandFactory.newEditScenarioCommand();
+		scenarioCommand.setAnalysisEnabled(false);
+		scenarioCommand.setEditedBy(projectUser);
+		scenarioCommand.setProjectOrDomain(originalProject);
+		scenarioCommand.setName("ends a room " + ts);
+		scenarioCommand.setScenarioTypeName(ScenarioType.Primary.name());
+		scenarioCommand.setActorRoleName("PRIMARY_ACTOR");
+		scenarioCommand.setStepCommands(List.of(primary, system, named, plain));
+		commandHandler.execute(scenarioCommand);
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		String exported = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(exported).as("exported XML").contains("actorRole=\"PRIMARY_ACTOR\"")
+				.contains("actorRole=\"SYSTEM\"").contains("actorRole=\"NAMED\"")
+				.contains("actorRef>");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		Project reimported = importProject(exportedBytes, projectUser,
+				originalProject.getName() + " Roles " + Instant.now().toEpochMilli());
+		entityManager.flush();
+
+		java.util.Map<String, Step> byName = new java.util.HashMap<>();
+		for (Scenario scenario : reimported.getScenarios()) {
+			byName.put(scenario.getName(), scenario);
+			for (Step step : scenario.getSteps()) {
+				byName.put(step.getName(), step);
+			}
+		}
+		assertThat(byName.get("ends a room " + ts).getActorRole())
+				.isEqualTo(com.rreganjr.requel.project.ActorRole.PRIMARY_ACTOR);
+		assertThat(byName.get("ends the room " + ts).getActorRole())
+				.isEqualTo(com.rreganjr.requel.project.ActorRole.PRIMARY_ACTOR);
+		assertThat(byName.get("logs the end " + ts).getActorRole())
+				.isEqualTo(com.rreganjr.requel.project.ActorRole.SYSTEM);
+		Step importedNamed = byName.get("approves the end " + ts);
+		assertThat(importedNamed.getActorRole())
+				.isEqualTo(com.rreganjr.requel.project.ActorRole.NAMED);
+		assertThat(importedNamed.getActor().getName()).isEqualTo(actor.getName());
+		assertThat(importedNamed.getActor().getProjectOrDomain()).isEqualTo(reimported);
+		assertThat(byName.get("Someone tidies up " + ts).getActorRole()).isNull();
+	}
+
 	/**
 	 * Issue #320: ignored findings and the IgnorePosition marker round-trip, with each key
 	 * rebuilt for the entity's new id and pointing at the imported issue.

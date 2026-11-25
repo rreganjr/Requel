@@ -255,6 +255,19 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 
 	@Override
 	@SuppressWarnings("unchecked")
+	public java.util.List<Step> findStepsNamingActor(Actor actor) {
+		try {
+			Query query = getEntityManager().createQuery(
+					"select step from StepImpl step where step.actor = :actor order by step.id");
+			query.setParameter("actor", actor);
+			return query.getResultList();
+		} catch (Exception e) {
+			throw convertException(e, Step.class, null, EntityExceptionActionType.Reading);
+		}
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
 	public java.util.List<UseCase> findUseCasesWithPrimaryScenario(Scenario scenario) {
 		try {
 			Query query = getEntityManager().createQuery(

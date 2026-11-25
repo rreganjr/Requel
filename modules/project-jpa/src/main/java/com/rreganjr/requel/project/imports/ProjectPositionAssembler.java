@@ -62,6 +62,13 @@ public class ProjectPositionAssembler extends PositionAssembler {
 				return new com.rreganjr.requel.project.impl.MergeStepsPosition(draft.getText(),
 						createdBy, draft.getProposedName(), draft.getExpectedName(),
 						draft.getExpectedSecondName());
+			case "setStepActorPosition": // #468
+				return new com.rreganjr.requel.project.impl.SetStepActorPosition(draft.getText(),
+						createdBy, draft.getProposedName(), draft.getExpectedName(),
+						draft.getActorRole(), draft.getActorName());
+			case "addActorToUseCasePosition": // #468
+				return new com.rreganjr.requel.project.impl.AddActorToUseCasePosition(
+						draft.getText(), createdBy, draft.getActorName(), draft.getUseCaseName());
 			case "ignorePosition":
 				return new com.rreganjr.requel.annotation.impl.IgnorePosition(draft.getText(), createdBy);
 			default:

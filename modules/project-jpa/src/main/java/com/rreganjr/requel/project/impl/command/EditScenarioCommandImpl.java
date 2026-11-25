@@ -132,6 +132,8 @@ public class EditScenarioCommandImpl extends EditScenarioStepCommandImpl impleme
 				scenarioImpl.setType(getScenarioType());
 			}
 		}
+		// #468: a scenario's name can have an actor role too.
+		applyActorRole(scenarioImpl, projectOrDomain);
 		// TODO: merge is failing because the use cases in the
 		// usedByUseCases property are my proxies and hibernate throws an
 		// IllegalArgumentException: Unknown entity:

@@ -36,6 +36,10 @@ public class ScenarioImportDraft {
     private final String name;
     private final String description;
     private final String scenarioType;
+    /** #468: the step's actor role as written, or null. */
+    private final String actorRole;
+    /** #468: the external id of the actor a NAMED step names, or null. */
+    private final String actorExternalId;
     /** In scenario order (#263: a set lost the order of every imported scenario's steps). */
     private final List<String> stepRefs;
     private final Set<String> annotationExternalIds;
@@ -47,6 +51,8 @@ public class ScenarioImportDraft {
         this.name = builder.name;
         this.description = builder.description;
         this.scenarioType = builder.scenarioType;
+        this.actorRole = builder.actorRole;
+        this.actorExternalId = builder.actorExternalId;
         this.stepRefs = Collections.unmodifiableList(new ArrayList<>(builder.stepRefs));
         this.annotationExternalIds =
                 Collections.unmodifiableSet(new HashSet<>(builder.annotationExternalIds));
@@ -71,6 +77,10 @@ public class ScenarioImportDraft {
 
     public String getScenarioType() { return scenarioType; }
 
+    public String getActorRole() { return actorRole; }
+
+    public String getActorExternalId() { return actorExternalId; }
+
     public List<String> getStepRefs() {
         return stepRefs;
     }
@@ -93,6 +103,8 @@ public class ScenarioImportDraft {
         private String name;
         private String description;
         private String scenarioType;
+        private String actorRole;
+        private String actorExternalId;
         private List<String> stepRefs = new ArrayList<>();
         private Set<String> annotationExternalIds = new HashSet<>();
         private boolean scenarioElement = true;
@@ -119,6 +131,16 @@ public class ScenarioImportDraft {
 
         public Builder scenarioType(String scenarioType) {
             this.scenarioType = scenarioType;
+            return this;
+        }
+
+        public Builder actorRole(String actorRole) {
+            this.actorRole = actorRole;
+            return this;
+        }
+
+        public Builder actorExternalId(String actorExternalId) {
+            this.actorExternalId = actorExternalId;
             return this;
         }
 

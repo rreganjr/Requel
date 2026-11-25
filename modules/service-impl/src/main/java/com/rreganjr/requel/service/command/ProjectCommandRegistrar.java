@@ -639,6 +639,8 @@ public class ProjectCommandRegistrar {
                     if (i.name() != null) c.setName(i.name());
                     if (i.text() != null) c.setText(i.text());
                     if (i.scenarioTypeName() != null) c.setScenarioTypeName(i.scenarioTypeName());
+                    c.setActorRoleName(i.actorRole());
+                    c.setActorName(i.actorName());
 
                     List<EditScenarioStepCommand> stepCmds = new ArrayList<>();
                     if (i.steps() != null) {
@@ -651,6 +653,8 @@ public class ProjectCommandRegistrar {
                                 if (si.text() != null) subCmd.setText(si.text());
                                 subCmd.setScenarioTypeName(si.scenarioTypeName() != null ? si.scenarioTypeName() : "Primary");
                                 subCmd.setStepCommands(new ArrayList<>());
+                                subCmd.setActorRoleName(si.actorRole());
+                                subCmd.setActorName(si.actorName());
                                 stepCmds.add(subCmd);
                             } else if (si.isScenario()) {
                                 // Existing sub-scenario reference — pass through as a step update
@@ -663,6 +667,8 @@ public class ProjectCommandRegistrar {
                                 subCmd.setText(si.text() != null ? si.text() : existingSub.getText());
                                 subCmd.setScenarioTypeName(si.scenarioTypeName() != null
                                         ? si.scenarioTypeName() : existingSub.getType().name());
+                                subCmd.setActorRoleName(si.actorRole());
+                                subCmd.setActorName(si.actorName());
                                 stepCmds.add(subCmd);
                             } else if (si.stepId() == null) {
                                 // New plain step
@@ -671,6 +677,8 @@ public class ProjectCommandRegistrar {
                                 stepCmd.setName(si.name());
                                 if (si.text() != null) stepCmd.setText(si.text());
                                 stepCmd.setScenarioTypeName(si.scenarioTypeName() != null ? si.scenarioTypeName() : "Primary");
+                                stepCmd.setActorRoleName(si.actorRole());
+                                stepCmd.setActorName(si.actorName());
                                 stepCmds.add(stepCmd);
                             } else {
                                 // Existing plain step
@@ -682,6 +690,8 @@ public class ProjectCommandRegistrar {
                                 stepCmd.setText(si.text() != null ? si.text() : existingStep.getText());
                                 stepCmd.setScenarioTypeName(si.scenarioTypeName() != null
                                         ? si.scenarioTypeName() : existingStep.getType().name());
+                                stepCmd.setActorRoleName(si.actorRole());
+                                stepCmd.setActorName(si.actorName());
                                 stepCmds.add(stepCmd);
                             }
                         }
@@ -733,6 +743,8 @@ public class ProjectCommandRegistrar {
                     if (i.text() != null) c.setText(i.text());
                     c.setScenarioTypeName(i.scenarioTypeName() != null
                             ? i.scenarioTypeName() : step.getType().name());
+                    c.setActorRoleName(i.actorRole());
+                    c.setActorName(i.actorName());
                 },
                 null,
                 cmd -> ProjectQueryController.toStepDetailDto(((EditScenarioStepCommand) cmd).getStep()));
@@ -766,6 +778,11 @@ public class ProjectCommandRegistrar {
                     c.setName(step.getName());
                     c.setText(step.getText());
                     c.setScenarioTypeName(step.getType().name());
+                    // #468: the scenario's name keeps the step's actor role.
+                    if (step.getActorRole() != null) {
+                        c.setActorRoleName(step.getActorRole().name());
+                        if (step.getActor() != null) c.setActorName(step.getActor().getName());
+                    }
                 },
                 null,
                 cmd -> ProjectQueryController.toScenarioDetailDto(
@@ -973,6 +990,8 @@ public class ProjectCommandRegistrar {
         registry.register("EditAddWordToGlossaryPosition", factory::newEditAddWordToGlossaryPositionCommand);
         registry.register("EditAddActorToProjectPosition", factory::newEditAddActorToProjectPositionCommand);
         registry.register("EditMergeStepsPosition", factory::newEditMergeStepsPositionCommand); // #472
+        registry.register("EditSetStepActorPosition", factory::newEditSetStepActorPositionCommand); // #468
+        registry.register("EditAddActorToUseCasePosition", factory::newEditAddActorToUseCasePositionCommand); // #468
         registry.register("ReplaceGlossaryTerm", factory::newReplaceGlossaryTermCommand);
 
         // Reports

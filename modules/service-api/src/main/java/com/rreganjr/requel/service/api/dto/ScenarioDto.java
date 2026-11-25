@@ -32,5 +32,19 @@ public record ScenarioDto(
     String scenarioType,
     String createdBy,
     List<StepDto> steps,
-    List<EntityReferenceDto> referencedBy
+    List<EntityReferenceDto> referencedBy,
+    /** #468: PRIMARY_ACTOR, SYSTEM or NAMED; absent when the name itself says who does it. */
+    String actorRole,
+    /** #468: the actor a NAMED role names. */
+    Long actorId,
+    String actorName,
+    /** #468: the name as it reads with the actor filled in (the name itself when no role). */
+    String displayName,
+    /** #468: how the name reads in each use case the scenario is in (detail read only). */
+    List<UseCaseReadingDto> readsIn,
+    /**
+     * #468: the one primary actor of every use case the scenario is in, which a step's
+     * PRIMARY_ACTOR role reads as here; absent when there is none or they differ.
+     */
+    String primaryActorName
 ) {}

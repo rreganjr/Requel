@@ -271,6 +271,16 @@ public interface ProjectCommandFactory extends CommandFactory {
 	public EditMergeStepsPositionCommand newEditMergeStepsPositionCommand();
 
 	/**
+	 * #468: a position that gives a step or scenario an actor role; assistant-internal.
+	 */
+	public EditSetStepActorPositionCommand newEditSetStepActorPositionCommand();
+
+	/**
+	 * #468: a position that adds an actor to a use case; assistant-internal.
+	 */
+	public EditAddActorToUseCasePositionCommand newEditAddActorToUseCasePositionCommand();
+
+	/**
 	 * @return a new ReplaceGlossaryTermCommand for replacing the term name in
 	 *         the referring entities with the name of the canonical term.
 	 */

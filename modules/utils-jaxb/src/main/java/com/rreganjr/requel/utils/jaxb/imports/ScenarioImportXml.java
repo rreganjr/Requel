@@ -42,11 +42,19 @@ public class ScenarioImportXml {
     @XmlAttribute(name = "scenarioType")
     private String scenarioType;
 
+    /** #468: PRIMARY_ACTOR, SYSTEM or NAMED; absent when the wording names the actor. */
+    @XmlAttribute(name = "actorRole")
+    private String actorRole;
+
     @XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
     private String name;
 
     @XmlElement(name = "text", namespace = "http://www.rreganjr.com/requel")
     private String text;
+
+    /** #468: the actor a NAMED step names. */
+    @XmlElement(name = "actorRef", namespace = "http://www.rreganjr.com/requel")
+    private String actorRef;
 
     @XmlElementWrapper(name = "steps", namespace = "http://www.rreganjr.com/requel")
     @XmlElement(name = "stepRef", namespace = "http://www.rreganjr.com/requel")
@@ -59,6 +67,8 @@ public class ScenarioImportXml {
     public String getId() { return id; }
     public String getCreatedBy() { return createdBy; }
     public String getScenarioType() { return scenarioType; }
+    public String getActorRole() { return actorRole; }
+    public String getActorRef() { return actorRef; }
     public String getName() { return name; }
     public String getText() { return text; }
     public List<String> getStepRefs() { return stepRefs; }

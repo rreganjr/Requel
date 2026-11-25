@@ -42,6 +42,7 @@ import com.rreganjr.requel.assistant.api.CleanupPolicy;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.UserRef;
 import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.project.ActorRole;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Step;
@@ -394,6 +395,60 @@ class StepSequenceAssistantTest {
 	}
 
 	// ---- helpers --------------------------------------------------------------------------------
+
+	// ---- #468: steps with an actor role ---------------------------------------------------------
+
+	@Test
+	void twoPrimaryActorRoleStepsInARowAreTheSameActorAndMergeKeepingTheRole() {
+		inUseCase(member);
+		Step fills = roleStep("fills in the form", ActorRole.PRIMARY_ACTOR, null);
+		Step submits = roleStep("submits it", ActorRole.PRIMARY_ACTOR, null);
+		systemStep("The system records the request");
+
+		List<AnnotationAction> actions = assistant.analyze(context(),
+				scenario(List.of(fills, submits, step("The system records the request"))))
+				.annotationActions();
+
+		assertThat(actions.get(0).text()).contains(": \"Member fills in the form\" and \"Member"
+				+ " submits it\" are both by Member,");
+		assertThat(actions.get(1).text()).isEqualTo(
+				"Merge into \"Member fills in the form and submits it\".");
+		assertThat(actions.get(1).metadata())
+				.containsEntry("proposedName", "fills in the form and submits it")
+				.containsEntry("expectedName", "fills in the form");
+	}
+
+	@Test
+	void aSystemRoleStepCountsAsTheSystem() {
+		actorStep("Member fills in the form", "Member");
+		Step logs = roleStep("logs the request", ActorRole.SYSTEM, null);
+		Step mails = roleStep("mails a receipt", ActorRole.SYSTEM, null);
+
+		List<AnnotationAction> actions = assistant.analyze(context(),
+				scenario(List.of(step("Member fills in the form"), logs, mails)))
+				.annotationActions();
+
+		assertThat(actions.get(0).text()).contains("\"The system logs the request\"")
+				.contains("\"The system mails a receipt\"");
+	}
+
+	@Test
+	void aNamedRoleStepCountsAsItsActor() {
+		Actor clerk = actor("Clerk");
+		Step inspects = roleStep("inspects it", ActorRole.NAMED, clerk);
+		actorStep("Clerk files it", "Clerk");
+		when(project.getActors()).thenReturn(new java.util.LinkedHashSet<>(List.of(member, clerk)));
+
+		assertThat(assistant.analyze(context(), scenario(List.of(inspects, step("Clerk files it"))))
+				.annotationActions().get(0).text()).contains("are both by Clerk,");
+	}
+
+	private Step roleStep(String name, ActorRole role, Actor actor) {
+		Step step = step(name);
+		when(step.getActorRole()).thenReturn(role);
+		when(step.getActor()).thenReturn(actor);
+		return step;
+	}
 
 	private static List<String> positions(List<AnnotationAction> actions) {
 		return actions.stream()

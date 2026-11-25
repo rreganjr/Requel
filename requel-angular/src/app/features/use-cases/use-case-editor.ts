@@ -41,7 +41,7 @@ import { UseCaseDto } from '../../models/use-case';
 import { GoalDto } from '../../models/goal';
 import { ActorDto } from '../../models/actor';
 import { StoryDto } from '../../models/story';
-import { ScenarioDto } from '../../models/scenario';
+import { ScenarioDto, StepDto } from '../../models/scenario';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { UseCaseService } from '../../core/use-case.service';
 import { ActorService } from '../../core/actor.service';
@@ -67,6 +67,7 @@ import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors'
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { CommandResult } from '../../models/command';
 import { ArtifactNameService } from '../../core/artifact-name.service';
+import { readsAs } from '../../shared/actor-role';
 
 
 /** Joins page-level violations that resolved to no control. */
@@ -331,7 +332,7 @@ const STALE_VERSION_MESSAGE =
                   <ng-template pTemplate="body" let-step let-i="rowIndex">
                     <tr>
                       <td>{{ i + 1 }}</td>
-                      <td>{{ step.name }}</td>
+                      <td data-testid="use-case-step-name">{{ stepReadsAs(step) }}</td>
                       <td>{{ step.scenarioType }}</td>
                     </tr>
                   </ng-template>
@@ -355,7 +356,7 @@ const STALE_VERSION_MESSAGE =
             (add)="showScenarioSelector = true" (remove)="removeScenario($event)">
             <ng-template #row let-s>
               <td><a class="entity-link" data-testid="use-case-scenario-link"
-                     [routerLink]="['/projects', projectName, 'scenarios', s.id]">{{ s.name }}</a></td>
+                     [routerLink]="['/projects', projectName, 'scenarios', s.id]">{{ s.displayName ?? s.name }}</a></td>
               <td>{{ s.scenarioType }}</td>
             </ng-template>
           </app-relationship-section>
@@ -476,6 +477,11 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   actors = signal<ActorDto[]>([]);
   additionalScenarios = signal<ScenarioDto[]>([]);
   primaryScenario = signal<ScenarioDto | null>(null);
+
+  /** #468: a step of this use case's scenario reads with this use case's primary actor. */
+  stepReadsAs(step: StepDto): string {
+    return readsAs(step.name, step, this.useCase()?.primaryActorName);
+  }
   actorOptions = signal<{label: string, value: string}[]>([]);
 
   // Derived id sets used as excludeIds for the entity selector dialogs

@@ -45,6 +45,8 @@ import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors'
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { StepDetailDto } from '../../models/scenario';
 import { ArtifactNameService } from '../../core/artifact-name.service';
+import { ActorService } from '../../core/actor.service';
+import { actorRoleChoices, actorRoleFieldsOf, fromActorRoleChoice, readsAs, toActorRoleChoice } from '../../shared/actor-role';
 
 const STEP_TYPE_OPTIONS = [
   { label: 'Primary', value: 'Primary' },
@@ -97,11 +99,29 @@ const STEP_TYPE_OPTIONS = [
             </p>
           }
           <form [formGroup]="form" (ngSubmit)="onSave()">
-            <app-field label="Name" controlId="stepName" [control]="form.controls.name" [submitted]="submitted()">
+            <!-- #468: who does it, apart from the wording; with an actor the name is the action. -->
+            <app-field label="Who does it" controlId="stepWho" [control]="form.controls.who"
+                       [submitted]="submitted()"
+                       helper="With an actor, the name is only the action.">
+              <p-select appFieldControl inputId="stepWho" data-testid="step-who"
+                        formControlName="who" [options]="roleChoices()"
+                        optionLabel="label" optionValue="value" />
+            </app-field>
+            <app-field [label]="form.controls.who.value ? 'Action' : 'Name'" controlId="stepName"
+                       [control]="form.controls.name" [submitted]="submitted()">
               <input id="stepName" pInputText appFieldControl formControlName="name"
                      data-testid="step-name" [attr.maxlength]="nameMaxLength" [readonly]="!canEdit()"
-                     placeholder="Step description..." />
+                     [placeholder]="form.controls.who.value ? 'ends the room' : 'Step description...'" />
             </app-field>
+            @if (readings().length) {
+              <app-field label="Reads as" data-testid="step-reads-as">
+                <ul class="reads-as">
+                  @for (r of readings(); track r.key) {
+                    <li data-testid="step-reads-as-row"><span class="reads-as-text">{{ r.text }}</span>@if (r.where) {<span class="reads-as-where"> in {{ r.where }}</span>}</li>
+                  }
+                </ul>
+              </app-field>
+            }
             <app-field label="Type" controlId="stepType" [control]="form.controls.scenarioType" [submitted]="submitted()">
               <p-select appFieldControl inputId="stepType" data-testid="step-type"
                         formControlName="scenarioType" [options]="typeOptions"
@@ -151,6 +171,9 @@ const STEP_TYPE_OPTIONS = [
     .form-actions { margin-block: var(--rq-space-4) var(--rq-space-2); }
     .used-in { margin: 0; padding-left: var(--rq-space-5); }
     .used-in .empty { list-style: none; color: var(--p-text-secondary-color); }
+    .reads-as { margin: 0; padding: 0; list-style: none; }
+    .reads-as li + li { margin-top: var(--rq-space-1); }
+    .reads-as-where { color: var(--p-text-secondary-color); font-size: var(--rq-font-size-sm); }
   `],
 })
 export class StepEditorComponent implements OnInit, DirtyCheckable {
@@ -179,12 +202,43 @@ export class StepEditorComponent implements OnInit, DirtyCheckable {
   canEdit = computed(() => this.permissionService.canEdit('Scenario'));
 
   readonly form = new FormGroup({
+    /** #468: '' (the wording says), PRIMARY_ACTOR, SYSTEM or NAMED:<actor>. */
+    who: new FormControl('', { nonNullable: true }),
     name: new FormControl('', {
       validators: [Validators.required, Validators.maxLength(ARTIFACT_NAME_MAX_LENGTH)],
       nonNullable: true,
     }),
     scenarioType: new FormControl('Primary', { nonNullable: true }),
     text: new FormControl('', { nonNullable: true }),
+  });
+
+  /** #468: the project's actors, for the "Who does it" choices. */
+  private readonly actorService = inject(ActorService);
+  readonly actorNames = signal<string[]>([]);
+  /** #468: the form's values as signals, for the live "Reads as" lines. */
+  private readonly formValue = signal(this.form.getRawValue());
+  readonly roleChoices = computed(() => actorRoleChoices(this.actorNames(),
+    this.singlePrimary()));
+  /**
+   * #468: how the step reads in each of its use cases, from the form as it is now: the server's
+   * use cases and their primary actors, the role and action as typed. With no use case, once.
+   */
+  readonly readings = computed(() => {
+    const { who, name } = this.formValue();
+    const fields = actorRoleFieldsOf(who);
+    if (!fields.actorRole) return [];
+    const readsIn = this.step()?.readsIn ?? [];
+    if (!readsIn.length) {
+      return [{ key: 'none', text: readsAs(name, fields, null), where: null as string | null }];
+    }
+    return readsIn.map(r => ({ key: String(r.useCaseId),
+      text: readsAs(name, fields, r.primaryActorName), where: r.useCaseName }));
+  });
+  private readonly singlePrimary = computed(() => {
+    const step = this.step();
+    const primaries = new Set((step?.readsIn ?? []).map(r => r.primaryActorName)
+      .filter((p): p is string => !!p));
+    return primaries.size === 1 ? [...primaries][0] : null;
   });
 
   projectName = '';
@@ -203,9 +257,14 @@ export class StepEditorComponent implements OnInit, DirtyCheckable {
   ) {}
 
   ngOnInit(): void {
+    this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.formValue.set(this.form.getRawValue()));
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
       this.projectName = params.get('name') ?? '';
       const id = Number(params.get('stepId'));
+      void this.actorService.listActors(this.projectName)
+        .then(actors => this.actorNames.set(actors.map(a => a.name)))
+        .catch(() => this.actorNames.set([]));
       await this.permissionService.loadForProject(this.projectName);
       await this.loadStep(id);
       this.bindEvents();
@@ -234,15 +293,18 @@ export class StepEditorComponent implements OnInit, DirtyCheckable {
       const step = await this.scenarioService.getStep(this.projectName, id);
       this.step.set(step);
       if (!this.hasUnsavedChanges()) {
-        this.stepName.set(step.name);
+        this.stepName.set(step.displayName ?? step.name);
         this.form.reset({
+          who: toActorRoleChoice(step),
           name: step.name,
           scenarioType: step.scenarioType ?? 'Primary',
           text: step.text ?? '',
         });
         if (!this.canEdit()) {
           this.form.controls.scenarioType.disable({ emitEvent: false });
+          this.form.controls.who.disable({ emitEvent: false });
         }
+        this.formValue.set(this.form.getRawValue());
         this.submitted.set(false);
       }
     } catch {
@@ -298,12 +360,14 @@ export class StepEditorComponent implements OnInit, DirtyCheckable {
     this.saving.set(true);
     this.errorMessage.set(null);
     this.retryable.set(false);
-    const { name, scenarioType, text } = this.form.getRawValue();
+    const { who, name, scenarioType, text } = this.form.getRawValue();
     const result = await this.commandService.execute<StepDetailDto>('EditScenarioStep', {
       projectName: this.projectName,
       stepId: this.stepId(),
       version: this.step()?.version,
       name: name.trim(),
+      // #468: the role; NONE clears it, so the wording names the actor.
+      ...fromActorRoleChoice(who),
       scenarioTypeName: scenarioType,
       // '' clears; null would leave the notes as they are (#316).
       text,

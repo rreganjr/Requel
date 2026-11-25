@@ -36,6 +36,13 @@ public record ScenarioContentDto(
         String scenarioType,
         List<StepRefDto> steps,
         List<String> tags,
-        AnnotationsDto annotations
+        AnnotationsDto annotations,
+    /** #468: PRIMARY_ACTOR, SYSTEM or NAMED; absent when the name itself says who does it. */
+    String actorRole,
+    /** #468: the actor a NAMED role names. */
+    Long actorId,
+    String actorName,
+    /** #468: the name as it reads with the actor filled in (the name itself when no role). */
+    String displayName
 ) {
 }

@@ -20,6 +20,11 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
+import java.util.List;
+import com.rreganjr.platform.exception.NoSuchEntityException;
+import com.rreganjr.requel.project.Scenario;
+import com.rreganjr.requel.project.Step;
+import com.rreganjr.requel.project.StepNames;
 import com.rreganjr.validator.EntityValidationException;
 import com.rreganjr.platform.command.CascadeAuthorizable;
 import java.util.HashSet;
@@ -50,6 +55,7 @@ import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.command.RemoveGoalFromGoalContainerCommand;
 import com.rreganjr.requel.project.command.RemoveActorFromActorContainerCommand;
 import com.rreganjr.requel.project.impl.AddActorPosition;
+import com.rreganjr.requel.project.impl.StepImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
@@ -98,6 +104,9 @@ public class DeleteActorCommandImpl extends AbstractDeleteProjectEntityCommand i
 		// #296: refuse before touching anything if the caller read an older version.
 		refuseStaleDelete(Actor.class, actor, actor.getVersion());
 		User editedBy = getRepository().get(getEditedBy());
+		// #468: a step whose role names this actor goes back to plain wording ("Operator ends the
+		// room"), so it keeps its meaning; refused if that wording is already another step's name.
+		releaseStepsNamingActor(actor);
 
 		// #247: the former "proactive" native DELETE FROM annotation_annotatable WHERE
 		// annotatable_id = ? that lived here was removed. It full-scanned and X-locked the
@@ -174,6 +183,30 @@ public class DeleteActorCommandImpl extends AbstractDeleteProjectEntityCommand i
 		// #247: clear any annotation link committed since this entity was loaded.
 		removeAllAnnotationsBeforeDelete(actor, editedBy);
 		getRepository().delete(actor);
+	}
+
+	private void releaseStepsNamingActor(Actor actor) {
+		List<Step> steps = getProjectRepository().findStepsNamingActor(actor);
+		for (Step step : steps) {
+			String wording = StepNames.render(step, null);
+			try {
+				Step existing = getProjectRepository()
+						.findStepByProjectOrDomainAndName(step.getProjectOrDomain(), wording);
+				if (!existing.equals(step)) {
+					throw EntityValidationException.validationFailed(Actor.class, "actorId",
+							"The actor \"" + actor.getName() + "\" is named by \"" + wording
+									+ "\", which would go back to plain wording on delete, but "
+									+ (existing instanceof Scenario ? "scenario " : "step ")
+									+ existing.getId() + " already has that name. Change one of"
+									+ " them first.");
+				}
+			} catch (NoSuchEntityException e) {
+				// The wording is free.
+			}
+			StepImpl impl = (StepImpl) org.hibernate.Hibernate.unproxy(step);
+			impl.setName(wording);
+			impl.setActorRole(null);
+		}
 	}
 
 	@Override

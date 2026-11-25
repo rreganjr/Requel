@@ -33,6 +33,8 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
+import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.project.ActorRole;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
@@ -46,6 +48,7 @@ import com.rreganjr.requel.project.impl.StepImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
+import com.rreganjr.validator.EntityValidationException;
 
 /**
  * @author ron
@@ -68,6 +71,8 @@ public class EditScenarioStepCommandImpl extends AbstractEditProjectOrDomainEnti
 	private Step step;
 	private String text;
 	private String scenarioTypeName;
+	private String actorRoleName;
+	private String actorName;
 	private List<Scenario> stepSequenceTargets = List.of();
 
 	/**
@@ -119,6 +124,67 @@ public class EditScenarioStepCommandImpl extends AbstractEditProjectOrDomainEnti
 	}
 
 	@Override
+	public void setActorRoleName(String actorRoleName) {
+		this.actorRoleName = actorRoleName;
+	}
+
+	@Override
+	public void setActorName(String actorName) {
+		this.actorName = actorName;
+	}
+
+	/** The value "NONE" for an actor role: clear it, so the wording names the actor (#468). */
+	public static final String NO_ACTOR_ROLE = "NONE";
+
+	/**
+	 * #468: applies the requested actor role to the step. Null role and actor name leave it as it
+	 * is; NONE clears it; an actor name on its own means NAMED; NAMED needs an actor that is in
+	 * the project.
+	 */
+	protected void applyActorRole(StepImpl stepImpl, ProjectOrDomain projectOrDomain) {
+		boolean hasName = actorName != null && !actorName.isBlank();
+		if (actorRoleName == null && !hasName) {
+			return;
+		}
+		if (actorRoleName != null && NO_ACTOR_ROLE.equalsIgnoreCase(actorRoleName.trim())) {
+			stepImpl.setActorRole(null);
+			return;
+		}
+		ActorRole role;
+		try {
+			role = actorRoleName == null || actorRoleName.isBlank() ? ActorRole.NAMED
+					: ActorRole.parse(actorRoleName);
+		} catch (IllegalArgumentException e) {
+			throw EntityValidationException.validationFailed(Step.class, "actorRole",
+					"expected PRIMARY_ACTOR, SYSTEM, NAMED or NONE, not '" + actorRoleName + "'");
+		}
+		if (role != ActorRole.NAMED) {
+			stepImpl.setActorRole(role);
+			return;
+		}
+		if (!hasName) {
+			if (stepImpl.getActorRole() == ActorRole.NAMED && stepImpl.getActor() != null) {
+				return;
+			}
+			throw EntityValidationException.validationFailed(Step.class, "actorName",
+					"a NAMED actor role needs actorName, the name of an actor in the project");
+		}
+		stepImpl.setActor(findProjectActor(projectOrDomain, actorName));
+	}
+
+	/** #468: the project's actor with this name (ignoring case), or a validation error. */
+	protected static Actor findProjectActor(ProjectOrDomain projectOrDomain, String name) {
+		String wanted = name.trim();
+		for (Actor actor : projectOrDomain.getActors()) {
+			if (actor.getName() != null && actor.getName().trim().equalsIgnoreCase(wanted)) {
+				return actor;
+			}
+		}
+		throw EntityValidationException.validationFailed(Step.class, "actorName",
+				"there is no actor named '" + wanted + "' in this project");
+	}
+
+	@Override
 	public void execute() throws Exception {
 		User editedBy = getProjectRepository().get(getEditedBy());
 		StepImpl stepImpl = (StepImpl) getStep();
@@ -143,6 +209,7 @@ public class EditScenarioStepCommandImpl extends AbstractEditProjectOrDomainEnti
 				stepImpl.setType(getScenarioType());
 			}
 		}
+		applyActorRole(stepImpl, projectOrDomain);
 		setStep(getProjectRepository().merge(stepImpl));
 		// #455: a step's name decides how it counts in every scenario that uses it. A step edited
 		// as part of EditScenario has analysis off; that command collects them instead.

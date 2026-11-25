@@ -138,7 +138,7 @@ public class StepStructureAssistantIT extends AbstractLexicalAssistantTest {
 		assertEquals(List.of(), findingTypes(analyzeStep("The system downloads the invoice " + stamp())));
 	}
 
-	/** #486: every rewrite the check offers reads back as an actor's or the system's step. */
+	/** #486: every role the check offers reads back as an actor's or the system's step. */
 	@Test
 	void everyRewriteTheCheckOffersReadsBack() throws Exception {
 		newActor(project, "Member");
@@ -147,7 +147,7 @@ public class StepStructureAssistantIT extends AbstractLexicalAssistantTest {
 		List<String> rewrites = rewritesOf(step);
 		assertEquals(2, rewrites.size(), rewrites.toString());
 		for (String rewrite : rewrites) {
-			String proposed = rewrite.substring("Rewrite as \"".length(), rewrite.length() - 2);
+			String proposed = rewrite.substring(rewrite.indexOf('"') + 1, rewrite.length() - 2);
 			List<String> findings = findingTypes(analyzeStep(proposed));
 			assertTrue(findings.stream().noneMatch(f -> f.equals("unreadable") || f.equals("no-actor")
 					|| f.equals("subject-not-actor")), proposed + " -> " + findings);
@@ -245,20 +245,20 @@ public class StepStructureAssistantIT extends AbstractLexicalAssistantTest {
 		analyzeAndApplyStep(step);
 
 		Issue issue = noActorIssue(step.getId());
-		assertEquals("The step \"Download the resulting MP4\" doesn't say who does it. Name the"
-				+ " actor, for example \"Host downloads the resulting MP4\", or \"The system"
-				+ " downloads the resulting MP4\" when the system does it.", issue.getText());
-		assertEquals(Set.of("Rewrite as \"Host downloads the resulting MP4\".",
-				"Rewrite as \"The system downloads the resulting MP4\".", "Do nothing."),
+		assertEquals("The step \"Download the resulting MP4\" doesn't say who does it. Set its"
+				+ " actor: as the primary actor it reads \"Host downloads the resulting MP4\", or as"
+				+ " the system \"The system downloads the resulting MP4\".", issue.getText());
+		assertEquals(Set.of("Set the actor to the primary actor: \"Host downloads the resulting MP4\".",
+				"Set the actor to the system: \"The system downloads the resulting MP4\".", "Do nothing."),
 				positionTexts(issue));
 	}
 
 	@Test
 	void theVerbTakesItsThirdPersonFormInTheRewrite() throws Exception {
 		assertTrue(rewritesOf(stepInNewUseCase("Force-stop the active stream"))
-				.contains("Rewrite as \"Host force-stops the active stream\"."));
+				.contains("Set the actor to the primary actor: \"Host force-stops the active stream\"."));
 		assertTrue(rewritesOf(stepInNewUseCase("Issue a new takeover key"))
-				.contains("Rewrite as \"Host issues a new takeover key\"."));
+				.contains("Set the actor to the primary actor: \"Host issues a new takeover key\"."));
 	}
 
 	@Test
@@ -267,10 +267,13 @@ public class StepStructureAssistantIT extends AbstractLexicalAssistantTest {
 		analyzeAndApplyStep(step);
 		Issue issue = noActorIssue(step.getId());
 
-		resolve(issue, positionWithText(issue, "Rewrite as \"Host downloads the resulting MP4\"."),
+		resolve(issue, positionWithText(issue, "Set the actor to the primary actor: \"Host downloads the resulting MP4\"."),
 				null, projectUser());
 
-		assertEquals("Host downloads the resulting MP4", freshStepName(step.getId()));
+		// #468: the role says who does it; the name keeps only the action.
+		assertEquals("downloads the resulting MP4", freshStepName(step.getId()));
+		assertEquals(com.rreganjr.requel.project.ActorRole.PRIMARY_ACTOR,
+				freshStepRole(step.getId()));
 		analyzeAndApplyStep(step);
 		assertTrue(stepIssues(step.getId()).stream()
 				.noneMatch(i -> !i.isResolved() && i.getText().startsWith("The step \"")),
@@ -303,8 +306,8 @@ public class StepStructureAssistantIT extends AbstractLexicalAssistantTest {
 
 		Issue again = noActorIssue(step.getId());
 		assertEquals(issue.getId(), again.getId(), "the same issue, updated in place");
-		assertEquals(Set.of("Rewrite as \"Host uploads the resulting MP4\".",
-				"Rewrite as \"The system uploads the resulting MP4\".", "Do nothing."),
+		assertEquals(Set.of("Set the actor to the primary actor: \"Host uploads the resulting MP4\".",
+				"Set the actor to the system: \"The system uploads the resulting MP4\".", "Do nothing."),
 				positionTexts(again));
 	}
 
@@ -324,7 +327,7 @@ public class StepStructureAssistantIT extends AbstractLexicalAssistantTest {
 		analyzeAndApplyStep(step);
 
 		Set<String> texts = positionTexts(noActorIssue(step.getId()));
-		assertTrue(texts.contains("Rewrite as \"Producer downloads the resulting MP4\"."),
+		assertTrue(texts.contains("Set the actor to the primary actor: \"Producer downloads the resulting MP4\"."),
 				texts.toString());
 		assertTrue(texts.stream().noneMatch(text -> text.contains("Host")), texts.toString());
 	}
@@ -341,9 +344,9 @@ public class StepStructureAssistantIT extends AbstractLexicalAssistantTest {
 		add.setActor(actorNamed("Zoom"));
 		getCommandHandler().execute(add);
 
-		assertEquals(List.of("Rewrite as \"Host hands the stream key to the encoder\".",
-				"Rewrite as \"Zoom hands the stream key to the encoder\".",
-				"Rewrite as \"The system hands the stream key to the encoder\"."),
+		assertEquals(List.of("Set the actor to the primary actor: \"Host hands the stream key to the encoder\".",
+				"Set the actor to Zoom: \"Zoom hands the stream key to the encoder\".",
+				"Set the actor to the system: \"The system hands the stream key to the encoder\"."),
 				rewritesOf(firstStep(useCase)));
 	}
 
@@ -358,19 +361,21 @@ public class StepStructureAssistantIT extends AbstractLexicalAssistantTest {
 		getCommandHandler().execute(add);
 
 		assertTrue(rewritesOf(firstStep(extra))
-				.contains("Rewrite as \"Host downloads the resulting MP4\"."));
+				.contains("Set the actor to the primary actor: \"Host downloads the resulting MP4\"."));
 	}
 
 	@Test
-	void aStepInNoUseCaseGetsNoRewrites() throws Exception {
+	void aStepInNoUseCaseGetsThePrimaryActorAndSystemRoles() throws Exception {
 		Scenario scenario = newScenario("Loose " + stamp(), List.of(MP4));
 		List<AnnotationAction> actions = inTransaction(() -> assistant.analyze(context(),
 				getProjectRepository().findById(Scenario.class, scenario.getId()).getSteps().get(0))
 				.annotationActions());
 		assertEquals("The step \"Download the resulting MP4\" doesn't say who does it, and it"
-				+ " isn't in a use case. Name the actor, for example \"<actor> downloads the"
-				+ " resulting MP4\".", only(actions, "no-actor").text());
-		assertEquals(List.of("Do nothing."), actions.stream()
+				+ " isn't in a use case. Set its actor to the primary actor, so it reads \"Primary"
+				+ " actor downloads the resulting MP4\" until it joins one, or to the system.",
+				only(actions, "no-actor").text());
+		assertEquals(List.of("Set the actor to the primary actor: \"Primary actor downloads the resulting MP4\".",
+				"Set the actor to the system: \"The system downloads the resulting MP4\".", "Do nothing."), actions.stream()
 				.filter(a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_POSITION)
 				.map(AnnotationAction::text).toList());
 	}
@@ -380,7 +385,7 @@ public class StepStructureAssistantIT extends AbstractLexicalAssistantTest {
 		Step step = stepInNewUseCase(MP4);
 		analyzeAndApplyStep(step);
 		Issue issue = noActorIssue(step.getId());
-		Position host = positionWithText(issue, "Rewrite as \"Host downloads the resulting MP4\".");
+		Position host = positionWithText(issue, "Set the actor to the primary actor: \"Host downloads the resulting MP4\".");
 		inTransaction(() -> {
 			EditArgumentCommand argue = getAnnotationCommandFactory().newEditArgumentCommand();
 			argue.setEditedBy(projectUser());
@@ -398,8 +403,8 @@ public class StepStructureAssistantIT extends AbstractLexicalAssistantTest {
 		analyzeAndApplyStep(step);
 
 		Set<String> texts = positionTexts(noActorIssue(step.getId()));
-		assertTrue(texts.contains("Rewrite as \"Host downloads the resulting MP4\"."), texts.toString());
-		assertTrue(texts.contains("Rewrite as \"Host uploads the resulting MP4\"."), texts.toString());
+		assertTrue(texts.contains("Set the actor to the primary actor: \"Host downloads the resulting MP4\"."), texts.toString());
+		assertTrue(texts.contains("Set the actor to the primary actor: \"Host uploads the resulting MP4\"."), texts.toString());
 	}
 
 	@Test
@@ -407,13 +412,133 @@ public class StepStructureAssistantIT extends AbstractLexicalAssistantTest {
 		Step step = stepInNewUseCase(MP4);
 		analyzeAndApplyStep(step);
 		Issue issue = noActorIssue(step.getId());
-		Position stale = positionWithText(issue, "Rewrite as \"Host downloads the resulting MP4\".");
+		Position stale = positionWithText(issue, "Set the actor to the primary actor: \"Host downloads the resulting MP4\".");
 		// Renamed with no re-run, so the rewrite on the issue is the old one.
 		renameStep(step, "Upload the resulting MP4");
 
 		assertThrows(EntityValidationException.class,
 				() -> resolve(issue, stale, null, projectUser()));
 		assertEquals("Upload the resulting MP4", freshStepName(step.getId()));
+	}
+
+	// ---- #468: a step's actor as a role -----------------------------------------------------------
+
+	/**
+	 * AC1: "Operator ends the room" shared by an Operator use case and a Conduit Engineer use case
+	 * reads wrong in the second. The check offers the primary-actor role; accepting it keeps one
+	 * step, named "ends the room", that reads with each use case's own primary actor.
+	 */
+	@Test
+	void aSharedStepNamingOnePrimaryActorGetsThePrimaryActorRoleAndReadsPerUseCase()
+			throws Exception {
+		newActor(project, "Operator");
+		newActor(project, "Conduit Engineer");
+		String ts = stamp();
+		UseCase operatorCase = newUseCase("Run a session " + ts, "Operator",
+				List.of("Operator ends the room " + ts));
+		UseCase engineerCase = newUseCase("Respond to an alarm " + ts, "Conduit Engineer",
+				List.of());
+		AddScenarioToUseCaseCommand share = getProjectCommandFactory()
+				.newAddScenarioToUseCaseCommand();
+		share.setEditedBy(projectUser());
+		share.setUseCase(engineerCase);
+		share.setScenario(inTransaction(() -> getProjectRepository()
+				.findById(UseCase.class, operatorCase.getId()).getScenario()));
+		getCommandHandler().execute(share);
+		Step step = firstStep(operatorCase);
+		analyzeAndApplyStep(step);
+
+		Issue issue = openIssueStartingWith(step.getId(), "\"Operator ends the room " + ts
+				+ "\" names Operator");
+		assertEquals(Set.of("Set the actor to the primary actor: \"Primary actor ends the room "
+				+ ts + "\".", "Set the actor to Operator: \"Operator ends the room " + ts + "\".",
+				"Do nothing."), positionTexts(issue));
+
+		resolve(issue, positionWithText(issue, "Set the actor to the primary actor: \"Primary"
+				+ " actor ends the room " + ts + "\"."), null, projectUser());
+
+		assertEquals("ends the room " + ts, freshStepName(step.getId()));
+		inTransaction(() -> {
+			Step fresh = getProjectRepository().findById(Step.class, step.getId());
+			assertEquals(1, fresh.getUsingScenarios().size(), "still one shared step");
+			assertEquals("Operator ends the room " + ts, com.rreganjr.requel.project.StepNames
+					.render(fresh, getProjectRepository().findById(UseCase.class,
+							operatorCase.getId()).getPrimaryActor()));
+			assertEquals("Conduit Engineer ends the room " + ts, com.rreganjr.requel.project
+					.StepNames.render(fresh, getProjectRepository().findById(UseCase.class,
+							engineerCase.getId()).getPrimaryActor()));
+			return null;
+		});
+		// The role is in effect for both use cases, so a re-run raises nothing (the earlier
+		// actor-not-in-usecase finding is superseded by it).
+		assertEquals(List.of(), findingTypes(inTransaction(() -> assistant.analyze(context(),
+				getProjectRepository().findById(Step.class, step.getId())).annotationActions())));
+	}
+
+	/** #468: a step whose wording is right in every use case it is in gets no role nudge. */
+	@Test
+	void aStepNamingThePrimaryActorOfAllItsUseCasesGetsNoRoleNudge() throws Exception {
+		Step step = firstStep(newUseCase("Host it " + stamp(), "Host",
+				List.of("The host starts the livestream " + stamp())));
+		assertEquals(List.of(), findingTypes(inTransaction(() -> assistant.analyze(context(),
+				getProjectRepository().findById(Step.class, step.getId())).annotationActions())));
+	}
+
+	/** AC2: a scenario in no use case shows the role, and its role steps raise no no-actor. */
+	@Test
+	void aRoleStepInNoUseCaseRaisesNoNoActorIssue() throws Exception {
+		Scenario scenario = newScenario("Loose " + stamp(), List.of(MP4));
+		Step step = firstStep(scenario);
+		setRole(step, "PRIMARY_ACTOR", null, "downloads the resulting MP4 " + stamp());
+		List<AnnotationAction> actions = inTransaction(() -> assistant.analyze(context(),
+				getProjectRepository().findById(Step.class, step.getId())).annotationActions());
+		assertEquals(List.of(), findingTypes(actions));
+		inTransaction(() -> {
+			Step fresh = getProjectRepository().findById(Step.class, step.getId());
+			assertTrue(com.rreganjr.requel.project.StepNames.display(fresh)
+					.startsWith("Primary actor downloads the resulting MP4"));
+			return null;
+		});
+	}
+
+	/** #468: a named actor its use case lacks gets the issue, and one click adds the actor. */
+	@Test
+	void aNamedActorNotInTheUseCaseCanBeAddedInOneClick() throws Exception {
+		newActor(project, "Clerk");
+		UseCase useCase = newUseCase("Close the month " + stamp(), "Host",
+				List.of("File the report " + stamp()));
+		Step step = firstStep(useCase);
+		setRole(step, "NAMED", "Clerk", "files the report " + stamp());
+		analyzeAndApplyStep(step);
+
+		Issue issue = openIssueStartingWith(step.getId(), "The actor of the step \"Clerk\"");
+		resolve(issue, positionWithText(issue, "Add \"Clerk\" to the use case \""
+				+ useCase.getName() + "\"."), null, projectUser());
+
+		assertTrue(inTransaction(() -> getProjectRepository().findById(UseCase.class,
+				useCase.getId()).getActors().stream()
+				.anyMatch(actor -> "Clerk".equals(actor.getName()))));
+		analyzeAndApplyStep(step);
+		assertTrue(stepIssues(step.getId()).stream().noneMatch(i -> !i.isResolved()));
+	}
+
+	/** Decision 2: a role whose action is already another step's name is refused, naming it. */
+	@Test
+	void aRoleWhoseActionIsTakenIsRefusedNamingTheStep() throws Exception {
+		String ts = stamp();
+		UseCase useCase = newUseCase("Archive " + ts, "Host", List.of("Archive the room " + ts));
+		newScenario("Other " + ts, List.of("archives the room " + ts));
+		Step step = firstStep(useCase);
+		analyzeAndApplyStep(step);
+		Issue issue = noActorIssue(step.getId());
+
+		com.rreganjr.platform.exception.EntityException refused = assertThrows(
+				com.rreganjr.platform.exception.EntityException.class,
+				() -> resolve(issue, positionWithText(issue, "Set the actor to the primary actor:"
+						+ " \"Host archives the room " + ts + "\"."), null, projectUser()));
+		assertTrue(refused.getMessage().contains("archives the room " + ts),
+				refused.getMessage());
+		assertEquals("Archive the room " + ts, freshStepName(step.getId()));
 	}
 
 	// ---- helpers --------------------------------------------------------------------------------
@@ -460,7 +585,7 @@ public class StepStructureAssistantIT extends AbstractLexicalAssistantTest {
 	private List<String> rewritesOf(Step step) {
 		return inTransaction(() -> assistant.analyze(context(),
 				getProjectRepository().findById(Step.class, step.getId())).annotationActions())
-				.stream().filter(a -> "REWRITE_NAME".equals(a.metadata().get("kind")))
+				.stream().filter(a -> "SET_STEP_ACTOR".equals(a.metadata().get("kind")))
 				.map(AnnotationAction::text).toList();
 	}
 
@@ -502,6 +627,27 @@ public class StepStructureAssistantIT extends AbstractLexicalAssistantTest {
 		}
 	}
 
+	private void setRole(Step step, String role, String actorName, String name) throws Exception {
+		EditScenarioStepCommand command = getProjectCommandFactory().newEditScenarioStepCommand();
+		command.setEditedBy(projectUser());
+		command.setProjectOrDomain(project);
+		command.setStep(inTransaction(() -> getProjectRepository().findById(Step.class,
+				step.getId())));
+		command.setName(name);
+		command.setActorRoleName(role);
+		command.setActorName(actorName);
+		command.setAnalysisEnabled(false);
+		getCommandHandler().execute(command);
+	}
+
+	private Issue openIssueStartingWith(Long stepId, String prefix) {
+		List<Issue> open = stepIssues(stepId).stream()
+				.filter(i -> !i.isResolved() && i.getText().startsWith(prefix)).toList();
+		assertEquals(1, open.size(), "one open issue starting " + prefix + ": " + stepIssues(stepId)
+				.stream().map(Issue::getText).toList());
+		return open.get(0);
+	}
+
 	private Issue noActorIssue(Long stepId) {
 		List<Issue> open = stepIssues(stepId).stream()
 				.filter(i -> !i.isResolved() && i.getText().contains("doesn't say who does it"))
@@ -517,6 +663,15 @@ public class StepStructureAssistantIT extends AbstractLexicalAssistantTest {
 
 	private static Set<Long> positionIds(Issue issue) {
 		return issue.getPositions().stream().map(Position::getId).collect(Collectors.toSet());
+	}
+
+	private com.rreganjr.requel.project.ActorRole freshStepRole(Long stepId) {
+		EntityManager em = entityManagerFactory.createEntityManager();
+		try {
+			return em.find(StepImpl.class, stepId).getActorRole();
+		} finally {
+			em.close();
+		}
 	}
 
 	private String freshStepName(Long stepId) {

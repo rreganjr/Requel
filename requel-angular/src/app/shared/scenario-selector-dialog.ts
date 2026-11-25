@@ -111,7 +111,7 @@ const SCENARIO_TYPE_OPTIONS = [
         </ng-template>
         <ng-template #body let-s>
           <tr [pSelectableRow]="s" data-testid="scenario-selector-row">
-            <td>{{ s.name }}</td>
+            <td>{{ s.displayName ?? s.name }}</td>
             <td>{{ s.scenarioType }}</td>
           </tr>
         </ng-template>

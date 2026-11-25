@@ -30,6 +30,10 @@ import jakarta.validation.constraints.Size;
  * <p>
  * On update, a null (or absent) {@code name}, {@code text} or {@code scenarioTypeName}
  * leaves it as it is; an empty {@code text} clears it (issue #316).
+ * <p>
+ * #468: {@code actorRole} says who does the step: PRIMARY_ACTOR (the use case's primary actor),
+ * SYSTEM, NAMED (with {@code actorName}, an actor in the project), or NONE when the wording names
+ * the actor. With a role, {@code name} is only the action ("ends the room"). Null leaves it as it is.
  */
 public record EditStepInput(
     Long stepId,
@@ -37,5 +41,7 @@ public record EditStepInput(
     String name,
     String text,
     String scenarioTypeName,
-    boolean isScenario
+    boolean isScenario,
+    String actorRole,
+    String actorName
 ) {}

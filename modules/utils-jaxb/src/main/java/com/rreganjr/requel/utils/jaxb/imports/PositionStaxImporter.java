@@ -66,7 +66,9 @@ public class PositionStaxImporter {
                             || "addActorPosition".equals(local)
                             || "ignorePosition".equals(local)
                             || "rewriteNamePosition".equals(local)
-                            || "mergeStepsPosition".equals(local)) {
+                            || "mergeStepsPosition".equals(local)
+                            || "setStepActorPosition".equals(local)
+                            || "addActorToUseCasePosition".equals(local)) {
                         PositionImportXml xml = unmarshaller.unmarshal(reader, PositionImportXml.class).getValue();
                         drafts.add(mapper.toDraft(xml, local));
                         continue;

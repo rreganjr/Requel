@@ -50,6 +50,9 @@ public class PositionImportXmlMapper {
                 .proposedName(xml.getProposedName())
                 .expectedName(xml.getExpectedName())
                 .expectedSecondName(xml.getExpectedSecondName())
+                .actorRole(xml.getActorRole())
+                .actorName(xml.getActorName())
+                .useCaseName(xml.getUseCaseName())
                 .argumentExternalIds(new HashSet<>())
                 .arguments(argumentDrafts)
                 .build();

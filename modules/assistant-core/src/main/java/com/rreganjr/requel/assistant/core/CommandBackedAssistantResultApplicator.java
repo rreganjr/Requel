@@ -89,6 +89,8 @@ import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.command.AddGlossaryTermRefererCommand;
 import com.rreganjr.requel.project.command.EditAddActorToProjectPositionCommand;
 import com.rreganjr.requel.project.command.EditMergeStepsPositionCommand;
+import com.rreganjr.requel.project.command.EditSetStepActorPositionCommand;
+import com.rreganjr.requel.project.command.EditAddActorToUseCasePositionCommand;
 import com.rreganjr.requel.project.command.EditAddWordToGlossaryPositionCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.user.UserRepository;
@@ -876,6 +878,15 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 			return applyMergeStepsPosition(action, issue, text, editedBy, createdByActionKey);
 		}
 
+		if ("SET_STEP_ACTOR".equalsIgnoreCase(kind)) {
+			return applySetStepActorPosition(action, issue, text, editedBy, createdByActionKey);
+		}
+
+		if ("ADD_ACTOR_TO_USE_CASE".equalsIgnoreCase(kind)) {
+			return applyAddActorToUseCasePosition(action, issue, text, editedBy,
+					createdByActionKey);
+		}
+
 		EditPositionCommand command;
 		if ("CHANGE_SPELLING".equalsIgnoreCase(kind)) {
 			EditChangeSpellingPositionCommand changeSpelling = annotationCommandFactory
@@ -945,6 +956,46 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		command.setProposedName(stringMeta(action, "proposedName"));
 		command.setExpectedName(stringMeta(action, "expectedName"));
 		command.setExpectedSecondName(stringMeta(action, "expectedSecondName"));
+		command.setEditedBy(editedBy);
+		command = commandHandler.execute(command);
+		Position position = command.getPosition();
+		createdByActionKey.put(action.actionKey(), position);
+		return new AppliedAction(position.getId());
+	}
+
+	/**
+	 * #468: a position that gives the step the issue is on an actor role. The command finds an
+	 * existing one on the issue by role and actor, so a re-run updates it in place.
+	 */
+	private AppliedAction applySetStepActorPosition(AnnotationAction action, Issue issue,
+			String text, User editedBy, Map<String, Object> createdByActionKey) throws Exception {
+		EditSetStepActorPositionCommand command = projectCommandFactory
+				.newEditSetStepActorPositionCommand();
+		command.setIssue(issue);
+		command.setText(text);
+		command.setProposedName(stringMeta(action, "proposedName"));
+		command.setExpectedName(stringMeta(action, "expectedName"));
+		command.setActorRoleName(stringMeta(action, "actorRole"));
+		command.setActorName(stringMeta(action, "actorName"));
+		command.setEditedBy(editedBy);
+		command = commandHandler.execute(command);
+		Position position = command.getPosition();
+		createdByActionKey.put(action.actionKey(), position);
+		return new AppliedAction(position.getId());
+	}
+
+	/**
+	 * #468: a position that adds an actor to a use case. The command finds an existing one on the
+	 * issue for the same actor and use case, so a re-run updates it in place.
+	 */
+	private AppliedAction applyAddActorToUseCasePosition(AnnotationAction action, Issue issue,
+			String text, User editedBy, Map<String, Object> createdByActionKey) throws Exception {
+		EditAddActorToUseCasePositionCommand command = projectCommandFactory
+				.newEditAddActorToUseCasePositionCommand();
+		command.setIssue(issue);
+		command.setText(text);
+		command.setActorName(stringMeta(action, "actorName"));
+		command.setUseCaseName(stringMeta(action, "useCaseName"));
 		command.setEditedBy(editedBy);
 		command = commandHandler.execute(command);
 		Position position = command.getPosition();

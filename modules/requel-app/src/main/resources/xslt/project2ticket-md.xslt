@@ -129,10 +129,12 @@
 					</xsl:apply-templates>
 					<xsl:value-of select="$nl" />
 				</xsl:if>
+				<xsl:variable name="primary" select="string(rp:primaryActorRef)" />
 				<xsl:for-each select="rp:scenarioRef">
 					<xsl:call-template name="scenario-block">
 						<xsl:with-param name="ref" select="." />
 						<xsl:with-param name="label" select="'Primary scenario'" />
+						<xsl:with-param name="primary" select="$primary" />
 					</xsl:call-template>
 				</xsl:for-each>
 				<xsl:for-each select="rp:additionalScenarios/rp:scenarioRef">
@@ -140,6 +142,7 @@
 					<xsl:call-template name="scenario-block">
 						<xsl:with-param name="ref" select="." />
 						<xsl:with-param name="label" select="'Scenario'" />
+						<xsl:with-param name="primary" select="$primary" />
 					</xsl:call-template>
 				</xsl:for-each>
 			</xsl:for-each>
@@ -167,6 +170,8 @@
 	<xsl:template name="scenario-block">
 		<xsl:param name="ref" />
 		<xsl:param name="label" />
+		<!-- #468: the use case's primary actor id, for steps with the primary-actor role. -->
+		<xsl:param name="primary" select="''" />
 		<xsl:variable name="scenario" select="key('by-id', string($ref))" />
 		<xsl:call-template name="require">
 			<xsl:with-param name="nodes" select="$scenario" />
@@ -174,7 +179,10 @@
 		</xsl:call-template>
 		<xsl:value-of select="$nl" />
 		<xsl:text>**</xsl:text><xsl:value-of select="$label" /><xsl:text>: </xsl:text>
-		<xsl:value-of select="normalize-space($scenario/rp:name)" /><xsl:text>**</xsl:text>
+		<xsl:call-template name="reads-as">
+			<xsl:with-param name="entity" select="$scenario" />
+			<xsl:with-param name="primary" select="$primary" />
+		</xsl:call-template><xsl:text>**</xsl:text>
 		<xsl:value-of select="$nl" />
 		<xsl:value-of select="$nl" />
 		<xsl:choose>
@@ -182,6 +190,7 @@
 				<xsl:call-template name="steps">
 					<xsl:with-param name="scenario" select="$scenario" />
 					<xsl:with-param name="indent" select="''" />
+					<xsl:with-param name="primary" select="$primary" />
 				</xsl:call-template>
 			</xsl:when>
 			<!-- Say so, rather than leave a heading with nothing under it. -->
@@ -193,6 +202,7 @@
 	<xsl:template name="steps">
 		<xsl:param name="scenario" />
 		<xsl:param name="indent" />
+		<xsl:param name="primary" select="''" />
 		<xsl:for-each select="$scenario/rp:steps/rp:stepRef">
 			<xsl:variable name="step" select="key('by-id', string(.))" />
 			<xsl:call-template name="require">
@@ -200,12 +210,16 @@
 				<xsl:with-param name="what" select="concat('step ', ., ' of scenario ', $scenario/@id)" />
 			</xsl:call-template>
 			<xsl:value-of select="$indent" /><xsl:value-of select="position()" /><xsl:text>. </xsl:text>
-			<xsl:value-of select="normalize-space($step/rp:name)" />
+			<xsl:call-template name="reads-as">
+				<xsl:with-param name="entity" select="$step" />
+				<xsl:with-param name="primary" select="$primary" />
+			</xsl:call-template>
 			<xsl:value-of select="$nl" />
 			<xsl:if test="local-name($step) = 'scenario'">
 				<xsl:call-template name="steps">
 					<xsl:with-param name="scenario" select="$step" />
 					<xsl:with-param name="indent" select="concat($indent, '   ')" />
+					<xsl:with-param name="primary" select="$primary" />
 				</xsl:call-template>
 			</xsl:if>
 		</xsl:for-each>
@@ -399,6 +413,29 @@
 	</xsl:template>
 
 	<!-- The name of the entity a reference points to; fails when there is none. -->
+	<!--
+	  #468: a step's or scenario's name as it reads, with its actor role filled in: the primary
+	  actor of the use case it is shown in ("Primary actor" when there is none), "The system", or
+	  the actor a NAMED role names. A name with no role reads as written.
+	-->
+	<xsl:template name="reads-as">
+		<xsl:param name="entity" />
+		<xsl:param name="primary" select="''" />
+		<xsl:choose>
+			<xsl:when test="$entity/@actorRole = 'PRIMARY_ACTOR' and string-length($primary) > 0">
+				<xsl:call-template name="ref-name"><xsl:with-param name="ref" select="$primary" /></xsl:call-template>
+				<xsl:text> </xsl:text>
+			</xsl:when>
+			<xsl:when test="$entity/@actorRole = 'PRIMARY_ACTOR'"><xsl:text>Primary actor </xsl:text></xsl:when>
+			<xsl:when test="$entity/@actorRole = 'SYSTEM'"><xsl:text>The system </xsl:text></xsl:when>
+			<xsl:when test="$entity/@actorRole = 'NAMED'">
+				<xsl:call-template name="ref-name"><xsl:with-param name="ref" select="$entity/rp:actorRef" /></xsl:call-template>
+				<xsl:text> </xsl:text>
+			</xsl:when>
+		</xsl:choose>
+		<xsl:value-of select="normalize-space($entity/rp:name)" />
+	</xsl:template>
+
 	<xsl:template name="ref-name">
 		<xsl:param name="ref" />
 		<xsl:variable name="entity" select="key('by-id', string($ref))" />

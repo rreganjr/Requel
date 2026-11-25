@@ -33,6 +33,11 @@ public class PositionImportDraft {
     private final String proposedName;
     private final String expectedName;
     private final String expectedSecondName;
+    /** #468: setStepActorPosition's role, and its or addActorToUseCasePosition's actor. */
+    private final String actorRole;
+    private final String actorName;
+    /** #468: addActorToUseCasePosition's use case. */
+    private final String useCaseName;
     private final Set<String> argumentExternalIds;
     private final java.util.List<ArgumentDraft> arguments;
 
@@ -45,6 +50,9 @@ public class PositionImportDraft {
         this.proposedName = builder.proposedName;
         this.expectedName = builder.expectedName;
         this.expectedSecondName = builder.expectedSecondName;
+        this.actorRole = builder.actorRole;
+        this.actorName = builder.actorName;
+        this.useCaseName = builder.useCaseName;
         this.argumentExternalIds = Collections.unmodifiableSet(new HashSet<>(builder.argumentExternalIds));
         this.arguments = java.util.List.copyOf(builder.arguments);
     }
@@ -89,6 +97,18 @@ public class PositionImportDraft {
         return expectedSecondName;
     }
 
+    public String getActorRole() {
+        return actorRole;
+    }
+
+    public String getActorName() {
+        return actorName;
+    }
+
+    public String getUseCaseName() {
+        return useCaseName;
+    }
+
     public Set<String> getArgumentExternalIds() {
         return argumentExternalIds;
     }
@@ -108,6 +128,9 @@ public class PositionImportDraft {
         private String proposedName;
         private String expectedName;
         private String expectedSecondName;
+        private String actorRole;
+        private String actorName;
+        private String useCaseName;
         private Set<String> argumentExternalIds = new HashSet<>();
         private java.util.List<ArgumentDraft> arguments = new java.util.ArrayList<>();
 
@@ -134,6 +157,15 @@ public class PositionImportDraft {
         }
         public Builder expectedSecondName(String expectedSecondName) {
             this.expectedSecondName = expectedSecondName; return this;
+        }
+        public Builder actorRole(String actorRole) {
+            this.actorRole = actorRole; return this;
+        }
+        public Builder actorName(String actorName) {
+            this.actorName = actorName; return this;
+        }
+        public Builder useCaseName(String useCaseName) {
+            this.useCaseName = useCaseName; return this;
         }
         public Builder argumentExternalIds(Set<String> ids) {
             if (ids != null) this.argumentExternalIds.addAll(ids);

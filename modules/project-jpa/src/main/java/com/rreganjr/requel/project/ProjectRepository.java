@@ -167,6 +167,11 @@ public interface ProjectRepository extends Repository {
 	public boolean isStepUsedByAnotherScenario(Step step, Scenario except);
 
 	/**
+	 * #468: the steps and scenarios whose actor role names {@code actor}.
+	 */
+	public java.util.List<Step> findStepsNamingActor(Actor actor);
+
+	/**
 	 * The use cases whose primary scenario is the given one (issue #341). A query rather than
 	 * {@code Scenario.getUsingUseCases()}, so a use case deleted earlier in the same transaction
 	 * (DeleteUseCase, DeleteProject) is not counted: the query flushes first, and a lazy collection

@@ -116,6 +116,9 @@ public class CopyScenarioStepCommandImpl extends AbstractEditProjectCommand impl
 		StepImpl newScenarioStep = getProjectRepository()
 				.persist(new StepImpl(originalScenarioStep.getProjectOrDomain(), editedBy, newName,
 						originalScenarioStep.getText(), originalScenarioStep.getType()));
+		// #468: the copy does the same action with the same actor role.
+		newScenarioStep.setActorRole(originalScenarioStep.getActorRole());
+		newScenarioStep.setActor(originalScenarioStep.getActor());
 
 		// TODO: this assumes that all annotations are appropriate for the new
 		// scenario

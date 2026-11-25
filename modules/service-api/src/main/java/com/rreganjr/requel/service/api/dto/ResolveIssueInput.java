@@ -38,7 +38,10 @@ import jakarta.validation.constraints.NotNull;
         + " name of the entity the issue is on, refused if the name has changed since it was"
         + " proposed; MergeStepsPosition merges two steps in a row of the scenario the issue is"
         + " on into the first, refused if either step's name or their order has changed or the"
-        + " first step is shared with another scenario; AddWordToDictionaryPosition"
+        + " first step is shared with another scenario; SetStepActorPosition gives the step or"
+        + " scenario the issue is on an actor role and makes its name the action alone, refused if"
+        + " the name has changed since it was proposed or the action is another step's name;"
+        + " AddActorToUseCasePosition adds an actor to a use case; AddWordToDictionaryPosition"
         + " adds the word to the project's dictionary; AddActorPosition adds the phrase as an actor"
         + " in the entities the issue is on; AddGlossaryTermPosition adds it to the glossary."
         + " Needs Annotation[Edit] on the project, plus Edit on what the position changes. A"
@@ -47,8 +50,9 @@ import jakarta.validation.constraints.NotNull;
         authorization = "Annotation[Edit], plus Edit on what the accepted position changes:"
                 + " ChangeSpellingPosition and RewriteNamePosition, every entity the issue is on;"
                 + " AddActorPosition,"
-                + " Actor[Edit]; AddGlossaryTermPosition, GlossaryTerm[Edit]; MergeStepsPosition,"
-                + " Scenario[Edit]")
+                + " Actor[Edit]; AddGlossaryTermPosition, GlossaryTerm[Edit]; MergeStepsPosition"
+                + " and SetStepActorPosition, Scenario[Edit]; AddActorToUseCasePosition,"
+                + " Actor[Edit]")
 public record ResolveIssueInput(
         @NotBlank String projectName,
         @NotNull Long issueId,

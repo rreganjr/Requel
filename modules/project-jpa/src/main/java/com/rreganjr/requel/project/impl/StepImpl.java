@@ -37,12 +37,14 @@ import jakarta.persistence.InheritanceType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.xml.bind.annotation.XmlAttribute;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlID;
+import jakarta.xml.bind.annotation.XmlIDREF;
 import jakarta.xml.bind.annotation.XmlRootElement;
 import jakarta.xml.bind.annotation.XmlTransient;
 import jakarta.xml.bind.annotation.XmlType;
@@ -52,6 +54,8 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 import org.hibernate.annotations.SortNatural;
 import jakarta.validation.constraints.NotEmpty;
 
+import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.project.ActorRole;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.Scenario;
@@ -79,6 +83,8 @@ public class StepImpl extends AbstractTextEntity implements Step {
 	private ScenarioType scenarioType = ScenarioType.Primary;
 	private Set<Scenario> usedBy = new TreeSet<Scenario>();
 	private String type;
+	private ActorRole actorRole;
+	private Actor actor;
 
 	/**
 	 * @param projectOrDomain
@@ -154,6 +160,46 @@ public class StepImpl extends AbstractTextEntity implements Step {
 
 	public void setType(ScenarioType scenarioType) {
 		this.scenarioType = scenarioType;
+	}
+
+	/**
+	 * #468: who does the step; null when its wording names the actor.
+	 */
+	@Override
+	@Enumerated(EnumType.STRING)
+	@Column(name = "actor_role", length = 32)
+	@XmlAttribute(name = "actorRole")
+	public ActorRole getActorRole() {
+		return actorRole;
+	}
+
+	@Override
+	public void setActorRole(ActorRole actorRole) {
+		this.actorRole = actorRole;
+		if (actorRole != ActorRole.NAMED) {
+			this.actor = null;
+		}
+	}
+
+	/**
+	 * #468: the actor a NAMED step names. No cascade: deleting the actor turns its steps back into
+	 * plain wording first (DeleteActorCommandImpl).
+	 */
+	@Override
+	@ManyToOne(targetEntity = ActorImpl.class, fetch = FetchType.LAZY)
+	@JoinColumn(name = "actor_id")
+	@XmlIDREF
+	@XmlElement(name = "actorRef", type = ActorImpl.class, namespace = "http://www.rreganjr.com/requel")
+	public Actor getActor() {
+		return actor;
+	}
+
+	@Override
+	public void setActor(Actor actor) {
+		this.actor = actor;
+		if (actor != null) {
+			this.actorRole = ActorRole.NAMED;
+		}
 	}
 
 	/**

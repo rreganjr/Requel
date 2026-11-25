@@ -103,6 +103,26 @@ describe('UseCaseEditorComponent', () => {
     expect(comp.stories().length).toBe(1);
   });
 
+  it('#468: its scenario\'s steps read with this use case\'s primary actor', async () => {
+    useCaseServiceMock.getUseCase.mockResolvedValue({ ...MOCK_USE_CASE, scenarioId: 40, scenarioName: 'Customer places an order' });
+    scenarioServiceMock.getScenario.mockResolvedValue({
+      id: 40, version: 0, name: 'places an order', text: null, scenarioType: 'Primary', createdBy: null,
+      referencedBy: null, actorRole: 'PRIMARY_ACTOR',
+      steps: [
+        { id: 1, version: 0, name: 'picks a product', text: null, scenarioType: 'Primary', isScenario: false, scenarioId: null, actorRole: 'PRIMARY_ACTOR' },
+        { id: 2, version: 0, name: 'reserves stock', text: null, scenarioType: 'Primary', isScenario: false, scenarioId: null, actorRole: 'SYSTEM' },
+        { id: 3, version: 0, name: 'Clerk confirms', text: null, scenarioType: 'Primary', isScenario: false, scenarioId: null },
+      ],
+    });
+    paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    const names = Array.from((fixture.nativeElement as HTMLElement)
+      .querySelectorAll('[data-testid="use-case-step-name"]')).map(td => td.textContent?.trim());
+    expect(names).toEqual(['Customer picks a product', 'The system reserves stock', 'Clerk confirms']);
+  });
+
   it('actorOptions populated from actorService.listActors', async () => {
     fixture.detectChanges();
     await flush();
