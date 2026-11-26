@@ -1256,6 +1256,7 @@ public class ProjectCommandRegistrar {
                 project.getActors().size(),
                 project.getUseCases().size(),
                 project.getScenarios().size(),
+                projectRepository.countPlainSteps(project),
                 project.getGlossaryTerms().size(),
                 project.getReportGenerators().size(),
                 dictionaryRepository.countProjectWords(project.getId()),

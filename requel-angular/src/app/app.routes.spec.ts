@@ -17,6 +17,7 @@ const EXPECTED = [
   'projects/:name/stories', 'projects/:name/stories/:storyId',
   'projects/:name/actors', 'projects/:name/actors/:actorId',
   'projects/:name/scenarios', 'projects/:name/scenarios/:scenarioId',
+  'projects/:name/steps',
   'projects/:name/steps/:stepId',
   'projects/:name/use-cases', 'projects/:name/use-cases/:useCaseId',
   'projects/:name/terms', 'projects/:name/terms/:termId',

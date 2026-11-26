@@ -724,9 +724,9 @@ describe('ScenarioEditorComponent', () => {
 
   describe('#483: reusing an existing step', () => {
     const STEPS = [
-      { id: 1, name: MOCK_STEPS[0].name, text: null, scenarioType: 'Primary', usedIn: 1 },
-      { id: 40, name: 'Download the receipt', text: 'As a PDF', scenarioType: 'Alternative', usedIn: 2 },
-      { id: 41, name: 'Downscale the image', text: null, scenarioType: 'Primary', usedIn: 1 },
+      { id: 1, name: MOCK_STEPS[0].name, text: null, scenarioType: 'Primary', usedIn: 1, openIssues: 0 },
+      { id: 40, name: 'Download the receipt', text: 'As a PDF', scenarioType: 'Alternative', usedIn: 2, openIssues: 0 },
+      { id: 41, name: 'Downscale the image', text: null, scenarioType: 'Primary', usedIn: 1, openIssues: 0 },
     ];
 
     async function loadExisting(): Promise<void> {

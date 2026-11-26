@@ -34,6 +34,10 @@ public record StepSummaryDto(
     String text,
     String scenarioType,
     int usedIn,
+    /** #505: unresolved issues on the step. */
+    int openIssues,
+    /** #505: the highest severity among them; absent when there are none. */
+    String highestOpenSeverity,
     /** #468: PRIMARY_ACTOR, SYSTEM or NAMED; absent when the name itself says who does it. */
     String actorRole,
     /** #468: the actor a NAMED role names. */

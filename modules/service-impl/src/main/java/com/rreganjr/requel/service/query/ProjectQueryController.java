@@ -691,11 +691,33 @@ public class ProjectQueryController {
         return actor != null ? actor.getName() : null;
     }
 
-    /** #483: a plain step for the project's step list. */
+    /** #505: how many unresolved issues an entity has, and the highest severity among them. */
+    record OpenIssues(int count, String highestSeverity) {}
+
+    /** #476, #505: the open-issue tally a step's row and the steps list show. */
+    static OpenIssues openIssuesOf(Step step) {
+        int count = 0;
+        String highest = null;
+        for (Annotation annotation : step.getAnnotations()) {
+            if (annotation instanceof IssueImpl issue && issue.getResolvedByPosition() == null) {
+                count++;
+                String severity = issue.getSeverity() != null ? issue.getSeverity().name() : null;
+                if (AnnotationCommandRegistrar.severityRank(severity)
+                        > AnnotationCommandRegistrar.severityRank(highest)) {
+                    highest = severity;
+                }
+            }
+        }
+        return new OpenIssues(count, highest);
+    }
+
+    /** #483: a plain step for the project's step list; #505 adds its open issues. */
     public static StepSummaryDto toStepSummaryDto(Step step) {
+        OpenIssues open = openIssuesOf(step);
         return new StepSummaryDto(step.getId(), step.getName(), step.getText(),
                 step.getType() != null ? step.getType().name() : null,
                 step.getUsingScenarios().size(),
+                open.count(), open.highestSeverity(),
                 actorRoleOf(step), actorIdOf(step), actorNameOf(step), StepNames.display(step));
     }
 
@@ -936,6 +958,7 @@ public class ProjectQueryController {
                 project.getActors().size(),
                 project.getUseCases().size(),
                 project.getScenarios().size(),
+                projectRepository.countPlainSteps(project),
                 project.getGlossaryTerms().size(),
                 project.getReportGenerators().size(),
                 dictionaryRepository.countProjectWords(project.getId()),
@@ -1059,18 +1082,7 @@ public class ProjectQueryController {
         List<StepDto> steps = new ArrayList<>();
         for (Step step : scenario.getSteps()) {
             boolean isScenario = step instanceof Scenario;
-            int openIssues = 0;
-            String highestOpenSeverity = null;
-            for (Annotation annotation : step.getAnnotations()) {
-                if (annotation instanceof IssueImpl issue && issue.getResolvedByPosition() == null) {
-                    openIssues++;
-                    String severity = issue.getSeverity() != null ? issue.getSeverity().name() : null;
-                    if (AnnotationCommandRegistrar.severityRank(severity)
-                            > AnnotationCommandRegistrar.severityRank(highestOpenSeverity)) {
-                        highestOpenSeverity = severity;
-                    }
-                }
-            }
+            OpenIssues open = openIssuesOf(step);
             steps.add(new StepDto(
                     step.getId(),
                     step.getVersion(),
@@ -1079,8 +1091,8 @@ public class ProjectQueryController {
                     step.getType() != null ? step.getType().name() : null,
                     isScenario,
                     isScenario ? step.getId() : null,
-                    openIssues,
-                    highestOpenSeverity,
+                    open.count(),
+                    open.highestSeverity(),
                     actorRoleOf(step), actorIdOf(step), actorNameOf(step),
                     StepNames.renderFor(step, scenarioUseCases)));
         }

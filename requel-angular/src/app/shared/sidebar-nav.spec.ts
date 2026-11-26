@@ -22,7 +22,7 @@ const MOCK_PROJECT: ProjectDto = {
   id: 1, version: 0, name: 'Proj A', description: null,
   organizationName: null, createdBy: null, status: null,
   stakeholderCount: 2, goalCount: 3, storyCount: 1,
-  actorCount: 4, scenarioCount: 5, useCaseCount: 0,
+  actorCount: 4, scenarioCount: 5, stepCount: 6, useCaseCount: 0,
   glossaryTermCount: 2, reportGeneratorCount: 1, dictionaryWordCount: 3, canDelete: false
 };
 
@@ -149,6 +149,10 @@ describe('SidebarNavComponent', () => {
     const types = children.map(c => c.data?.type);
     expect(types.indexOf('Dictionary')).toBe(types.indexOf('Glossary') + 1);
     expect(children.find(c => c.data?.type === 'Dictionary')?.label).toBe('Dictionary (3)');
+    // #505: plain steps, counted, between scenarios and use cases.
+    expect(types.indexOf('Steps')).toBe(types.indexOf('Scenarios') + 1);
+    expect(types.indexOf('Use Cases')).toBe(types.indexOf('Steps') + 1);
+    expect(children.find(c => c.data?.type === 'Steps')?.label).toBe('Steps (6)');
   });
 
   // ----- group open/closed state (#154) --------------------------------
@@ -246,6 +250,7 @@ describe('SidebarNavComponent', () => {
     ['Stories', 'stories'],
     ['Actors', 'actors'],
     ['Scenarios', 'scenarios'],
+    ['Steps', 'steps'],
     ['Use Cases', 'use-cases'],
     ['Stakeholders', 'stakeholders'],
     ['Glossary', 'terms'],

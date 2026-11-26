@@ -134,6 +134,6 @@ class StubProjectQueryGateway implements QueryGateway {
 
 	private ProjectDto project() {
 		return new ProjectDto(1L, 2, "Sample", "A sample project", "Requel", "admin",
-				"ACTIVE", 1, 2, 3, 4, 5, 6, 7, 8, 0, false);
+				"ACTIVE", 1, 2, 3, 4, 5, 6, 9, 7, 8, 0, false);
 	}
 }

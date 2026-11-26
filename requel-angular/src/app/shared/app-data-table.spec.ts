@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { Menu } from 'primeng/menu';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { AppDataTableComponent, DataTableColumn, RowAction } from './app-data-table';
 
 interface Row {
@@ -102,6 +102,20 @@ describe('AppDataTableComponent (issue #157)', () => {
     const spy = vi.spyOn(dt, 'filterGlobal');
     comp.onSearch('beta');
     expect(spy).toHaveBeenCalledWith('beta', 'contains');
+  });
+
+  it('shows a seeded search text and emits every change (#505)', () => {
+    const { fixture, comp } = make();
+    comp.searchText = 'beta';
+    const seen: string[] = [];
+    comp.searchChange.subscribe((v: string) => seen.push(v));
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('[data-testid="data-table-search"]') as HTMLInputElement;
+    return fixture.whenStable().then(() => {
+      expect(input.value).toBe('beta');
+      comp.onSearch('gam');
+      expect(seen).toEqual(['gam']);
+    });
   });
 
   it('renders an empty state when there are no rows', () => {
@@ -278,6 +292,16 @@ describe('AppDataTableComponent link column (issue #129)', () => {
     const createdCell = Array.from(firstRow.querySelectorAll('td'))
       .find(td => td.textContent?.trim() === 'alice');
     expect(createdCell?.querySelector('a')).toBeNull();
+  });
+
+  it('carries the column\'s link state when the link is followed (#505)', async () => {
+    const { fixture, comp } = make();
+    comp.columns = [{ ...LINK_COLUMNS[0], linkState: { fromList: true } }, LINK_COLUMNS[1]];
+    fixture.detectChanges();
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigateByUrl');
+    (fixture.nativeElement.querySelector('a.dt-link') as HTMLAnchorElement).click();
+    expect(navigate).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ state: { fromList: true } }));
   });
 
   it('does not emit rowClick when the name link is clicked (stopPropagation)', () => {

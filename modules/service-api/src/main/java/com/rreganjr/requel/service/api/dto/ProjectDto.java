@@ -37,6 +37,8 @@ public record ProjectDto(
         int actorCount,
         int useCaseCount,
         int scenarioCount,
+        // Plain steps; scenarios used as steps are counted as scenarios (#505).
+        int stepCount,
         int glossaryTermCount,
         int reportGeneratorCount,
         // Words in the project's own dictionary (issue #319); installation words are not counted.

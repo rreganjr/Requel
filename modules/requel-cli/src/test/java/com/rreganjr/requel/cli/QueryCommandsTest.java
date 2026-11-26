@@ -59,7 +59,7 @@ class QueryCommandsTest {
 
     private static ProjectDto project(String name) {
         return new ProjectDto(1L, 0, name, "A demo project", "Org", "ron", "ACTIVE",
-                2, 3, 4, 5, 6, 7, 8, 0, 0, false);
+                2, 3, 4, 5, 6, 7, 11, 8, 0, 0, false);
     }
 
     /**
@@ -196,7 +196,8 @@ class QueryCommandsTest {
         cmd.projectName = "Demo";
 
         String out = capture(() -> assertThat(cmd.call()).isEqualTo(ExitCode.SUCCESS));
-        assertThat(out).contains("Demo").contains("stakeholders=2").contains("A demo project");
+        assertThat(out).contains("Demo").contains("stakeholders=2").contains("A demo project")
+                .contains("scenarios=7 steps=11");
     }
 
     @Test

@@ -387,4 +387,10 @@ public interface ProjectRepository extends Repository {
 	 * Workaround for the Hibernate 6.5 {@code @ManyToAny} bug.
 	 */
 	void addStoryContainerToStoryJoinTable(Long storyId, Long storyContainerId, String storyContainerType);
+
+	/**
+	 * #505: how many plain steps the project has. Scenarios used as steps are not counted: they
+	 * are scenarios.
+	 */
+	int countPlainSteps(Project project);
 }

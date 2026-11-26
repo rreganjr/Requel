@@ -388,8 +388,15 @@ export class StepEditorComponent implements OnInit, DirtyCheckable {
     }
   }
 
-  /** Back to the scenario the user most likely came from: the only one using it, else history. */
+  /**
+   * Back to where the user came from: the steps list with its filters when opened from there
+   * (#505), else the only scenario using the step, else history.
+   */
   onBack(): void {
+    if ((history.state as { fromStepList?: boolean } | null)?.fromStepList) {
+      history.back();
+      return;
+    }
     const used = this.usedIn();
     if (used.length === 1) {
       this.router.navigate(['/projects', this.projectName, 'scenarios', used[0].id]);
