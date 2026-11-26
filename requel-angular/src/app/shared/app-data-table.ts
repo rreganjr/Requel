@@ -54,6 +54,8 @@ export interface DataTableColumn<T = unknown> {
    * -able link); when it returns null/undefined it falls back to plain text.
    */
   link?: (row: T) => unknown[] | null | undefined;
+  /** Navigation state the link carries (#505: the steps list tells the step page where Back goes). */
+  linkState?: Record<string, unknown>;
 }
 
 /**
@@ -160,7 +162,7 @@ export interface RowAction<T = unknown> {
                 <ng-container [ngTemplateOutlet]="col.cellTemplate"
                               [ngTemplateOutletContext]="{ $implicit: row }" />
               } @else if (col.link && col.link(row); as link) {
-                <a class="dt-link" [routerLink]="link"
+                <a class="dt-link" [routerLink]="link" [state]="col.linkState"
                    (click)="$event.stopPropagation()">{{ getValue(row, col.field) }}</a>
               } @else {
                 {{ getValue(row, col.field) }}
@@ -290,6 +292,8 @@ export class AppDataTableComponent<T = Record<string, unknown>> {
 
   /** Whole-row open affordance. */
   @Output() rowClick = new EventEmitter<T>();
+  /** Every change to the search box's text (#505). */
+  @Output() searchChange = new EventEmitter<string>();
   /** Emitted as the checkbox selection changes. */
   @Output() selectionChange = new EventEmitter<T[]>();
   /** Built-in menu outputs (used only when no `rowActions`/template override). */
@@ -305,7 +309,8 @@ export class AppDataTableComponent<T = Record<string, unknown>> {
   @ContentChild('empty') emptyTemplate?: TemplateRef<unknown>;
 
   selection: T[] = [];
-  searchText = '';
+  /** The search box's text; a page that keeps its search in the URL seeds it here (#505). */
+  @Input() searchText = '';
   menuModel: MenuItem[] = [];
 
   /** The PrimeNG table instance, used to drive the global filter. */
@@ -336,6 +341,7 @@ export class AppDataTableComponent<T = Record<string, unknown>> {
 
   onSearch(value: string): void {
     this.dt?.filterGlobal(value, 'contains');
+    this.searchChange.emit(value);
   }
 
   onSelectionChange(selection: T[]): void {

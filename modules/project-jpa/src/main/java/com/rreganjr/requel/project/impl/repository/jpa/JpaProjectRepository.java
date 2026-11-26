@@ -75,6 +75,7 @@ import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.project.impl.AddActorPosition;
 import com.rreganjr.requel.project.impl.AddGlossaryTermPosition;
 import com.rreganjr.requel.project.impl.GlossaryTermImpl;
+import com.rreganjr.requel.project.impl.ProjectImpl;
 import com.rreganjr.platform.identity.User;
 
 /**
@@ -695,5 +696,17 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 			query.setParameter("name", trimmed);
 			return query.getSingleResult();
 		}
+	}
+
+	@Override
+	public int countPlainSteps(Project project) {
+		// Bind the managed entity: a caller can hold a proxy Hibernate can't bind (#504).
+		ProjectImpl managed = getEntityManager().find(ProjectImpl.class, project.getId());
+		Long count = getEntityManager()
+				.createQuery("select count(e) from StepImpl e where e.projectOrDomain = :project"
+						+ " and type(e) = StepImpl", Long.class)
+				.setParameter("project", managed)
+				.getSingleResult();
+		return count.intValue();
 	}
 }

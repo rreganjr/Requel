@@ -522,6 +522,21 @@ export async function setScenarioSteps(
   return entity.steps.map(step => step.id);
 }
 
+/** #505: replace a scenario's steps with existing steps, by id, so the steps are shared. */
+export async function useExistingSteps(
+  api: APIRequestContext,
+  scenario: ScenarioFixture,
+  stepIds: number[]
+): Promise<void> {
+  const token = await getAdminToken(api);
+  await command(api, token, 'EditScenario', {
+    projectName: scenario.projectName,
+    scenarioId: scenario.id,
+    name: scenario.name,
+    steps: stepIds.map(stepId => ({ stepId })),
+  });
+}
+
 export async function getScenarioStepCount(
   api: APIRequestContext,
   projectName: string,

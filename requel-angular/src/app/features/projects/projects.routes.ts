@@ -120,6 +120,13 @@ export const projectRoutes: Routes = [
     canDeactivate: [dirtyCheckGuard],
   },
   {
+    // #505: the project's plain steps, with usage and open issues.
+    path: 'projects/:name/steps',
+    title: 'Steps',
+    data: routeData({ section: 'project', artifactType: 'step', breadcrumb: 'Steps' }),
+    loadComponent: () => import('../steps/step-list').then(m => m.StepListComponent),
+  },
+  {
     // #476: a plain step on its own page, so its issues can be seen and resolved.
     path: 'projects/:name/steps/:stepId',
     title: 'Step',

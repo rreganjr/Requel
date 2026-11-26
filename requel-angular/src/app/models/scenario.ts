@@ -104,4 +104,8 @@ export interface StepSummaryDto extends ActorRoleDto {
   text?: string | null;
   scenarioType?: string | null;
   usedIn: number;
+  /** #505: unresolved issues on the step. */
+  openIssues: number;
+  /** #505: the highest severity among them; absent when there are none. */
+  highestOpenSeverity?: string | null;
 }

@@ -49,11 +49,11 @@ public class ProjectCommand extends AbstractQueryCommand {
     protected String renderText(Object result) {
         if (result instanceof ProjectDto p) {
             return String.format("%s%s%n  %s%n  goals=%d stories=%d actors=%d useCases=%d "
-                    + "scenarios=%d glossary=%d stakeholders=%d",
+                    + "scenarios=%d steps=%d glossary=%d stakeholders=%d",
                     p.name(), p.status() == null ? "" : "  (" + p.status() + ")",
                     p.description() == null ? "(no description)" : p.description(),
                     p.goalCount(), p.storyCount(), p.actorCount(), p.useCaseCount(),
-                    p.scenarioCount(), p.glossaryTermCount(), p.stakeholderCount());
+                    p.scenarioCount(), p.stepCount(), p.glossaryTermCount(), p.stakeholderCount());
         }
         List<ProjectTreeNodeDto> nodes = (List<ProjectTreeNodeDto>) result;
         StringBuilder sb = new StringBuilder();

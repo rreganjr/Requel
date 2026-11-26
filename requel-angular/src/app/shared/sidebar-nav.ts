@@ -404,6 +404,8 @@ export class SidebarNavComponent implements OnInit {
       this.router.navigate(['/projects', data.projectName, 'actors']);
     } else if (data.type === 'Scenarios') {
       this.router.navigate(['/projects', data.projectName, 'scenarios']);
+    } else if (data.type === 'Steps') {
+      this.router.navigate(['/projects', data.projectName, 'steps']);
     } else if (data.type === 'Use Cases') {
       this.router.navigate(['/projects', data.projectName, 'use-cases']);
     } else if (data.type === 'Glossary') {
@@ -434,6 +436,7 @@ export class SidebarNavComponent implements OnInit {
       { label: 'Stories', type: 'Stories', count: project.storyCount, icon: 'pi pi-book' },
       { label: 'Actors', type: 'Actors', count: project.actorCount, icon: 'pi pi-user' },
       { label: 'Scenarios', type: 'Scenarios', count: project.scenarioCount, icon: 'pi pi-list-check' },
+      { label: 'Steps', type: 'Steps', count: project.stepCount, icon: 'pi pi-step-forward' },
       { label: 'Use Cases', type: 'Use Cases', count: project.useCaseCount, icon: 'pi pi-sitemap' },
       { label: 'Glossary', type: 'Glossary', count: project.glossaryTermCount, icon: 'pi pi-list' },
       { label: 'Dictionary', type: 'Dictionary', count: project.dictionaryWordCount, icon: 'pi pi-language' },

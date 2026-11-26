@@ -229,6 +229,7 @@ export class ProjectWorkspaceComponent implements OnInit {
       { label: 'Stories', segment: 'stories', count: p.storyCount, icon: 'pi pi-book' },
       { label: 'Actors', segment: 'actors', count: p.actorCount, icon: 'pi pi-user' },
       { label: 'Scenarios', segment: 'scenarios', count: p.scenarioCount, icon: 'pi pi-list-check' },
+      { label: 'Steps', segment: 'steps', count: p.stepCount, icon: 'pi pi-step-forward' },
       { label: 'Use cases', segment: 'use-cases', count: p.useCaseCount, icon: 'pi pi-sitemap' },
       { label: 'Glossary', segment: 'terms', count: p.glossaryTermCount, icon: 'pi pi-list' },
       { label: 'Dictionary', segment: 'dictionary', count: p.dictionaryWordCount, icon: 'pi pi-language' },

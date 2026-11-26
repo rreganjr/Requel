@@ -182,6 +182,20 @@ describe('StepEditorComponent (#476)', () => {
     expect(navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'scenarios', 3]);
   });
 
+  it('Back returns to the steps list when opened from it (#505)', async () => {
+    setUp();
+    scenarioService.getStep.mockResolvedValue({ ...STEP, usedIn: [STEP.usedIn[0]] });
+    await load();
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    const back = vi.spyOn(history, 'back').mockImplementation(() => undefined);
+    vi.spyOn(history, 'state', 'get').mockReturnValue({ fromStepList: true, navigationId: 2 });
+    comp.onBack();
+    expect(back).toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
   it('shows the error state when the step cannot be loaded', async () => {
     setUp();
     scenarioService.getStep.mockRejectedValue(new Error('404'));

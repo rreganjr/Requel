@@ -32,6 +32,8 @@ export interface ProjectDto {
   actorCount: number;
   useCaseCount: number;
   scenarioCount: number;
+  /** Plain steps; scenarios used as steps are counted as scenarios (#505). */
+  stepCount: number;
   glossaryTermCount: number;
   reportGeneratorCount: number;
   /** Words in the project's own dictionary (issue #319); installation words are not counted. */
