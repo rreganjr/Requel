@@ -26,6 +26,7 @@ import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.ServerInfoDto;
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
+import com.rreganjr.requel.service.api.dto.ProjectSearchResultDto;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
 import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.api.dto.ProjectContentDto;
@@ -175,10 +176,27 @@ public class RestQueryGateway implements QueryGateway {
                 .retrieve().body(new ParameterizedTypeReference<>() { });
     }
 
+    /** #504: only the parameters given go on the query string. */
     @Override
-    public List<EntityReferenceDto> searchProjectEntities(String projectName, String query) {
-        return http.get()
-                .uri(BASE + "/projects/{name}/search?q={q}", projectName, query)
+    public List<ProjectSearchResultDto> searchProjectEntities(String projectName, String query,
+            String entityType, Integer offset, Integer limit) {
+        StringBuilder uri = new StringBuilder(BASE + "/projects/{name}/search?q={q}");
+        Map<String, Object> vars = new java.util.HashMap<>();
+        vars.put("name", projectName);
+        vars.put("q", query);
+        if (entityType != null && !entityType.isBlank()) {
+            uri.append("&type={type}");
+            vars.put("type", entityType);
+        }
+        if (offset != null) {
+            uri.append("&offset={offset}");
+            vars.put("offset", offset);
+        }
+        if (limit != null) {
+            uri.append("&limit={limit}");
+            vars.put("limit", limit);
+        }
+        return http.get().uri(uri.toString(), vars)
                 .retrieve().body(new ParameterizedTypeReference<>() { });
     }
 

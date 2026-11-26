@@ -585,6 +585,19 @@ class ProjectQueryControllerTest {
                 .andExpect(jsonPath("$.usedIn[1].name").value("B scenario"));
     }
 
+    /** #504: search is a project read: 404 for no such project, 403 without access. */
+    @Test
+    void searchIs404ForAMissingProjectAnd403WithoutAccess() throws Exception {
+        when(projectRepository.findProjectByName("Missing"))
+                .thenThrow(NoSuchProjectException.forName("Missing"));
+        mockMvc.perform(get("/api/projects/Missing/search").param("q", "login"))
+                .andExpect(status().isNotFound());
+
+        when(stakeholder.matchesUser(user)).thenReturn(false);
+        mockMvc.perform(get("/api/projects/TestProject/search").param("q", "login"))
+                .andExpect(status().isForbidden());
+    }
+
     /** #476: a scenario id, an unknown id, and no access. */
     @Test
     void getStepIs404ForAScenarioOrAnUnknownIdAnd403WithoutAccess() throws Exception {

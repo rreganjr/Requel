@@ -179,6 +179,14 @@ public class ProjectQueryController {
     /** #390: the user list behind {@code /stakeholder-candidates}. */
     private UserRepository userRepository;
 
+    /** #504: the project search. */
+    private ProjectSearchService projectSearchService;
+
+    @Autowired
+    public void setProjectSearchService(ProjectSearchService projectSearchService) {
+        this.projectSearchService = projectSearchService;
+    }
+
     @Autowired
     public void setUserRepository(UserRepository userRepository) {
         this.userRepository = userRepository;
@@ -1558,6 +1566,31 @@ public class ProjectQueryController {
      *        Absent or blank lists every issue. Anything else is a 400 naming the parameter
      *        ({@link IssueSeverity#parseMinimum}, through {@code ApiExceptionHandler}).
      */
+    /**
+     * #504: GET /api/projects/{name}/search?q=&type=&offset=&limit= — one page of the project's
+     * requirements and issues matching {@code q} (see {@link ProjectSearchService}): the results,
+     * the number of matches in all and per type. 400 with a message for a search under 2
+     * characters or a bad type, offset or limit (through {@code ApiExceptionHandler}); 403 without
+     * read access; 404 for no such project.
+     */
+    @GetMapping("/{name}/search")
+    public ResponseEntity<?> searchProject(@PathVariable String name,
+            @RequestParam(name = "q", required = false) String query,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Integer offset,
+            @RequestParam(required = false) Integer limit) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            return ResponseEntity.ok(projectSearchService.search(project, query, type, offset,
+                    limit));
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
     @GetMapping("/{name}/open-issues")
     public ResponseEntity<?> getOpenIssues(@PathVariable String name,
             @RequestParam(required = false) String minSeverity) {

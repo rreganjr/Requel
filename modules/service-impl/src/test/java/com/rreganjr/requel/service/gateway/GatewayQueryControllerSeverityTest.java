@@ -76,7 +76,8 @@ class GatewayQueryControllerSeverityTest {
 		@Override public Object getEntity(String n, String t, long id) { return null; }
 		@Override public Map<String, List<EntityReferenceDto>> getEntityNeighbors(String n,
 				String t, long id) { return Map.of(); }
-		@Override public List<EntityReferenceDto> searchProjectEntities(String n, String q) {
+		@Override public List<com.rreganjr.requel.service.api.dto.ProjectSearchResultDto>
+				searchProjectEntities(String n, String q, String t, Integer o, Integer l) {
 			return List.of(); }
 		@Override public ProjectContentDto getProjectContent(String n, String a) { return null; }
 	};

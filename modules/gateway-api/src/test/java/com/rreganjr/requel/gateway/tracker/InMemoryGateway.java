@@ -168,15 +168,10 @@ class InMemoryGateway implements CommandGateway, QueryGateway {
     }
 
     @Override
-    public List<EntityReferenceDto> searchProjectEntities(String projectName, String query) {
-        String needle = query == null ? "" : query.toLowerCase(Locale.ROOT);
-        List<EntityReferenceDto> out = new ArrayList<>();
-        for (GoalRow g : goals.values()) {
-            if (g.name().toLowerCase(Locale.ROOT).contains(needle)) {
-                out.add(new EntityReferenceDto("Goal", g.id(), g.name()));
-            }
-        }
-        return out;
+    public List<com.rreganjr.requel.service.api.dto.ProjectSearchResultDto> searchProjectEntities(
+            String projectName, String query, String entityType, Integer offset, Integer limit) {
+        // #504: the upserter no longer searches; it reads the project tree's goals.
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -203,7 +198,13 @@ class InMemoryGateway implements CommandGateway, QueryGateway {
     @Override
     public List<com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto> getProjectTree(
             String projectName) {
-        throw new UnsupportedOperationException();
+        // #504: only the Goals group, which the upserter reads to find a goal by its name.
+        List<com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto> children = goals.values()
+                .stream().map(g -> new com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto(
+                        g.id(), "Goals", g.name()))
+                .toList();
+        return List.of(new com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto("Goals",
+                "Goals", children));
     }
 
     @Override

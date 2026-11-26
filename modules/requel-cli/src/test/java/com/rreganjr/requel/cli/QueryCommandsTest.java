@@ -30,6 +30,7 @@ import com.rreganjr.requel.gateway.ProjectContentTooLargeException;
 import com.rreganjr.requel.gateway.QueryDescriptions;
 import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
+import com.rreganjr.requel.service.api.dto.ProjectSearchResultDto;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
 import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.api.dto.ProjectContentDto;
@@ -299,8 +300,11 @@ class QueryCommandsTest {
     @Test
     void search() {
         QueryGateway gw = mock(QueryGateway.class);
-        when(gw.searchProjectEntities("Demo", "log")).thenReturn(List.of(
-                new EntityReferenceDto("Goal", 3L, "Login goal")));
+        when(gw.searchProjectEntities("Demo", "log", null, null, null)).thenReturn(List.of(
+                new ProjectSearchResultDto("Goal", 3L, "Login goal", "name", "Login goal", 0, 3,
+                        null, null, null, null),
+                new ProjectSearchResultDto("Issue", 9L, "The log is missing", "text",
+                        "The log is missing", 4, 3, false, "Story", 5L, "Sign in")));
         SearchCommand cmd = new SearchCommand();
         cmd.parent = parent(OutputFormat.TEXT);
         cmd.queryOverride = gw;
@@ -308,7 +312,25 @@ class QueryCommandsTest {
         cmd.queryText = "log";
 
         String out = capture(() -> assertThat(cmd.call()).isEqualTo(ExitCode.SUCCESS));
-        assertThat(out).contains("Goal #3").contains("Login goal");
+        assertThat(out).contains("Goal #3  Login goal\n    name: Login goal")
+                .contains("Issue #9  The log is missing  (on Story #5)\n    text: The log is missing");
+    }
+
+    @Test
+    void searchPassesTheTypeOffsetAndLimit() {
+        QueryGateway gw = mock(QueryGateway.class);
+        when(gw.searchProjectEntities("Demo", "log", "Issue", 200, 50)).thenReturn(List.of());
+        SearchCommand cmd = new SearchCommand();
+        cmd.parent = parent(OutputFormat.TEXT);
+        cmd.queryOverride = gw;
+        cmd.projectName = "Demo";
+        cmd.queryText = "log";
+        cmd.entityType = "Issue";
+        cmd.offset = 200;
+        cmd.limit = 50;
+
+        String out = capture(() -> assertThat(cmd.call()).isEqualTo(ExitCode.SUCCESS));
+        assertThat(out).contains("No matches.");
     }
 
     @Test

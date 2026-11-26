@@ -116,11 +116,27 @@ public final class QueryDescriptions {
             + " terms and referring entities. Goal relation types are left out; read the goal to"
             + " see them.";
 
-    public static final String SEARCH_PROJECT_ENTITIES = "Finds the goals, stories, actors, use"
-            + " cases, scenarios and glossary terms in a project whose name contains the query,"
-            + " ignoring case. Returns type, id and name references, grouped by type and sorted by"
-            + " name within each, with no limit on the number of results; an empty query matches"
-            + " everything.";
+    public static final String SEARCH_PROJECT_ENTITIES = "Searches a project's goals, stories,"
+            + " actors, use cases, scenarios, steps, glossary terms and stakeholders by name and"
+            + " text, and its issues (open and resolved) by text, for the query: at least 2"
+            + " characters, ignoring case, taken literally (no wildcards). Positions,"
+            + " arguments and notes are not searched. Each result has entityType, id, name (as it"
+            + " reads; for an issue the start of its text), matchedField (name or text), a snippet"
+            + " around the first match with matchStart and matchLength, and for an issue whether"
+            + " it is resolved and the entity it is on (onEntityType, onEntityId, onEntityName)."
+            + " Name matches come first, then by type, then creation order. entityType keeps one"
+            + " type; offset and limit (default 200, at most 1000) page through the results.";
+
+    /** #504: the entity types the project search covers, in result order. */
+    public static final java.util.List<String> SEARCHABLE_ENTITY_TYPES = java.util.List.of(
+            "Goal", "Story", "Actor", "UseCase", "Scenario", "Step", "GlossaryTerm", "Stakeholder",
+            "Issue");
+
+    public static final String SEARCH_ENTITY_TYPE = "Only results of this type.";
+
+    public static final String SEARCH_OFFSET = "How many results to skip, for paging; default 0.";
+
+    public static final String SEARCH_LIMIT = "How many results to return: 1 to 1000, default 200.";
 
     public static final String GET_PROJECT_CONTEXT = "Reads a project's summary, content tree"
             + " (names only), glossary and open issues in one call, the same data as reading each"
@@ -262,7 +278,8 @@ public final class QueryDescriptions {
     public static final String ENTITY_ID = "The entity's numeric id, as the project tree, a search"
             + " or another read returns it.";
 
-    public static final String SEARCH_QUERY = "Text to find within entity names, ignoring case.";
+    public static final String SEARCH_QUERY = "Text to find in names and text, ignoring case: at"
+            + " least 2 characters.";
 
     public static final String ANNOTATION_KIND = "NOTE for a remark, ISSUE for a problem that can"
             + " be discussed through positions and resolved.";

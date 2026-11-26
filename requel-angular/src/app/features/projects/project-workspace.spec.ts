@@ -120,6 +120,15 @@ describe('ProjectWorkspaceComponent (#154)', () => {
     expect(edit.getAttribute('href')).toContain('/edit');
   });
 
+  it('has the project search box in the header (#504)', async () => {
+    const fixture = setup();
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    const box = fixture.nativeElement.querySelector('.ws-header [data-testid="project-search-input"]');
+    expect(box).not.toBeNull();
+  });
+
   it('shows an error surface when the project fails to load', async () => {
     getProject = vi.fn().mockRejectedValue(new Error('boom'));
     const fixture = setup();

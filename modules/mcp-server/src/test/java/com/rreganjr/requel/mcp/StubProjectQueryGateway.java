@@ -95,9 +95,15 @@ class StubProjectQueryGateway implements QueryGateway {
 	}
 
 	@Override
-	public List<EntityReferenceDto> searchProjectEntities(String projectName, String query) {
-		return List.of(new EntityReferenceDto("Goal", 10L, "Improve login"));
+	public List<com.rreganjr.requel.service.api.dto.ProjectSearchResultDto> searchProjectEntities(
+			String projectName, String query, String entityType, Integer offset, Integer limit) {
+		lastSearch = java.util.Arrays.asList(projectName, query, entityType, offset, limit);
+		return List.of(new com.rreganjr.requel.service.api.dto.ProjectSearchResultDto("Goal", 10L,
+				"Improve login", "name", "Improve login", 8, 5, null, null, null, null));
 	}
+
+	/** #504: the arguments of the last search. */
+	List<Object> lastSearch;
 
 	/** Issue #272: no source has been recorded in the stub project. */
 	@Override

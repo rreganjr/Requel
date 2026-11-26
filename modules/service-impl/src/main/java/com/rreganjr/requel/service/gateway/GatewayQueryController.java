@@ -25,6 +25,7 @@ import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.ServerInfoDto;
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
+import com.rreganjr.requel.service.api.dto.ProjectSearchResultDto;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
 import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
@@ -110,10 +111,14 @@ public class GatewayQueryController {
         return queryGateway.getEntityNeighbors(name, entityType, entityId);
     }
 
+    /** #504: a plain list; {@code type}, {@code offset} and {@code limit} are optional. */
     @GetMapping("/projects/{name}/search")
-    public List<EntityReferenceDto> searchProjectEntities(@PathVariable String name,
-            @RequestParam("q") String query) {
-        return queryGateway.searchProjectEntities(name, query);
+    public List<ProjectSearchResultDto> searchProjectEntities(@PathVariable String name,
+            @RequestParam(name = "q", required = false) String query,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Integer offset,
+            @RequestParam(required = false) Integer limit) {
+        return queryGateway.searchProjectEntities(name, query, type, offset, limit);
     }
 
     /** Issue #272: a source by system and external id; an empty body when there is none. */

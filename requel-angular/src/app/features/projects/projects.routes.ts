@@ -205,6 +205,13 @@ export const projectRoutes: Routes = [
   },
 
   {
+    path: 'projects/:name/search',
+    title: 'Search',
+    data: routeData({ section: 'project', breadcrumb: 'Search' }),
+    loadComponent: () => import('../search/project-search').then(m => m.ProjectSearchComponent),
+  },
+
+  {
     path: 'projects/:name/edit',
     title: 'Edit project',
     data: routeData({ section: 'project', artifactType: 'project', breadcrumb: 'Edit' }),

@@ -35,6 +35,7 @@ import { projectApiUrl } from '../../core/api-url';
 import { DeleteProjectDialogComponent, DeleteProjectTarget } from './delete-project-dialog';
 import { ProjectAssistantsPanelComponent } from './project-assistants-panel';
 import { ProjectReferencesComponent } from './project-references';
+import { ProjectSearchBoxComponent } from '../search/project-search-box';
 
 interface CountCard {
   label: string;
@@ -62,13 +63,14 @@ interface NextAction {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-project-workspace',
   standalone: true,
-  imports: [RouterLink, ProjectCorpusPanelComponent, ButtonModule, BadgeModule, PageHeaderComponent, SubmitErrorComponent, DeleteProjectDialogComponent,
+  imports: [RouterLink, ProjectSearchBoxComponent, ProjectCorpusPanelComponent, ButtonModule, BadgeModule, PageHeaderComponent, SubmitErrorComponent, DeleteProjectDialogComponent,
     ProjectAssistantsPanelComponent, ProjectReferencesComponent],
   template: `
     <div class="project-workspace" data-testid="project-workspace">
       <div class="ws-header">
         <app-page-header [title]="projectName" eyebrow="Project" />
         <div class="ws-header-actions">
+          <app-project-search-box class="ws-search" [projectName]="projectName" />
           <a class="p-button p-button-outlined" [routerLink]="['/projects', projectName, 'edit']"
              data-testid="workspace-edit">
             <i class="pi pi-pencil" aria-hidden="true"></i> Edit project
@@ -158,6 +160,7 @@ interface NextAction {
       gap: var(--rq-space-4); margin-bottom: var(--rq-space-6);
     }
     .ws-header-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--rq-space-2); }
+    .ws-search { flex: 1 1 16rem; min-width: 12rem; }
     /* #519: a link styled as a button; without this it kept the link underline, unlike the
        Delete button beside it. */
     .ws-header-actions a.p-button { text-decoration: none; gap: var(--rq-space-2); }

@@ -26,6 +26,7 @@ import java.util.Map;
 import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
+import com.rreganjr.requel.service.api.dto.ProjectSearchResultDto;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
 import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.api.dto.EntitySourceLinkDto;
@@ -83,10 +84,22 @@ public interface QueryGateway {
             long entityId);
 
     /**
-     * Find a project's goals / stories / actors / use cases / scenarios / glossary terms whose
-     * name contains {@code query} (case-insensitive), as {@link EntityReferenceDto}s.
+     * #504: a project's requirements and issues whose name or text contains {@code query}
+     * (ignoring case, at least 2 characters), the first {@code ProjectSearchService.DEFAULT_LIMIT}
+     * of them. See {@link #searchProjectEntities(String, String, String, Integer, Integer)}.
      */
-    List<EntityReferenceDto> searchProjectEntities(String projectName, String query);
+    default List<ProjectSearchResultDto> searchProjectEntities(String projectName, String query) {
+        return searchProjectEntities(projectName, query, null, null, null);
+    }
+
+    /**
+     * #504: a project's goals, stories, actors, use cases, scenarios, steps, glossary terms and
+     * stakeholders whose name or text contains {@code query}, and its issues whose text does:
+     * name matches first, then by type, then creation; {@code offset} and {@code limit} (default
+     * 200, at most 1000) page through them. {@code entityType} (optional) keeps one type.
+     */
+    List<ProjectSearchResultDto> searchProjectEntities(String projectName, String query,
+            String entityType, Integer offset, Integer limit);
 
     /**
      * A composite context bundle for a project: its summary, content tree, glossary, and open
