@@ -37,7 +37,8 @@ class UpsertGoalCommandTest {
     /** Query side with an empty project, so the upserter always takes the create path. */
     private static final class EmptyQueryGateway implements QueryGateway {
         @Override
-        public List<EntityReferenceDto> searchProjectEntities(String projectName, String query) {
+        public List<com.rreganjr.requel.service.api.dto.ProjectSearchResultDto> searchProjectEntities(
+                String projectName, String query, String entityType, Integer offset, Integer limit) {
             return List.of();
         }
 
@@ -59,7 +60,7 @@ class UpsertGoalCommandTest {
         @Override
         public List<com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto> getProjectTree(
                 String projectName) {
-            throw new UnsupportedOperationException();
+            return List.of();
         }
 
         @Override

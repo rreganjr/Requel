@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Projects &mdash; Requel 2.0 user guide</title>
-<meta name="description" content="Create, import, export, edit and delete Requel projects, and read the project overview." />
+<meta name="description" content="Create, import, export, edit, search and delete Requel projects, and read the project overview." />
 <link rel="icon" type="image/png" href="../images/logo_robot.png" />
 <link rel="stylesheet" href="../site.css" />
 </head>
@@ -80,6 +80,27 @@
       <li><strong>Corpus analysis</strong> looks for requirements that overlap or conflict
         (<a href="ai-review.html#corpus">AI review</a>).</li>
     </ul>
+  </section>
+
+  <section id="search">
+    <h2>Search a project</h2>
+    <p>The search box at the top of the overview finds text in the project&rsquo;s goals, stories,
+      actors, use cases, scenarios, steps, glossary terms, stakeholders and issues. Type at least 2
+      characters and press Enter.</p>
+    <ul>
+      <li>Case doesn&rsquo;t matter, and every character is matched as typed: <code>50%</code>
+        finds only &ldquo;50%&rdquo;.</li>
+      <li>Results are grouped by kind, with name matches first. Each shows where the text
+        matched, highlighted.</li>
+      <li>The buttons above the results count every match by kind; click one to see only that
+        kind.</li>
+      <li>An issue opens the item it is on. Positions, arguments and notes aren&rsquo;t
+        searched.</li>
+      <li>The page shows 200 matches; <strong>Load more</strong> adds the next 200.</li>
+    </ul>
+    <p>The same search is the <code>searchProjectEntities</code> MCP tool and
+      <code>requel search</code> on the command line (<a href="integrations.html">API, MCP and
+      CLI</a>).</p>
   </section>
 
   <section id="edit">

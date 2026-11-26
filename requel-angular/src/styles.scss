@@ -161,6 +161,9 @@
   --rq-tag-warning-fg: var(--p-amber-800, #92400e);
   --rq-tag-danger-bg: var(--p-red-100, #fee2e2);
   --rq-tag-danger-fg: var(--p-red-700, #b91c1c);
+  /* #504: a search match highlighted in its snippet. */
+  --rq-highlight-bg: var(--p-amber-200, #fde68a);
+  --rq-highlight-fg: var(--p-gray-900, #111827);
   // #519: an info banner's edge, a drop target, and the header's hover wash. Components use
   // these instead of palette stops, which don't change in dark mode.
   --rq-tag-info-border: var(--p-sky-200, #bae6fd);
@@ -234,6 +237,8 @@ html.rq-primary-stop-700:not(.rq-dark) {
   --rq-tag-warning-fg: #fcd34d;
   --rq-tag-danger-bg: rgba(248, 113, 113, 0.16);
   --rq-tag-danger-fg: #fca5a5;
+  --rq-highlight-bg: rgba(251, 191, 36, 0.35);
+  --rq-highlight-fg: #fef3c7;
   --rq-tag-info-border: rgba(56, 189, 248, 0.35);
 }
 

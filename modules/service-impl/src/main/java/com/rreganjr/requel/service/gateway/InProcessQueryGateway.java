@@ -23,7 +23,6 @@ package com.rreganjr.requel.service.gateway;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -37,6 +36,8 @@ import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.ActorDto;
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
+import com.rreganjr.requel.service.api.dto.ProjectSearchPageDto;
+import com.rreganjr.requel.service.api.dto.ProjectSearchResultDto;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
 import com.rreganjr.requel.service.api.dto.GoalDto;
 import com.rreganjr.requel.service.api.dto.GoalRelationDto;
@@ -170,23 +171,12 @@ public class InProcessQueryGateway implements QueryGateway {
 		return neighbors;
 	}
 
+	/** #504: the project search's page, as a plain list. */
 	@Override
-	public List<EntityReferenceDto> searchProjectEntities(String projectName, String query) {
-		String needle = query == null ? "" : query.toLowerCase(Locale.ROOT);
-		List<EntityReferenceDto> matches = new ArrayList<>();
-		addMatches(matches, "Goal", projectQueryController.listGoals(projectName),
-				GoalDto::id, GoalDto::name, needle);
-		addMatches(matches, "Story", projectQueryController.listStories(projectName),
-				StoryDto::id, StoryDto::name, needle);
-		addMatches(matches, "Actor", projectQueryController.listActors(projectName),
-				ActorDto::id, ActorDto::name, needle);
-		addMatches(matches, "UseCase", projectQueryController.listUseCases(projectName),
-				UseCaseDto::id, UseCaseDto::name, needle);
-		addMatches(matches, "Scenario", projectQueryController.listScenarios(projectName),
-				ScenarioDto::id, ScenarioDto::name, needle);
-		addMatches(matches, "GlossaryTerm", projectQueryController.listTerms(projectName),
-				GlossaryTermDto::id, GlossaryTermDto::name, needle);
-		return matches;
+	public List<ProjectSearchResultDto> searchProjectEntities(String projectName, String query,
+			String entityType, Integer offset, Integer limit) {
+		return unwrap(projectQueryController.searchProject(projectName, query, entityType, offset,
+				limit), ProjectSearchPageDto.class).results();
 	}
 
 	@Override
@@ -199,19 +189,6 @@ public class InProcessQueryGateway implements QueryGateway {
 		// #338: the filter narrows the open issues only.
 		context.put("openIssues", getOpenIssues(projectName, minSeverity));
 		return context;
-	}
-
-	@SuppressWarnings("unchecked")
-	private <T> void addMatches(List<EntityReferenceDto> out, String entityType,
-			ResponseEntity<?> response, Function<T, Long> idFn, Function<T, String> nameFn,
-			String needle) {
-		List<T> items = (List<T>) unwrap(response);
-		for (T item : items) {
-			String name = nameFn.apply(item);
-			if (name != null && name.toLowerCase(Locale.ROOT).contains(needle)) {
-				out.add(new EntityReferenceDto(entityType, idFn.apply(item), name));
-			}
-		}
 	}
 
 	private static List<EntityReferenceDto> nullToEmpty(List<EntityReferenceDto> refs) {

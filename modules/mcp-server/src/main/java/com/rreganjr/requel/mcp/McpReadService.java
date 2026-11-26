@@ -186,7 +186,9 @@ public class McpReadService {
 					requiredText(arguments, "projectName"), requiredText(arguments, "entityType"),
 					requiredLong(arguments, "entityId"));
 			case "searchProjectEntities" -> projectQueryGateway.searchProjectEntities(
-					requiredText(arguments, "projectName"), requiredText(arguments, "query"));
+					requiredText(arguments, "projectName"), requiredText(arguments, "query"),
+					optionalText(arguments, "entityType"), optionalInteger(arguments, "offset"),
+					optionalInteger(arguments, "limit"));
 			case "getProjectContext" -> projectQueryGateway.getProjectContext(
 					requiredText(arguments, "projectName"), minSeverity(arguments));
 			case "getProjectContent" -> projectQueryGateway.getProjectContent(
@@ -433,7 +435,12 @@ public class McpReadService {
 		return Map.of("type", "object",
 				"properties", Map.of(
 						"projectName", property("string", QueryDescriptions.PROJECT_NAME),
-						"query", property("string", QueryDescriptions.SEARCH_QUERY)),
+						"query", property("string", QueryDescriptions.SEARCH_QUERY),
+						// #504
+						"entityType", enumProperty(QueryDescriptions.SEARCHABLE_ENTITY_TYPES,
+								QueryDescriptions.SEARCH_ENTITY_TYPE),
+						"offset", property("integer", QueryDescriptions.SEARCH_OFFSET),
+						"limit", property("integer", QueryDescriptions.SEARCH_LIMIT)),
 				"required", List.of("projectName", "query"),
 				"additionalProperties", false);
 	}
@@ -456,6 +463,18 @@ public class McpReadService {
 	private static String optionalText(JsonNode params, String fieldName) {
 		JsonNode value = params == null ? null : params.get(fieldName);
 		return value == null || value.isNull() || !value.isTextual() ? null : value.asText();
+	}
+
+	/** #504: an optional integer; anything else given for it is an invalid-params error. */
+	private static Integer optionalInteger(JsonNode params, String fieldName) {
+		JsonNode value = params == null ? null : params.get(fieldName);
+		if (value == null || value.isNull()) {
+			return null;
+		}
+		if (!value.canConvertToInt() || !value.isIntegralNumber()) {
+			throw new McpInvalidParamsException("Field " + fieldName + " must be an integer.");
+		}
+		return value.asInt();
 	}
 
 	private static boolean optionalBoolean(JsonNode params, String fieldName, boolean defaultValue) {

@@ -22,12 +22,16 @@ package com.rreganjr.requel.cli;
 
 import com.rreganjr.requel.gateway.QueryDescriptions;
 import com.rreganjr.requel.gateway.QueryGateway;
-import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
+import com.rreganjr.requel.service.api.dto.ProjectSearchResultDto;
 import java.util.List;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
-/** {@code requel search <project> <query>} — find project entities by name (case-insensitive). */
+/**
+ * {@code requel search <project> <query> [--type T] [--offset N] [--limit N]} — search a
+ * project's requirements by name and text, and its issues by text (#504).
+ */
 @Command(name = "search", description = QueryDescriptions.SEARCH_PROJECT_ENTITIES)
 public class SearchCommand extends AbstractQueryCommand {
 
@@ -37,24 +41,38 @@ public class SearchCommand extends AbstractQueryCommand {
     @Parameters(index = "1", paramLabel = "QUERY", description = QueryDescriptions.SEARCH_QUERY)
     String queryText;
 
+    @Option(names = "--type", paramLabel = "TYPE", description = QueryDescriptions.SEARCH_ENTITY_TYPE)
+    String entityType;
+
+    @Option(names = "--offset", paramLabel = "N", description = QueryDescriptions.SEARCH_OFFSET)
+    Integer offset;
+
+    @Option(names = "--limit", paramLabel = "N", description = QueryDescriptions.SEARCH_LIMIT)
+    Integer limit;
+
     @Override
     protected Object query(QueryGateway gateway) {
-        return gateway.searchProjectEntities(projectName, queryText);
+        return gateway.searchProjectEntities(projectName, queryText, entityType, offset, limit);
     }
 
     @Override
     @SuppressWarnings("unchecked")
     protected String renderText(Object result) {
-        List<EntityReferenceDto> refs = (List<EntityReferenceDto>) result;
-        if (refs.isEmpty()) {
+        List<ProjectSearchResultDto> results = (List<ProjectSearchResultDto>) result;
+        if (results.isEmpty()) {
             return "No matches.";
         }
         StringBuilder sb = new StringBuilder();
-        for (EntityReferenceDto r : refs) {
+        for (ProjectSearchResultDto r : results) {
             if (sb.length() > 0) {
                 sb.append('\n');
             }
             sb.append(r.entityType()).append(" #").append(r.id()).append("  ").append(r.name());
+            if (r.onEntityType() != null) {
+                sb.append("  (on ").append(r.onEntityType()).append(" #").append(r.onEntityId())
+                        .append(')');
+            }
+            sb.append("\n    ").append(r.matchedField()).append(": ").append(r.snippet());
         }
         return sb.toString();
     }

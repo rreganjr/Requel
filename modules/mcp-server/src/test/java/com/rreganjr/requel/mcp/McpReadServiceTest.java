@@ -166,6 +166,34 @@ class McpReadServiceTest {
 	}
 
 	@Test
+	void searchPassesTheTypeOffsetAndLimitAndReturnsTheSnippet() {
+		Map<String, Object> response = service.callTool(json("""
+				{
+				  "name": "searchProjectEntities",
+				  "arguments": { "projectName": "Sample", "query": "login", "entityType": "Goal",
+				                 "offset": 200, "limit": 50 }
+				}
+				"""));
+
+		assertThat(gateway.lastSearch).containsExactly("Sample", "login", "Goal", 200, 50);
+		JsonNode content = objectMapper.valueToTree(response.get("content"));
+		assertThat(content.get(0).path("text").asText()).contains("\"matchedField\" : \"name\"")
+				.contains("\"snippet\" : \"Improve login\"");
+	}
+
+	@Test
+	void searchRefusesANonIntegerLimit() {
+		assertThatThrownBy(() -> service.callTool(json("""
+				{
+				  "name": "searchProjectEntities",
+				  "arguments": { "projectName": "Sample", "query": "login", "limit": "lots" }
+				}
+				""")))
+				.isInstanceOf(McpInvalidParamsException.class)
+				.hasMessageContaining("limit");
+	}
+
+	@Test
 	void callsGetProjectContextTool() {
 		Map<String, Object> response = service.callTool(json("""
 				{ "name": "getProjectContext", "arguments": { "projectName": "Sample" } }

@@ -21,7 +21,6 @@
 package com.rreganjr.requel.gateway.tracker;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -33,7 +32,6 @@ import com.rreganjr.requel.gateway.GatewayRequest;
 import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.gateway.provenance.GoalNameDerivation;
 import com.rreganjr.requel.project.CriterionHash;
-import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.service.api.dto.EntitySourceLinkDto;
 import com.rreganjr.requel.service.api.dto.SourceEntitiesDto;
 import com.rreganjr.requel.service.api.dto.UpsertFromSourceResultDto;
@@ -147,12 +145,20 @@ public class RequirementGoalUpserter {
                 .collect(Collectors.toSet());
     }
 
+    /**
+     * Whether a goal other than the fragment's has this name (ignoring case). #504: read from the
+     * project tree's Goals group rather than the search, which needs 2 characters and matches
+     * text too.
+     */
+    /** The project tree's group of goals (ProjectQueryController.getProjectTree). */
+    private static final String GOALS_GROUP = "Goals";
+
     private boolean nameTakenByAnotherGoal(String project, String name, Set<Long> fromFragment) {
-        List<EntityReferenceDto> goals = queryGateway.searchProjectEntities(project, name).stream()
-                .filter(ref -> GOAL_TYPE.equals(ref.entityType()))
-                .toList();
-        return goals.stream().anyMatch(ref -> name.equalsIgnoreCase(ref.name())
-                && !fromFragment.contains(ref.id()));
+        return queryGateway.getProjectTree(project).stream()
+                .filter(group -> GOALS_GROUP.equals(group.name()) && group.children() != null)
+                .flatMap(group -> group.children().stream())
+                .anyMatch(goal -> name.equalsIgnoreCase(goal.name())
+                        && !fromFragment.contains(goal.id()));
     }
 
     private static String capName(String name) {
