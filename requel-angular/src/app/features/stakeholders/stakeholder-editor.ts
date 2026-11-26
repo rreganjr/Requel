@@ -56,6 +56,7 @@ import {
 } from '../../shared/app-form-wizard';
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
+import { TermsUsedComponent } from '../../shared/terms-used';
 import { CommandResult } from '../../models/command';
 import { DEFINITION_RISK } from '../../models/assistant-definition';
 import { ArtifactNameService } from '../../core/artifact-name.service';
@@ -86,7 +87,7 @@ export function userLabel(stakeholderName: string, username: string): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-stakeholder-editor',
   standalone: true,
-  imports: [SourcesSectionComponent, PageHeaderComponent, AppCardComponent, NgTemplateOutlet, ReactiveFormsModule, RouterLink,
+  imports: [TermsUsedComponent, SourcesSectionComponent, PageHeaderComponent, AppCardComponent, NgTemplateOutlet, ReactiveFormsModule, RouterLink,
             ButtonModule, InputText, TextareaModule, SelectModule,
             CheckboxModule, SubmitErrorComponent, UpdateBannerComponent, ConfirmDialogModule, RelationshipSectionComponent,
             EntitySelectorDialogComponent, AppFieldComponent, AppFieldControlDirective,
@@ -293,6 +294,7 @@ export function userLabel(stakeholderName: string, username: string): string {
                       placeholder="Description of this stakeholder"
                       data-testid="stakeholder-text"></textarea>
           </app-field>
+          <app-terms-used [projectName]="projectName" [name]="detailsForm.controls.name.value" [text]="detailsForm.controls.text.value" />
         }
       </ng-template>
 

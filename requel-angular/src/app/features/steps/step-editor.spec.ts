@@ -12,6 +12,8 @@ import { EventStreamService } from '../../core/event-stream.service';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { SourcesSectionComponent } from '../../shared/sources-section';
 import { ActorService } from '../../core/actor.service';
+import { By } from '@angular/platform-browser';
+import { TermsUsedComponent } from '../../shared/terms-used';
 
 // The real sections load their own data; the step page only has to place them.
 @Component({ selector: 'app-annotations-section', standalone: true, template: '' })
@@ -75,6 +77,20 @@ describe('StepEditorComponent (#476)', () => {
     fixture.detectChanges();
     return fixture.nativeElement as HTMLElement;
   }
+
+  it('feeds the Terms used row the name and text as typed (#506)', async () => {
+    setUp();
+    await load();
+    comp.form.controls.name.setValue('Speed up the Host');
+    const text = fixture.nativeElement.querySelector('[data-testid="step-text"]') as HTMLTextAreaElement;
+    text.value = 'The Host ends the video room';
+    text.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    const row = fixture.debugElement.query(By.directive(TermsUsedComponent)).componentInstance as TermsUsedComponent;
+    expect(row.projectName()).toBe('proj1');
+    expect(row.name()).toBe('Speed up the Host');
+    expect(row.text()).toBe('The Host ends the video room');
+  });
 
   it('loads the step, lists the scenarios using it, and places the annotations', async () => {
     setUp();

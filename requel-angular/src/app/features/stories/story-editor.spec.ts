@@ -14,6 +14,7 @@ import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { AppWizardStepComponent, WizardCommitRequest } from '../../shared/app-form-wizard';
+import { TermsUsedComponent } from '../../shared/terms-used';
 
 const MOCK_ACTORS = [
   { id: 1, version: 0, name: 'Customer', text: null, goals: null, referencedByUseCases: null, referencedByStories: null },
@@ -115,6 +116,21 @@ describe('StoryEditorComponent', () => {
     await flush();
     fixture.detectChanges();
   }
+
+  it('feeds the Terms used row the name and text as typed (#506)', async () => {
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    comp.detailsForm.controls.name.setValue('Speed up the Host');
+    const text = fixture.nativeElement.querySelector('[data-testid="story-text"]') as HTMLTextAreaElement;
+    text.value = 'The Host ends the video room';
+    text.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    const row = fixture.debugElement.query(By.directive(TermsUsedComponent)).componentInstance as TermsUsedComponent;
+    expect(row.projectName()).toBe('proj1');
+    expect(row.name()).toBe('Speed up the Host');
+    expect(row.text()).toBe('The Host ends the video room');
+  });
 
   it('isNew() is true when storyId param is "new"', async () => {
     await renderNew();

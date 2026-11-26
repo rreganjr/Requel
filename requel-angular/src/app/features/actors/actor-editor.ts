@@ -57,6 +57,7 @@ import {
 } from '../../shared/app-form-wizard';
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
+import { TermsUsedComponent } from '../../shared/terms-used';
 import { CommandResult } from '../../models/command';
 import { ArtifactNameService } from '../../core/artifact-name.service';
 
@@ -72,7 +73,7 @@ const STALE_VERSION_MESSAGE =
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-actor-editor',
   standalone: true,
-  imports: [AiReviewButtonComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
+  imports: [TermsUsedComponent, AiReviewButtonComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
             ButtonModule, InputText, TextareaModule, TableModule, RelationshipSectionComponent,
             SubmitErrorComponent, UpdateBannerComponent, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent, SourcesSectionComponent, AppFieldComponent, AppFieldControlDirective,
@@ -241,6 +242,7 @@ const STALE_VERSION_MESSAGE =
         <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" id="text" rows="4" [autoResize]="true"
                   placeholder="Actor description" data-testid="actor-text"></textarea>
       </app-field>
+      <app-terms-used [projectName]="projectName" [name]="detailsForm.controls.name.value" [text]="detailsForm.controls.text.value" />
     </ng-template>
 
     <ng-template #goalsSection let-heading="heading">

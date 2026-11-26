@@ -50,6 +50,7 @@ import { LoadingStateComponent } from '../../shared/loading-state';
 import { ErrorStateComponent } from '../../shared/error-state';
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
+import { TermsUsedComponent } from '../../shared/terms-used';
 import { ArtifactNameService } from '../../core/artifact-name.service';
 
 
@@ -65,7 +66,7 @@ const SEPARATOR = '; ';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-term-editor',
   standalone: true,
-  imports: [AiReviewButtonComponent, 
+  imports: [TermsUsedComponent, AiReviewButtonComponent, 
     PageHeaderComponent,
     AppCardComponent,
     ReactiveFormsModule,
@@ -157,6 +158,7 @@ const SEPARATOR = '; ';
                 placeholder="Definition of this term"
               ></textarea>
             </app-field>
+            <app-terms-used [projectName]="projectName" [name]="form.controls.name.value" [text]="form.controls.text.value" [excludeTermId]="termId()" />
 
             <app-field
               label="Canonical Term"

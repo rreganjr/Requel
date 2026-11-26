@@ -68,6 +68,7 @@ import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { CommandResult } from '../../models/command';
 import { ArtifactNameService } from '../../core/artifact-name.service';
 import { readsAs } from '../../shared/actor-role';
+import { TermsUsedComponent } from '../../shared/terms-used';
 
 
 /** Joins page-level violations that resolved to no control. */
@@ -81,7 +82,7 @@ const STALE_VERSION_MESSAGE =
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-use-case-editor',
   standalone: true,
-  imports: [AiReviewButtonComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
+  imports: [TermsUsedComponent, AiReviewButtonComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
             ButtonModule, InputText, TextareaModule, SubmitErrorComponent, UpdateBannerComponent,
             ConfirmDialogModule, TableModule, TooltipModule, SelectModule, RelationshipSectionComponent,
             EntitySelectorDialogComponent, AnnotationsSectionComponent, SourcesSectionComponent,
@@ -286,6 +287,7 @@ const STALE_VERSION_MESSAGE =
           <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" id="text" rows="4" [autoResize]="true"
                     placeholder="Use case description" data-testid="use-case-text"></textarea>
         </app-field>
+        <app-terms-used [projectName]="projectName" [name]="detailsForm.controls.name.value" [text]="detailsForm.controls.text.value" />
       </ng-template>
 
       <ng-template #scenariosSection let-heading="heading">

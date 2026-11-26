@@ -15,6 +15,7 @@ import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
+import { TermsUsedComponent } from '../../shared/terms-used';
 
 const MOCK_ACTORS = [
   { id: 1, version: 0, name: 'Customer', text: null, goals: null, referencedByUseCases: null, referencedByStories: null }
@@ -85,6 +86,21 @@ describe('UseCaseEditorComponent', () => {
     comp = fixture.componentInstance;
     router = TestBed.inject(Router);
     vi.spyOn(router, 'navigate').mockResolvedValue(true);
+  });
+
+  it('feeds the Terms used row the name and text as typed (#506)', async () => {
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    comp.detailsForm.controls.name.setValue('Speed up the Host');
+    const text = fixture.nativeElement.querySelector('[data-testid="use-case-text"]') as HTMLTextAreaElement;
+    text.value = 'The Host ends the video room';
+    text.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    const row = fixture.debugElement.query(By.directive(TermsUsedComponent)).componentInstance as TermsUsedComponent;
+    expect(row.projectName()).toBe('proj1');
+    expect(row.name()).toBe('Speed up the Host');
+    expect(row.text()).toBe('The Host ends the video room');
   });
 
   it('isNew() is true when useCaseId param is "new"', async () => {
