@@ -212,6 +212,13 @@ export const projectRoutes: Routes = [
   },
 
   {
+    // #497: the goal matrix and the gaps.
+    path: 'projects/:name/traceability',
+    title: 'Traceability',
+    data: routeData({ section: 'project', breadcrumb: 'Traceability' }),
+    loadComponent: () => import('../traceability/traceability').then(m => m.TraceabilityComponent),
+  },
+  {
     path: 'projects/:name/search',
     title: 'Search',
     data: routeData({ section: 'project', breadcrumb: 'Search' }),

@@ -25,6 +25,7 @@ const EXPECTED = [
   'projects/:name/definitions', 'projects/:name/definitions/:key',
   'projects/:name/reports', 'projects/:name/reports/:reportId',
   'projects/:name/open-issues',
+  'projects/:name/traceability',
   'projects/:name/search',
   'projects/:name/edit',
   'projects/:name',

@@ -105,6 +105,17 @@ class StubProjectQueryGateway implements QueryGateway {
 	/** #504: the arguments of the last search. */
 	List<Object> lastSearch;
 
+	/** #497: one goal no story or use case realizes, and its gap. */
+	@Override
+	public com.rreganjr.requel.service.api.dto.TraceabilityDto getTraceability(String projectName) {
+		var goal = new com.rreganjr.requel.service.api.dto.EntityReferenceDto("Goal", 10L, "Improve login");
+		return new com.rreganjr.requel.service.api.dto.TraceabilityDto(
+				List.of(new com.rreganjr.requel.service.api.dto.GoalTraceDto(10L, "Improve login", false,
+						List.of(), List.of(), List.of(), List.of())),
+				List.of(new com.rreganjr.requel.service.api.dto.TraceGapDto(
+						com.rreganjr.requel.service.api.dto.TraceGapDto.GOAL_NOT_REALIZED, goal)));
+	}
+
 	/** Issue #272: no source has been recorded in the stub project. */
 	@Override
 	public com.rreganjr.requel.service.api.dto.SourceEntitiesDto findEntitiesBySource(

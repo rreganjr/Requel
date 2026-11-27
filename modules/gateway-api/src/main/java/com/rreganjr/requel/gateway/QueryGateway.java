@@ -154,6 +154,14 @@ public interface QueryGateway {
      * Issue #273: every source and reference of the project, with link counts and the precedence
      * between them.
      */
+    /**
+     * #497: what references each goal, and the requirements nothing traces to or from (stories
+     * without goals, actors nothing uses, scenarios no use case reaches, and so on).
+     */
+    default com.rreganjr.requel.service.api.dto.TraceabilityDto getTraceability(String projectName) {
+        throw new UnsupportedOperationException("getTraceability is not supported by this gateway");
+    }
+
     default com.rreganjr.requel.service.api.dto.ProjectSourcesDto listSources(String projectName) {
         throw new UnsupportedOperationException("listSources is not supported by this gateway");
     }

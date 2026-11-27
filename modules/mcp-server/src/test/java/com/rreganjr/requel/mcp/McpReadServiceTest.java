@@ -194,6 +194,17 @@ class McpReadServiceTest {
 	}
 
 	@Test
+	void callsGetTraceabilityTool() {
+		Map<String, Object> response = service.callTool(json("""
+				{ "name": "getTraceability", "arguments": { "projectName": "Sample" } }
+				"""));
+
+		JsonNode content = objectMapper.valueToTree(response.get("content"));
+		assertThat(content.get(0).path("text").asText()).contains("\"realized\" : false")
+				.contains("GOAL_NOT_REALIZED");
+	}
+
+	@Test
 	void callsGetProjectContextTool() {
 		Map<String, Object> response = service.callTool(json("""
 				{ "name": "getProjectContext", "arguments": { "projectName": "Sample" } }

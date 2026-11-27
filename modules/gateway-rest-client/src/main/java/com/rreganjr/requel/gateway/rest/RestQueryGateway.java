@@ -131,6 +131,12 @@ public class RestQueryGateway implements QueryGateway {
     }
 
     @Override
+    public com.rreganjr.requel.service.api.dto.TraceabilityDto getTraceability(String projectName) {
+        return http.get().uri(BASE + "/projects/{name}/traceability", projectName)
+                .retrieve().body(com.rreganjr.requel.service.api.dto.TraceabilityDto.class);
+    }
+
+    @Override
     public com.rreganjr.requel.service.api.dto.ProjectSourcesDto listSources(String projectName) {
         return http.get().uri(BASE + "/projects/{name}/sources", projectName)
                 .retrieve().body(com.rreganjr.requel.service.api.dto.ProjectSourcesDto.class);

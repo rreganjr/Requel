@@ -31,6 +31,8 @@ export const ENTITY_ROUTES: Readonly<Record<string, string>> = {
   UseCase: 'use-cases',
   UserStakeholder: 'stakeholders',
   NonUserStakeholder: 'stakeholders',
+  // #497, #504: reads that don't say which kind of stakeholder.
+  Stakeholder: 'stakeholders',
   GlossaryTerm: 'terms',
   ReportGenerator: 'reports',
 };

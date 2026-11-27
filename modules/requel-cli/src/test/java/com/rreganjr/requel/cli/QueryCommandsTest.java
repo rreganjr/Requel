@@ -30,6 +30,9 @@ import com.rreganjr.requel.gateway.ProjectContentTooLargeException;
 import com.rreganjr.requel.gateway.QueryDescriptions;
 import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
+import com.rreganjr.requel.service.api.dto.GoalTraceDto;
+import com.rreganjr.requel.service.api.dto.TraceGapDto;
+import com.rreganjr.requel.service.api.dto.TraceabilityDto;
 import com.rreganjr.requel.service.api.dto.ProjectSearchResultDto;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
 import com.rreganjr.requel.service.api.dto.OpenIssueDto;
@@ -332,6 +335,47 @@ class QueryCommandsTest {
 
         String out = capture(() -> assertThat(cmd.call()).isEqualTo(ExitCode.SUCCESS));
         assertThat(out).contains("No matches.");
+    }
+
+    @Test
+    void traceabilityListsGoalsThenGapsByKind() {
+        QueryGateway gw = mock(QueryGateway.class);
+        when(gw.getTraceability("Demo")).thenReturn(new TraceabilityDto(
+                List.of(new GoalTraceDto(1L, "Fast checkout", true, List.of(),
+                                List.of(new EntityReferenceDto("Actor", 5L, "Clerk")),
+                                List.of(new EntityReferenceDto("Story", 6L, "Clerk scans")), List.of()),
+                        new GoalTraceDto(2L, "Fewer refunds", false, List.of(), List.of(), List.of(),
+                                List.of())),
+                List.of(new TraceGapDto(TraceGapDto.GOAL_NOT_REALIZED,
+                                new EntityReferenceDto("Goal", 2L, "Fewer refunds")),
+                        new TraceGapDto(TraceGapDto.STORY_NOT_IN_USE_CASE,
+                                new EntityReferenceDto("Story", 6L, "Clerk scans")))));
+        TraceabilityCommand cmd = new TraceabilityCommand();
+        cmd.parent = parent(OutputFormat.TEXT);
+        cmd.queryOverride = gw;
+        cmd.projectName = "Demo";
+
+        String out = capture(() -> assertThat(cmd.call()).isEqualTo(ExitCode.SUCCESS));
+
+        assertThat(out).contains("Goal #1 Fast checkout\n    actors: Clerk\n    stories: Clerk scans")
+                .contains("Goal #2 Fewer refunds  (not realized)")
+                .contains("Goals no story or use case realizes (1)\n    Goal #2 Fewer refunds")
+                .contains("Stories in no use case (1)\n    Story #6 Clerk scans")
+                .doesNotContain("Actors nothing uses");
+    }
+
+    @Test
+    void traceabilitySaysWhenEverythingTraces() {
+        QueryGateway gw = mock(QueryGateway.class);
+        when(gw.getTraceability("Demo")).thenReturn(new TraceabilityDto(List.of(), List.of()));
+        TraceabilityCommand cmd = new TraceabilityCommand();
+        cmd.parent = parent(OutputFormat.TEXT);
+        cmd.queryOverride = gw;
+        cmd.projectName = "Demo";
+
+        String out = capture(() -> assertThat(cmd.call()).isEqualTo(ExitCode.SUCCESS));
+
+        assertThat(out).contains("Goals\n  (none)").contains("None: everything traces.");
     }
 
     @Test

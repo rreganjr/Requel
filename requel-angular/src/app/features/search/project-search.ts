@@ -37,9 +37,6 @@ import {
 } from '../../models/project-search';
 import { ProjectSearchBoxComponent } from './project-search-box';
 
-/** Where a result (or the entity an issue is on) opens, beyond the shared entity routes. */
-const SEARCH_ROUTES: Readonly<Record<string, string>> = { ...ENTITY_ROUTES, Stakeholder: 'stakeholders' };
-
 /** A snippet split around its match, for highlighting. */
 interface SnippetParts { before: string; match: string; after: string }
 
@@ -283,7 +280,7 @@ export class ProjectSearchComponent implements OnInit {
     if (type === 'Project') {
       return ['/projects', this.projectName()];
     }
-    const segment = type ? SEARCH_ROUTES[type] : undefined;
+    const segment = type ? ENTITY_ROUTES[type] : undefined;
     return segment && id != null ? ['/projects', this.projectName(), segment, id] : null;
   }
 }

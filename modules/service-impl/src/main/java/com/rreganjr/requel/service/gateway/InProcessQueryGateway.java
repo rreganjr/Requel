@@ -180,6 +180,12 @@ public class InProcessQueryGateway implements QueryGateway {
 	}
 
 	@Override
+	public com.rreganjr.requel.service.api.dto.TraceabilityDto getTraceability(String projectName) {
+		return unwrap(projectQueryController.getTraceability(projectName),
+				com.rreganjr.requel.service.api.dto.TraceabilityDto.class);
+	}
+
+	@Override
 	public Map<String, Object> getProjectContext(String projectName,
 			IssueSeverity minSeverity) {
 		Map<String, Object> context = new LinkedHashMap<>();

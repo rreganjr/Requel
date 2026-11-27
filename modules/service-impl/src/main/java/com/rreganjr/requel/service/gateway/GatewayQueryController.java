@@ -138,6 +138,13 @@ public class GatewayQueryController {
         return queryGateway.findEntitiesBySource(name, system, externalId, fragment);
     }
 
+    /** #497: the goal matrix and the gaps. */
+    @GetMapping("/projects/{name}/traceability")
+    public com.rreganjr.requel.service.api.dto.TraceabilityDto getTraceability(
+            @PathVariable String name) {
+        return queryGateway.getTraceability(name);
+    }
+
     /** Issue #273: every source and reference of the project, with precedence. */
     @GetMapping("/projects/{name}/sources")
     public com.rreganjr.requel.service.api.dto.ProjectSourcesDto listSources(
