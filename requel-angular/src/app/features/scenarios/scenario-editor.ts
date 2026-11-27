@@ -68,6 +68,7 @@ import {
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { issueSeverityTone } from '../../shared/severity';
+import { TermsUsedComponent } from '../../shared/terms-used';
 import { ArtifactNameService } from '../../core/artifact-name.service';
 import { ActorService } from '../../core/actor.service';
 import {
@@ -114,7 +115,7 @@ const STEP_SUGGESTION_LIMIT = 10;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-scenario-editor',
   standalone: true,
-  imports: [AiReviewButtonComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet,
+  imports: [TermsUsedComponent, AiReviewButtonComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet,
             ReactiveFormsModule, ButtonModule, InputText, AutoComplete, TextareaModule, SelectModule,
             MessageModule, SubmitErrorComponent, UpdateBannerComponent, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
             ScenarioSelectorDialogComponent, AnnotationsSectionComponent, SourcesSectionComponent, LoadingStateComponent,
@@ -363,6 +364,7 @@ const STEP_SUGGESTION_LIMIT = 10;
           <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" id="text" rows="4" [autoResize]="true"
                     placeholder="Scenario description" data-testid="scenario-text"></textarea>
         </app-field>
+        <app-terms-used [projectName]="projectName" [name]="detailsForm.controls.name.value" [text]="detailsForm.controls.text.value" />
       </ng-template>
 
       <ng-template #stepsSection let-heading="heading">

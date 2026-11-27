@@ -47,6 +47,7 @@ import { StepDetailDto } from '../../models/scenario';
 import { ArtifactNameService } from '../../core/artifact-name.service';
 import { ActorService } from '../../core/actor.service';
 import { actorRoleChoices, actorRoleFieldsOf, fromActorRoleChoice, readsAs, toActorRoleChoice } from '../../shared/actor-role';
+import { TermsUsedComponent } from '../../shared/terms-used';
 
 const STEP_TYPE_OPTIONS = [
   { label: 'Primary', value: 'Primary' },
@@ -66,7 +67,7 @@ const STEP_TYPE_OPTIONS = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-step-editor',
   standalone: true,
-  imports: [
+  imports: [TermsUsedComponent, 
     PageHeaderComponent, AppCardComponent, ReactiveFormsModule, ButtonModule, InputText,
     TextareaModule, SelectModule, SubmitErrorComponent, AnnotationsSectionComponent,
     SourcesSectionComponent, AppFieldComponent, AppFieldControlDirective, LoadingStateComponent,
@@ -133,6 +134,7 @@ const STEP_TYPE_OPTIONS = [
                         [autoResize]="true" data-testid="step-text" [readonly]="!canEdit()"
                         placeholder="Additional details or notes..."></textarea>
             </app-field>
+            <app-terms-used [projectName]="projectName" [name]="form.controls.name.value" [text]="form.controls.text.value" />
             @if (canEdit()) {
               <div class="form-actions">
                 <p-button type="submit" label="Save" icon="pi pi-check" data-testid="step-save"

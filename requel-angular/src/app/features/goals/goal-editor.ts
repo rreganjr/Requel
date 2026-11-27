@@ -59,6 +59,7 @@ import {
   WizardCommitRequest,
 } from '../../shared/app-form-wizard';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
+import { TermsUsedComponent } from '../../shared/terms-used';
 import { ArtifactNameService } from '../../core/artifact-name.service';
 
 /** Wording for the stale-version recovery path, so the 409 case reads as recoverable. */
@@ -69,7 +70,7 @@ const STALE_VERSION_MESSAGE =
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-goal-editor',
   standalone: true,
-  imports: [AiReviewButtonComponent, PageHeaderComponent, RouterLink, FormsModule, ReactiveFormsModule, NgTemplateOutlet,
+  imports: [TermsUsedComponent, AiReviewButtonComponent, PageHeaderComponent, RouterLink, FormsModule, ReactiveFormsModule, NgTemplateOutlet,
             ButtonModule, InputText, TextareaModule, SelectModule,
             SubmitErrorComponent, DialogModule, ConfirmDialogModule, EntitySelectorDialogComponent,
             RelationshipSectionComponent,
@@ -268,6 +269,7 @@ const STALE_VERSION_MESSAGE =
           <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" rows="4" [autoResize]="true"
                     placeholder="Goal description" data-testid="goal-text"></textarea>
         </app-field>
+        <app-terms-used [projectName]="projectName" [name]="detailsForm.controls.name.value" [text]="detailsForm.controls.text.value" />
       </ng-template>
 
       <ng-template #tagsSection>

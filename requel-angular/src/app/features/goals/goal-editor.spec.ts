@@ -17,6 +17,7 @@ import { AnnouncerService } from '../../core/announcer.service';
 import { StreamEventEnvelope } from '../../models/stream';
 import { AppWizardStepComponent, WizardCommitRequest } from '../../shared/app-form-wizard';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
+import { TermsUsedComponent } from '../../shared/terms-used';
 
 const MOCK_GOAL = {
   id: 10, version: 5, name: 'Improve UX', text: 'Make it great.',
@@ -138,6 +139,19 @@ describe('GoalEditorComponent', () => {
     await flush();
     fixture.detectChanges();
   }
+
+  it('feeds the Terms used row the name and text as typed (#506)', async () => {
+    await renderNew();
+    comp.detailsForm.controls.name.setValue('Speed up the Host');
+    const text = fixture.nativeElement.querySelector('[data-testid="goal-text"]') as HTMLTextAreaElement;
+    text.value = 'The Host ends the video room';
+    text.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    const row = fixture.debugElement.query(By.directive(TermsUsedComponent)).componentInstance as TermsUsedComponent;
+    expect(row.projectName()).toBe('proj1');
+    expect(row.name()).toBe('Speed up the Host');
+    expect(row.text()).toBe('The Host ends the video room');
+  });
 
   it('isNew() is true when goalId param is "new"', async () => {
     await renderNew();

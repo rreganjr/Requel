@@ -11,6 +11,7 @@ import { TermService } from '../../core/term.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { AnnouncerService } from '../../core/announcer.service';
+import { TermsUsedComponent } from '../../shared/terms-used';
 
 const MOCK_TERMS = [
   { id: 1, name: 'Actor', text: 'A participant.' },
@@ -87,6 +88,30 @@ describe('TermEditorComponent', () => {
     comp.form.setValue({ name, text, canonicalTermId });
     comp.form.markAsDirty();
   }
+
+  it("never lists the term being edited in its own Terms used row (#506)", async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', termId: '2' }));
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    const row = fixture.debugElement.query(By.directive(TermsUsedComponent)).componentInstance as TermsUsedComponent;
+    expect(row.excludeTermId()).toBe(2);
+  });
+
+  it('feeds the Terms used row the name and text as typed (#506)', async () => {
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    comp.form.controls.name.setValue('Speed up the Host');
+    const text = fixture.nativeElement.querySelector('textarea#text') as HTMLTextAreaElement;
+    text.value = 'The Host ends the video room';
+    text.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    const row = fixture.debugElement.query(By.directive(TermsUsedComponent)).componentInstance as TermsUsedComponent;
+    expect(row.projectName()).toBe('proj1');
+    expect(row.name()).toBe('Speed up the Host');
+    expect(row.text()).toBe('The Host ends the video room');
+  });
 
   it('isNew() is true when termId param is "new"', async () => {
     fixture.detectChanges();
