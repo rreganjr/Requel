@@ -27,20 +27,16 @@ import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { MessageService } from 'primeng/api';
-import { PageHeaderComponent } from '../../shared/page-header';
+import { EntityEditorBodyDirective, EntityEditorComponent, EntityEditorState } from '../../shared/entity-editor';
+import { isNotFound } from '../../core/http-errors';
 import { AppCardComponent } from '../../shared/app-card';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
-import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { CommandService, isNetworkError } from '../../core/command.service';
 import { ScenarioService } from '../../core/scenario.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { AnnouncerService } from '../../core/announcer.service';
-import { AnnotationsSectionComponent } from '../../shared/annotations-section';
-import { SourcesSectionComponent } from '../../shared/sources-section';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
-import { LoadingStateComponent } from '../../shared/loading-state';
-import { ErrorStateComponent } from '../../shared/error-state';
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { StepDetailDto } from '../../models/scenario';
@@ -67,107 +63,90 @@ const STEP_TYPE_OPTIONS = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-step-editor',
   standalone: true,
-  imports: [TermsUsedComponent, 
-    PageHeaderComponent, AppCardComponent, ReactiveFormsModule, ButtonModule, InputText,
-    TextareaModule, SelectModule, SubmitErrorComponent, AnnotationsSectionComponent,
-    SourcesSectionComponent, AppFieldComponent, AppFieldControlDirective, LoadingStateComponent,
-    ErrorStateComponent, RouterLink,
+  imports: [TermsUsedComponent,
+    EntityEditorComponent, EntityEditorBodyDirective, AppCardComponent, ReactiveFormsModule, ButtonModule,
+    InputText, TextareaModule, SelectModule, AppFieldComponent, AppFieldControlDirective, RouterLink,
   ],
   template: `
     <div class="step-editor" data-testid="step-editor">
-      <div class="page-header">
-        <app-page-header eyebrow="Step" [title]="stepName()" />
-        <div class="page-actions">
+      <app-entity-editor eyebrow="Step" [title]="stepName()" entityLabel="Step" [loadingLines]="3"
+                         [state]="editorState()" [loadError]="loadError()" [listLink]="['/projects', projectName, 'steps']"
+                         [saveError]="errorMessage()" [saveRetryable]="retryable()" saveErrorTestid="step-error"
+                         [projectName]="projectName" entityType="Step" [entityId]="stepId()" testid="step-editor"
+                         (retryLoad)="retryLoad()" (retrySave)="onSave()" (issueResolved)="onIssueResolved()">
+        <ng-container ngProjectAs="[actions]">
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="step-back"
                     [outlined]="true" (onClick)="onBack()" />
-        </div>
-      </div>
-
-      <app-submit-error [message]="errorMessage()" [retryable]="retryable()" (retry)="onSave()"
-                        testid="step-error" />
-
-      @if (loading()) {
-        <app-card>
-          <app-loading-state label="Loading step…" [lines]="3" testid="step-editor-loading" />
-        </app-card>
-      } @else if (loadError()) {
-        <app-error-state [message]="loadError()!" testid="step-editor-load-error" (retry)="retryLoad()" />
-      } @else {
-        <app-card>
-          @if (usedIn().length > 1) {
-            <p class="shared-hint" data-testid="step-shared-hint">
-              This step is used by {{ usedIn().length }} scenarios. A change here changes it in all of them.
-            </p>
-          }
-          <form [formGroup]="form" (ngSubmit)="onSave()">
-            <!-- #468: who does it, apart from the wording; with an actor the name is the action. -->
-            <app-field label="Who does it" controlId="stepWho" [control]="form.controls.who"
-                       [submitted]="submitted()"
-                       helper="With an actor, the name is only the action.">
-              <p-select appFieldControl inputId="stepWho" data-testid="step-who"
-                        formControlName="who" [options]="roleChoices()"
-                        optionLabel="label" optionValue="value" />
-            </app-field>
-            <app-field [label]="form.controls.who.value ? 'Action' : 'Name'" controlId="stepName"
-                       [control]="form.controls.name" [submitted]="submitted()">
-              <input id="stepName" pInputText appFieldControl formControlName="name"
-                     data-testid="step-name" [attr.maxlength]="nameMaxLength" [readonly]="!canEdit()"
-                     [placeholder]="form.controls.who.value ? 'ends the room' : 'Step description...'" />
-            </app-field>
-            @if (readings().length) {
-              <app-field label="Reads as" data-testid="step-reads-as">
-                <ul class="reads-as">
-                  @for (r of readings(); track r.key) {
-                    <li data-testid="step-reads-as-row"><span class="reads-as-text">{{ r.text }}</span>@if (r.where) {<span class="reads-as-where"> in {{ r.where }}</span>}</li>
-                  }
-                </ul>
+        </ng-container>
+        <ng-template rqEditorBody>
+          <app-card>
+            @if (usedIn().length > 1) {
+              <p class="shared-hint" data-testid="step-shared-hint">
+                This step is used by {{ usedIn().length }} scenarios. A change here changes it in all of them.
+              </p>
+            }
+            <form [formGroup]="form" (ngSubmit)="onSave()">
+              <!-- #468: who does it, apart from the wording; with an actor the name is the action. -->
+              <app-field label="Who does it" controlId="stepWho" [control]="form.controls.who"
+                         [submitted]="submitted()"
+                         helper="With an actor, the name is only the action.">
+                <p-select appFieldControl inputId="stepWho" data-testid="step-who"
+                          formControlName="who" [options]="roleChoices()"
+                          optionLabel="label" optionValue="value" />
               </app-field>
-            }
-            <app-field label="Type" controlId="stepType" [control]="form.controls.scenarioType" [submitted]="submitted()">
-              <p-select appFieldControl inputId="stepType" data-testid="step-type"
-                        formControlName="scenarioType" [options]="typeOptions"
-                        optionLabel="label" optionValue="value" />
-            </app-field>
-            <app-field label="Notes" controlId="stepText" [control]="form.controls.text" [submitted]="submitted()"
-                       [divider]="false">
-              <textarea id="stepText" pTextarea appFieldControl formControlName="text" rows="4"
-                        [autoResize]="true" data-testid="step-text" [readonly]="!canEdit()"
-                        placeholder="Additional details or notes..."></textarea>
-            </app-field>
-            <app-terms-used [projectName]="projectName" [name]="form.controls.name.value" [text]="form.controls.text.value" />
-            @if (canEdit()) {
-              <div class="form-actions">
-                <p-button type="submit" label="Save" icon="pi pi-check" data-testid="step-save"
-                          [loading]="saving()" [disabled]="form.invalid || form.pristine || saving()" />
-              </div>
-            }
-          </form>
-        </app-card>
+              <app-field [label]="form.controls.who.value ? 'Action' : 'Name'" controlId="stepName"
+                         [control]="form.controls.name" [submitted]="submitted()">
+                <input id="stepName" pInputText appFieldControl formControlName="name"
+                       data-testid="step-name" [attr.maxlength]="nameMaxLength" [readonly]="!canEdit()"
+                       [placeholder]="form.controls.who.value ? 'ends the room' : 'Step description...'" />
+              </app-field>
+              @if (readings().length) {
+                <app-field label="Reads as" data-testid="step-reads-as">
+                  <ul class="reads-as">
+                    @for (r of readings(); track r.key) {
+                      <li data-testid="step-reads-as-row"><span class="reads-as-text">{{ r.text }}</span>@if (r.where) {<span class="reads-as-where"> in {{ r.where }}</span>}</li>
+                    }
+                  </ul>
+                </app-field>
+              }
+              <app-field label="Type" controlId="stepType" [control]="form.controls.scenarioType" [submitted]="submitted()">
+                <p-select appFieldControl inputId="stepType" data-testid="step-type"
+                          formControlName="scenarioType" [options]="typeOptions"
+                          optionLabel="label" optionValue="value" />
+              </app-field>
+              <app-field label="Notes" controlId="stepText" [control]="form.controls.text" [submitted]="submitted()"
+                         [divider]="false">
+                <textarea id="stepText" pTextarea appFieldControl formControlName="text" rows="4"
+                          [autoResize]="true" data-testid="step-text" [readonly]="!canEdit()"
+                          placeholder="Additional details or notes..."></textarea>
+              </app-field>
+              <app-terms-used [projectName]="projectName" [name]="form.controls.name.value" [text]="form.controls.text.value" />
+              @if (canEdit()) {
+                <div class="form-actions">
+                  <p-button type="submit" label="Save" icon="pi pi-check" data-testid="step-save"
+                            [loading]="saving()" [disabled]="form.invalid || form.pristine || saving()" />
+                </div>
+              }
+            </form>
+          </app-card>
 
-        <app-card title="Used in">
-          <ul class="used-in" data-testid="step-used-in">
-            @for (s of usedIn(); track s.id) {
-              <li data-testid="step-used-in-row">
-                <a class="entity-link" data-testid="step-used-in-link"
-                   [routerLink]="['/projects', projectName, 'scenarios', s.id]">{{ s.name }}</a>
-              </li>
-            } @empty {
-              <li class="empty">Not used by any scenario.</li>
-            }
-          </ul>
-        </app-card>
-
-        @if (stepId() != null) {
-          <app-annotations-section [projectName]="projectName" entityType="Step" [entityId]="stepId()"
-                                   (resolved)="onIssueResolved()" />
-          <app-sources-section [projectName]="projectName" entityType="Step" [entityId]="stepId()" />
-        }
-      }
+          <app-card title="Used in">
+            <ul class="used-in" data-testid="step-used-in">
+              @for (s of usedIn(); track s.id) {
+                <li data-testid="step-used-in-row">
+                  <a class="entity-link" data-testid="step-used-in-link"
+                     [routerLink]="['/projects', projectName, 'scenarios', s.id]">{{ s.name }}</a>
+                </li>
+              } @empty {
+                <li class="empty">Not used by any scenario.</li>
+              }
+            </ul>
+          </app-card>
+        </ng-template>
+      </app-entity-editor>
     </div>
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--rq-space-2); margin-bottom: var(--rq-space-4); }
-    .page-actions { display: flex; flex-wrap: wrap; gap: var(--rq-space-2); }
     app-field input, app-field textarea { width: 100%; }
     .shared-hint { font-size: var(--rq-font-size-sm); color: var(--p-text-secondary-color); margin: 0 0 var(--rq-space-3); }
     .form-actions { margin-block: var(--rq-space-4) var(--rq-space-2); }
@@ -196,6 +175,10 @@ export class StepEditorComponent implements OnInit, DirtyCheckable {
   usedIn = computed(() => this.step()?.usedIn ?? []);
   loading = signal(true);
   loadError = signal<string | null>(null);
+  /** #525: the step read answered 404 (deleted, or never existed). */
+  notFound = signal(false);
+  readonly editorState = computed<EntityEditorState>(() =>
+    this.notFound() ? 'not-found' : this.loading() ? 'loading' : this.loadError() ? 'error' : 'ready');
   saving = signal(false);
   submitted = signal(false);
   errorMessage = signal<string | null>(null);
@@ -290,6 +273,7 @@ export class StepEditorComponent implements OnInit, DirtyCheckable {
     if (skeleton) {
       this.loading.set(true);
       this.loadError.set(null);
+      this.notFound.set(false);
     }
     try {
       const step = await this.scenarioService.getStep(this.projectName, id);
@@ -309,8 +293,10 @@ export class StepEditorComponent implements OnInit, DirtyCheckable {
         this.formValue.set(this.form.getRawValue());
         this.submitted.set(false);
       }
-    } catch {
-      if (skeleton) {
+    } catch (e) {
+      if (skeleton && isNotFound(e)) {
+        this.notFound.set(true);
+      } else if (skeleton) {
         this.loadError.set('Failed to load step.');
       } else {
         this.errorMessage.set('Failed to load step.');

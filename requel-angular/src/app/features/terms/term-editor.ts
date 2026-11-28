@@ -20,7 +20,8 @@
  */
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { PageHeaderComponent } from '../../shared/page-header';
+import { EntityEditorBodyDirective, EntityEditorComponent, EntityEditorState } from '../../shared/entity-editor';
+import { isNotFound } from '../../core/http-errors';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -29,8 +30,6 @@ import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
-import { SubmitErrorComponent } from '../../shared/app-submit-error';
-import { UpdateBannerComponent } from '../../shared/app-update-banner';
 import { AnnouncerService } from '../../core/announcer.service';
 import { isNetworkError, refusalMessage } from '../../core/command.service';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
@@ -41,13 +40,9 @@ import { entityRoute } from '../../shared/entity-routes';
 import { TermService } from '../../core/term.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
-import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { AiReviewButtonComponent } from '../../shared/ai-review-button';
-import { SourcesSectionComponent } from '../../shared/sources-section';
 import { AppCardComponent } from '../../shared/app-card';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
-import { LoadingStateComponent } from '../../shared/loading-state';
-import { ErrorStateComponent } from '../../shared/error-state';
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { TermsUsedComponent } from '../../shared/terms-used';
@@ -66,8 +61,8 @@ const SEPARATOR = '; ';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-term-editor',
   standalone: true,
-  imports: [TermsUsedComponent, AiReviewButtonComponent, 
-    PageHeaderComponent,
+  imports: [TermsUsedComponent, AiReviewButtonComponent,
+    EntityEditorComponent, EntityEditorBodyDirective,
     AppCardComponent,
     ReactiveFormsModule,
     ButtonModule,
@@ -75,248 +70,214 @@ const SEPARATOR = '; ';
     TextareaModule,
     SelectModule,
     TableModule,
-    SubmitErrorComponent, UpdateBannerComponent,
     ConfirmDialogModule,
-    AnnotationsSectionComponent, SourcesSectionComponent,
     AppFieldComponent,
     AppFieldControlDirective,
-    LoadingStateComponent,
-    ErrorStateComponent,
     RouterLink,
   ],
   providers: [ConfirmationService],
   template: `
     <div class="term-editor" data-testid="term-editor">
-      <div class="page-header">
-        <app-page-header [title]="isNew() ? 'New Glossary Term' : termName()" />
-        <div class="page-actions">
+      <app-entity-editor [title]="isNew() ? 'New Glossary Term' : termName()" entityLabel="Glossary term" noun="term"
+                         [state]="editorState()" [loadError]="loadError()" [listLink]="['/projects', projectName, 'terms']"
+                         [saveError]="errorMessage()" [saveRetryable]="retryable()" saveErrorTestid="term-error"
+                         [updateAvailable]="updateAvailable()" updateTestid="term-update-banner"
+                         [projectName]="projectName" entityType="GlossaryTerm" [entityId]="termId()" testid="term-editor"
+                         (retryLoad)="retryLoad()" (retrySave)="onSave()" (reloadUpdate)="reloadFromExternalChange()"
+                         (dismissUpdate)="updateAvailable.set(false)" (issueResolved)="onIssueResolved()">
+        <ng-container ngProjectAs="[actions]">
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="term-back"
                     [outlined]="true" (onClick)="onBack()" />
           @if (!isNew() && canDelete()) {
             <p-button label="Delete" icon="pi pi-trash" severity="danger" data-testid="term-delete"
                       [outlined]="true" (onClick)="onDelete()" />
           }
-        </div>
-      </div>
+        </ng-container>
+        <ng-template rqEditorBody>
+          <app-card>
+            <form [formGroup]="form" (ngSubmit)="onSave()">
+              <!--
+                controlId is "name" / "text" on purpose: those ids are an e2e contract, not
+                an implementation detail. TermEditorPage and BaseListPage's default
+                readySelector both locate #name, so letting app-field generate rq-field-{n}
+                here would break navigation in tests that have nothing to do with this form.
+              -->
+              <app-field
+                label="Term"
+                controlId="name"
+                [control]="form.controls.name"
+                [submitted]="submitted()"
+              >
+                <input
+                  id="name"
+                  pInputText
+                  appFieldControl
+                  formControlName="name"
+                  [attr.maxlength]="nameMaxLength"
+                  placeholder="Term name"
+                />
+              </app-field>
 
-      <app-submit-error
-        [message]="errorMessage()"
-        [retryable]="retryable()"
-        (retry)="onSave()"
-        testid="term-error" />
+              <app-field
+                label="Definition"
+                controlId="text"
+                [control]="form.controls.text"
+                [submitted]="submitted()"
+              >
+                <textarea
+                  id="text"
+                  pTextarea
+                  appFieldControl
+                  formControlName="text"
+                  rows="4" [autoResize]="true"
+                  placeholder="Definition of this term"
+                ></textarea>
+              </app-field>
+              <app-terms-used [projectName]="projectName" [name]="form.controls.name.value" [text]="form.controls.text.value" [excludeTermId]="termId()" />
 
-      @if (updateAvailable()) {
-        <app-update-banner message="This term was changed elsewhere. Your unsaved changes are preserved."
-                           testid="term-update-banner"
-                           (reload)="reloadFromExternalChange()" (dismiss)="updateAvailable.set(false)" />
-      }
+              <app-field
+                label="Canonical Term"
+                controlId="canonical-term-input"
+                [control]="form.controls.canonicalTermId"
+                [submitted]="submitted()"
+                [divider]="false"
+              >
+                <p-select
+                  appFieldControl
+                  inputId="canonical-term-input"
+                  data-testid="term-canonical-select"
+                  formControlName="canonicalTermId"
+                  [options]="canonicalOptions()"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="None (this is a canonical term)"
+                  [showClear]="true"
+                />
+              </app-field>
 
-      @if (loading()) {
-        <app-card>
-          <app-loading-state label="Loading term…" [lines]="4" testid="term-editor-loading" />
-        </app-card>
-      } @else if (loadError()) {
-        <app-error-state [message]="loadError()!" testid="term-editor-load-error"
-                         (retry)="retryLoad()" />
-      } @else {
-        <app-card>
-          <form [formGroup]="form" (ngSubmit)="onSave()">
-            <!--
-              controlId is "name" / "text" on purpose: those ids are an e2e contract, not
-              an implementation detail. TermEditorPage and BaseListPage's default
-              readySelector both locate #name, so letting app-field generate rq-field-{n}
-              here would break navigation in tests that have nothing to do with this form.
-            -->
-            <app-field
-              label="Term"
-              controlId="name"
-              [control]="form.controls.name"
-              [submitted]="submitted()"
-            >
-              <input
-                id="name"
-                pInputText
-                appFieldControl
-                formControlName="name"
-                [attr.maxlength]="nameMaxLength"
-                placeholder="Term name"
-              />
-            </app-field>
-
-            <app-field
-              label="Definition"
-              controlId="text"
-              [control]="form.controls.text"
-              [submitted]="submitted()"
-            >
-              <textarea
-                id="text"
-                pTextarea
-                appFieldControl
-                formControlName="text"
-                rows="4" [autoResize]="true"
-                placeholder="Definition of this term"
-              ></textarea>
-            </app-field>
-            <app-terms-used [projectName]="projectName" [name]="form.controls.name.value" [text]="form.controls.text.value" [excludeTermId]="termId()" />
-
-            <app-field
-              label="Canonical Term"
-              controlId="canonical-term-input"
-              [control]="form.controls.canonicalTermId"
-              [submitted]="submitted()"
-              [divider]="false"
-            >
-              <p-select
-                appFieldControl
-                inputId="canonical-term-input"
-                data-testid="term-canonical-select"
-                formControlName="canonicalTermId"
-                [options]="canonicalOptions()"
-                optionLabel="label"
-                optionValue="value"
-                placeholder="None (this is a canonical term)"
-                [showClear]="true"
-              />
-            </app-field>
-
-            <div class="form-actions">
-              <p-button
-                type="submit"
-                label="Save"
-                icon="pi pi-check"
-                data-testid="term-save"
-                [loading]="saving()"
-                [disabled]="form.invalid || form.pristine || saving()"
-              />
-              <!-- #387: beside Save; disabled while there are unsaved changes. -->
-              <app-ai-review-button entityType="GlossaryTerm" [entityId]="termId()"
-                                    [dirty]="hasUnsavedChanges()" />
-            </div>
-          </form>
-        </app-card>
-
-        <!-- Alternate Terms (terms that point to this as their canonical) -->
-        @if (!isNew() && term()?.alternateTerms?.length) {
-          <div class="section" data-testid="term-alternate-terms-section">
-            <h2 class="rq-section-title">Alternate Terms</h2>
-            <p-table [value]="term()!.alternateTerms!" [rows]="10">
-              <ng-template #header>
-                <tr>
-                  <th>Term</th>
-                </tr>
-              </ng-template>
-              <ng-template #body let-a>
-                <tr class="clickable-row" data-testid="term-alternate-row"
-                    (click)="navigateToTerm(a.id)">
-                  <td>{{ a.name }}</td>
-                </tr>
-              </ng-template>
-            </p-table>
-          </div>
-        }
-
-        <!--
-          #348: referers that still say one of the term's synonyms (usually an old name kept by a
-          rename). Replace rewrites it to the term's name through each referer's own edit.
-        -->
-        @if (!isNew() && synonymUses().length) {
-          <div class="section" data-testid="term-synonym-uses-section">
-            <h2 class="rq-section-title">Still uses an old name</h2>
-            <p class="section-hint">
-              These items still say a synonym of "{{ termName() }}". Replace changes it to the
-              term's name.
-            </p>
-            @for (use of synonymUses(); track use.synonymId) {
-              <div class="synonym-use" data-testid="term-synonym-use">
-                <div class="synonym-use-header">
-                  <h3 class="synonym-name" data-testid="term-synonym-use-name">"{{ use.synonymName }}"</h3>
-                  @if (editableReferers(use).length > 1) {
-                    <p-button label="Replace all" icon="pi pi-sync" size="small" [outlined]="true"
-                              data-testid="term-synonym-replace-all"
-                              [ariaLabel]="'Replace all uses of ' + use.synonymName + ' with ' + termName()"
-                              [loading]="replacing() === use.synonymId"
-                              [disabled]="replacing() !== null"
-                              (onClick)="onReplace(use, editableReferers(use))" />
-                  }
-                </div>
-                <p-table [value]="use.referers" [rows]="10">
-                  <ng-template #header>
-                    <tr>
-                      <th>Type</th>
-                      <th>Name</th>
-                      <th><span class="rq-visually-hidden">Actions</span></th>
-                    </tr>
-                  </ng-template>
-                  <ng-template #body let-r>
-                    <tr data-testid="term-synonym-use-row">
-                      <td>{{ r.entityType }}</td>
-                      <td>
-                        @if (refererLink(r); as link) {
-                          <a [routerLink]="link" data-testid="term-synonym-use-link">{{ r.name }}</a>
-                        } @else {
-                          {{ r.name }}
-                        }
-                      </td>
-                      <td class="row-action">
-                        @if (canEditReferer(r)) {
-                          <p-button label="Replace" size="small" [text]="true"
-                                    data-testid="term-synonym-replace"
-                                    [ariaLabel]="'Replace ' + use.synonymName + ' with ' + termName() + ' in ' + r.name"
-                                    [disabled]="replacing() !== null"
-                                    (onClick)="onReplace(use, [r])" />
-                        }
-                      </td>
-                    </tr>
-                  </ng-template>
-                </p-table>
+              <div class="form-actions">
+                <p-button
+                  type="submit"
+                  label="Save"
+                  icon="pi pi-check"
+                  data-testid="term-save"
+                  [loading]="saving()"
+                  [disabled]="form.invalid || form.pristine || saving()"
+                />
+                <!-- #387: beside Save; disabled while there are unsaved changes. -->
+                <app-ai-review-button entityType="GlossaryTerm" [entityId]="termId()"
+                                      [dirty]="hasUnsavedChanges()" />
               </div>
-            }
-          </div>
-        }
+            </form>
+          </app-card>
 
-        <!-- Referenced By -->
-        @if (!isNew() && term()?.referers?.length) {
-          <div class="section" data-testid="term-referenced-by-section">
-            <h2 class="rq-section-title">Referenced By</h2>
-            <p-table [value]="term()!.referers!" [rows]="10">
-              <ng-template #header>
-                <tr>
-                  <th>Type</th>
-                  <th>Name</th>
-                </tr>
-              </ng-template>
-              <ng-template #body let-r>
-                <tr data-testid="term-referer-row">
-                  <td>{{ r.entityType }}</td>
-                  <td>{{ r.name }}</td>
-                </tr>
-              </ng-template>
-            </p-table>
-          </div>
-        }
+          <!-- Alternate Terms (terms that point to this as their canonical) -->
+          @if (!isNew() && term()?.alternateTerms?.length) {
+            <div class="section" data-testid="term-alternate-terms-section">
+              <h2 class="rq-section-title">Alternate Terms</h2>
+              <p-table [value]="term()!.alternateTerms!" [rows]="10">
+                <ng-template #header>
+                  <tr>
+                    <th>Term</th>
+                  </tr>
+                </ng-template>
+                <ng-template #body let-a>
+                  <tr class="clickable-row" data-testid="term-alternate-row"
+                      (click)="navigateToTerm(a.id)">
+                    <td>{{ a.name }}</td>
+                  </tr>
+                </ng-template>
+              </p-table>
+            </div>
+          }
 
-        <!-- Annotations -->
-        <app-annotations-section
-          (resolved)="onIssueResolved()"
-          [projectName]="projectName"
-          entityType="GlossaryTerm"
-          [entityId]="termId()"
-          />
-          <app-sources-section
-            [projectName]="projectName"
-            entityType="GlossaryTerm"
-            [entityId]="termId()"
-            />
-      }
+          <!--
+            #348: referers that still say one of the term's synonyms (usually an old name kept by a
+            rename). Replace rewrites it to the term's name through each referer's own edit.
+          -->
+          @if (!isNew() && synonymUses().length) {
+            <div class="section" data-testid="term-synonym-uses-section">
+              <h2 class="rq-section-title">Still uses an old name</h2>
+              <p class="section-hint">
+                These items still say a synonym of "{{ termName() }}". Replace changes it to the
+                term's name.
+              </p>
+              @for (use of synonymUses(); track use.synonymId) {
+                <div class="synonym-use" data-testid="term-synonym-use">
+                  <div class="synonym-use-header">
+                    <h3 class="synonym-name" data-testid="term-synonym-use-name">"{{ use.synonymName }}"</h3>
+                    @if (editableReferers(use).length > 1) {
+                      <p-button label="Replace all" icon="pi pi-sync" size="small" [outlined]="true"
+                                data-testid="term-synonym-replace-all"
+                                [ariaLabel]="'Replace all uses of ' + use.synonymName + ' with ' + termName()"
+                                [loading]="replacing() === use.synonymId"
+                                [disabled]="replacing() !== null"
+                                (onClick)="onReplace(use, editableReferers(use))" />
+                    }
+                  </div>
+                  <p-table [value]="use.referers" [rows]="10">
+                    <ng-template #header>
+                      <tr>
+                        <th>Type</th>
+                        <th>Name</th>
+                        <th><span class="rq-visually-hidden">Actions</span></th>
+                      </tr>
+                    </ng-template>
+                    <ng-template #body let-r>
+                      <tr data-testid="term-synonym-use-row">
+                        <td>{{ r.entityType }}</td>
+                        <td>
+                          @if (refererLink(r); as link) {
+                            <a [routerLink]="link" data-testid="term-synonym-use-link">{{ r.name }}</a>
+                          } @else {
+                            {{ r.name }}
+                          }
+                        </td>
+                        <td class="row-action">
+                          @if (canEditReferer(r)) {
+                            <p-button label="Replace" size="small" [text]="true"
+                                      data-testid="term-synonym-replace"
+                                      [ariaLabel]="'Replace ' + use.synonymName + ' with ' + termName() + ' in ' + r.name"
+                                      [disabled]="replacing() !== null"
+                                      (onClick)="onReplace(use, [r])" />
+                          }
+                        </td>
+                      </tr>
+                    </ng-template>
+                  </p-table>
+                </div>
+              }
+            </div>
+          }
 
+          <!-- Referenced By -->
+          @if (!isNew() && term()?.referers?.length) {
+            <div class="section" data-testid="term-referenced-by-section">
+              <h2 class="rq-section-title">Referenced By</h2>
+              <p-table [value]="term()!.referers!" [rows]="10">
+                <ng-template #header>
+                  <tr>
+                    <th>Type</th>
+                    <th>Name</th>
+                  </tr>
+                </ng-template>
+                <ng-template #body let-r>
+                  <tr data-testid="term-referer-row">
+                    <td>{{ r.entityType }}</td>
+                    <td>{{ r.name }}</td>
+                  </tr>
+                </ng-template>
+              </p-table>
+            </div>
+          }
+        </ng-template>
+        <ng-container ngProjectAs="[after]">
+          <p-confirmDialog />
+        </ng-container>
+      </app-entity-editor>
     </div>
-
-    <p-confirmDialog />
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--rq-space-2); margin-bottom: var(--rq-space-4); }
-    .page-actions { display: flex; flex-wrap: wrap; gap: var(--rq-space-2); }
     /* The rows are app-field's now (issue #132); the local .form-grid that redefined a
        160px label column is gone. Only control width stays with the caller. */
     app-field input, app-field textarea, app-field p-select { width: 100%; }
@@ -355,6 +316,10 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
    */
   loading = signal(true);
   loadError = signal<string | null>(null);
+  /** #525: the term read answered 404 (deleted, or never existed). */
+  notFound = signal(false);
+  readonly editorState = computed<EntityEditorState>(() =>
+    this.notFound() ? 'not-found' : this.loading() ? 'loading' : this.loadError() ? 'error' : 'ready');
   private lastTermId: number | null = null;
   canonicalOptions = signal<{ label: string; value: number }[]>([]);
 
@@ -532,6 +497,7 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     if (skeleton) {
       this.loading.set(true);
       this.loadError.set(null);
+      this.notFound.set(false);
     }
     try {
       const t = await this.termService.getTerm(this.projectName, id);
@@ -547,8 +513,10 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.form.markAsPristine();
         this.submitted.set(false);
       }
-    } catch {
-      if (skeleton) {
+    } catch (e) {
+      if (skeleton && isNotFound(e)) {
+        this.notFound.set(true);
+      } else if (skeleton) {
         this.loadError.set('Failed to load term.');
       } else {
         this.errorMessage.set('Failed to load term.');

@@ -21,7 +21,8 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal, ViewChild, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { PageHeaderComponent } from '../../shared/page-header';
+import { EntityEditorBodyDirective, EntityEditorComponent, EntityEditorState } from '../../shared/entity-editor';
+import { isNotFound } from '../../core/http-errors';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Location, NgTemplateOutlet } from '@angular/common';
@@ -34,8 +35,6 @@ import { AutoComplete } from 'primeng/autocomplete';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { MessageModule } from 'primeng/message';
-import { SubmitErrorComponent } from '../../shared/app-submit-error';
-import { UpdateBannerComponent } from '../../shared/app-update-banner';
 import { AnnouncerService } from '../../core/announcer.service';
 import { DialogModule } from 'primeng/dialog';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
@@ -53,11 +52,7 @@ import { ScenarioSelectorDialogComponent, ScenarioRef } from '../../shared/scena
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
 import { EntityReferenceDto } from '../../models/entity-reference';
-import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { AiReviewButtonComponent } from '../../shared/ai-review-button';
-import { SourcesSectionComponent } from '../../shared/sources-section';
-import { LoadingStateComponent } from '../../shared/loading-state';
-import { ErrorStateComponent } from '../../shared/error-state';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
 import { InlineErrorComponent } from '../../shared/app-inline-error';
 import {
@@ -115,19 +110,23 @@ const STEP_SUGGESTION_LIMIT = 10;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-scenario-editor',
   standalone: true,
-  imports: [TermsUsedComponent, AiReviewButtonComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet,
+  imports: [EntityEditorComponent, EntityEditorBodyDirective, TermsUsedComponent, AiReviewButtonComponent, AppCardComponent, RouterLink, NgTemplateOutlet,
             ReactiveFormsModule, ButtonModule, InputText, AutoComplete, TextareaModule, SelectModule,
-            MessageModule, SubmitErrorComponent, UpdateBannerComponent, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
-            ScenarioSelectorDialogComponent, AnnotationsSectionComponent, SourcesSectionComponent, LoadingStateComponent,
-            ErrorStateComponent, AppFieldComponent, AppFieldControlDirective,
+            MessageModule, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
+            ScenarioSelectorDialogComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent, InlineErrorComponent,
             EntitySelectorDialogComponent, RelationshipSectionComponent],
   providers: [ConfirmationService],
   template: `
     <div class="scenario-editor" data-testid="scenario-editor">
-      <div class="page-header">
-        <app-page-header [title]="isNew() ? 'New Scenario' : scenarioName()" />
-        <div class="page-actions">
+      <app-entity-editor [title]="isNew() ? 'New Scenario' : scenarioName()" entityLabel="Scenario"
+                         [state]="editorState()" [loadError]="loadError()" [listLink]="['/projects', projectName, 'scenarios']"
+                         [saveError]="errorMessage()" [saveRetryable]="retryable()" saveErrorTestid="scenario-error"
+                         [updateAvailable]="updateAvailable()" updateTestid="scenario-update-banner"
+                         [projectName]="projectName" entityType="Scenario" [entityId]="scenarioId" testid="scenario-editor"
+                         (retryLoad)="retryLoad()" (retrySave)="onSave()" (reloadUpdate)="reloadFromExternalChange()"
+                         (dismissUpdate)="updateAvailable.set(false)" (issueResolved)="onIssueResolved()">
+        <ng-container ngProjectAs="[actions]">
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="scenario-back"
                     [outlined]="true" (onClick)="onBack()" />
           @if (!isNew()) {
@@ -140,132 +139,122 @@ const STEP_SUGGESTION_LIMIT = 10;
                         [outlined]="true" (onClick)="onDelete()" />
             }
           }
-        </div>
-      </div>
+        </ng-container>
+        <ng-template rqEditorBody>
+          @if (isNew()) {
+            <!--
+              Create runs as a wizard (#173). Steps *are* the scenario - gating them behind a
+              first save is what made the old create flow produce an empty scenario the user had
+              to navigate back into.
 
-      <app-submit-error [message]="errorMessage()" testid="scenario-error" [retryable]="retryable()" (retry)="onSave()" />
-      @if (updateAvailable()) {
-        <app-update-banner message="This scenario was changed elsewhere. Your unsaved changes are preserved."
-                           testid="scenario-update-banner"
-                           (reload)="reloadFromExternalChange()" (dismiss)="updateAvailable.set(false)" />
-      }
+              Unlike goal/story, both steps commit the SAME command: EditScenario carries the
+              whole step list and rebuilds scenario.getSteps() server-side, so there is no
+              per-association command to issue. Step 2 therefore re-sends name/type/text, which
+              is why saveDetails() always reads them from the form rather than from a snapshot
+              taken at step 1 - otherwise a back-navigation edit to the name would be silently
+              discarded on Done.
+            -->
+            <app-form-wizard
+              [(activeKey)]="wizardStep"
+              navLabel="New scenario steps"
+              (stepCommit)="onStepCommit($event)"
+              (cancelled)="onBack()"
+              (finished)="onWizardFinished()"
+              data-testid="scenario-wizard"
+            >
+              <app-wizard-step key="details" label="Details" helper="Name, type and description"
+                               [form]="detailsForm">
+                <ng-template>
+                  <ng-container [ngTemplateOutlet]="detailsFields" />
+                </ng-template>
+              </app-wizard-step>
 
-      @if (loading()) {
-        <app-card>
-          <app-loading-state label="Loading scenario…" [lines]="4" testid="scenario-editor-loading" />
-        </app-card>
-      } @else if (loadError()) {
-        <app-error-state [message]="loadError()!" testid="scenario-editor-load-error"
-                         (retry)="retryLoad()" />
-      } @else if (isNew()) {
-        <!--
-          Create runs as a wizard (#173). Steps *are* the scenario - gating them behind a
-          first save is what made the old create flow produce an empty scenario the user had
-          to navigate back into.
-
-          Unlike goal/story, both steps commit the SAME command: EditScenario carries the
-          whole step list and rebuilds scenario.getSteps() server-side, so there is no
-          per-association command to issue. Step 2 therefore re-sends name/type/text, which
-          is why saveDetails() always reads them from the form rather than from a snapshot
-          taken at step 1 - otherwise a back-navigation edit to the name would be silently
-          discarded on Done.
-        -->
-        <app-form-wizard
-          [(activeKey)]="wizardStep"
-          navLabel="New scenario steps"
-          (stepCommit)="onStepCommit($event)"
-          (cancelled)="onBack()"
-          (finished)="onWizardFinished()"
-          data-testid="scenario-wizard"
-        >
-          <app-wizard-step key="details" label="Details" helper="Name, type and description"
-                           [form]="detailsForm">
-            <ng-template>
+              <app-wizard-step key="steps" label="Steps" helper="Write the scenario">
+                <ng-template>
+                  <!-- heading: false - the wizard panel's own h2 already reads "Steps". -->
+                  <ng-container [ngTemplateOutlet]="stepsSection"
+                                [ngTemplateOutletContext]="{ heading: false }" />
+                </ng-template>
+              </app-wizard-step>
+            </app-form-wizard>
+          } @else {
+            <app-card>
               <ng-container [ngTemplateOutlet]="detailsFields" />
-            </ng-template>
-          </app-wizard-step>
 
-          <app-wizard-step key="steps" label="Steps" helper="Write the scenario">
-            <ng-template>
-              <!-- heading: false - the wizard panel's own h2 already reads "Steps". -->
-              <ng-container [ngTemplateOutlet]="stepsSection"
-                            [ngTemplateOutletContext]="{ heading: false }" />
-            </ng-template>
-          </app-wizard-step>
-        </app-form-wizard>
-      } @else {
-        <app-card>
-          <ng-container [ngTemplateOutlet]="detailsFields" />
+              <div class="form-actions">
+                <p-button label="Save" icon="pi pi-check" data-testid="scenario-save"
+                          [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
+                <!-- #387: beside Save; disabled while there are unsaved changes. -->
+                <app-ai-review-button entityType="Scenario" [entityId]="scenarioId"
+                                      [dirty]="hasUnsavedChanges()" />
+              </div>
+            </app-card>
 
-          <div class="form-actions">
-            <p-button label="Save" icon="pi pi-check" data-testid="scenario-save"
-                      [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
-            <!-- #387: beside Save; disabled while there are unsaved changes. -->
-            <app-ai-review-button entityType="Scenario" [entityId]="scenarioId"
-                                  [dirty]="hasUnsavedChanges()" />
-          </div>
-        </app-card>
+            <ng-container [ngTemplateOutlet]="stepsSection"
+                          [ngTemplateOutletContext]="{ heading: true }" />
+            <ng-container [ngTemplateOutlet]="referencedBySection"
+                          [ngTemplateOutletContext]="{ heading: true }" />
+          }
+        </ng-template>
+        <ng-container ngProjectAs="[after]">
+          <!-- Step detail edit dialog -->
+          <p-dialog [visible]="editingStep() !== null" (visibleChange)="onStepDialogVisibleChange($event)"
+                    [modal]="true" [focusOnShow]="true" [dismissableMask]="true" closeAriaLabel="Close"
+                    [style]="{ width: '32rem' }" appendTo="body" header="Step Details"
+                    data-testid="scenario-step-edit-dialog">
+            <app-field label="Who does it" controlId="stepEditWho" [control]="editForm.controls.who"
+                       [submitted]="editSubmitted()">
+              <p-select appFieldControl inputId="stepEditWho" data-testid="scenario-step-edit-who"
+                        [formControl]="editForm.controls.who" [options]="roleChoices()"
+                        optionLabel="label" optionValue="value" appendTo="body" />
+            </app-field>
+            <app-field label="Name" controlId="stepEditName" [control]="editForm.controls.name"
+                       [errorMessages]="stepNameErrors" [submitted]="editSubmitted()">
+              <input appFieldControl pInputText [formControl]="editForm.controls.name" id="stepEditName"
+                     [attr.maxlength]="nameMaxLength" data-testid="scenario-step-edit-name"
+                     placeholder="Step description..." />
+            </app-field>
 
-        <ng-container [ngTemplateOutlet]="stepsSection"
-                      [ngTemplateOutletContext]="{ heading: true }" />
-        <ng-container [ngTemplateOutlet]="referencedBySection"
-                      [ngTemplateOutletContext]="{ heading: true }" />
-      }
+            <app-field label="Type" controlId="stepEditType" [control]="editForm.controls.scenarioType"
+                       [submitted]="editSubmitted()">
+              <p-select appFieldControl inputId="stepEditType" data-testid="scenario-step-edit-type"
+                        [formControl]="editForm.controls.scenarioType"
+                        [options]="typeOptions" optionLabel="label" optionValue="value" appendTo="body" />
+            </app-field>
 
-      <!-- Step detail edit dialog -->
-      <p-dialog [visible]="editingStep() !== null" (visibleChange)="onStepDialogVisibleChange($event)"
-                [modal]="true" [focusOnShow]="true" [dismissableMask]="true" closeAriaLabel="Close"
-                [style]="{ width: '32rem' }" appendTo="body" header="Step Details"
-                data-testid="scenario-step-edit-dialog">
-        <app-field label="Who does it" controlId="stepEditWho" [control]="editForm.controls.who"
-                   [submitted]="editSubmitted()">
-          <p-select appFieldControl inputId="stepEditWho" data-testid="scenario-step-edit-who"
-                    [formControl]="editForm.controls.who" [options]="roleChoices()"
-                    optionLabel="label" optionValue="value" appendTo="body" />
-        </app-field>
-        <app-field label="Name" controlId="stepEditName" [control]="editForm.controls.name"
-                   [errorMessages]="stepNameErrors" [submitted]="editSubmitted()">
-          <input appFieldControl pInputText [formControl]="editForm.controls.name" id="stepEditName"
-                 [attr.maxlength]="nameMaxLength" data-testid="scenario-step-edit-name"
-                 placeholder="Step description..." />
-        </app-field>
+            <app-field label="Notes" controlId="stepEditText" [control]="editForm.controls.text" [divider]="false"
+                       [submitted]="editSubmitted()">
+              <textarea appFieldControl pTextarea [formControl]="editForm.controls.text" id="stepEditText" rows="4" [autoResize]="true"
+                        data-testid="scenario-step-edit-text"
+                        placeholder="Additional details or notes..."></textarea>
+            </app-field>
+            <div class="dialog-actions">
+              <p-button label="Apply" icon="pi pi-check" size="small" data-testid="scenario-step-edit-apply"
+                        (onClick)="applyStepEdit()" />
+              <p-button label="Cancel" severity="secondary" [outlined]="true" size="small"
+                        (onClick)="closeStepEdit()" />
+            </div>
+          </p-dialog>
 
-        <app-field label="Type" controlId="stepEditType" [control]="editForm.controls.scenarioType"
-                   [submitted]="editSubmitted()">
-          <p-select appFieldControl inputId="stepEditType" data-testid="scenario-step-edit-type"
-                    [formControl]="editForm.controls.scenarioType"
-                    [options]="typeOptions" optionLabel="label" optionValue="value" appendTo="body" />
-        </app-field>
+          <app-scenario-selector-dialog
+            [visible]="showScenarioSelector"
+            [projectName]="projectName"
+            [excludeIds]="excludeScenarioIds()"
+            (selected)="onSubScenarioSelected($event)"
+            (closed)="showScenarioSelector = false" />
 
-        <app-field label="Notes" controlId="stepEditText" [control]="editForm.controls.text" [divider]="false"
-                   [submitted]="editSubmitted()">
-          <textarea appFieldControl pTextarea [formControl]="editForm.controls.text" id="stepEditText" rows="4" [autoResize]="true"
-                    data-testid="scenario-step-edit-text"
-                    placeholder="Additional details or notes..."></textarea>
-        </app-field>
-        <div class="dialog-actions">
-          <p-button label="Apply" icon="pi pi-check" size="small" data-testid="scenario-step-edit-apply"
-                    (onClick)="applyStepEdit()" />
-          <p-button label="Cancel" severity="secondary" [outlined]="true" size="small"
-                    (onClick)="closeStepEdit()" />
-        </div>
-      </p-dialog>
+          <app-entity-selector-dialog
+            [visible]="showReferrerSelector"
+            [projectName]="projectName"
+            entityType="UseCase"
+            title="Add to Use Case"
+            [excludeIds]="existingReferrerIds()"
+            (selected)="onReferrerSelected($event)"
+            (closed)="showReferrerSelector = false" />
 
-      <app-scenario-selector-dialog
-        [visible]="showScenarioSelector"
-        [projectName]="projectName"
-        [excludeIds]="excludeScenarioIds()"
-        (selected)="onSubScenarioSelected($event)"
-        (closed)="showScenarioSelector = false" />
-
-      <app-entity-selector-dialog
-        [visible]="showReferrerSelector"
-        [projectName]="projectName"
-        entityType="UseCase"
-        title="Add to Use Case"
-        [excludeIds]="existingReferrerIds()"
-        (selected)="onReferrerSelected($event)"
-        (closed)="showReferrerSelector = false" />
+          <p-confirmDialog />
+        </ng-container>
+      </app-entity-editor>
 
       <!-- #476: a warning icon on a sub-scenario row with open issues, colored by the highest
            severity; it opens the page where they can be seen and resolved. (#478: a plain step's
@@ -305,26 +294,6 @@ const STEP_SUGGESTION_LIMIT = 10;
           </ng-template>
         </app-relationship-section>
       </ng-template>
-
-      <!--
-        Annotations render against a persisted entity, so they stay outside the wizard and
-        appear once the scenario exists rather than as a dead panel during create.
-      -->
-      @if (scenarioId != null) {
-        <app-annotations-section
-          (resolved)="onIssueResolved()"
-          [projectName]="projectName"
-          entityType="Scenario"
-          [entityId]="scenarioId"
-          />
-          <app-sources-section
-            [projectName]="projectName"
-            entityType="Scenario"
-            [entityId]="scenarioId"
-            />
-      }
-
-      <p-confirmDialog />
 
       <!--
         Shared bodies. Each is used by both the wizard step and the edit view, so the two
@@ -527,8 +496,6 @@ const STEP_SUGGESTION_LIMIT = 10;
     </div>
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--rq-space-2); margin-bottom: 1rem; }
-    .page-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .form-actions { margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .section { margin-top: 1.5rem; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
@@ -650,6 +617,10 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   // Load failures tracked separately from save/SSE errors so the retryable
   // error state replaces the form only when the initial load fails.
   loadError = signal<string | null>(null);
+  /** #525: the scenario read answered 404 (deleted, or never existed). */
+  notFound = signal(false);
+  readonly editorState = computed<EntityEditorState>(() =>
+    this.notFound() ? 'not-found' : this.loading() ? 'loading' : this.loadError() ? 'error' : 'ready');
   saving = signal(false);
   submitted = signal(false);
   // #276: derived from the service signal rather than snapshotted after the load.
@@ -875,6 +846,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     if (skeleton) {
       this.loading.set(true);
       this.loadError.set(null);
+      this.notFound.set(false);
     }
     try {
       const s = await this.scenarioService.getScenario(this.projectName, this.scenarioId!);
@@ -895,10 +867,13 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
         text: s.text ?? '',
       });
       this.setStepsFromServer(s.steps ?? []);
-    } catch {
+    } catch (e) {
       // A background refresh failure shows a non-blocking message; an initial
-      // load failure shows the retryable error state in place of the form.
-      if (skeleton) {
+      // load failure shows the retryable error state in place of the form, or the
+      // not-found state when the scenario doesn't exist (#525).
+      if (skeleton && isNotFound(e)) {
+        this.notFound.set(true);
+      } else if (skeleton) {
         this.loadError.set('Failed to load scenario.');
       } else {
         this.showError('Failed to load scenario.');
