@@ -20,7 +20,8 @@
  */
 import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { PageHeaderComponent } from '../../shared/page-header';
+import { EntityEditorBodyDirective, EntityEditorComponent, EntityEditorState } from '../../shared/entity-editor';
+import { isNotFound } from '../../core/http-errors';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Location, NgTemplateOutlet } from '@angular/common';
@@ -29,8 +30,6 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
-import { SubmitErrorComponent } from '../../shared/app-submit-error';
-import { UpdateBannerComponent } from '../../shared/app-update-banner';
 import { AnnouncerService } from '../../core/announcer.service';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TableModule } from 'primeng/table';
@@ -52,12 +51,8 @@ import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
-import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { AiReviewButtonComponent } from '../../shared/ai-review-button';
-import { SourcesSectionComponent } from '../../shared/sources-section';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
-import { LoadingStateComponent } from '../../shared/loading-state';
-import { ErrorStateComponent } from '../../shared/error-state';
 import {
   AppFormWizardComponent,
   AppWizardStepComponent,
@@ -82,19 +77,21 @@ const STALE_VERSION_MESSAGE =
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-use-case-editor',
   standalone: true,
-  imports: [TermsUsedComponent, AiReviewButtonComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
-            ButtonModule, InputText, TextareaModule, SubmitErrorComponent, UpdateBannerComponent,
-            ConfirmDialogModule, TableModule, TooltipModule, SelectModule, RelationshipSectionComponent,
-            EntitySelectorDialogComponent, AnnotationsSectionComponent, SourcesSectionComponent,
-            AppFieldComponent, AppFieldControlDirective,
-            AppFormWizardComponent, AppWizardStepComponent,
-            LoadingStateComponent, ErrorStateComponent],
+  imports: [EntityEditorComponent, EntityEditorBodyDirective, TermsUsedComponent, AiReviewButtonComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
+            ButtonModule, InputText, TextareaModule, ConfirmDialogModule, TableModule, TooltipModule, SelectModule, RelationshipSectionComponent,
+            EntitySelectorDialogComponent, AppFieldComponent, AppFieldControlDirective,
+            AppFormWizardComponent, AppWizardStepComponent],
   providers: [ConfirmationService],
   template: `
     <div class="use-case-editor" data-testid="use-case-editor">
-      <div class="page-header">
-        <app-page-header [title]="isNew() ? 'New Use Case' : useCaseName()" />
-        <div class="page-actions">
+      <app-entity-editor [title]="isNew() ? 'New Use Case' : useCaseName()" entityLabel="Use case"
+                         [state]="editorState()" [loadError]="loadError()" [listLink]="['/projects', projectName, 'use-cases']"
+                         [saveError]="errorMessage()" [saveRetryable]="retryable()" saveErrorTestid="use-case-error"
+                         [updateAvailable]="updateAvailable()" updateTestid="use-case-update-banner"
+                         [projectName]="projectName" entityType="UseCase" [entityId]="useCaseId" testid="use-case-editor"
+                         (retryLoad)="retryLoad()" (retrySave)="onSave()" (reloadUpdate)="reloadFromExternalChange()"
+                         (dismissUpdate)="updateAvailable.set(false)" (issueResolved)="onIssueResolved()">
+        <ng-container ngProjectAs="[actions]">
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary"
                     [outlined]="true" (onClick)="onBack()" />
           @if (!isNew()) {
@@ -107,152 +104,128 @@ const STALE_VERSION_MESSAGE =
                         [outlined]="true" (onClick)="onDelete()" />
             }
           }
-        </div>
-      </div>
+        </ng-container>
+        <ng-template rqEditorBody>
+          @if (isNew()) {
+            <!--
+              Create runs as a wizard (#173). Four steps because this editor gates five separate
+              sections; grouping Goals with Stories keeps the count at four without putting six
+              tables on one panel. Step 1 commits EditUseCase, which is what gives every later step
+              the persisted useCaseId its selector needs.
+            -->
+            <app-form-wizard
+              [(activeKey)]="wizardStep"
+              navLabel="New use case steps"
+              (stepCommit)="onStepCommit($event)"
+              (cancelled)="onBack()"
+              (finished)="onWizardFinished()"
+              data-testid="use-case-wizard"
+            >
+              <app-wizard-step key="details" label="Details" helper="Name, actor and description"
+                               [form]="detailsForm">
+                <ng-template>
+                  <ng-container [ngTemplateOutlet]="detailsFields" />
+                </ng-template>
+              </app-wizard-step>
 
-      <app-submit-error [message]="errorMessage()" testid="use-case-error" [retryable]="retryable()" (retry)="onSave()" />
-      @if (updateAvailable()) {
-        <app-update-banner message="This use case was changed elsewhere. Your unsaved changes are preserved."
-                           testid="use-case-update-banner"
-                           (reload)="reloadFromExternalChange()" (dismiss)="updateAvailable.set(false)" />
-      }
+              <app-wizard-step key="scenarios" label="Scenarios" helper="Primary and additional"
+                               [optional]="true">
+                <ng-template>
+                  <ng-container [ngTemplateOutlet]="scenariosSection"
+                                [ngTemplateOutletContext]="{ heading: false }" />
+                </ng-template>
+              </app-wizard-step>
 
-      @if (loading()) {
-        <app-card>
-          <app-loading-state label="Loading use case…" [lines]="4" testid="use-case-editor-loading" />
-        </app-card>
-      } @else if (loadError()) {
-        <app-error-state [message]="loadError()!" testid="use-case-editor-load-error"
-                         (retry)="retryLoad()" />
-      } @else if (isNew()) {
-        <!--
-          Create runs as a wizard (#173). Four steps because this editor gates five separate
-          sections; grouping Goals with Stories keeps the count at four without putting six
-          tables on one panel. Step 1 commits EditUseCase, which is what gives every later step
-          the persisted useCaseId its selector needs.
-        -->
-        <app-form-wizard
-          [(activeKey)]="wizardStep"
-          navLabel="New use case steps"
-          (stepCommit)="onStepCommit($event)"
-          (cancelled)="onBack()"
-          (finished)="onWizardFinished()"
-          data-testid="use-case-wizard"
-        >
-          <app-wizard-step key="details" label="Details" helper="Name, actor and description"
-                           [form]="detailsForm">
-            <ng-template>
+              <app-wizard-step key="goals-stories" label="Goals & Stories" helper="What it satisfies"
+                               [optional]="true">
+                <ng-template>
+                  <ng-container [ngTemplateOutlet]="goalsSection"
+                                [ngTemplateOutletContext]="{ heading: true }" />
+                  <ng-container [ngTemplateOutlet]="storiesSection"
+                                [ngTemplateOutletContext]="{ heading: true }" />
+                </ng-template>
+              </app-wizard-step>
+
+              <app-wizard-step key="actors" label="Actors" helper="Additional actors"
+                               [optional]="true">
+                <ng-template>
+                  <ng-container [ngTemplateOutlet]="actorsSection"
+                                [ngTemplateOutletContext]="{ heading: false }" />
+                </ng-template>
+              </app-wizard-step>
+            </app-form-wizard>
+          } @else {
+            <app-card>
               <ng-container [ngTemplateOutlet]="detailsFields" />
-            </ng-template>
-          </app-wizard-step>
 
-          <app-wizard-step key="scenarios" label="Scenarios" helper="Primary and additional"
-                           [optional]="true">
-            <ng-template>
-              <ng-container [ngTemplateOutlet]="scenariosSection"
-                            [ngTemplateOutletContext]="{ heading: false }" />
-            </ng-template>
-          </app-wizard-step>
+              <div class="form-actions">
+                <p-button label="Save" icon="pi pi-check" data-testid="use-case-save"
+                          [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
+                <!-- #387: beside Save; disabled while there are unsaved changes. -->
+                <app-ai-review-button entityType="UseCase" [entityId]="useCaseId"
+                                      [dirty]="hasUnsavedChanges()" />
+              </div>
+            </app-card>
 
-          <app-wizard-step key="goals-stories" label="Goals & Stories" helper="What it satisfies"
-                           [optional]="true">
-            <ng-template>
-              <ng-container [ngTemplateOutlet]="goalsSection"
-                            [ngTemplateOutletContext]="{ heading: true }" />
-              <ng-container [ngTemplateOutlet]="storiesSection"
-                            [ngTemplateOutletContext]="{ heading: true }" />
-            </ng-template>
-          </app-wizard-step>
+            <ng-container [ngTemplateOutlet]="scenariosSection"
+                          [ngTemplateOutletContext]="{ heading: true }" />
+            <ng-container [ngTemplateOutlet]="goalsSection"
+                          [ngTemplateOutletContext]="{ heading: true }" />
+            <ng-container [ngTemplateOutlet]="storiesSection"
+                          [ngTemplateOutletContext]="{ heading: true }" />
+            <ng-container [ngTemplateOutlet]="actorsSection"
+                          [ngTemplateOutletContext]="{ heading: true }" />
+          }
+        </ng-template>
+        <ng-container ngProjectAs="[after]">
+          <!-- Primary scenario selector (shows only Primary-type scenarios) -->
+          <app-entity-selector-dialog
+            [visible]="showPrimaryScenarioSelector"
+            [projectName]="projectName"
+            entityType="Scenario"
+            [excludeIds]="primaryScenarioExcludeIds()"
+            [includeTypes]="['Primary']"
+            (selected)="selectPrimaryScenario($event)"
+            (closed)="showPrimaryScenarioSelector = false" />
 
-          <app-wizard-step key="actors" label="Actors" helper="Additional actors"
-                           [optional]="true">
-            <ng-template>
-              <ng-container [ngTemplateOutlet]="actorsSection"
-                            [ngTemplateOutletContext]="{ heading: false }" />
-            </ng-template>
-          </app-wizard-step>
-        </app-form-wizard>
-      } @else {
-        <app-card>
-          <ng-container [ngTemplateOutlet]="detailsFields" />
+          <!-- Additional scenario selector (excludes Primary-type and already-added scenarios) -->
+          <app-entity-selector-dialog
+            [visible]="showScenarioSelector"
+            [projectName]="projectName"
+            entityType="Scenario"
+            [excludeIds]="additionalScenarioIds()"
+            [excludeTypes]="['Primary']"
+            (selected)="addScenario($event)"
+            (closed)="showScenarioSelector = false" />
 
-          <div class="form-actions">
-            <p-button label="Save" icon="pi pi-check" data-testid="use-case-save"
-                      [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
-            <!-- #387: beside Save; disabled while there are unsaved changes. -->
-            <app-ai-review-button entityType="UseCase" [entityId]="useCaseId"
-                                  [dirty]="hasUnsavedChanges()" />
-          </div>
-        </app-card>
+          <!-- Entity selector dialogs -->
+          <app-entity-selector-dialog
+            [visible]="showGoalSelector"
+            [projectName]="projectName"
+            entityType="Goal"
+            [excludeIds]="goalIds()"
+            (selected)="addGoal($event)"
+            (closed)="showGoalSelector = false" />
 
-        <ng-container [ngTemplateOutlet]="scenariosSection"
-                      [ngTemplateOutletContext]="{ heading: true }" />
-        <ng-container [ngTemplateOutlet]="goalsSection"
-                      [ngTemplateOutletContext]="{ heading: true }" />
-        <ng-container [ngTemplateOutlet]="storiesSection"
-                      [ngTemplateOutletContext]="{ heading: true }" />
-        <ng-container [ngTemplateOutlet]="actorsSection"
-                      [ngTemplateOutletContext]="{ heading: true }" />
-      }
+          <app-entity-selector-dialog
+            [visible]="showStorySelector"
+            [projectName]="projectName"
+            entityType="Story"
+            [excludeIds]="storyIds()"
+            (selected)="addStory($event)"
+            (closed)="showStorySelector = false" />
 
-      <!-- Primary scenario selector (shows only Primary-type scenarios) -->
-      <app-entity-selector-dialog
-        [visible]="showPrimaryScenarioSelector"
-        [projectName]="projectName"
-        entityType="Scenario"
-        [excludeIds]="primaryScenarioExcludeIds()"
-        [includeTypes]="['Primary']"
-        (selected)="selectPrimaryScenario($event)"
-        (closed)="showPrimaryScenarioSelector = false" />
+          <app-entity-selector-dialog
+            [visible]="showActorSelector"
+            [projectName]="projectName"
+            entityType="Actor"
+            [excludeIds]="actorIds()"
+            (selected)="addActorToList($event)"
+            (closed)="showActorSelector = false" />
 
-      <!-- Additional scenario selector (excludes Primary-type and already-added scenarios) -->
-      <app-entity-selector-dialog
-        [visible]="showScenarioSelector"
-        [projectName]="projectName"
-        entityType="Scenario"
-        [excludeIds]="additionalScenarioIds()"
-        [excludeTypes]="['Primary']"
-        (selected)="addScenario($event)"
-        (closed)="showScenarioSelector = false" />
-
-      <!-- Entity selector dialogs -->
-      <app-entity-selector-dialog
-        [visible]="showGoalSelector"
-        [projectName]="projectName"
-        entityType="Goal"
-        [excludeIds]="goalIds()"
-        (selected)="addGoal($event)"
-        (closed)="showGoalSelector = false" />
-
-      <app-entity-selector-dialog
-        [visible]="showStorySelector"
-        [projectName]="projectName"
-        entityType="Story"
-        [excludeIds]="storyIds()"
-        (selected)="addStory($event)"
-        (closed)="showStorySelector = false" />
-
-      <app-entity-selector-dialog
-        [visible]="showActorSelector"
-        [projectName]="projectName"
-        entityType="Actor"
-        [excludeIds]="actorIds()"
-        (selected)="addActorToList($event)"
-        (closed)="showActorSelector = false" />
-
-      <app-annotations-section
-          (resolved)="onIssueResolved()"
-        [projectName]="projectName"
-        entityType="UseCase"
-        [entityId]="useCaseId"
-        />
-        <app-sources-section
-          [projectName]="projectName"
-          entityType="UseCase"
-          [entityId]="useCaseId"
-          />
-
-      <p-confirmDialog />
+          <p-confirmDialog />
+        </ng-container>
+      </app-entity-editor>
 
       <!--
         Shared bodies, used by both the wizard steps and the edit view so the two cannot drift.
@@ -428,8 +401,6 @@ const STALE_VERSION_MESSAGE =
     </div>
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--rq-space-2); margin-bottom: 1rem; }
-    .page-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .form-grid { display: grid; grid-template-columns: 130px 1fr; gap: 0.75rem 1rem; align-items: start; max-width: 700px; }
     .form-actions { margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .section { margin-top: 1.5rem; }
@@ -470,6 +441,10 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
    */
   loading = signal(true);
   loadError = signal<string | null>(null);
+  /** #525: the use case read answered 404 (deleted, or never existed). */
+  notFound = signal(false);
+  readonly editorState = computed<EntityEditorState>(() =>
+    this.notFound() ? 'not-found' : this.loading() ? 'loading' : this.loadError() ? 'error' : 'ready');
   saving = signal(false);
   // #276: derived from the service signal rather than snapshotted after the load.
   canEdit = computed(() => this.permissionService.canEdit('UseCase'));
@@ -662,6 +637,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     if (skeleton) {
       this.loading.set(true);
       this.loadError.set(null);
+      this.notFound.set(false);
     }
     try {
       const uc = await this.useCaseService.getUseCase(this.projectName, this.useCaseId!);
@@ -686,8 +662,10 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       } else {
         this.primaryScenario.set(null);
       }
-    } catch {
-      if (skeleton) {
+    } catch (e) {
+      if (skeleton && isNotFound(e)) {
+        this.notFound.set(true);
+      } else if (skeleton) {
         this.loadError.set('Failed to load use case.');
       } else {
         this.showError('Failed to load use case.');

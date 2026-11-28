@@ -21,7 +21,8 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal, ViewChild, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgTemplateOutlet } from '@angular/common';
-import { PageHeaderComponent } from '../../shared/page-header';
+import { EntityEditorBodyDirective, EntityEditorComponent, EntityEditorState } from '../../shared/entity-editor';
+import { isNotFound } from '../../core/http-errors';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
@@ -30,8 +31,6 @@ import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
-import { SubmitErrorComponent } from '../../shared/app-submit-error';
-import { UpdateBannerComponent } from '../../shared/app-update-banner';
 import { AnnouncerService } from '../../core/announcer.service';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -46,12 +45,8 @@ import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
-import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { AiReviewButtonComponent } from '../../shared/ai-review-button';
-import { SourcesSectionComponent } from '../../shared/sources-section';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
-import { LoadingStateComponent } from '../../shared/loading-state';
-import { ErrorStateComponent } from '../../shared/error-state';
 import {
   AppFormWizardComponent,
   AppWizardStepComponent,
@@ -69,19 +64,23 @@ const STALE_VERSION_MESSAGE =
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-story-editor',
   standalone: true,
-  imports: [TermsUsedComponent, AiReviewButtonComponent, PageHeaderComponent, AppCardComponent, RouterLink, ReactiveFormsModule, NgTemplateOutlet,
+  imports: [EntityEditorComponent, EntityEditorBodyDirective, TermsUsedComponent, AiReviewButtonComponent, AppCardComponent, RouterLink, ReactiveFormsModule, NgTemplateOutlet,
             ButtonModule, InputText, TextareaModule, SelectModule,
-            SubmitErrorComponent, UpdateBannerComponent, ConfirmDialogModule, EntitySelectorDialogComponent,
+            ConfirmDialogModule, EntitySelectorDialogComponent,
             RelationshipSectionComponent,
-            AnnotationsSectionComponent, SourcesSectionComponent, AppFieldComponent, AppFieldControlDirective,
-            AppFormWizardComponent, AppWizardStepComponent,
-            LoadingStateComponent, ErrorStateComponent],
+            AppFieldComponent, AppFieldControlDirective,
+            AppFormWizardComponent, AppWizardStepComponent],
   providers: [ConfirmationService],
   template: `
     <div class="story-editor" data-testid="story-editor">
-      <div class="page-header">
-        <app-page-header [title]="isNew() ? 'New Story' : storyName()" />
-        <div class="page-actions">
+      <app-entity-editor [title]="isNew() ? 'New Story' : storyName()" entityLabel="Story"
+                         [state]="editorState()" [loadError]="loadError()" [listLink]="['/projects', projectName, 'stories']"
+                         [saveError]="errorMessage()" [saveRetryable]="retryable()" saveErrorTestid="story-editor-error"
+                         [updateAvailable]="updateAvailable()" updateTestid="story-update-banner"
+                         [projectName]="projectName" entityType="Story" [entityId]="storyId" testid="story-editor"
+                         (retryLoad)="retryLoad()" (retrySave)="onSave()" (reloadUpdate)="reloadFromExternalChange()"
+                         (dismissUpdate)="updateAvailable.set(false)" (issueResolved)="onIssueResolved()">
+        <ng-container ngProjectAs="[actions]">
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary"
                     data-testid="story-back"
                     [outlined]="true" (onClick)="onBack()" />
@@ -97,125 +96,95 @@ const STALE_VERSION_MESSAGE =
                         [outlined]="true" (onClick)="onDelete()" />
             }
           }
-        </div>
-      </div>
+        </ng-container>
+        <ng-template rqEditorBody>
+          @if (isNew()) {
+            <!--
+              Create runs as a wizard so Goals and Additional Actors are reachable before
+              the first save. Step 1 commits EditStory on Continue, which is what gives the
+              later steps the persisted storyId their association commands need.
+            -->
+            <app-form-wizard
+              [(activeKey)]="wizardStep"
+              navLabel="New story steps"
+              (stepCommit)="onStepCommit($event)"
+              (cancelled)="onBack()"
+              (finished)="onWizardFinished()"
+              data-testid="story-wizard"
+            >
+              <app-wizard-step key="details" label="Details" helper="Name, type and text"
+                               [form]="detailsForm">
+                <ng-template>
+                  <ng-container [ngTemplateOutlet]="detailsFields" />
+                </ng-template>
+              </app-wizard-step>
 
-      <app-submit-error [message]="errorMessage()" testid="story-editor-error" [retryable]="retryable()" (retry)="onSave()" />
-      @if (updateAvailable()) {
-        <app-update-banner message="This story was changed elsewhere. Your unsaved changes are preserved."
-                           testid="story-update-banner"
-                           (reload)="reloadFromExternalChange()" (dismiss)="updateAvailable.set(false)" />
-      }
+              <app-wizard-step key="goals" label="Goals" helper="Goals this story serves"
+                               [optional]="true">
+                <ng-template>
+                  <ng-container [ngTemplateOutlet]="goalsSection"
+                                [ngTemplateOutletContext]="{ heading: false }" />
+                </ng-template>
+              </app-wizard-step>
 
-      @if (loading()) {
-        <app-card>
-          <app-loading-state label="Loading story…" [lines]="4" testid="story-editor-loading" />
-        </app-card>
-      } @else if (loadError()) {
-        <app-error-state [message]="loadError()!" testid="story-editor-load-error"
-                         (retry)="retryLoad()" />
-      } @else if (isNew()) {
-        <!--
-          Create runs as a wizard so Goals and Additional Actors are reachable before
-          the first save. Step 1 commits EditStory on Continue, which is what gives the
-          later steps the persisted storyId their association commands need.
-        -->
-        <app-form-wizard
-          [(activeKey)]="wizardStep"
-          navLabel="New story steps"
-          (stepCommit)="onStepCommit($event)"
-          (cancelled)="onBack()"
-          (finished)="onWizardFinished()"
-          data-testid="story-wizard"
-        >
-          <app-wizard-step key="details" label="Details" helper="Name, type and text"
-                           [form]="detailsForm">
-            <ng-template>
+              <app-wizard-step key="actors" label="Additional Actors"
+                               helper="Actors beyond the primary" [optional]="true">
+                <ng-template>
+                  <ng-container [ngTemplateOutlet]="actorsSection"
+                                [ngTemplateOutletContext]="{ heading: false }" />
+                </ng-template>
+              </app-wizard-step>
+            </app-form-wizard>
+          } @else {
+            <app-card>
               <ng-container [ngTemplateOutlet]="detailsFields" />
-            </ng-template>
-          </app-wizard-step>
 
-          <app-wizard-step key="goals" label="Goals" helper="Goals this story serves"
-                           [optional]="true">
-            <ng-template>
-              <ng-container [ngTemplateOutlet]="goalsSection"
-                            [ngTemplateOutletContext]="{ heading: false }" />
-            </ng-template>
-          </app-wizard-step>
+              <div class="form-actions">
+                <p-button label="Save" icon="pi pi-check" data-testid="story-save"
+                          [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
+                <!-- #387: beside Save; disabled while there are unsaved changes. -->
+                <app-ai-review-button entityType="Story" [entityId]="storyId"
+                                      [dirty]="hasUnsavedChanges()" />
+              </div>
+            </app-card>
 
-          <app-wizard-step key="actors" label="Additional Actors"
-                           helper="Actors beyond the primary" [optional]="true">
-            <ng-template>
-              <ng-container [ngTemplateOutlet]="actorsSection"
-                            [ngTemplateOutletContext]="{ heading: false }" />
-            </ng-template>
-          </app-wizard-step>
-        </app-form-wizard>
-      } @else {
-        <app-card>
-          <ng-container [ngTemplateOutlet]="detailsFields" />
-
-          <div class="form-actions">
-            <p-button label="Save" icon="pi pi-check" data-testid="story-save"
-                      [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
-            <!-- #387: beside Save; disabled while there are unsaved changes. -->
-            <app-ai-review-button entityType="Story" [entityId]="storyId"
-                                  [dirty]="hasUnsavedChanges()" />
-          </div>
-        </app-card>
-
-        <ng-container [ngTemplateOutlet]="goalsSection"
-                      [ngTemplateOutletContext]="{ heading: true }" />
-        <ng-container [ngTemplateOutlet]="actorsSection"
-                      [ngTemplateOutletContext]="{ heading: true }" />
-        <ng-container [ngTemplateOutlet]="referencedBySection"
-                      [ngTemplateOutletContext]="{ heading: true }" />
-      }
-
-      <app-entity-selector-dialog
-        [visible]="showGoalSelector"
-        [projectName]="projectName"
-        entityType="Goal"
-        [excludeIds]="existingGoalIds()"
-        (selected)="onGoalSelected($event)"
-        (closed)="showGoalSelector = false" />
-
-      <app-entity-selector-dialog
-        [visible]="showActorSelector"
-        [projectName]="projectName"
-        entityType="Actor"
-        [excludeIds]="existingActorIds()"
-        (selected)="onActorSelected($event)"
-        (closed)="showActorSelector = false" />
-
-      <app-entity-selector-dialog
-        [visible]="showReferrerSelector"
-        [projectName]="projectName"
-        entityType="UseCase"
-        title="Add to Use Case"
-        [excludeIds]="existingReferrerIds()"
-        (selected)="onReferrerSelected($event)"
-        (closed)="showReferrerSelector = false" />
-
-      <!--
-        Annotations render against a persisted entity, so they stay outside the wizard
-        and appear once the story exists rather than as a dead panel during create.
-      -->
-      @if (storyId != null) {
-        <app-annotations-section
-          (resolved)="onIssueResolved()"
-          [projectName]="projectName"
-          entityType="Story"
-          [entityId]="storyId"
-          />
-          <app-sources-section
+            <ng-container [ngTemplateOutlet]="goalsSection"
+                          [ngTemplateOutletContext]="{ heading: true }" />
+            <ng-container [ngTemplateOutlet]="actorsSection"
+                          [ngTemplateOutletContext]="{ heading: true }" />
+            <ng-container [ngTemplateOutlet]="referencedBySection"
+                          [ngTemplateOutletContext]="{ heading: true }" />
+          }
+        </ng-template>
+        <ng-container ngProjectAs="[after]">
+          <app-entity-selector-dialog
+            [visible]="showGoalSelector"
             [projectName]="projectName"
-            entityType="Story"
-            [entityId]="storyId"
-            />
-      }
+            entityType="Goal"
+            [excludeIds]="existingGoalIds()"
+            (selected)="onGoalSelected($event)"
+            (closed)="showGoalSelector = false" />
 
-      <p-confirmDialog />
+          <app-entity-selector-dialog
+            [visible]="showActorSelector"
+            [projectName]="projectName"
+            entityType="Actor"
+            [excludeIds]="existingActorIds()"
+            (selected)="onActorSelected($event)"
+            (closed)="showActorSelector = false" />
+
+          <app-entity-selector-dialog
+            [visible]="showReferrerSelector"
+            [projectName]="projectName"
+            entityType="UseCase"
+            title="Add to Use Case"
+            [excludeIds]="existingReferrerIds()"
+            (selected)="onReferrerSelected($event)"
+            (closed)="showReferrerSelector = false" />
+
+          <p-confirmDialog />
+        </ng-container>
+      </app-entity-editor>
 
       <!--
         Shared bodies, used by both the wizard step and the edit view so the two modes
@@ -329,8 +298,6 @@ const STALE_VERSION_MESSAGE =
     </div>
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--rq-space-2); margin-bottom: 1rem; }
-    .page-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .form-actions { margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .section { margin-top: 1.5rem; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; gap: 0.5rem; }
@@ -365,6 +332,10 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
    */
   loading = signal(true);
   loadError = signal<string | null>(null);
+  /** #525: the story read answered 404 (deleted, or never existed). */
+  notFound = signal(false);
+  readonly editorState = computed<EntityEditorState>(() =>
+    this.notFound() ? 'not-found' : this.loading() ? 'loading' : this.loadError() ? 'error' : 'ready');
   saving = signal(false);
   // #276: derived from the service signal rather than snapshotted after the load.
   canEdit = computed(() => this.permissionService.canEdit('Story'));
@@ -540,6 +511,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     if (skeleton) {
       this.loading.set(true);
       this.loadError.set(null);
+      this.notFound.set(false);
     }
     try {
       const s = await this.storyService.getStory(this.projectName, this.storyId!);
@@ -556,8 +528,10 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
           text: s.text,
         });
       }
-    } catch {
-      if (skeleton) {
+    } catch (e) {
+      if (skeleton && isNotFound(e)) {
+        this.notFound.set(true);
+      } else if (skeleton) {
         this.loadError.set('Failed to load story.');
       } else {
         this.showError('Failed to load story.');

@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angular/router';
@@ -209,6 +210,24 @@ describe('TermEditorComponent', () => {
 
       expect(el().querySelector('[data-testid="term-editor-load-error"]')).toBeNull();
       expect(comp.form.controls.name.value).toBe('Goal');
+    });
+
+    it('shows the not-found state, with no actions or sections, when the term read answers 404 (#525)', async () => {
+      termServiceMock.getTerm.mockRejectedValueOnce(new HttpErrorResponse({ status: 404 }));
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', termId: '999' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="term-editor-not-found"]')).not.toBeNull();
+      expect(el().querySelector('h1')!.textContent).toContain('Glossary term not found');
+      expect(el().querySelector('[data-testid="term-editor-load-error"]')).toBeNull();
+      expect(el().querySelector('[data-testid="term-back"]')).toBeNull();
+      expect(el().querySelector('[data-testid="term-delete"]')).toBeNull();
+      expect(el().querySelector('app-annotations-section')).toBeNull();
+      expect(el().querySelector('app-sources-section')).toBeNull();
+      expect(el().querySelector('input#name')).toBeNull();
     });
 
     // An SSE refresh passes skeleton=false. Blanking the form under a user who is reading it

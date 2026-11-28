@@ -1,9 +1,11 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BehaviorSubject, EMPTY } from 'rxjs';
 import { MessageService } from 'primeng/api';
 import { Component, DebugElement, Input } from '@angular/core';
+import { EntityEditorComponent } from '../../shared/entity-editor';
 import { StepEditorComponent } from './step-editor';
 import { ScenarioService } from '../../core/scenario.service';
 import { CommandService } from '../../core/command.service';
@@ -63,7 +65,8 @@ describe('StepEditorComponent (#476)', () => {
         { provide: ActorService, useValue: { listActors: vi.fn().mockResolvedValue([{ id: 1, name: 'Clerk' }, { id: 2, name: 'Member' }]) } },
       ],
     });
-    TestBed.overrideComponent(StepEditorComponent, {
+    // #525: the sections are rendered by the shared editor shell, so the stubs go there.
+    TestBed.overrideComponent(EntityEditorComponent, {
       remove: { imports: [AnnotationsSectionComponent, SourcesSectionComponent] },
       add: { imports: [AnnotationsStub, SourcesStub] },
     });
@@ -214,8 +217,22 @@ describe('StepEditorComponent (#476)', () => {
 
   it('shows the error state when the step cannot be loaded', async () => {
     setUp();
-    scenarioService.getStep.mockRejectedValue(new Error('404'));
+    scenarioService.getStep.mockRejectedValue(new Error('boom'));
     const el = await load();
     expect(el.querySelector('[data-testid="step-editor-load-error"]')).not.toBeNull();
+  });
+
+  it('shows the not-found state, with no actions or sections, when the step read answers 404 (#525)', async () => {
+    setUp();
+    scenarioService.getStep.mockRejectedValue(new HttpErrorResponse({ status: 404 }));
+    const el = await load();
+    expect(el.querySelector('[data-testid="step-editor-not-found"]')).not.toBeNull();
+    expect(el.querySelector('h1')!.textContent).toContain('Step not found');
+    expect(el.querySelector('[data-testid="step-editor-load-error"]')).toBeNull();
+    expect(el.querySelector('[data-testid="step-back"]')).toBeNull();
+    expect(el.querySelector('app-annotations-section')).toBeNull();
+    expect(el.querySelector('app-sources-section')).toBeNull();
+    const link = el.querySelector('[data-testid="step-editor-not-found-list"]')!;
+    expect(link.getAttribute('href')).toBe('/projects/proj1/steps');
   });
 });

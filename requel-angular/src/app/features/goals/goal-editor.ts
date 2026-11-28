@@ -21,16 +21,15 @@
 import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgTemplateOutlet } from '@angular/common';
-import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { EntityEditorBodyDirective, EntityEditorComponent, EntityEditorState } from '../../shared/entity-editor';
+import { isNotFound } from '../../core/http-errors';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
-import { SubmitErrorComponent } from '../../shared/app-submit-error';
-import { UpdateBannerComponent } from '../../shared/app-update-banner';
 import { AnnouncerService } from '../../core/announcer.service';
 import { DialogModule } from 'primeng/dialog';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
@@ -45,14 +44,10 @@ import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
-import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { AiReviewButtonComponent } from '../../shared/ai-review-button';
-import { SourcesSectionComponent } from '../../shared/sources-section';
 import { TagSelectorComponent } from '../../shared/tag-selector';
 import { AppCardComponent } from '../../shared/app-card';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
-import { LoadingStateComponent } from '../../shared/loading-state';
-import { ErrorStateComponent } from '../../shared/error-state';
 import {
   AppFormWizardComponent,
   AppWizardStepComponent,
@@ -70,19 +65,23 @@ const STALE_VERSION_MESSAGE =
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-goal-editor',
   standalone: true,
-  imports: [TermsUsedComponent, AiReviewButtonComponent, PageHeaderComponent, RouterLink, FormsModule, ReactiveFormsModule, NgTemplateOutlet,
+  imports: [EntityEditorComponent, EntityEditorBodyDirective, TermsUsedComponent, AiReviewButtonComponent, RouterLink, FormsModule, ReactiveFormsModule, NgTemplateOutlet,
             ButtonModule, InputText, TextareaModule, SelectModule,
-            SubmitErrorComponent, DialogModule, ConfirmDialogModule, EntitySelectorDialogComponent,
+            DialogModule, ConfirmDialogModule, EntitySelectorDialogComponent,
             RelationshipSectionComponent,
-            AnnotationsSectionComponent, SourcesSectionComponent, TagSelectorComponent, AppCardComponent, AppFieldComponent,
-            AppFieldControlDirective, AppFormWizardComponent, AppWizardStepComponent,
-            LoadingStateComponent, ErrorStateComponent, UpdateBannerComponent],
+            TagSelectorComponent, AppCardComponent, AppFieldComponent,
+            AppFieldControlDirective, AppFormWizardComponent, AppWizardStepComponent],
   providers: [ConfirmationService],
   template: `
     <div class="goal-editor" data-testid="goal-editor">
-      <div class="page-header">
-        <app-page-header [title]="isNew() ? 'New Goal' : goalName()" />
-        <div class="page-actions">
+      <app-entity-editor [title]="isNew() ? 'New Goal' : goalName()" entityLabel="Goal"
+                         [state]="editorState()" [loadError]="loadError()" [listLink]="['/projects', projectName, 'goals']"
+                         [saveError]="errorMessage()" [saveRetryable]="retryable()" saveErrorTestid="goal-editor-error"
+                         [updateAvailable]="updateAvailable()" updateTestid="goal-update-banner"
+                         [projectName]="projectName" entityType="Goal" [entityId]="goalId" testid="goal-editor"
+                         (retryLoad)="retryLoad()" (retrySave)="onSave()" (reloadUpdate)="reloadFromExternalChange()"
+                         (dismissUpdate)="updateAvailable.set(false)" (issueResolved)="onIssueResolved()">
+        <ng-container ngProjectAs="[actions]">
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="goal-back"
                     [outlined]="true" (onClick)="onBack()" />
           @if (!isNew()) {
@@ -95,158 +94,128 @@ const STALE_VERSION_MESSAGE =
                         [outlined]="true" (onClick)="onDelete()" />
             }
           }
-        </div>
-      </div>
+        </ng-container>
+        <ng-template rqEditorBody>
+          @if (isNew()) {
+            <!--
+              Create runs as a wizard so Tags and Relations are reachable before the first
+              save. Step 1 commits EditGoal on Continue, which is what gives steps 2 and 3
+              the persisted goalId they need.
+            -->
+            <app-form-wizard
+              [(activeKey)]="wizardStep"
+              navLabel="New goal steps"
+              (stepCommit)="onStepCommit($event)"
+              (cancelled)="onBack()"
+              (finished)="onWizardFinished()"
+              data-testid="goal-wizard"
+            >
+              <app-wizard-step key="details" label="Details" helper="Name and description"
+                               [form]="detailsForm">
+                <ng-template>
+                  <ng-container [ngTemplateOutlet]="detailsFields" />
+                </ng-template>
+              </app-wizard-step>
 
-      <app-submit-error [message]="errorMessage()" testid="goal-editor-error" [retryable]="retryable()" (retry)="onSave()" />
-      @if (updateAvailable()) {
-        <app-update-banner message="This goal was changed elsewhere. Your unsaved changes are preserved."
-                           testid="goal-update-banner"
-                           (reload)="reloadFromExternalChange()" (dismiss)="updateAvailable.set(false)" />
-      }
+              <app-wizard-step key="tags" label="Tags" helper="Categorise this goal" [optional]="true">
+                <ng-template>
+                  <ng-container [ngTemplateOutlet]="tagsSection" />
+                </ng-template>
+              </app-wizard-step>
 
-      @if (loading()) {
-        <app-card>
-          <app-loading-state label="Loading goal…" [lines]="4" testid="goal-editor-loading" />
-        </app-card>
-      } @else if (loadError()) {
-        <app-error-state [message]="loadError()!" testid="goal-editor-load-error"
-                         (retry)="retryLoad()" />
-      } @else if (isNew()) {
-        <!--
-          Create runs as a wizard so Tags and Relations are reachable before the first
-          save. Step 1 commits EditGoal on Continue, which is what gives steps 2 and 3
-          the persisted goalId they need.
-        -->
-        <app-form-wizard
-          [(activeKey)]="wizardStep"
-          navLabel="New goal steps"
-          (stepCommit)="onStepCommit($event)"
-          (cancelled)="onBack()"
-          (finished)="onWizardFinished()"
-          data-testid="goal-wizard"
-        >
-          <app-wizard-step key="details" label="Details" helper="Name and description"
-                           [form]="detailsForm">
-            <ng-template>
+              <app-wizard-step key="relations" label="Relations" helper="Link to other goals"
+                               [optional]="true">
+                <ng-template>
+                  <!-- heading: false — the wizard panel's own h2 already reads "Relations". -->
+                  <ng-container [ngTemplateOutlet]="relationsSection"
+                                [ngTemplateOutletContext]="{ heading: false }" />
+                </ng-template>
+              </app-wizard-step>
+            </app-form-wizard>
+          } @else {
+            <app-card>
               <ng-container [ngTemplateOutlet]="detailsFields" />
-            </ng-template>
-          </app-wizard-step>
 
-          <app-wizard-step key="tags" label="Tags" helper="Categorise this goal" [optional]="true">
-            <ng-template>
-              <ng-container [ngTemplateOutlet]="tagsSection" />
-            </ng-template>
-          </app-wizard-step>
+              <div class="form-actions">
+                <p-button label="Save" icon="pi pi-check" data-testid="goal-save"
+                          [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
+                <!-- #387: beside Save; disabled while there are unsaved changes. -->
+                <app-ai-review-button entityType="Goal" [entityId]="goalId"
+                                      [dirty]="hasUnsavedChanges()" />
+              </div>
+            </app-card>
 
-          <app-wizard-step key="relations" label="Relations" helper="Link to other goals"
-                           [optional]="true">
-            <ng-template>
-              <!-- heading: false — the wizard panel's own h2 already reads "Relations". -->
-              <ng-container [ngTemplateOutlet]="relationsSection"
-                            [ngTemplateOutletContext]="{ heading: false }" />
-            </ng-template>
-          </app-wizard-step>
-        </app-form-wizard>
-      } @else {
-        <app-card>
-          <ng-container [ngTemplateOutlet]="detailsFields" />
+            <ng-container [ngTemplateOutlet]="relationsSection"
+                          [ngTemplateOutletContext]="{ heading: true }" />
 
-          <div class="form-actions">
-            <p-button label="Save" icon="pi pi-check" data-testid="goal-save"
-                      [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
-            <!-- #387: beside Save; disabled while there are unsaved changes. -->
-            <app-ai-review-button entityType="Goal" [entityId]="goalId"
-                                  [dirty]="hasUnsavedChanges()" />
-          </div>
-        </app-card>
+            <app-relationship-section #goalReferencedBySection
+              title="Referenced By" [colWidths]="relColWidths"
+              description="Actors, stakeholders, stories and use cases that reference this goal."
+              [items]="goal()?.referencedBy ?? []" [headers]="['Name', 'Type']"
+              [canAdd]="canEdit() && goalId != null"
+              addLabel="Add Reference" addTestid="goal-add-referrer"
+              removeTestid="goal-remove-referrer" rowTestid="goal-referrer-row" testid="goal-referenced-by"
+              emptyText="Not referenced by anything yet."
+              unsavedHint="Save the goal's details first to add references."
+              [removeAriaLabel]="referrerRemoveAria" [trackBy]="refTrackBy"
+              (add)="showReferrerSelector = true" (remove)="onRemoveReferrer($event)">
+              <ng-template #row let-r>
+                <td>
+                  @if (referrerLink(r); as link) {
+                    <a class="entity-link" data-testid="goal-referrer-link" [routerLink]="link">{{ r.name }}</a>
+                  } @else {
+                    {{ r.name }}
+                  }
+                </td>
+                <td>{{ r.entityType }}</td>
+              </ng-template>
+            </app-relationship-section>
 
-        <ng-container [ngTemplateOutlet]="relationsSection"
-                      [ngTemplateOutletContext]="{ heading: true }" />
-
-        <app-relationship-section #goalReferencedBySection
-          title="Referenced By" [colWidths]="relColWidths"
-          description="Actors, stakeholders, stories and use cases that reference this goal."
-          [items]="goal()?.referencedBy ?? []" [headers]="['Name', 'Type']"
-          [canAdd]="canEdit() && goalId != null"
-          addLabel="Add Reference" addTestid="goal-add-referrer"
-          removeTestid="goal-remove-referrer" rowTestid="goal-referrer-row" testid="goal-referenced-by"
-          emptyText="Not referenced by anything yet."
-          unsavedHint="Save the goal's details first to add references."
-          [removeAriaLabel]="referrerRemoveAria" [trackBy]="refTrackBy"
-          (add)="showReferrerSelector = true" (remove)="onRemoveReferrer($event)">
-          <ng-template #row let-r>
-            <td>
-              @if (referrerLink(r); as link) {
-                <a class="entity-link" data-testid="goal-referrer-link" [routerLink]="link">{{ r.name }}</a>
-              } @else {
-                {{ r.name }}
-              }
-            </td>
-            <td>{{ r.entityType }}</td>
-          </ng-template>
-        </app-relationship-section>
-
-        <ng-container [ngTemplateOutlet]="tagsSection" />
-      }
-
-      <!--
-        Annotations render against a persisted entity, so they stay outside the wizard
-        and appear once the goal exists rather than as a dead panel during create.
-      -->
-      @if (goalId != null) {
-        <app-annotations-section
-          (resolved)="onIssueResolved()"
-          [projectName]="projectName"
-          entityType="Goal"
-          [entityId]="goalId"
-          />
-          <app-sources-section
+            <ng-container [ngTemplateOutlet]="tagsSection" />
+          }
+        </ng-template>
+        <ng-container ngProjectAs="[after]">
+          <!-- Add Relation Dialog -->
+          <app-entity-selector-dialog
+            [visible]="showRelationSelector"
             [projectName]="projectName"
             entityType="Goal"
-            [entityId]="goalId"
-            />
-      }
+            [excludeIds]="excludeGoalIds()"
+            (selected)="onRelationGoalSelected($event)"
+            (closed)="showRelationSelector = false" />
 
-      <!-- Add Relation Dialog -->
-      <app-entity-selector-dialog
-        [visible]="showRelationSelector"
-        [projectName]="projectName"
-        entityType="Goal"
-        [excludeIds]="excludeGoalIds()"
-        (selected)="onRelationGoalSelected($event)"
-        (closed)="showRelationSelector = false" />
+          <!-- Add Reference (reverse-association) Dialog -->
+          <app-entity-selector-dialog
+            [visible]="showReferrerSelector"
+            [projectName]="projectName"
+            [entityTypes]="goalReferrerTypes"
+            title="Add Reference"
+            [excludeIds]="existingReferrerIds()"
+            (selected)="onReferrerSelected($event)"
+            (closed)="showReferrerSelector = false" />
 
-      <!-- Add Reference (reverse-association) Dialog -->
-      <app-entity-selector-dialog
-        [visible]="showReferrerSelector"
-        [projectName]="projectName"
-        [entityTypes]="goalReferrerTypes"
-        title="Add Reference"
-        [excludeIds]="existingReferrerIds()"
-        (selected)="onReferrerSelected($event)"
-        (closed)="showReferrerSelector = false" />
+          <!-- Relation Type Dialog -->
+          <p-dialog [visible]="relationDialogVisible()" (visibleChange)="relationDialogVisible.set($event)"
+                    (onHide)="onRelationDialogHide()" [modal]="true" [focusOnShow]="true" [dismissableMask]="true"
+                    closeAriaLabel="Close" [style]="{ width: '25rem' }" appendTo="body" [header]="relationDialogHeader()"
+                    data-testid="goal-relation-type-dialog">
+            <div class="dialog-body">
+              <p-select [(ngModel)]="newRelationType" data-testid="goal-relation-type-select" [options]="relationTypeOptions()"
+                        placeholder="Select relation type" appendTo="body" ariaLabel="Relation type" />
+              <p class="relation-type-description" data-testid="goal-relation-type-description">
+                {{ relationTypeDescription(newRelationType) }}
+              </p>
+              <div class="dialog-actions">
+                <p-button label="Add" icon="pi pi-check" data-testid="goal-relation-add" (onClick)="onConfirmRelation()" />
+                <p-button label="Cancel" severity="secondary" [outlined]="true"
+                          (onClick)="relationDialogVisible.set(false)" />
+              </div>
+            </div>
+          </p-dialog>
 
-      <!-- Relation Type Dialog -->
-      <p-dialog [visible]="relationDialogVisible()" (visibleChange)="relationDialogVisible.set($event)"
-                (onHide)="onRelationDialogHide()" [modal]="true" [focusOnShow]="true" [dismissableMask]="true"
-                closeAriaLabel="Close" [style]="{ width: '25rem' }" appendTo="body" [header]="relationDialogHeader()"
-                data-testid="goal-relation-type-dialog">
-        <div class="dialog-body">
-          <p-select [(ngModel)]="newRelationType" data-testid="goal-relation-type-select" [options]="relationTypeOptions()"
-                    placeholder="Select relation type" appendTo="body" ariaLabel="Relation type" />
-          <p class="relation-type-description" data-testid="goal-relation-type-description">
-            {{ relationTypeDescription(newRelationType) }}
-          </p>
-          <div class="dialog-actions">
-            <p-button label="Add" icon="pi pi-check" data-testid="goal-relation-add" (onClick)="onConfirmRelation()" />
-            <p-button label="Cancel" severity="secondary" [outlined]="true"
-                      (onClick)="relationDialogVisible.set(false)" />
-          </div>
-        </div>
-      </p-dialog>
-
-      <p-confirmDialog />
+          <p-confirmDialog />
+        </ng-container>
+      </app-entity-editor>
 
       <!--
         Shared bodies. Each is used by both the wizard step and the edit view, so the
@@ -319,8 +288,6 @@ const STALE_VERSION_MESSAGE =
     </div>
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--rq-space-2); margin-bottom: 1rem; }
-    .page-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .form-actions { margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .section { margin-top: 1.5rem; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; gap: 0.5rem; }
@@ -359,6 +326,10 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
    */
   loading = signal(true);
   loadError = signal<string | null>(null);
+  /** #525: the goal read answered 404 (deleted, or never existed). */
+  notFound = signal(false);
+  readonly editorState = computed<EntityEditorState>(() =>
+    this.notFound() ? 'not-found' : this.loading() ? 'loading' : this.loadError() ? 'error' : 'ready');
   saving = signal(false);
   // #276: derived, not snapshotted, so a grant or revoke follows without re-running ngOnInit.
   // computed is lazy, so reading this.permissionService here is safe even though field
@@ -585,6 +556,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     if (skeleton) {
       this.loading.set(true);
       this.loadError.set(null);
+      this.notFound.set(false);
     }
     try {
       const g = await this.goalService.getGoal(this.projectName, this.goalId!);
@@ -596,8 +568,10 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.goalName.set(g.name);
         this.detailsForm.reset({ name: g.name, text: g.text });
       }
-    } catch {
-      if (skeleton) {
+    } catch (e) {
+      if (skeleton && isNotFound(e)) {
+        this.notFound.set(true);
+      } else if (skeleton) {
         this.loadError.set('Failed to load goal.');
       } else {
         this.showError('Failed to load goal.');

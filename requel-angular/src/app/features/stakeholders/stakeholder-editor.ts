@@ -20,9 +20,9 @@
  */
 import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { PageHeaderComponent } from '../../shared/page-header';
+import { EntityEditorBodyDirective, EntityEditorComponent, EntityEditorState } from '../../shared/entity-editor';
+import { isNotFound } from '../../core/http-errors';
 import { AppCardComponent } from '../../shared/app-card';
-import { SourcesSectionComponent } from '../../shared/sources-section';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
@@ -32,8 +32,6 @@ import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { CheckboxModule } from 'primeng/checkbox';
-import { SubmitErrorComponent } from '../../shared/app-submit-error';
-import { UpdateBannerComponent } from '../../shared/app-update-banner';
 import { AnnouncerService } from '../../core/announcer.service';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -47,8 +45,6 @@ import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
-import { LoadingStateComponent } from '../../shared/loading-state';
-import { ErrorStateComponent } from '../../shared/error-state';
 import {
   AppFormWizardComponent,
   AppWizardStepComponent,
@@ -87,104 +83,88 @@ export function userLabel(stakeholderName: string, username: string): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-stakeholder-editor',
   standalone: true,
-  imports: [TermsUsedComponent, SourcesSectionComponent, PageHeaderComponent, AppCardComponent, NgTemplateOutlet, ReactiveFormsModule, RouterLink,
+  imports: [EntityEditorComponent, EntityEditorBodyDirective, TermsUsedComponent, AppCardComponent, NgTemplateOutlet, ReactiveFormsModule, RouterLink,
             ButtonModule, InputText, TextareaModule, SelectModule,
-            CheckboxModule, SubmitErrorComponent, UpdateBannerComponent, ConfirmDialogModule, RelationshipSectionComponent,
+            CheckboxModule, ConfirmDialogModule, RelationshipSectionComponent,
             EntitySelectorDialogComponent, AppFieldComponent, AppFieldControlDirective,
-            AppFormWizardComponent, AppWizardStepComponent,
-            LoadingStateComponent, ErrorStateComponent],
+            AppFormWizardComponent, AppWizardStepComponent],
   providers: [ConfirmationService],
   template: `
     <div class="stakeholder-editor">
-      <div class="page-header">
-        <app-page-header [title]="isNew() ? (isUserType() ? 'Add User Stakeholder' : 'Add Non-User Stakeholder') : stakeholderName()" />
-        <div class="page-actions">
+      <app-entity-editor [title]="isNew() ? (isUserType() ? 'Add User Stakeholder' : 'Add Non-User Stakeholder') : stakeholderName()" entityLabel="Stakeholder"
+                         [state]="editorState()" [loadError]="loadError()" [listLink]="['/projects', projectName, 'stakeholders']"
+                         [saveError]="errorMessage()" [saveRetryable]="retryable()" saveErrorTestid="stakeholder-error"
+                         [updateAvailable]="updateAvailable()" updateTestid="stakeholder-update-banner"
+                         [projectName]="projectName" entityType="NonUserStakeholder" [entityId]="stakeholderId"
+                         [showAnnotations]="false" [showSources]="!isNew() && !isUserType()" testid="stakeholder-editor"
+                         (retryLoad)="retryLoad()" (retrySave)="onSave()" (reloadUpdate)="reloadFromExternalChange()"
+                         (dismissUpdate)="updateAvailable.set(false)">
+        <ng-container ngProjectAs="[actions]">
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary"
                     [outlined]="true" (onClick)="onBack()" />
           @if (canDelete() && !isNew()) {
             <p-button label="Delete" icon="pi pi-trash" severity="danger"
                       [outlined]="true" (onClick)="onDelete()" />
           }
-        </div>
-      </div>
+        </ng-container>
+        <ng-template rqEditorBody>
+          @if (isNew()) {
+            <!--
+              Create runs as a wizard (#173) so Goals is reachable before the first save. The User
+              select stays on step 1 and stays [disabled]="!isNew()" - it is the mode selector, and
+              EditUserStakeholder is keyed by username, so it can never change after creation.
+            -->
+            <app-form-wizard
+              [(activeKey)]="wizardStep"
+              navLabel="New stakeholder steps"
+              (stepCommit)="onStepCommit($event)"
+              (cancelled)="onBack()"
+              (finished)="onWizardFinished()"
+              data-testid="stakeholder-wizard"
+            >
+              <app-wizard-step key="details" label="Details"
+                               [helper]="isUserType() ? 'User, team and permissions' : 'Name and description'"
+                               [form]="detailsForm">
+                <ng-template>
+                  <ng-container [ngTemplateOutlet]="detailsFields" />
+                </ng-template>
+              </app-wizard-step>
 
-      <app-submit-error [message]="errorMessage()" testid="stakeholder-error" [retryable]="retryable()" (retry)="onSave()" />
-      @if (updateAvailable()) {
-        <app-update-banner message="This stakeholder was changed elsewhere. Your unsaved changes are preserved."
-                           testid="stakeholder-update-banner"
-                           (reload)="reloadFromExternalChange()" (dismiss)="updateAvailable.set(false)" />
-      }
-
-      @if (loading()) {
-        <app-card>
-          <app-loading-state label="Loading stakeholder…" [lines]="4" testid="stakeholder-editor-loading" />
-        </app-card>
-      } @else if (loadError()) {
-        <app-error-state [message]="loadError()!" testid="stakeholder-editor-load-error"
-                         (retry)="retryLoad()" />
-      } @else if (isNew()) {
-        <!--
-          Create runs as a wizard (#173) so Goals is reachable before the first save. The User
-          select stays on step 1 and stays [disabled]="!isNew()" - it is the mode selector, and
-          EditUserStakeholder is keyed by username, so it can never change after creation.
-        -->
-        <app-form-wizard
-          [(activeKey)]="wizardStep"
-          navLabel="New stakeholder steps"
-          (stepCommit)="onStepCommit($event)"
-          (cancelled)="onBack()"
-          (finished)="onWizardFinished()"
-          data-testid="stakeholder-wizard"
-        >
-          <app-wizard-step key="details" label="Details"
-                           [helper]="isUserType() ? 'User, team and permissions' : 'Name and description'"
-                           [form]="detailsForm">
-            <ng-template>
+              <app-wizard-step key="goals" label="Goals" helper="Link goals to this stakeholder"
+                               [optional]="true">
+                <ng-template>
+                  <!-- heading: false - the wizard panel's own h2 already reads "Goals". -->
+                  <ng-container [ngTemplateOutlet]="goalsSection"
+                                [ngTemplateOutletContext]="{ heading: false }" />
+                </ng-template>
+              </app-wizard-step>
+            </app-form-wizard>
+          } @else {
+            <app-card>
               <ng-container [ngTemplateOutlet]="detailsFields" />
-            </ng-template>
-          </app-wizard-step>
 
-          <app-wizard-step key="goals" label="Goals" helper="Link goals to this stakeholder"
-                           [optional]="true">
-            <ng-template>
-              <!-- heading: false - the wizard panel's own h2 already reads "Goals". -->
-              <ng-container [ngTemplateOutlet]="goalsSection"
-                            [ngTemplateOutletContext]="{ heading: false }" />
-            </ng-template>
-          </app-wizard-step>
-        </app-form-wizard>
-      } @else {
-        <app-card>
-          <ng-container [ngTemplateOutlet]="detailsFields" />
+              <div class="form-actions">
+                <p-button label="Save" icon="pi pi-check" data-testid="stakeholder-save"
+                          [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
+              </div>
+            </app-card>
 
-          <div class="form-actions">
-            <p-button label="Save" icon="pi pi-check" data-testid="stakeholder-save"
-                      [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
-          </div>
-        </app-card>
-
-        <ng-container [ngTemplateOutlet]="goalsSection"
-                      [ngTemplateOutletContext]="{ heading: true }" />
-
-        <!-- #272: where a non-user stakeholder came from; a user stakeholder is never ingested. -->
-        @if (!isUserType()) {
-          <app-sources-section
+            <ng-container [ngTemplateOutlet]="goalsSection"
+                          [ngTemplateOutletContext]="{ heading: true }" />
+          }
+        </ng-template>
+        <ng-container ngProjectAs="[after]">
+          <app-entity-selector-dialog
+            [visible]="showGoalSelector"
             [projectName]="projectName"
-            entityType="NonUserStakeholder"
-            [entityId]="stakeholderId"
-            />
-        }
-      }
+            entityType="Goal"
+            [excludeIds]="goalIds()"
+            (selected)="onGoalSelected($event)"
+            (closed)="showGoalSelector = false" />
 
-      <app-entity-selector-dialog
-        [visible]="showGoalSelector"
-        [projectName]="projectName"
-        entityType="Goal"
-        [excludeIds]="goalIds()"
-        (selected)="onGoalSelected($event)"
-        (closed)="showGoalSelector = false" />
-
-      <p-confirmDialog />
+          <p-confirmDialog />
+        </ng-container>
+      </app-entity-editor>
 
       <!--
         Shared bodies, used by both the wizard step and the edit view so the two cannot drift.
@@ -317,8 +297,6 @@ export function userLabel(stakeholderName: string, username: string): string {
     </div>
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--rq-space-2); margin-bottom: 1rem; }
-    .page-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .readonly-field { color: var(--p-text-color); padding: 0.5rem 0; }
     .form-actions { margin-top: 1rem; }
     .permissions-section { grid-column: 1 / -1; margin-top: 0.5rem; }
@@ -364,6 +342,10 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
    */
   loading = signal(true);
   loadError = signal<string | null>(null);
+  /** #525: the stakeholder read answered 404 (deleted, or never existed). */
+  notFound = signal(false);
+  readonly editorState = computed<EntityEditorState>(() =>
+    this.notFound() ? 'not-found' : this.loading() ? 'loading' : this.loadError() ? 'error' : 'ready');
   saving = signal(false);
   // #276: derived from the service signal rather than snapshotted after the load.
   canDelete = computed(() => this.permissionService.canDelete('Stakeholder'));
@@ -724,6 +706,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
     if (skeleton) {
       this.loading.set(true);
       this.loadError.set(null);
+      this.notFound.set(false);
     }
     try {
       const s = await this.stakeholderService.getStakeholder(this.projectName, this.stakeholderId!);
@@ -759,8 +742,10 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
         this.detailsForm.markAsPristine();
         this.permissionsForm.markAsPristine();
       }
-    } catch {
-      if (skeleton) {
+    } catch (e) {
+      if (skeleton && isNotFound(e)) {
+        this.notFound.set(true);
+      } else if (skeleton) {
         this.loadError.set('Failed to load stakeholder.');
       } else {
         this.showError('Failed to load stakeholder.');

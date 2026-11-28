@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angular/router';
@@ -595,6 +596,25 @@ describe('GoalEditorComponent', () => {
 
       expect(el().querySelector('[data-testid="goal-editor-load-error"]')).toBeNull();
       expect(el().querySelector('[data-testid="goal-name"]')).not.toBeNull();
+    });
+
+    it('shows the not-found state, with no actions or sections, when the goal read answers 404 (#525)', async () => {
+      goalServiceMock.getGoal.mockRejectedValueOnce(new HttpErrorResponse({ status: 404 }));
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', goalId: '999' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="goal-editor-not-found"]')).not.toBeNull();
+      expect(el().querySelector('h1')!.textContent).toContain('Goal not found');
+      expect(el().querySelector('[data-testid="goal-editor-load-error"]')).toBeNull();
+      expect(el().querySelector('[data-testid="goal-back"]')).toBeNull();
+      expect(el().querySelector('[data-testid="goal-copy"]')).toBeNull();
+      expect(el().querySelector('[data-testid="goal-delete"]')).toBeNull();
+      expect(el().querySelector('[data-testid="goal-name"]')).toBeNull();
+      expect(el().querySelector('app-annotations-section')).toBeNull();
+      expect(el().querySelector('app-sources-section')).toBeNull();
     });
 
     // Background callers pass skeleton=false. Blanking the form under a user who is reading it

@@ -61,6 +61,7 @@ introduced it.
 |-----------|----------|-------------|--------|
 | `ListPageComponent` | `app-list-page` | The frame for any list screen: title, optional search slot, projected table/content. Pair with `app-data-table`. | app shell #154/#128 |
 | `PageHeaderComponent` | `app-page-header` | The title row for an editor/detail page (title + projected actions). | app shell #154/#128 |
+| `EntityEditorComponent` | `app-entity-editor` | The frame of every entity editor: header and `[actions]` slot, save-error and changed-elsewhere banners, loading / load-error / not-found / ready states, the body (an `ng-template rqEditorBody`, built only when ready), then Annotations and Sources. Dialogs go in the always-rendered `[after]` slot. | #525 |
 | `EditorActionsComponent` | `app-editor-actions` | The standard Save/Cancel (and friends) action row for editors. | app shell #154/#128 |
 | `BreadcrumbComponent` | `app-breadcrumb` | The top-bar breadcrumb trail resolved from the route. | app shell #154/#128 |
 | `SidebarNavComponent` | `app-sidebar-nav` | The grouped, collapsible project/entity navigation tree. | app shell #154/#128 |
@@ -124,6 +125,7 @@ As of #146 the app has **no** remaining hand-rolled instances of these — keep 
 | Repeated pattern | Use |
 |------------------|-----|
 | A page title + actions row | `app-page-header` |
+| An entity editor's header, banners, load states and Annotations/Sources sections | `app-entity-editor` |
 | A Save/Cancel button row | `app-editor-actions` |
 | A list/table screen frame | `app-list-page` |
 | A data table (sort/search/paginate/row actions/name links) | `app-data-table` |
@@ -164,12 +166,14 @@ Two canonical, fully-composed pages. Read these to see "how a screen is built no
 `app-data-table` (sortable columns, a real `link` name column per #129, an empty state via
 `app-empty-state`, and a `⋯` row-action menu). The component owns no table markup of its own.
 
-**`features/goals/goal-editor.ts` — an editor.** Header via `app-page-header`; actions via
-`app-editor-actions`; the form built from `app-field` inside `app-card`, with the create path driven
+**`features/goals/goal-editor.ts` — an editor.** The frame is `app-entity-editor` (#525): it owns
+the `app-page-header` title, the actions row, the banners, the loading / load-error / not-found
+states and the Annotations and Sources sections, and the editor supplies its actions, its body and
+its dialogs. Actions via `app-editor-actions`; the form built from `app-field` inside `app-card`, with the create path driven
 by `app-form-wizard`/`app-wizard-step`; the "This Goal's Relations" block is
-`app-relationship-section`; save/API errors surface through `app-submit-error`;
-loading/failed states use `app-loading-state`/`app-error-state`; a cross-session update raises the
-`app-update-banner` and announces via `AnnouncerService` (#140). The only bespoke markup left is the
+`app-relationship-section`; save/API errors surface through `app-submit-error`,
+loading/failed states use `app-loading-state`/`app-error-state` and a cross-session update raises
+the `app-update-banner` (all three placed by the shell); the editor announces via `AnnouncerService` (#140). The only bespoke markup left is the
 goal-specific relation-type dialog — everything structural is a shared primitive.
 
 Every other editor and list page follows the same composition; goal is simply the reference.
