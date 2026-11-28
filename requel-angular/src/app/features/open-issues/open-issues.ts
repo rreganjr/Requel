@@ -19,6 +19,8 @@
  *
  */
 import { Component, OnInit, TemplateRef, ViewChild, signal, computed, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { ConfirmationService } from 'primeng/api';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -35,6 +37,8 @@ import { AppTagComponent } from '../../shared/app-tag';
 import { ENTITY_ROUTES } from '../../shared/entity-routes';
 import { IssueSeverity, STALE_LABEL, STALE_TOOLTIP, severityLabel, severityRank } from '../../models/annotation';
 import { issueSeverityIcon, issueSeverityTone, RqTone } from '../../shared/severity';
+import { CommandService } from '../../core/command.service';
+import { BULK_ACTIONS, BULK_OUTCOME_LABELS, BulkAction, BulkResolveIssuesResult } from '../../models/bulk-issues';
 
 interface OpenIssueDto {
   issueId: number;
@@ -69,13 +73,66 @@ const SEVERITY_FILTER_OPTIONS: { label: string; value: SeverityFilter }[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-open-issues',
   standalone: true,
-  imports: [ListPageComponent, AppDataTableComponent, AppTagComponent, RouterLink, ButtonModule, BadgeModule, SelectModule, FormsModule, SubmitErrorComponent],
+  imports: [ListPageComponent, AppDataTableComponent, AppTagComponent, RouterLink, ButtonModule, BadgeModule, SelectModule, FormsModule, SubmitErrorComponent, ConfirmDialogModule],
+  providers: [ConfirmationService],
   template: `
     <app-list-page title="Open Issues" [fill]="true" [showSearch]="false">
       <app-submit-error [message]="errorMessage()" testid="open-issues-error" [retryable]="true" (retry)="loadIssues()" />
+      @if (selected().length || bulkRunning()) {
+        <!-- Only while it can open: closed, PrimeNG still renders an unnamed alertdialog host (axe). -->
+        <p-confirmDialog />
+      }
 
-      <app-data-table scrollHeight="flex" [value]="issues()" [columns]="columns" [loading]="loading()"
+      @if (bulkResult(); as result) {
+        <section class="bulk-summary" aria-labelledby="bulk-summary-title" data-testid="bulk-summary">
+          <div class="bulk-summary-head">
+            <h2 id="bulk-summary-title" class="bulk-summary-title">{{ result.label }}</h2>
+            <span data-testid="bulk-summary-counts">
+              {{ result.done }} done, {{ result.skipped }} skipped, {{ result.refused }} refused, {{ result.failed }} failed
+            </span>
+            <p-button icon="pi pi-times" [text]="true" severity="secondary" size="small" ariaLabel="Dismiss the summary"
+                      data-testid="bulk-summary-dismiss" (onClick)="bulkResult.set(null)" />
+          </div>
+          <details data-testid="bulk-summary-details">
+            <summary>Show each issue</summary>
+            <ul class="bulk-outcomes">
+              @for (o of result.outcomes; track o.issueId) {
+                <li data-testid="bulk-outcome" [attr.data-outcome]="o.outcome">
+                  <strong>{{ o.label }}</strong>: {{ o.text }}@if (o.reason) { <span class="bulk-reason"> ({{ o.reason }})</span> }
+                </li>
+              }
+            </ul>
+          </details>
+        </section>
+      }
+
+      @if (selected().length) {
+        <div class="bulk-bar" role="toolbar" aria-label="Act on the selected issues" data-testid="bulk-toolbar">
+          <span class="bulk-count" data-testid="bulk-count">{{ selected().length }} selected</span>
+          <p-button label="Ignore" icon="pi pi-eye-slash" size="small" severity="secondary" [outlined]="true"
+                    [disabled]="bulkRunning()" data-testid="bulk-ignore" (onClick)="confirmBulk('IGNORE')" />
+          <p-button label="Apply suggested fix" icon="pi pi-check" size="small" severity="secondary" [outlined]="true"
+                    [disabled]="bulkRunning()" data-testid="bulk-apply-fix" (onClick)="confirmBulk('APPLY_FIX')" />
+          <span class="bulk-severity">
+            <p-select [options]="bulkSeverityOptions" [ngModel]="bulkSeverity()" (ngModelChange)="bulkSeverity.set($event)"
+                      optionLabel="label" optionValue="value" placeholder="Severity" ariaLabel="Severity to set"
+                      size="small" data-testid="bulk-severity" />
+            <p-button label="Set severity" size="small" severity="secondary" [outlined]="true"
+                      [disabled]="bulkRunning() || !bulkSeverity()" data-testid="bulk-set-severity"
+                      (onClick)="confirmBulk('SET_SEVERITY')" />
+          </span>
+          <p-button label="Mark advisory" icon="pi pi-info-circle" size="small" severity="secondary" [outlined]="true"
+                    [disabled]="bulkRunning()" data-testid="bulk-mark-advisory" (onClick)="confirmBulk('MARK_ADVISORY')" />
+          <p-button label="Clear selection" size="small" severity="secondary" [text]="true"
+                    [disabled]="bulkRunning()" data-testid="bulk-clear" (onClick)="clearSelection()" />
+        </div>
+      }
+
+      <app-data-table #table scrollHeight="flex" [value]="issues()" [columns]="columns" [loading]="loading()"
                       [rowClickable]="false" [defaultActions]="false" [rows]="25"
+                      [selectable]="true" [selectionPageOnly]="true" dataKey="issueId"
+                      selectAllLabel="Select every issue on this page" [rowSelectLabel]="selectLabel"
+                      (selectionChange)="selected.set($event)"
                       sortField="sortRank" [sortOrder]="-1" searchPlaceholder="Search issues..."
                       [globalFilterFields]="['severity', 'entityType', 'entityName', 'issueText']"
                       testid="open-issues" [emptyTitle]="emptyState().title"
@@ -145,6 +202,20 @@ const SEVERITY_FILTER_OPTIONS: { label: string; value: SeverityFilter }[] = [
     .issue-text + span { margin-left: 0.5rem; }
     .open-issues-toolbar-actions { display: flex; align-items: center; gap: var(--rq-space-2); }
     .severity-filter { min-width: 160px; }
+    /* #507: the bulk toolbar and the result of a run. */
+    .bulk-bar, .bulk-summary {
+      display: flex; flex-wrap: wrap; align-items: center; gap: var(--rq-space-2);
+      padding: var(--rq-space-2) var(--rq-space-3); margin-bottom: var(--rq-space-2);
+      border: 1px solid var(--rq-card-border); border-radius: var(--p-border-radius-md, 6px);
+    }
+    .bulk-summary { flex-direction: column; align-items: stretch; }
+    .bulk-summary-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--rq-space-3); }
+    .bulk-summary-title { font-size: var(--rq-font-size-base, 1rem); margin: 0; }
+    .bulk-summary-head p-button { margin-left: auto; }
+    .bulk-count { font-weight: 600; margin-right: var(--rq-space-2); }
+    .bulk-severity { display: inline-flex; align-items: center; gap: var(--rq-space-1); }
+    .bulk-outcomes { margin: var(--rq-space-2) 0 0; padding-left: var(--rq-space-4); }
+    .bulk-reason { color: var(--p-text-secondary-color); }
   `]
 })
 export class OpenIssuesComponent implements OnInit {
@@ -190,6 +261,21 @@ export class OpenIssuesComponent implements OnInit {
 
   private projectName = '';
   private readonly destroyRef = inject(DestroyRef);
+  private readonly commandService = inject(CommandService);
+  private readonly confirmationService = inject(ConfirmationService);
+
+  @ViewChild('table') table?: AppDataTableComponent<OpenIssueDto>;
+  /** #507: the rows ticked for a bulk action. */
+  readonly selected = signal<OpenIssueDto[]>([]);
+  readonly bulkSeverity = signal<IssueSeverity | null>(null);
+  readonly bulkSeverityOptions = [
+    { label: 'Low', value: 'LOW' }, { label: 'Medium', value: 'MEDIUM' }, { label: 'High', value: 'HIGH' },
+  ];
+  readonly bulkRunning = signal(false);
+  /** #507: the last run's counts and each issue's outcome, with its text, until dismissed. */
+  readonly bulkResult = signal<{ label: string; done: number; skipped: number; refused: number; failed: number;
+    outcomes: { issueId: number; label: string; outcome: string; reason?: string | null; text: string }[] } | null>(null);
+  readonly selectLabel = (row: OpenIssueDto): string => `Select issue: ${row.issueText}`;
 
   constructor(
     private route: ActivatedRoute,
@@ -232,6 +318,57 @@ export class OpenIssuesComponent implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /** #507: asks before running a bulk action, naming it and how many issues it applies to. */
+  confirmBulk(action: BulkAction): void {
+    const count = this.selected().length;
+    const meta = BULK_ACTIONS[action];
+    const what = action === 'SET_SEVERITY'
+      ? `${meta.verb} ${severityLabel(this.bulkSeverity() ?? '')}`
+      : meta.verb;
+    this.confirmationService.confirm({
+      header: `${what}: ${count} ${count === 1 ? 'issue' : 'issues'}?`,
+      message: `${meta.explain} Issues it doesn't fit are skipped and listed afterwards.`,
+      acceptLabel: what,
+      rejectLabel: 'Cancel',
+      accept: () => void this.runBulk(action),
+    });
+  }
+
+  async runBulk(action: BulkAction): Promise<void> {
+    const rows = this.selected();
+    const texts = new Map(rows.map(r => [r.issueId, r.issueText]));
+    const input: Record<string, unknown> = {
+      projectName: this.projectName, issueIds: rows.map(r => r.issueId), action,
+    };
+    if (action === 'SET_SEVERITY') {
+      input['severity'] = this.bulkSeverity();
+    }
+    this.bulkRunning.set(true);
+    this.errorMessage.set(null);
+    try {
+      const result = await this.commandService.execute<BulkResolveIssuesResult>('BulkResolveIssues', input);
+      if (!result.success || !result.entity) {
+        this.errorMessage.set(result.error ?? 'The bulk action failed.');
+        return;
+      }
+      const r = result.entity;
+      this.bulkResult.set({
+        label: BULK_ACTIONS[action].done, done: r.done, skipped: r.skipped, refused: r.refused, failed: r.failed,
+        outcomes: r.outcomes.map(o => ({ issueId: o.issueId, outcome: o.outcome, reason: o.reason,
+          label: BULK_OUTCOME_LABELS[o.outcome] ?? o.outcome, text: texts.get(o.issueId) ?? `Issue ${o.issueId}` })),
+      });
+      this.clearSelection();
+      await this.loadIssues();
+    } finally {
+      this.bulkRunning.set(false);
+    }
+  }
+
+  clearSelection(): void {
+    this.table?.clearSelection();
+    this.selected.set([]);
   }
 
   severityTone(severity: string): RqTone {

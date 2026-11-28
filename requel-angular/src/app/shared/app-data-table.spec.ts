@@ -39,6 +39,26 @@ describe('AppDataTableComponent (issue #157)', () => {
     return { fixture, comp };
   }
 
+  it('names the selection checkboxes, limits select-all to the page, and clears (#507)', () => {
+    const { fixture, comp } = make();
+    comp.selectable = true;
+    comp.selectionPageOnly = true;
+    comp.selectAllLabel = 'Select every row here';
+    comp.rowSelectLabel = (row: Row) => `Select ${row.name}`;
+    fixture.detectChanges();
+    const header = fixture.nativeElement.querySelector('th.dt-select-col input') as HTMLInputElement;
+    expect(header.getAttribute('aria-label')).toBe('Select every row here');
+    const first = fixture.nativeElement.querySelector('td.dt-select-col input') as HTMLInputElement;
+    expect(first.getAttribute('aria-label')).toBe(`Select ${ROWS[0].name}`);
+
+    const seen: Row[][] = [];
+    comp.selectionChange.subscribe((rows: Row[]) => seen.push(rows));
+    comp.onSelectionChange([ROWS[0]]);
+    comp.clearSelection();
+    expect(comp.selection).toEqual([]);
+    expect(seen).toEqual([[ROWS[0]], []]);
+  });
+
   it('renders a header per column and default text cells (incl. dotted paths)', () => {
     const { fixture } = make();
     fixture.detectChanges();

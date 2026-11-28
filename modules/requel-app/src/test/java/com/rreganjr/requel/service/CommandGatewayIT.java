@@ -940,10 +940,17 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
                 // #330: ResolveIssue is built from its input (the position's type picks the
                 // resolver), so there is no factory method to try; every resolver extends
                 // ResolveIssueCommandImpl, which is checked here instead.
+                // #507: BulkResolveIssues is built from its input too (it needs the project) and
+                // is authorizable itself, besides running each issue through ResolveIssue or
+                // EditIssue and their checks.
                 assertNotNull(reg.commandBuilder(), type + " must have a factory method or a builder");
-                assertEquals("ResolveIssue", type, type + " is built from its input; check its commands");
-                assertTrue(AuthorizableCommand.class.isAssignableFrom(
-                        com.rreganjr.requel.annotation.impl.command.ResolveIssueCommandImpl.class));
+                Class<?> built = switch (type) {
+                    case "ResolveIssue" -> com.rreganjr.requel.annotation.impl.command.ResolveIssueCommandImpl.class;
+                    case "BulkResolveIssues" -> com.rreganjr.requel.service.command.BulkResolveIssuesCommand.class;
+                    default -> null;
+                };
+                assertNotNull(built, type + " is built from its input; check its commands");
+                assertTrue(AuthorizableCommand.class.isAssignableFrom(built));
             } else {
                 Command instance = reg.factoryMethod().get();
                 assertTrue(instance instanceof AuthorizableCommand,
