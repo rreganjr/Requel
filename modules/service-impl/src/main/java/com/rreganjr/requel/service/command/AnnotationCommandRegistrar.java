@@ -51,6 +51,7 @@ import com.rreganjr.requel.service.api.dto.DeleteIssueInput;
 import com.rreganjr.requel.service.api.dto.DeleteNoteInput;
 import com.rreganjr.requel.service.api.dto.DeletePositionInput;
 import com.rreganjr.requel.service.api.dto.EditArgumentInput;
+import com.rreganjr.requel.service.api.dto.BulkResolveIssuesInput;
 import com.rreganjr.requel.service.api.dto.EditIssueInput;
 import com.rreganjr.requel.service.api.dto.EditNoteInput;
 import com.rreganjr.requel.service.api.dto.EditPositionInput;
@@ -84,17 +85,20 @@ public class AnnotationCommandRegistrar {
     private final AnnotatableTypeRegistry annotatableTypeRegistry;
     private final EntityManager entityManager;
     private final ProjectRepository projectRepository;
+    private final BulkIssueResolver bulkIssueResolver;
 
     public AnnotationCommandRegistrar(AnnotationCommandFactory factory,
                                       CommandRegistry registry,
                                       AnnotatableTypeRegistry annotatableTypeRegistry,
                                       EntityManager entityManager,
-                                      ProjectRepository projectRepository) {
+                                      ProjectRepository projectRepository,
+                                      BulkIssueResolver bulkIssueResolver) {
         this.factory = factory;
         this.registry = registry;
         this.annotatableTypeRegistry = annotatableTypeRegistry;
         this.entityManager = entityManager;
         this.projectRepository = projectRepository;
+        this.bulkIssueResolver = bulkIssueResolver;
     }
 
     @PostConstruct
@@ -248,10 +252,17 @@ public class AnnotationCommandRegistrar {
                 },
                 null);
 
+        // #507: one action on many issues, each through its own ResolveIssue or EditIssue in its
+        // own transaction (BulkIssueResolver).
+        registry.registerWithBuilder("BulkResolveIssues", BulkResolveIssuesInput.class,
+                (BulkResolveIssuesInput input) -> new BulkResolveIssuesCommand(bulkIssueResolver, input,
+                        projectRepository.findProjectByName(input.projectName())),
+                cmd -> ((BulkResolveIssuesCommand) cmd).getResult());
+
         // Cleanup
         registry.register("RemoveAnnotationFromAnnotatable", factory::newRemoveAnnotationFromAnnotatableCommand);
 
-        log.info("Registered {} annotation command types", 13);
+        log.info("Registered {} annotation command types", 14);
     }
 
     private Annotatable loadAnnotatable(String entityType, Long entityId) {
@@ -286,7 +297,7 @@ public class AnnotationCommandRegistrar {
      * one project could rewrite another project's annotation by id. A child that reaches no
      * project or domain (an orphan position) is refused too.
      */
-    private static void requireSameScope(Object childScope, Object expectedScope, String label, Long id) {
+    static void requireSameScope(Object childScope, Object expectedScope, String label, Long id) {
         if (childScope == null || expectedScope == null || !sameScope(childScope, expectedScope)) {
             throw new IllegalArgumentException(label + " " + id + " belongs to another project.");
         }
@@ -296,7 +307,7 @@ public class AnnotationCommandRegistrar {
      * Projects and domains compare by kind and id: a grouping object may be a Hibernate proxy, and
      * project and domain ids come from different tables, so equal ids alone could collide.
      */
-    private static boolean sameScope(Object a, Object b) {
+    static boolean sameScope(Object a, Object b) {
         if (a instanceof com.rreganjr.requel.project.ProjectOrDomain pa
                 && b instanceof com.rreganjr.requel.project.ProjectOrDomain pb) {
             boolean aProject = pa instanceof com.rreganjr.requel.project.Project;

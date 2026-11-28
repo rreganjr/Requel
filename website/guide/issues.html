@@ -143,6 +143,23 @@
     <figure class="shot">
       <img src="../images/guide/open-issues.png" alt="The Open Issues page: a searchable table of severity, type, entity, issue text and whether it is required." loading="lazy" />
     </figure>
+    <p>To act on many issues at once, tick them (the box in the header ticks every issue on the
+      page) and choose an action from the bar that appears:</p>
+    <ul>
+      <li><strong>Ignore</strong> resolves each issue that offers <em>Ignore</em>, so the
+        assistant stops raising that finding on that item.</li>
+      <li><strong>Apply suggested fix</strong> resolves each issue that suggests exactly one
+        change, such as a spelling correction, by making it. An issue with several suggestions is
+        skipped; open it and pick one.</li>
+      <li><strong>Set severity</strong> sets the severity you pick on every ticked issue.</li>
+      <li><strong>Mark advisory</strong> makes every ticked issue advisory: it no longer has to be
+        resolved.</li>
+    </ul>
+    <p>You are asked to confirm first. Each issue is handled on its own, with the same permission
+      checks as resolving it by hand, so one you can't change is refused without stopping the
+      others. Afterwards a summary counts what was done, skipped, refused and failed; open it to
+      see each issue. The same action is the <code>BulkResolveIssues</code> command, for MCP and
+      <code>requel run</code>.</p>
   </section>
 
   <nav class="pager" aria-label="Previous and next page">

@@ -105,6 +105,9 @@ public class GatewayPolicyConfig {
             // Accepting a position resolves its issue (#330): Annotation[Edit], plus Edit on
             // whatever the position changes (Fix Spelling's entities, Add as Actor's actor).
             "ResolveIssue",
+            // #507: one action on many issues; each issue still goes through ResolveIssue or
+            // EditIssue and their checks, so it adds no permission of its own.
+            "BulkResolveIssues",
             // Tagging / categorization (tags reuse the Annotation stakeholder permission:
             // Edit to create/assign, Delete to delete; global/system tags require admin)
             "EditTag", "DeleteTag", "AssignTag", "UnassignTag",

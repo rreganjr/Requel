@@ -124,6 +124,7 @@ export interface RowAction<T = unknown> {
              [dataKey]="dataKey" [sortField]="sortField" [sortOrder]="sortOrder"
              [selectionMode]="null"
              [(selection)]="selection" (selectionChange)="onSelectionChange($event)"
+             [selectionPageOnly]="selectionPageOnly"
              [globalFilterFields]="filterFields"
              [showCurrentPageReport]="false"
              [paginatorPosition]="'bottom'"
@@ -131,7 +132,7 @@ export interface RowAction<T = unknown> {
       <ng-template #header>
         <tr>
           @if (selectable) {
-            <th class="dt-select-col"><p-tableHeaderCheckbox /></th>
+            <th class="dt-select-col"><p-tableHeaderCheckbox [ariaLabel]="selectAllLabel" /></th>
           }
           @for (col of columns; track col.field) {
             @if (col.sortable) {
@@ -153,7 +154,7 @@ export interface RowAction<T = unknown> {
             [attr.data-testid]="rowTestid" (click)="rowClickable && rowClick.emit(row)">
           @if (selectable) {
             <td class="dt-select-col" (click)="$event.stopPropagation()">
-              <p-tableCheckbox [value]="row" />
+              <p-tableCheckbox [value]="row" [ariaLabel]="selectRowLabel(row)" />
             </td>
           }
           @for (col of columns; track col.field) {
@@ -251,6 +252,12 @@ export class AppDataTableComponent<T = Record<string, unknown>> {
   @Input() sortOrder = 1;
   /** Render the leading checkbox multi-select column. */
   @Input() selectable = false;
+  /** #507: the header checkbox selects the rows on the current page only, not every page. */
+  @Input() selectionPageOnly = false;
+  /** #507: the header checkbox's accessible name. */
+  @Input() selectAllLabel = 'Select all rows on this page';
+  /** #507: a row checkbox's accessible name; defaults to the row's position-free "Select row". */
+  @Input() rowSelectLabel: ((row: T) => string) | null = null;
   /** Whether whole-row click opens (emits rowClick) and shows a pointer cursor. */
   @Input() rowClickable = true;
   /** Row identity key, required for stable selection. */
@@ -347,6 +354,15 @@ export class AppDataTableComponent<T = Record<string, unknown>> {
   onSelectionChange(selection: T[]): void {
     this.selection = selection;
     this.selectionChange.emit(selection);
+  }
+
+  /** #507: empties the checkbox selection, as after a bulk action has run. */
+  clearSelection(): void {
+    this.onSelectionChange([]);
+  }
+
+  selectRowLabel(row: T): string {
+    return this.rowSelectLabel ? this.rowSelectLabel(row) : 'Select row';
   }
 
   /** Build the row menu (respecting the input/override precedence) and open it. */
