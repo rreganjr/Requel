@@ -187,6 +187,14 @@ public class ProjectQueryController {
         this.projectSearchService = projectSearchService;
     }
 
+    /** #497: the goal matrix and the gaps. */
+    private TraceabilityService traceabilityService;
+
+    @Autowired
+    public void setTraceabilityService(TraceabilityService traceabilityService) {
+        this.traceabilityService = traceabilityService;
+    }
+
     @Autowired
     public void setUserRepository(UserRepository userRepository) {
         this.userRepository = userRepository;
@@ -1596,6 +1604,23 @@ public class ProjectQueryController {
             requireProjectAccess(project);
             return ResponseEntity.ok(projectSearchService.search(project, query, type, offset,
                     limit));
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * #497: what references each goal, and the requirements nothing traces to or from. 403
+     * without read access; 404 for no such project.
+     */
+    @GetMapping("/{name}/traceability")
+    public ResponseEntity<?> getTraceability(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            return ResponseEntity.ok(traceabilityService.traceability(project));
         } catch (NoSuchProjectException e) {
             return ResponseEntity.notFound().build();
         } catch (AuthorizationException e) {

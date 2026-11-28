@@ -39,7 +39,7 @@ import picocli.CommandLine.Option;
         description = "Command-line access to a Requel server via the gateway.",
         subcommands = {RunCommand.class, UpsertGoalCommand.class, CommandsCommand.class,
                 ProjectsCommand.class, ProjectCommand.class, GlossaryCommand.class,
-                OpenIssuesCommand.class, SearchCommand.class, EntityCommand.class, ContextCommand.class,
+                OpenIssuesCommand.class, TraceabilityCommand.class, SearchCommand.class, EntityCommand.class, ContextCommand.class,
                 ContentCommand.class, ReviewCommand.class, ServerInfoCommand.class, LoginCommand.class,
                 LogoutCommand.class})
 public class RequelCli implements Runnable {

@@ -71,6 +71,10 @@ interface NextAction {
         <app-page-header [title]="projectName" eyebrow="Project" />
         <div class="ws-header-actions">
           <app-project-search-box class="ws-search" [projectName]="projectName" />
+          <a class="p-button p-button-outlined" [routerLink]="['/projects', projectName, 'traceability']"
+             data-testid="workspace-traceability">
+            <i class="pi pi-sitemap" aria-hidden="true"></i> Traceability
+          </a>
           <a class="p-button p-button-outlined" [routerLink]="['/projects', projectName, 'edit']"
              data-testid="workspace-edit">
             <i class="pi pi-pencil" aria-hidden="true"></i> Edit project

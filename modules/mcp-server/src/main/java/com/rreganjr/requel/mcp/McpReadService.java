@@ -114,6 +114,8 @@ public class McpReadService {
 						projectNameSchema()),
 				new McpToolDescriptor("getOpenIssues", QueryDescriptions.GET_OPEN_ISSUES,
 						minSeveritySchema()),
+				new McpToolDescriptor("getTraceability", QueryDescriptions.GET_TRACEABILITY,
+						projectNameSchema()),
 				new McpToolDescriptor("getAnnotations", QueryDescriptions.GET_ANNOTATIONS,
 						entityRefSchema(QueryDescriptions.ANNOTATABLE_ENTITY_TYPES,
 								QueryDescriptions.ANNOTATABLE_ENTITY_TYPE)),
@@ -204,6 +206,8 @@ public class McpReadService {
 					requiredText(arguments, "projectName"), requiredText(arguments, "entityType"),
 					requiredLong(arguments, "entityId"));
 			case "listSources" -> projectQueryGateway.listSources(
+					requiredText(arguments, "projectName"));
+			case "getTraceability" -> projectQueryGateway.getTraceability(
 					requiredText(arguments, "projectName"));
 			case "compareSources" -> projectQueryGateway.compareSources(
 					requiredText(arguments, "projectName"), requiredText(arguments, "system"),

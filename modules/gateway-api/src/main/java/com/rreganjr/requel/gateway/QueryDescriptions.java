@@ -86,6 +86,16 @@ public final class QueryDescriptions {
             + " a later analysis no longer reports it, so it may no longer apply; weigh or skip"
             + " stale entries.";
 
+    public static final String GET_TRACEABILITY = "Shows how a project's requirements trace to"
+            + " each other. goals lists every goal in creation order with the stakeholders,"
+            + " actors, stories and use cases that reference it; realized is true when a story or"
+            + " a use case does. gaps lists the requirements nothing traces to or from, each with"
+            + " its kind: GOAL_NOT_REALIZED (no story or use case), ACTOR_NOT_USED (in no story or"
+            + " use case, not a primary actor, named by no step), STORY_WITHOUT_GOAL,"
+            + " STORY_NOT_IN_USE_CASE, USE_CASE_WITHOUT_GOAL, SCENARIO_NOT_IN_USE_CASE (no use"
+            + " case reaches it, directly or through the scenarios using it as a step) and"
+            + " STAKEHOLDER_WITHOUT_GOAL. Gaps are reported, not raised as issues.";
+
     public static final String GET_OPEN_ISSUES = "Lists the unresolved issues on the entities of a"
             + " project, highest severity first (HIGH, MEDIUM, LOW). An issue is unresolved until a"
             + " position is chosen to resolve it, whether or not it must be resolved, and issues"

@@ -83,6 +83,15 @@ describe('ProjectWorkspaceComponent (#154)', () => {
     expect(fixture.componentInstance.counts().find(c => c.segment === 'goals')?.count).toBe(3);
   });
 
+  it('links to the traceability page from the header (#497)', async () => {
+    const fixture = setup();
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    const link = fixture.nativeElement.querySelector('[data-testid="workspace-traceability"]') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toMatch(/\/traceability$/);
+  });
+
   it('has a Steps card with the plain-step count linking to the list (#505)', async () => {
     getProject = vi.fn().mockResolvedValue(makeProject({ stepCount: 7 }));
     const fixture = setup();

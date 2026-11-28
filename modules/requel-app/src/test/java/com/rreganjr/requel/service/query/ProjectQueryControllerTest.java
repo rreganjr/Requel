@@ -585,6 +585,19 @@ class ProjectQueryControllerTest {
                 .andExpect(jsonPath("$.usedIn[1].name").value("B scenario"));
     }
 
+    /** #497: traceability is a project read: 404 for no such project, 403 without access. */
+    @Test
+    void traceabilityIs404ForAMissingProjectAnd403WithoutAccess() throws Exception {
+        when(projectRepository.findProjectByName("Missing"))
+                .thenThrow(NoSuchProjectException.forName("Missing"));
+        mockMvc.perform(get("/api/projects/Missing/traceability"))
+                .andExpect(status().isNotFound());
+
+        when(stakeholder.matchesUser(user)).thenReturn(false);
+        mockMvc.perform(get("/api/projects/TestProject/traceability"))
+                .andExpect(status().isForbidden());
+    }
+
     /** #504: search is a project read: 404 for no such project, 403 without access. */
     @Test
     void searchIs404ForAMissingProjectAnd403WithoutAccess() throws Exception {

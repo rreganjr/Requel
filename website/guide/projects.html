@@ -82,6 +82,27 @@
     </ul>
   </section>
 
+  <section id="traceability">
+    <h2>Traceability</h2>
+    <p><strong>Traceability</strong>, at the top of the overview, shows how the requirements link
+      up. It is worked out from the links already in the project; nothing is guessed.</p>
+    <ul>
+      <li>The <strong>matrix</strong> has a row per goal, in the order they were made, listing the
+        stakeholders, actors, stories and use cases that reference it. A goal no story or use case
+        references is marked <em>Not realized</em>.</li>
+      <li><strong>Gaps</strong> lists what nothing traces to or from, grouped by kind: goals no story
+        or use case realizes, actors nothing uses, stories with no goal or in no use case, use
+        cases with no goal, scenarios no use case reaches, and stakeholders with no goal.</li>
+      <li>An actor counts as used when a story or use case lists it, a use case has it as primary
+        actor, or a step names it as who does it. A scenario counts as reached when a use case
+        uses it, or a scenario a use case reaches uses it as a step.</li>
+      <li>Gaps are only shown, never raised as issues, so a new item isn&rsquo;t flagged before
+        you have had a chance to link it.</li>
+    </ul>
+    <p>The same read is the <code>getTraceability</code> MCP tool and
+      <code>requel traceability</code> on the command line.</p>
+  </section>
+
   <section id="search">
     <h2>Search a project</h2>
     <p>The search box at the top of the overview finds text in the project&rsquo;s goals, stories,
